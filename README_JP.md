@@ -17,7 +17,7 @@
 
 [![Telegram チャット](https://img.shields.io/badge/Telegram-Chat-blue?style=flat-square&logo=telegram)](https://t.me/FlClash)
 
-ClashMeta をベースにしたマルチプロキシクライアント [FlClash](https://github.com/chen08209/FlClash）のサブブランチです。シンプルで使いやすく、広告なし・オープンソースです。
+ClashMeta をベースにしたマルチプロキシクライアント [FlClash](https://github.com/chen08209/FlClash)のサブブランチです。シンプルで使いやすく、広告なし・オープンソースです。
 
 ### デスクトップ版
 <p style="text-align: center;">
