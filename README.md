@@ -60,6 +60,7 @@ on Mobile:
 🌐 Added parsing of custom headers from the subscription page:
 
 + flclashx-widgets: arranges widgets in the order received from the subscription.
+
 | Value  | Name widget |
 | :---: | ------------- |
 | `announce`  | Announce Badge  |
