@@ -17,7 +17,7 @@
 
 [![Channel](https://img.shields.io/badge/Telegram-Chat-blue?style=flat-square&logo=telegram)](https://t.me/FlClashX)
 
-Форк многоплатформенного прокси-клиента FlClash на основе ClashMeta, простого и удобного в использовании, с открытым исходным кодом и без рекламы.
+Форк многоплатформенного прокси-клиента [FlClash](https://github.com/chen08209/FlClash) на основе ClashMeta, простого и удобного в использовании, с открытым исходным кодом и без рекламы.
 
 Десктопный вид:
 <p style="text-align: center;">
