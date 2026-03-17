@@ -1,0 +1,10 @@
+// Local signing configuration
+// Copy this file to Local.xcconfig and update with your credentials
+// Local.xcconfig is gitignored and won't be committed
+
+// Your Apple Developer ID
+CODE_SIGN_IDENTITY = Developer ID Application: Name Surname (TEAM_ID)
+
+// Your Team ID
+DEVELOPMENT_TEAM = TEAM_ID
+

@@ -13,11 +13,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 typedef UpdatingMap = Map<String, bool>;
 
 class ProvidersView extends ConsumerStatefulWidget {
-  final SheetType type;
 
   const ProvidersView({
     super.key,
-    required this.type,
   });
 
   @override
@@ -26,7 +24,7 @@ class ProvidersView extends ConsumerStatefulWidget {
 
 class _ProvidersViewState extends ConsumerState<ProvidersView> {
 
-  _updateProviders() async {
+  Future<void> _updateProviders() async {
     final providers = ref.read(providersProvider);
     final providersNotifier = ref.read(providersProvider.notifier);
     final messages = [];
@@ -48,7 +46,7 @@ class _ProvidersViewState extends ConsumerState<ProvidersView> {
     );
     final titleMedium = context.textTheme.titleMedium;
     await Future.wait(updateProviders);
-    await globalState.appController.updateGroupsDebounce();
+    globalState.appController.updateGroupsDebounce();
     if (messages.isNotEmpty) {
       globalState.showMessage(
         title: appLocalizations.tip,
@@ -86,18 +84,15 @@ class _ProvidersViewState extends ConsumerState<ProvidersView> {
       title: appLocalizations.ruleProviders,
       items: ruleProviders,
     );
-    return AdaptiveSheetScaffold(
+    return CommonScaffold(
       actions: [
         IconButton(
-          onPressed: () {
-            _updateProviders();
-          },
+          onPressed: _updateProviders,
           icon: const Icon(
             Icons.sync,
           ),
         )
       ],
-      type: widget.type,
       body: generateListView([
         ...proxySection,
         ...ruleSection,
@@ -108,14 +103,14 @@ class _ProvidersViewState extends ConsumerState<ProvidersView> {
 }
 
 class ProviderItem extends StatelessWidget {
-  final ExternalProvider provider;
 
   const ProviderItem({
     super.key,
     required this.provider,
   });
+  final ExternalProvider provider;
 
-  _handleUpdateProvider() async {
+  Future<void> _handleUpdateProvider() async {
     final appController = globalState.appController;
     if (provider.vehicleType != "HTTP") return;
     await globalState.safeRun(
@@ -135,10 +130,10 @@ class ProviderItem extends StatelessWidget {
     appController.setProvider(
       await clashCore.getExternalProvider(provider.name),
     );
-    await globalState.appController.updateGroupsDebounce();
+    globalState.appController.updateGroupsDebounce();
   }
 
-  _handleSideLoadProvider() async {
+  Future<void> _handleSideLoadProvider() async {
     await globalState.safeRun<void>(() async {
       final platformFile = await picker.pickerFile();
       final bytes = platformFile?.bytes;
@@ -146,7 +141,7 @@ class ProviderItem extends StatelessWidget {
       final file = await File(provider.path!).create(recursive: true);
       await file.writeAsBytes(bytes);
       final providerName = provider.name;
-      var message = await clashCore.sideLoadExternalProvider(
+      final message = await clashCore.sideLoadExternalProvider(
         providerName: providerName,
         data: utf8.decode(bytes),
       );
@@ -156,7 +151,7 @@ class ProviderItem extends StatelessWidget {
       );
       if (message.isNotEmpty) throw message;
     });
-    await globalState.appController.updateGroupsDebounce();
+    globalState.appController.updateGroupsDebounce();
   }
 
   String _buildProviderDesc() {
@@ -169,8 +164,7 @@ class ProviderItem extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListItem(
+  Widget build(BuildContext context) => ListItem(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 4,
@@ -230,5 +224,4 @@ class ProviderItem extends StatelessWidget {
         ),
       ),
     );
-  }
 }

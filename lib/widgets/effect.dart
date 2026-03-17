@@ -3,9 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class EffectGestureDetector extends StatefulWidget {
-  final Widget child;
-  final GestureLongPressCallback? onLongPress;
-  final GestureTapCallback? onTap;
 
   const EffectGestureDetector({
     super.key,
@@ -13,6 +10,9 @@ class EffectGestureDetector extends StatefulWidget {
     this.onLongPress,
     this.onTap,
   });
+  final Widget child;
+  final GestureLongPressCallback? onLongPress;
+  final GestureTapCallback? onTap;
 
   @override
   State<EffectGestureDetector> createState() => _EffectGestureDetectorState();
@@ -36,8 +36,7 @@ class _EffectGestureDetectorState extends State<EffectGestureDetector>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedScale(
+  Widget build(BuildContext context) => AnimatedScale(
       scale: _scale,
       duration: kThemeAnimationDuration,
       curve: Curves.easeOut,
@@ -57,16 +56,15 @@ class _EffectGestureDetectorState extends State<EffectGestureDetector>
         child: widget.child,
       ),
     );
-  }
 }
 
 class CommonExpandIcon extends StatefulWidget {
-  final bool expand;
 
   const CommonExpandIcon({
     super.key,
     this.expand = false,
   });
+  final bool expand;
 
   @override
   State<CommonExpandIcon> createState() => _CommonExpandIconState();
@@ -106,32 +104,27 @@ class _CommonExpandIconState extends State<CommonExpandIcon>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
+  Widget build(BuildContext context) => AnimatedBuilder(
       animation: _animationController.view,
-      builder: (_, child) {
-        return RotationTransition(
+      builder: (_, child) => RotationTransition(
           turns: _iconTurns,
-          child: child!,
-        );
-      },
+          child: child,
+        ),
       child: const Icon(
         Icons.expand_more,
       ),
     );
-  }
 }
 
 Widget proxyDecorator(
   Widget child,
   int index,
   Animation<double> animation,
-) {
-  return AnimatedBuilder(
+) => AnimatedBuilder(
     animation: animation,
-    builder: (_, Widget? child) {
-      final double animValue = Curves.easeInOut.transform(animation.value);
-      final double scale = lerpDouble(1, 1.02, animValue)!;
+    builder: (_, child) {
+      final animValue = Curves.easeInOut.transform(animation.value);
+      final scale = lerpDouble(1, 1.02, animValue)!;
       return Transform.scale(
         scale: scale,
         child: child,
@@ -139,4 +132,3 @@ Widget proxyDecorator(
     },
     child: child,
   );
-}

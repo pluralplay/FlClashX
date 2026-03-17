@@ -6,9 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'print.dart';
 
 extension StringExtension on String {
-  bool get isUrl {
-    return RegExp(r'^(http|https|ftp)://').hasMatch(this);
-  }
+  bool get isUrl => RegExp(r'^(http|https|ftp)://').hasMatch(this);
 
   dynamic get splitByMultipleSeparators {
     final parts =
@@ -17,17 +15,15 @@ extension StringExtension on String {
     return parts.length > 1 ? parts : this;
   }
 
-  int compareToLower(String other) {
-    return toLowerCase().compareTo(
+  int compareToLower(String other) => toLowerCase().compareTo(
       other.toLowerCase(),
     );
-  }
 
   List<int> get encodeUtf16LeWithBom {
     final byteData = ByteData(length * 2);
     final bom = [0xFF, 0xFE];
-    for (int i = 0; i < length; i++) {
-      int charCode = codeUnitAt(i);
+    for (var i = 0; i < length; i++) {
+      final charCode = codeUnitAt(i);
       byteData.setUint16(i * 2, charCode, Endian.little);
     }
     return bom + byteData.buffer.asUint8List();
@@ -47,9 +43,7 @@ extension StringExtension on String {
     }
   }
 
-  bool get isSvg {
-    return endsWith(".svg");
-  }
+  bool get isSvg => endsWith(".svg");
 
   bool get isRegex {
     try {

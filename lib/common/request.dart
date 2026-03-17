@@ -11,9 +11,6 @@ import 'package:flclashx/state.dart';
 import 'package:flutter/cupertino.dart';
 
 class Request {
-  late final Dio _dio;
-  late final Dio _clashDio;
-  String? userAgent;
 
   Request() {
     _dio = Dio(
@@ -26,22 +23,25 @@ class Request {
     _clashDio = Dio();
     _clashDio.httpClientAdapter = IOHttpClientAdapter(createHttpClient: () {
       final client = HttpClient();
-      client.findProxy = (Uri uri) {
+      client.findProxy = (uri) {
         client.userAgent = globalState.ua;
         return FlClashHttpOverrides.handleFindProxy(uri);
       };
       return client;
     });
   }
+  late final Dio _dio;
+  late final Dio _clashDio;
+  String? userAgent;
 
-   Future<Response<Uint8List>> getFileResponseForUrl(
+  Future<Response<Uint8List>> getFileResponseForUrl(
     String url, {
     Map<String, dynamic>? headers,
   }) async {
-    final Map<String, dynamic> requestHeaders = headers ?? {};
+    final requestHeaders = headers ?? {};
     requestHeaders['User-Agent'] = globalState.ua;
 
-    var firstResponse = await _dio.get<Uint8List>(
+    final firstResponse = await _dio.get<Uint8List>(
       url,
       options: Options(
         responseType: ResponseType.bytes,
@@ -123,7 +123,7 @@ class Request {
   Future<Result<IpInfo?>> checkIp({CancelToken? cancelToken}) async {
     var failureCount = 0;
     final futures = _ipInfoSources.entries.map((source) async {
-      final Completer<Result<IpInfo?>> completer = Completer();
+      final completer = Completer<Result<IpInfo?>>();
       final future = Dio().get<Map<String, dynamic>>(
         source.key,
         cancelToken: cancelToken,
@@ -178,12 +178,14 @@ class Request {
 
   Future<bool> startCoreByHelper(String arg) async {
     try {
+      final homeDirPath = await appPath.homeDirPath;
       final response = await _dio
           .post(
             "http://$localhost:$helperPort/start",
             data: json.encode({
               "path": appPath.corePath,
               "arg": arg,
+              "home_dir": homeDirPath,
             }),
             options: Options(
               responseType: ResponseType.plain,
@@ -209,22 +211,31 @@ class Request {
       final response = await _dio
           .post(
             "http://$localhost:$helperPort/stop",
-            options: Options(
-              responseType: ResponseType.plain,
-            ),
+            options: Options(responseType: ResponseType.plain),
           )
-          .timeout(
-            const Duration(
-              milliseconds: 2000,
-            ),
-          );
-      if (response.statusCode != HttpStatus.ok) {
-        return false;
-      }
+          .timeout(const Duration(milliseconds: 2000));
+
+      if (response.statusCode != HttpStatus.ok) return false;
       final data = response.data as String;
       return data.isEmpty;
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCoreVersion() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        "http://$defaultExternalController/version",
+        options: Options(
+          responseType: ResponseType.json,
+        ),
+      ).timeout(const Duration(seconds: 2));
+      
+      if (response.statusCode != HttpStatus.ok) return null;
+      return response.data;
+    } catch (_) {
+      return null;
     }
   }
 }

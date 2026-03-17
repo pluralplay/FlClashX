@@ -1,4 +1,5 @@
 import 'package:flclashx/common/common.dart';
+import 'package:flclashx/plugins/tile.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flclashx/state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -8,18 +9,16 @@ part 'generated/config.g.dart';
 @riverpod
 class AppSetting extends _$AppSetting with AutoDisposeNotifierMixin {
   @override
-  AppSettingProps build() {
-    return globalState.config.appSetting;
-  }
+  AppSettingProps build() => globalState.config.appSetting;
 
   @override
-  onUpdate(value) {
+  void onUpdate(AppSettingProps value) {
     globalState.config = globalState.config.copyWith(
       appSetting: value,
     );
   }
 
-  updateState(AppSettingProps Function(AppSettingProps state) builder) {
+  void updateState(AppSettingProps Function(AppSettingProps state) builder) {
     state = builder(state);
   }
 }
@@ -27,18 +26,16 @@ class AppSetting extends _$AppSetting with AutoDisposeNotifierMixin {
 @riverpod
 class WindowSetting extends _$WindowSetting with AutoDisposeNotifierMixin {
   @override
-  WindowProps build() {
-    return globalState.config.windowProps;
-  }
+  WindowProps build() => globalState.config.windowProps;
 
   @override
-  onUpdate(value) {
+  void onUpdate(WindowProps value) {
     globalState.config = globalState.config.copyWith(
       windowProps: value,
     );
   }
 
-  updateState(WindowProps Function(WindowProps state) builder) {
+  void updateState(WindowProps Function(WindowProps state) builder) {
     state = builder(state);
   }
 }
@@ -46,18 +43,16 @@ class WindowSetting extends _$WindowSetting with AutoDisposeNotifierMixin {
 @riverpod
 class VpnSetting extends _$VpnSetting with AutoDisposeNotifierMixin {
   @override
-  VpnProps build() {
-    return globalState.config.vpnProps;
-  }
+  VpnProps build() => globalState.config.vpnProps;
 
   @override
-  onUpdate(value) {
+  void onUpdate(VpnProps value) {
     globalState.config = globalState.config.copyWith(
       vpnProps: value,
     );
   }
 
-  updateState(VpnProps Function(VpnProps state) builder) {
+  void updateState(VpnProps Function(VpnProps state) builder) {
     state = builder(state);
   }
 }
@@ -65,18 +60,16 @@ class VpnSetting extends _$VpnSetting with AutoDisposeNotifierMixin {
 @riverpod
 class NetworkSetting extends _$NetworkSetting with AutoDisposeNotifierMixin {
   @override
-  NetworkProps build() {
-    return globalState.config.networkProps;
-  }
+  NetworkProps build() => globalState.config.networkProps;
 
   @override
-  onUpdate(value) {
+  void onUpdate(NetworkProps value) {
     globalState.config = globalState.config.copyWith(
       networkProps: value,
     );
   }
 
-  updateState(NetworkProps Function(NetworkProps state) builder) {
+  void updateState(NetworkProps Function(NetworkProps state) builder) {
     state = builder(state);
   }
 }
@@ -84,18 +77,16 @@ class NetworkSetting extends _$NetworkSetting with AutoDisposeNotifierMixin {
 @riverpod
 class ThemeSetting extends _$ThemeSetting with AutoDisposeNotifierMixin {
   @override
-  ThemeProps build() {
-    return globalState.config.themeProps;
-  }
+  ThemeProps build() => globalState.config.themeProps;
 
   @override
-  onUpdate(value) {
+  void onUpdate(ThemeProps value) {
     globalState.config = globalState.config.copyWith(
       themeProps: value,
     );
   }
 
-  updateState(ThemeProps Function(ThemeProps state) builder) {
+  void updateState(ThemeProps Function(ThemeProps state) builder) {
     state = builder(state);
   }
 }
@@ -103,12 +94,10 @@ class ThemeSetting extends _$ThemeSetting with AutoDisposeNotifierMixin {
 @riverpod
 class Profiles extends _$Profiles with AutoDisposeNotifierMixin {
   @override
-  List<Profile> build() {
-    return globalState.config.profiles;
-  }
+  List<Profile> build() => globalState.config.profiles;
 
   @override
-  onUpdate(value) {
+  void onUpdate(List<Profile> value) {
     globalState.config = globalState.config.copyWith(
       profiles: value,
     );
@@ -126,8 +115,8 @@ class Profiles extends _$Profiles with AutoDisposeNotifierMixin {
     }
   }
 
-  setProfile(Profile profile) {
-    final List<Profile> profilesTemp = List.from(state);
+  void setProfile(Profile profile) {
+    final profilesTemp = List<Profile>.from(state);
     final index =
         profilesTemp.indexWhere((element) => element.id == profile.id);
     final updateProfile = profile.copyWith(
@@ -141,8 +130,8 @@ class Profiles extends _$Profiles with AutoDisposeNotifierMixin {
     state = profilesTemp;
   }
 
-  updateProfile(String profileId, Profile Function(Profile profile) builder) {
-    final List<Profile> profilesTemp = List.from(state);
+  void updateProfile(String profileId, Profile Function(Profile profile) builder) {
+    final profilesTemp = List<Profile>.from(state);
     final index = profilesTemp.indexWhere((element) => element.id == profileId);
     if (index != -1) {
       profilesTemp[index] = builder(profilesTemp[index]);
@@ -150,7 +139,7 @@ class Profiles extends _$Profiles with AutoDisposeNotifierMixin {
     state = profilesTemp;
   }
 
-  deleteProfileById(String id) {
+  void deleteProfileById(String id) {
     state = state.where((element) => element.id != id).toList();
   }
 }
@@ -159,33 +148,31 @@ class Profiles extends _$Profiles with AutoDisposeNotifierMixin {
 class CurrentProfileId extends _$CurrentProfileId
     with AutoDisposeNotifierMixin {
   @override
-  String? build() {
-    return globalState.config.currentProfileId;
-  }
+  String? build() => globalState.config.currentProfileId;
 
   @override
-  onUpdate(value) {
+  void onUpdate(String? value) {
     globalState.config = globalState.config.copyWith(
       currentProfileId: value,
     );
+    // Notify tile service about profile change
+    tile?.updateTile();
   }
 }
 
 @riverpod
 class AppDAVSetting extends _$AppDAVSetting with AutoDisposeNotifierMixin {
   @override
-  DAV? build() {
-    return globalState.config.dav;
-  }
+  DAV? build() => globalState.config.dav;
 
   @override
-  onUpdate(value) {
+  void onUpdate(DAV? value) {
     globalState.config = globalState.config.copyWith(
       dav: value,
     );
   }
 
-  updateState(DAV? Function(DAV? state) builder) {
+  void updateState(DAV? Function(DAV? state) builder) {
     state = builder(state);
   }
 }
@@ -193,12 +180,10 @@ class AppDAVSetting extends _$AppDAVSetting with AutoDisposeNotifierMixin {
 @riverpod
 class OverrideDns extends _$OverrideDns with AutoDisposeNotifierMixin {
   @override
-  bool build() {
-    return globalState.config.overrideDns;
-  }
+  bool build() => globalState.config.overrideDns;
 
   @override
-  onUpdate(value) {
+  void onUpdate(bool value) {
     globalState.config = globalState.config.copyWith(
       overrideDns: value,
     );
@@ -208,12 +193,10 @@ class OverrideDns extends _$OverrideDns with AutoDisposeNotifierMixin {
 @riverpod
 class HotKeyActions extends _$HotKeyActions with AutoDisposeNotifierMixin {
   @override
-  List<HotKeyAction> build() {
-    return globalState.config.hotKeyActions;
-  }
+  List<HotKeyAction> build() => globalState.config.hotKeyActions;
 
   @override
-  onUpdate(value) {
+  void onUpdate(List<HotKeyAction> value) {
     globalState.config = globalState.config.copyWith(
       hotKeyActions: value,
     );
@@ -224,18 +207,16 @@ class HotKeyActions extends _$HotKeyActions with AutoDisposeNotifierMixin {
 class ProxiesStyleSetting extends _$ProxiesStyleSetting
     with AutoDisposeNotifierMixin {
   @override
-  ProxiesStyle build() {
-    return globalState.config.proxiesStyle;
-  }
+  ProxiesStyle build() => globalState.config.proxiesStyle;
 
   @override
-  onUpdate(value) {
+  void onUpdate(ProxiesStyle value) {
     globalState.config = globalState.config.copyWith(
       proxiesStyle: value,
     );
   }
 
-  updateState(ProxiesStyle Function(ProxiesStyle state) builder) {
+  void updateState(ProxiesStyle Function(ProxiesStyle state) builder) {
     state = builder(state);
   }
 }
@@ -243,18 +224,16 @@ class ProxiesStyleSetting extends _$ProxiesStyleSetting
 @riverpod
 class ScriptState extends _$ScriptState with AutoDisposeNotifierMixin {
   @override
-  ScriptProps build() {
-    return globalState.config.scriptProps;
-  }
+  ScriptProps build() => globalState.config.scriptProps;
 
   @override
-  onUpdate(value) {
+  void onUpdate(ScriptProps value) {
     globalState.config = globalState.config.copyWith(
       scriptProps: value,
     );
   }
 
-  setScript(Script script) {
+  void setScript(Script script) {
     final list = List<Script>.from(state.scripts);
     final index = list.indexWhere((item) => item.id == script.id);
     if (index != -1) {
@@ -267,13 +246,13 @@ class ScriptState extends _$ScriptState with AutoDisposeNotifierMixin {
     );
   }
 
-  setId(String id) {
+  void setId(String id) {
     state = state.copyWith(
       currentId: state.currentId != id ? id : null,
     );
   }
 
-  del(String id) {
+  void del(String id) {
     final list = List<Script>.from(state.scripts);
     final index = list.indexWhere((item) => item.label == id);
     if (index != -1) {
@@ -286,20 +265,16 @@ class ScriptState extends _$ScriptState with AutoDisposeNotifierMixin {
     );
   }
 
-  isExits(String label) {
-    return state.scripts.indexWhere((item) => item.label == label) != -1;
-  }
+  bool isExits(String label) => state.scripts.indexWhere((item) => item.label == label) != -1;
 }
 
 @riverpod
 class PatchClashConfig extends _$PatchClashConfig
     with AutoDisposeNotifierMixin {
   @override
-  ClashConfig build() {
-    return globalState.config.patchClashConfig;
-  }
+  ClashConfig build() => globalState.config.patchClashConfig;
 
-  updateState(ClashConfig? Function(ClashConfig state) builder) {
+  void updateState(ClashConfig? Function(ClashConfig state) builder) {
     final newState = builder(state);
     if (newState == null) {
       return;
@@ -308,7 +283,7 @@ class PatchClashConfig extends _$PatchClashConfig
   }
 
   @override
-  onUpdate(value) {
+  void onUpdate(ClashConfig value) {
     globalState.config = globalState.config.copyWith(
       patchClashConfig: value,
     );

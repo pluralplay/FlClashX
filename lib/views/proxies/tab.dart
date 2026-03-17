@@ -38,12 +38,12 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     super.dispose();
   }
 
-  scrollToGroupSelected() {
+  void scrollToGroupSelected() {
     final currentGroupName = globalState.appController.getCurrentGroupName();
     _keyMap[currentGroupName]?.currentState?.scrollToSelected();
   }
 
-  delayTestCurrentGroup() async {
+  Future<void> delayTestCurrentGroup() async {
     final currentGroupName = globalState.appController.getCurrentGroupName();
     final currentState = _keyMap[currentGroupName]?.currentState;
     await delayTest(
@@ -52,8 +52,7 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     );
   }
 
-  _buildMoreButton() {
-    return Consumer(
+  Consumer _buildMoreButton() => Consumer(
       builder: (_, ref, ___) {
         final isMobileView = ref.watch(isMobileViewProvider);
         return IconButton(
@@ -68,16 +67,14 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
         );
       },
     );
-  }
 
-  _showMoreMenu() {
+  void _showMoreMenu() {
     showSheet(
       context: context,
-      props: SheetProps(
+      props: const SheetProps(
         isScrollControlled: false,
       ),
-      builder: (_, type) {
-        return AdaptiveSheetScaffold(
+      builder: (_, type) => AdaptiveSheetScaffold(
           type: type,
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -113,13 +110,12 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
             ),
           ),
           title: appLocalizations.proxyGroup,
-        );
-      },
+        ),
     );
   }
 
-  _tabControllerListener([int? index]) {
-    int? groupIndex = index;
+  void _tabControllerListener([int? index]) {
+    var groupIndex = index;
     if (groupIndex == -1) {
       return;
     }
@@ -140,13 +136,13 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     });
   }
 
-  _destroyTabController() {
+  void _destroyTabController() {
     _tabController?.removeListener(_tabControllerListener);
     _tabController?.dispose();
     _tabController = null;
   }
 
-  _updateTabController(int length, int index) {
+  void _updateTabController(int length, int index) {
     if (length == 0) {
       _destroyTabController();
       return;
@@ -161,7 +157,7 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     _tabController?.addListener(_tabControllerListener);
   }
 
-  _handleTabListen() {
+  void _handleTabListen() {
     ref.listenManual(
       proxiesSelectorStateProvider,
       (prev, next) {
@@ -213,8 +209,7 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
           },
           child: ValueListenableBuilder(
             valueListenable: _hasMoreButtonNotifier,
-            builder: (_, value, child) {
-              return Stack(
+            builder: (_, value, child) => Stack(
                 alignment: AlignmentDirectional.centerStart,
                 children: [
                   TabBar(
@@ -241,8 +236,7 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
                       child: child!,
                     ),
                 ],
-              );
-            },
+              ),
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -273,12 +267,12 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
 }
 
 class ProxyGroupView extends ConsumerStatefulWidget {
-  final String groupName;
 
   const ProxyGroupView({
     super.key,
     required this.groupName,
   });
+  final String groupName;
 
   @override
   ConsumerState<ProxyGroupView> createState() => ProxyGroupViewState();
@@ -298,7 +292,7 @@ class ProxyGroupViewState extends ConsumerState<ProxyGroupView> {
     super.dispose();
   }
 
-  scrollToSelected() {
+  void scrollToSelected() {
     if (_controller.position.maxScrollExtent == 0) {
       return;
     }
@@ -366,12 +360,12 @@ class ProxyGroupViewState extends ConsumerState<ProxyGroupView> {
 }
 
 class DelayTestButton extends StatefulWidget {
-  final Future Function() onClick;
 
   const DelayTestButton({
     super.key,
     required this.onClick,
   });
+  final Future Function() onClick;
 
   @override
   State<DelayTestButton> createState() => _DelayTestButtonState();
@@ -382,7 +376,7 @@ class _DelayTestButtonState extends State<DelayTestButton>
   late AnimationController _controller;
   late Animation<double> _scale;
 
-  _healthcheck() async {
+  Future<void> _healthcheck() async {
     if (_controller.isAnimating) {
       return;
     }
@@ -423,24 +417,20 @@ class _DelayTestButtonState extends State<DelayTestButton>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
+  Widget build(BuildContext context) => AnimatedBuilder(
       animation: _controller.view,
-      builder: (_, child) {
-        return SizedBox(
+      builder: (_, child) => SizedBox(
           width: 56,
           height: 56,
           child: Transform.scale(
             scale: _scale.value,
             child: child,
           ),
-        );
-      },
+        ),
       child: FloatingActionButton(
         heroTag: null,
         onPressed: _healthcheck,
         child: const Icon(Icons.network_ping),
       ),
     );
-  }
 }

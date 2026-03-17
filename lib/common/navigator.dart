@@ -8,13 +8,13 @@ import 'package:flutter/material.dart';
 class BaseNavigator {
   static Future<T?> push<T>(BuildContext context, Widget child) async {
     if (globalState.appState.viewMode != ViewMode.mobile) {
-      return await Navigator.of(context).push<T>(
+      return Navigator.of(context).push<T>(
         CommonDesktopRoute(
           builder: (context) => child,
         ),
       );
     }
-    return await Navigator.of(context).push<T>(
+    return Navigator.of(context).push<T>(
       CommonRoute(
         builder: (context) => child,
       ),
@@ -23,13 +23,13 @@ class BaseNavigator {
 
   static Future<T?> modal<T>(BuildContext context, Widget child) async {
     if (globalState.appState.viewMode != ViewMode.mobile) {
-      return await globalState.showCommonDialog<T>(
+      return globalState.showCommonDialog<T>(
         child: CommonModal(
           child: child,
         ),
       );
     }
-    return await Navigator.of(context).push<T>(
+    return Navigator.of(context).push<T>(
       CommonRoute(
         builder: (context) => child,
       ),
@@ -38,11 +38,11 @@ class BaseNavigator {
 }
 
 class CommonDesktopRoute<T> extends PageRoute<T> {
-  final Widget Function(BuildContext context) builder;
 
   CommonDesktopRoute({
     required this.builder,
   });
+  final Widget Function(BuildContext context) builder;
 
   @override
   Color? get barrierColor => null;
@@ -56,7 +56,7 @@ class CommonDesktopRoute<T> extends PageRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    final Widget result = builder(context);
+    final result = builder(context);
     return Semantics(
       scopesRoute: true,
       explicitChildNodes: true,
@@ -71,10 +71,10 @@ class CommonDesktopRoute<T> extends PageRoute<T> {
   bool get maintainState => true;
 
   @override
-  Duration get transitionDuration => Duration(milliseconds: 200);
+  Duration get transitionDuration => const Duration(milliseconds: 200);
 
   @override
-  Duration get reverseTransitionDuration => Duration(milliseconds: 200);
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 200);
 }
 
 class CommonRoute<T> extends MaterialPageRoute<T> {
@@ -83,10 +83,10 @@ class CommonRoute<T> extends MaterialPageRoute<T> {
   });
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 500);
+  Duration get transitionDuration => const Duration(milliseconds: 250);
 
   @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 500);
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 250);
 }
 
 final Animatable<Offset> _kRightMiddleTween = Tween<Offset>(
@@ -108,15 +108,13 @@ class CommonPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
-  ) {
-    return CommonPageTransition(
+  ) => CommonPageTransition(
       context: context,
       primaryRouteAnimation: animation,
       secondaryRouteAnimation: secondaryAnimation,
       linearTransition: false,
       child: child,
     );
-  }
 }
 
 class CommonPageTransition extends StatefulWidget {
@@ -145,14 +143,14 @@ class CommonPageTransition extends StatefulWidget {
       Animation<double> secondaryAnimation,
       bool allowSnapshotting,
       Widget? child) {
-    final Animation<Offset> delegatedPositionAnimation = CurvedAnimation(
+    final delegatedPositionAnimation = CurvedAnimation(
       parent: secondaryAnimation,
       curve: Curves.linearToEaseOut,
       reverseCurve: Curves.easeInToLinear,
     ).drive(_kMiddleLeftTween);
 
     assert(debugCheckHasDirectionality(context));
-    final TextDirection textDirection = Directionality.of(context);
+    final textDirection = Directionality.of(context);
     return SlideTransition(
       position: delegatedPositionAnimation,
       textDirection: textDirection,
@@ -168,6 +166,7 @@ class CommonPageTransition extends StatefulWidget {
 class _CommonPageTransitionState extends State<CommonPageTransition> {
   late Animation<Offset> _primaryPositionAnimation;
   late Animation<Offset> _secondaryPositionAnimation;
+  // ignore: unused_field - used for decoration animation setup
   late Animation<Decoration> _primaryShadowAnimation;
   CurvedAnimation? _primaryPositionCurve;
   CurvedAnimation? _secondaryPositionCurve;
@@ -245,7 +244,7 @@ class _CommonPageTransitionState extends State<CommonPageTransition> {
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasDirectionality(context));
-    final TextDirection textDirection = Directionality.of(context);
+    final textDirection = Directionality.of(context);
     return SlideTransition(
       position: _secondaryPositionAnimation,
       textDirection: textDirection,
@@ -253,61 +252,56 @@ class _CommonPageTransitionState extends State<CommonPageTransition> {
       child: SlideTransition(
         position: _primaryPositionAnimation,
         textDirection: textDirection,
-        child: DecoratedBoxTransition(
-          decoration: _primaryShadowAnimation,
-          child: widget.child,
-        ),
+        child: widget.child,
       ),
     );
   }
 }
 
 class _CommonEdgeShadowDecoration extends Decoration {
-  final List<Color>? _colors;
 
   const _CommonEdgeShadowDecoration([this._colors]);
+  final List<Color>? _colors;
 
   @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) {
-    return _CommonEdgeShadowPainter(this, onChanged);
-  }
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _CommonEdgeShadowPainter(this, onChanged);
 }
 
 class _CommonEdgeShadowPainter extends BoxPainter {
   _CommonEdgeShadowPainter(
     this._decoration,
     super.onChanged,
-  ) : assert(_decoration._colors == null || _decoration._colors!.length > 1);
+  ) : assert(_decoration._colors == null || _decoration._colors.length > 1);
 
   final _CommonEdgeShadowDecoration _decoration;
 
   @override
   void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
-    final List<Color>? colors = _decoration._colors;
+    final colors = _decoration._colors;
     if (colors == null) {
       return;
     }
 
-    final double shadowWidth = 1 * configuration.size!.width;
-    final double shadowHeight = configuration.size!.height;
-    final double bandWidth = shadowWidth / (colors.length - 1);
+    final shadowWidth = 1 * configuration.size!.width;
+    final shadowHeight = configuration.size!.height;
+    final bandWidth = shadowWidth / (colors.length - 1);
 
-    final TextDirection? textDirection = configuration.textDirection;
+    final textDirection = configuration.textDirection;
     assert(textDirection != null);
     final (double shadowDirection, double start) = switch (textDirection!) {
       TextDirection.rtl => (1, offset.dx + configuration.size!.width),
       TextDirection.ltr => (-1, offset.dx),
     };
 
-    int bandColorIndex = 0;
-    for (int dx = 0; dx < shadowWidth; dx += 1) {
+    var bandColorIndex = 0;
+    for (var dx = 0; dx < shadowWidth; dx += 1) {
       if (dx ~/ bandWidth != bandColorIndex) {
         bandColorIndex += 1;
       }
-      final Paint paint = Paint()
+      final paint = Paint()
         ..color = Color.lerp(colors[bandColorIndex], colors[bandColorIndex + 1],
             (dx % bandWidth) / bandWidth)!;
-      final double x = start + shadowDirection * dx;
+      final x = start + shadowDirection * dx;
       canvas.drawRect(
           Rect.fromLTWH(x - 1.0, offset.dy, 1.0, shadowHeight), paint);
     }

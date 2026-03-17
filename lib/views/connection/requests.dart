@@ -30,14 +30,14 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
   double _currentMaxWidth = 0;
 
   @override
-  get onSearch => (value) {
+  Null Function(String value) get onSearch => (value) {
         _requestsStateNotifier.value = _requestsStateNotifier.value.copyWith(
           query: value,
         );
       };
 
   @override
-  get onKeywordsUpdate => (keywords) {
+  Null Function(List<String> keywords) get onKeywordsUpdate => (keywords) {
         _requestsStateNotifier.value =
             _requestsStateNotifier.value.copyWith(keywords: keywords);
       };
@@ -109,7 +109,7 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
     super.dispose();
   }
 
-  updateRequestsThrottler() {
+  void updateRequestsThrottler() {
     throttler.call(FunctionTag.requests, () {
       final isEquality = connectionListEquality.equals(
         _requests,
@@ -128,7 +128,7 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
     }, duration: commonDuration);
   }
 
-  _preLoad() {
+  void _preLoad() {
     if (_isLoad == true) {
       return;
     }
@@ -139,13 +139,13 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
       }
       final isMobileView = ref.read(isMobileViewProvider);
       if (isMobileView) {
-        await Future.delayed(Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 300));
       }
       final parts = _requests.batch(10);
       globalState.cacheHeightMap[_tag] ??= FixedMap(
         _requests.length,
       );
-      for (int i = 0; i < parts.length; i++) {
+      for (var i = 0; i < parts.length; i++) {
         final part = parts[i];
         await Future(
           () {
@@ -165,10 +165,8 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (_, constraints) {
-        return Consumer(
+  Widget build(BuildContext context) => LayoutBuilder(
+      builder: (_, constraints) => Consumer(
           builder: (_, ref, child) {
             final value = ref.watch(
               patchClashConfigProvider.select(
@@ -219,7 +217,7 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
                               tag: _tag,
                               reverse: true,
                               shrinkWrap: true,
-                              physics: NextClampingScrollPhysics(),
+                              physics: const NextClampingScrollPhysics(),
                               controller: _scrollController,
                               itemExtentBuilder: (index) {
                                 if (index.isOdd) {
@@ -228,11 +226,9 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
                                 return _calcCacheHeight(
                                     connections[index ~/ 2]);
                               },
-                              itemBuilder: (_, index) {
-                                return items[index];
-                              },
+                              itemBuilder: (_, index) => items[index],
                               itemCount: items.length,
-                              keyBuilder: (int index) {
+                              keyBuilder: (index) {
                                 if (index.isOdd) {
                                   return "divider";
                                 }
@@ -244,7 +240,7 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
                       );
                 return FadeBox(
                   child: state.loading
-                      ? Center(
+                      ? const Center(
                           child: CircularProgressIndicator(),
                         )
                       : content,
@@ -255,8 +251,6 @@ class _RequestsViewState extends ConsumerState<RequestsView> with PageMixin {
               globalState.cacheHeightMap[_tag]?.clear();
             },
           ),
-        );
-      },
+        ),
     );
-  }
 }

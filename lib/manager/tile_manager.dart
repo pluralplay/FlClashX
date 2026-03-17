@@ -3,12 +3,12 @@ import 'package:flclashx/state.dart';
 import 'package:flutter/material.dart';
 
 class TileManager extends StatefulWidget {
-  final Widget child;
 
   const TileManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   State<TileManager> createState() => _TileContainerState();
@@ -16,9 +16,7 @@ class TileManager extends StatefulWidget {
 
 class _TileContainerState extends State<TileManager> with TileListener {
   @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 
   @override
   void onStart() {

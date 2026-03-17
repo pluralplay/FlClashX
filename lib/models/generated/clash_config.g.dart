@@ -424,6 +424,7 @@ const _$LogLevelEnumMap = {
 const _$FindProcessModeEnumMap = {
   FindProcessMode.always: 'always',
   FindProcessMode.off: 'off',
+  FindProcessMode.strict: 'strict',
 };
 
 const _$GeodataLoaderEnumMap = {

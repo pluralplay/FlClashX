@@ -3,14 +3,6 @@ import 'package:flutter/material.dart';
 typedef AnimatedGridBuilder<T> = Widget Function(BuildContext, T item);
 
 class AnimateGrid<T> extends StatelessWidget {
-  final int columns;
-  final double itemHeight;
-  final double gap;
-  final List<T> items;
-  final Key Function(T item) keyBuilder;
-  final AnimatedGridBuilder<T> builder;
-  final Duration duration;
-  final Curve curve;
 
   const AnimateGrid({
     super.key,
@@ -23,6 +15,14 @@ class AnimateGrid<T> extends StatelessWidget {
     this.curve = Curves.easeOut,
     this.columns = 2,
   });
+  final int columns;
+  final double itemHeight;
+  final double gap;
+  final List<T> items;
+  final Key Function(T item) keyBuilder;
+  final AnimatedGridBuilder<T> builder;
+  final Duration duration;
+  final Curve curve;
 
   int _rows(int columns, int count) => (count / columns).ceil();
 
@@ -39,8 +39,7 @@ class AnimateGrid<T> extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (_, constraints) {
+  Widget build(BuildContext context) => LayoutBuilder(builder: (_, constraints) {
       assert(constraints.hasBoundedHeight == false);
       final gapWidth = (columns - 1) * gap;
       final width = constraints.maxWidth;
@@ -69,12 +68,10 @@ class AnimateGrid<T> extends StatelessWidget {
                     tween: Tween<Offset>(end: offset),
                     duration: duration,
                     curve: curve,
-                    builder: (_, offset, child) {
-                      return Transform.translate(
+                    builder: (_, offset, child) => Transform.translate(
                         offset: offset,
                         child: child,
-                      );
-                    },
+                      ),
                     child: SizedBox(
                       height: itemHeight,
                       width: itemWidth,
@@ -90,5 +87,4 @@ class AnimateGrid<T> extends StatelessWidget {
         ),
       );
     });
-  }
 }

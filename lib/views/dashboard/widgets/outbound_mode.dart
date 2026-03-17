@@ -85,13 +85,11 @@ class OutboundMode extends StatelessWidget {
 class OutboundModeV2 extends StatelessWidget {
   const OutboundModeV2({super.key});
 
-  Color _getTextColor(BuildContext context, Mode mode) {
-    return switch (mode) {
+  Color _getTextColor(BuildContext context, Mode mode) => switch (mode) {
       Mode.rule => context.colorScheme.onSecondaryContainer,
       Mode.global => context.colorScheme.onPrimaryContainer,
       Mode.direct => context.colorScheme.onTertiaryContainer,
     };
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +111,7 @@ class OutboundModeV2 extends StatelessWidget {
               Mode.direct => context.colorScheme.tertiaryContainer,
             };
             return Container(
-              constraints: BoxConstraints.expand(),
+              constraints: const BoxConstraints.expand(),
               child: CommonTabBar<Mode>(
                 children: Map.fromEntries(
                   Mode.values.map(
@@ -122,7 +120,7 @@ class OutboundModeV2 extends StatelessWidget {
                       Container(
                         clipBehavior: Clip.antiAlias,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(),
+                        decoration: const BoxDecoration(),
                         height: height - 16,
                         child: Text(
                           Intl.message(item.name),
@@ -143,7 +141,7 @@ class OutboundModeV2 extends StatelessWidget {
                     ),
                   ),
                 ),
-                padding: EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 groupValue: mode,
                 onValueChanged: (value) {
                   if (value == null) {

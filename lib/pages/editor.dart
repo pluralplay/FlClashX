@@ -16,14 +16,6 @@ typedef EditingValueChangeBuilder = Widget Function(CodeLineEditingValue value);
 typedef TextEditingValueChangeBuilder = Widget Function(TextEditingValue value);
 
 class EditorPage extends ConsumerStatefulWidget {
-  final String title;
-  final String content;
-  final List<Language> languages;
-  final bool supportRemoteDownload;
-  final bool titleEditable;
-  final Function(BuildContext context, String title, String content)? onSave;
-  final Future<bool> Function(
-      BuildContext context, String title, String content)? onPop;
 
   const EditorPage({
     super.key,
@@ -37,6 +29,14 @@ class EditorPage extends ConsumerStatefulWidget {
       Language.yaml,
     ],
   });
+  final String title;
+  final String content;
+  final List<Language> languages;
+  final bool supportRemoteDownload;
+  final bool titleEditable;
+  final Function(BuildContext context, String title, String content)? onSave;
+  final Future<bool> Function(
+      BuildContext context, String title, String content)? onPop;
 
   @override
   ConsumerState<EditorPage> createState() => _EditorPageState();
@@ -89,31 +89,23 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     super.dispose();
   }
 
-  Widget _wrapController(EditingValueChangeBuilder builder) {
-    return ValueListenableBuilder(
+  Widget _wrapController(EditingValueChangeBuilder builder) => ValueListenableBuilder(
       valueListenable: _controller,
-      builder: (_, value, ___) {
-        return builder(value);
-      },
+      builder: (_, value, ___) => builder(value),
     );
-  }
 
-  Widget _wrapTitleController(TextEditingValueChangeBuilder builder) {
-    return ValueListenableBuilder(
+  Widget _wrapTitleController(TextEditingValueChangeBuilder builder) => ValueListenableBuilder(
       valueListenable: _titleController,
-      builder: (_, value, ___) {
-        return builder(value);
-      },
+      builder: (_, value, ___) => builder(value),
     );
-  }
 
-  _handleSearch() {
+  void _handleSearch() {
     _findController.findMode();
   }
 
-  _handleImport() async {
+  Future<void> _handleImport() async {
     final option = await globalState.showCommonDialog<ImportOption>(
-      child: _ImportOptionsDialog(),
+      child: const _ImportOptionsDialog(),
     );
     if (option == null) {
       return;
@@ -169,12 +161,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         return false;
       },
       child: CommonScaffold(
+        disableBackground: true,
         appBar: AppBar(
           title: TextField(
             enabled: widget.titleEditable,
             controller: _titleController,
             decoration: InputDecoration(
-              border: _NoInputBorder(),
+              border: const _NoInputBorder(),
               hintText: appLocalizations.unnamed,
             ),
             style: context.textTheme.titleLarge,
@@ -202,22 +195,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             if (widget.supportRemoteDownload)
               IconButton(
                 onPressed: _handleImport,
-                icon: Icon(
+                icon: const Icon(
                   Icons.arrow_downward,
                 ),
               ),
             _wrapController(
               (value) => CommonPopupBox(
-                targetBuilder: (open) {
-                  return IconButton(
+                targetBuilder: (open) => IconButton(
                     onPressed: () {
                       open(
-                        offset: Offset(-20, 20),
+                        offset: const Offset(-20, 20),
                       );
                     },
                     icon: const Icon(Icons.more_vert),
-                  );
-                },
+                  ),
                 popup: CommonPopupMenu(
                   items: [
                     PopupMenuItemData(
@@ -248,25 +239,22 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             readOnly: readOnly,
             isMobileView: isMobileView,
           ),
-          padding: EdgeInsets.only(
+          padding: const EdgeInsets.only(
             right: 16,
           ),
           autocompleteSymbols: true,
           focusNode: _focusNode,
-          scrollbarBuilder: (context, child, details) {
-            return CommonScrollBar(
+          scrollbarBuilder: (context, child, details) => CommonScrollBar(
               controller: details.controller,
               child: child,
-            );
-          },
+            ),
           toolbarController: ContextMenuControllerImpl(),
           indicatorBuilder: (
             context,
             editingController,
             chunkController,
             notifier,
-          ) {
-            return Row(
+          ) => Row(
               children: [
                 DefaultCodeLineNumber(
                   controller: editingController,
@@ -278,9 +266,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   notifier: notifier,
                 )
               ],
-            );
-          },
-          shortcutsActivatorsBuilder: DefaultCodeShortcutsActivatorsBuilder(),
+            ),
+          shortcutsActivatorsBuilder: const DefaultCodeShortcutsActivatorsBuilder(),
           controller: _controller,
           style: CodeEditorStyle(
             fontSize: context.textTheme.bodyLarge?.fontSize?.ap,
@@ -308,10 +295,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 const double _kDefaultFindPanelHeight = 52;
 
 class FindPanel extends StatelessWidget implements PreferredSizeWidget {
-  final CodeFindController controller;
-  final bool readOnly;
-  final bool isMobileView;
-  final double height;
 
   const FindPanel({
     super.key,
@@ -322,6 +305,10 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
                 ? _kDefaultFindPanelHeight * 2
                 : _kDefaultFindPanelHeight) +
             8;
+  final CodeFindController controller;
+  final bool readOnly;
+  final bool isMobileView;
+  final double height;
 
   @override
   Size get preferredSize => Size(
@@ -338,11 +325,11 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
       );
     }
     return Container(
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 12,
         horizontal: 16,
       ),
-      margin: EdgeInsets.only(
+      margin: const EdgeInsets.only(
         bottom: 8,
       ),
       color: context.colorScheme.surface,
@@ -353,7 +340,7 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildFindInputView(BuildContext context) {
-    final CodeFindValue value = controller.value!;
+    final value = controller.value!;
     final String result;
     if (value.result == null) {
       result = appLocalizations.none;
@@ -365,10 +352,10 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
       children: [
         if (!isMobileView) ...[
           ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: 360),
             child: _buildFindInput(context, value),
           ),
-          SizedBox(
+          const SizedBox(
             width: 12,
           ),
         ],
@@ -384,31 +371,27 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
               _buildIconButton(
                 onPressed: value.result == null
                     ? null
-                    : () {
-                        controller.previousMatch();
-                      },
+                    : controller.previousMatch,
                 icon: Icons.arrow_upward,
               ),
               _buildIconButton(
                 onPressed: value.result == null
                     ? null
-                    : () {
-                        controller.nextMatch();
-                      },
+                    : controller.nextMatch,
                 icon: Icons.arrow_downward,
               ),
-              SizedBox(
+              const SizedBox(
                 width: 2,
               ),
               IconButton.filledTonal(
                 visualDensity: VisualDensity.compact,
                 onPressed: controller.close,
-                style: ButtonStyle(
+                style: const ButtonStyle(
                   padding: WidgetStatePropertyAll(
                     EdgeInsets.all(0),
                   ),
                 ),
-                icon: Icon(
+                icon: const Icon(
                   Icons.close,
                   size: 16,
                 ),
@@ -423,7 +406,7 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           bar,
-          SizedBox(
+          const SizedBox(
             height: 4,
           ),
           _buildFindInput(context, value),
@@ -433,8 +416,7 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
     return bar;
   }
 
-  _buildFindInput(BuildContext context, CodeFindValue value) {
-    return Stack(
+  Stack _buildFindInput(BuildContext context, CodeFindValue value) => Stack(
       alignment: Alignment.center,
       children: [
         _buildTextField(
@@ -457,38 +439,32 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
               context: context,
               text: 'Aa',
               isSelected: value.option.caseSensitive,
-              onPressed: () {
-                controller.toggleCaseSensitive();
-              },
+              onPressed: controller.toggleCaseSensitive,
             ),
             _buildCheckText(
               context: context,
               text: '.*',
               isSelected: value.option.regex,
-              onPressed: () {
-                controller.toggleRegex();
-              },
+              onPressed: controller.toggleRegex,
             ),
-            SizedBox(
+            const SizedBox(
               width: 4,
             ),
           ],
         )
       ],
     );
-  }
 
   Widget _buildTextField({
     required BuildContext context,
     required TextEditingController controller,
     required FocusNode focusNode,
     required VoidCallback onSubmitted,
-  }) {
-    return TextField(
+  }) => TextField(
       maxLines: 1,
       focusNode: focusNode,
       style: context.textTheme.bodyMedium,
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12,
@@ -499,15 +475,13 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
       },
       controller: controller,
     );
-  }
 
   Widget _buildCheckText({
     required BuildContext context,
     required String text,
     required bool isSelected,
     required VoidCallback onPressed,
-  }) {
-    return SizedBox(
+  }) => SizedBox(
       width: 28,
       height: 28,
       child: MouseRegion(
@@ -515,12 +489,12 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
         child: isSelected
             ? IconButton.filledTonal(
                 onPressed: onPressed,
-                padding: EdgeInsets.all(2),
+                padding: const EdgeInsets.all(2),
                 icon: Text(text, style: context.textTheme.bodySmall),
               )
             : IconButton(
                 onPressed: onPressed,
-                padding: EdgeInsets.all(2),
+                padding: const EdgeInsets.all(2),
                 icon: Text(
                   text,
                   style: context.textTheme.bodySmall,
@@ -528,29 +502,26 @@ class FindPanel extends StatelessWidget implements PreferredSizeWidget {
               ),
       ),
     );
-  }
 
   Widget _buildIconButton({
     required IconData icon,
     VoidCallback? onPressed,
-  }) {
-    return IconButton(
+  }) => IconButton(
       visualDensity: VisualDensity.compact,
       onPressed: onPressed,
-      style: ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.all(0))),
+      style: const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.all(0))),
       icon: Icon(
         icon,
         size: 16,
       ),
     );
-  }
 }
 
 class ContextMenuControllerImpl implements SelectionToolbarController {
   OverlayEntry? _overlayEntry;
   bool _isFirstRender = true;
 
-  _removeOverLayEntry() {
+  void _removeOverLayEntry() {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _isFirstRender = true;
@@ -563,11 +534,11 @@ class ContextMenuControllerImpl implements SelectionToolbarController {
 
   @override
   void show({
-    required context,
-    required controller,
-    required anchors,
-    renderRect,
-    required layerLink,
+    required BuildContext context,
+    required CodeLineEditingController controller,
+    required TextSelectionToolbarAnchors anchors,
+    Rect? renderRect,
+    required LayerLink layerLink,
     required ValueNotifier<bool> visibility,
   }) {
     _removeOverLayEntry();
@@ -579,7 +550,7 @@ class ContextMenuControllerImpl implements SelectionToolbarController {
             final isNotEmpty = controller.selectedText.isNotEmpty;
             final isAllSelected = controller.isAllSelected;
             final hasSelected = controller.selectedText.isNotEmpty;
-            List<PopupMenuItemData> menus = [
+            final menus = <PopupMenuItemData>[
               if (isNotEmpty)
                 PopupMenuItemData(
                   label: appLocalizations.copy,
@@ -609,8 +580,7 @@ class ContextMenuControllerImpl implements SelectionToolbarController {
               anchorAbove: anchors.primaryAnchor,
               anchorBelow: anchors.secondaryAnchor ?? Offset.zero,
               children: menus.asMap().entries.map(
-                (MapEntry<int, PopupMenuItemData> entry) {
-                  return TextSelectionToolbarTextButton(
+                (entry) => TextSelectionToolbarTextButton(
                     padding: TextSelectionToolbarTextButton.getPadding(
                       entry.key,
                       menus.length,
@@ -624,8 +594,7 @@ class ContextMenuControllerImpl implements SelectionToolbarController {
                       _removeOverLayEntry();
                     },
                     child: Text(entry.value.label),
-                  );
-                },
+                  ),
               ).toList(),
             );
           },
@@ -652,14 +621,10 @@ class _NoInputBorder extends InputBorder {
   _NoInputBorder scale(double t) => const _NoInputBorder();
 
   @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) {
-    return Path()..addRect(rect);
-  }
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => Path()..addRect(rect);
 
   @override
-  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
-    return Path()..addRect(rect);
-  }
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()..addRect(rect);
 
   @override
   void paintInterior(Canvas canvas, Rect rect, Paint paint,
@@ -689,13 +654,12 @@ class _ImportOptionsDialog extends StatefulWidget {
 }
 
 class _ImportOptionsDialogState extends State<_ImportOptionsDialog> {
-  _handleOnTab(ImportOption value) {
+  void _handleOnTab(ImportOption value) {
     Navigator.of(context).pop(value);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: appLocalizations.import,
       padding: const EdgeInsets.symmetric(
         horizontal: 8,
@@ -718,5 +682,4 @@ class _ImportOptionsDialogState extends State<_ImportOptionsDialog> {
         ],
       ),
     );
-  }
 }

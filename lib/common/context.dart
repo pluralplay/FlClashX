@@ -3,15 +3,11 @@ import 'package:flclashx/widgets/scaffold.dart';
 import 'package:flutter/material.dart';
 
 extension BuildContextExtension on BuildContext {
-  CommonScaffoldState? get commonScaffoldState {
-    return findAncestorStateOfType<CommonScaffoldState>();
-  }
+  CommonScaffoldState? get commonScaffoldState => findAncestorStateOfType<CommonScaffoldState>();
 
-  showNotifier(String text) {
-    return findAncestorStateOfType<MessageManagerState>()?.message(text);
-  }
+  Future<void>? showNotifier(String text) => findAncestorStateOfType<MessageManagerState>()?.message(text);
 
-  showSnackBar(
+  void showSnackBar(
     String message, {
     SnackBarAction? action,
   }) {
@@ -41,13 +37,9 @@ extension BuildContextExtension on BuildContext {
     );
   }
 
-  Size get appSize {
-    return MediaQuery.of(this).size;
-  }
+  Size get appSize => MediaQuery.of(this).size;
 
-  double get viewWidth {
-    return appSize.width;
-  }
+  double get viewWidth => appSize.width;
 
   ColorScheme get colorScheme => Theme.of(this).colorScheme;
 
@@ -56,7 +48,7 @@ extension BuildContextExtension on BuildContext {
   T? findLastStateOfType<T extends State>() {
     T? state;
 
-    visitor(Element element) {
+    void visitor(Element element) {
       if (!element.mounted) {
         return;
       }

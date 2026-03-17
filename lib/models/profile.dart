@@ -6,8 +6,8 @@ import 'dart:typed_data';
 import 'package:flclashx/clash/core.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flclashx/utils/device_info_service.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'clash_config.dart';
 
@@ -31,7 +31,7 @@ class SubscriptionInfo with _$SubscriptionInfo {
   factory SubscriptionInfo.formHString(String? info) {
     if (info == null) return const SubscriptionInfo();
     final list = info.split(";");
-    Map<String, int?> map = {};
+    final map = <String, int?>{};
     for (final i in list) {
       final keyValue = i.trim().split("=");
       map[keyValue[0]] = int.tryParse(keyValue[1]);
@@ -51,11 +51,6 @@ class Profile with _$Profile {
     required String id,
     String? label,
     String? currentGroupName,
-    String? announceText,
-    String? supportUrl,
-    String? dashboardLayout,
-    String? proxiesView,
-    String? customBehavior,
     @Default("") String url,
     DateTime? lastUpdateDate,
     required Duration autoUpdateDuration,
@@ -67,8 +62,7 @@ class Profile with _$Profile {
     @JsonKey(includeToJson: false, includeFromJson: false)
     @Default(false)
     bool isUpdating,
-    bool? denyWidgetEditing,
-
+    @Default({}) Map<String, String> providerHeaders,
   }) = _Profile;
 
   factory Profile.fromJson(Map<String, Object?> json) =>
@@ -77,14 +71,12 @@ class Profile with _$Profile {
   factory Profile.normal({
     String? label,
     String url = '',
-  }) {
-    return Profile(
+  }) => Profile(
       label: label,
       url: url,
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       autoUpdateDuration: defaultUpdateDuration,
     );
-  }
 }
 
 @freezed
@@ -157,7 +149,7 @@ extension ProfileExtension on Profile {
 
   Future<bool> check() async {
     final profilePath = await appPath.getProfilePath(id);
-    return await File(profilePath).exists();
+    return File(profilePath).exists();
   }
 
   Future<File> getFile() async {
@@ -176,13 +168,13 @@ extension ProfileExtension on Profile {
   }
 
   Future<Profile> update({bool shouldSendHeaders = true}) async {
-    final Map<String, dynamic> headers = {};
+    final headers = <String, dynamic>{};
 
     if (shouldSendHeaders) {
       final deviceInfoService = DeviceInfoService();
       final details = await deviceInfoService.getDeviceDetails();
-      
-      if (details.hwid != null) headers['x-hwid'] = details.hwid; 
+
+      if (details.hwid != null) headers['x-hwid'] = details.hwid;
       if (details.os != null) headers['x-device-os'] = details.os;
       if (details.osVersion != null) headers['x-ver-os'] = details.osVersion;
       if (details.model != null) headers['x-device-model'] = details.model;
@@ -195,45 +187,48 @@ extension ProfileExtension on Profile {
 
     final disposition = response.headers.value("content-disposition");
     final userinfo = response.headers.value('subscription-userinfo');
-    final announce = response.headers.value('announce');
-    final updateIntervalHeader = response.headers.value('profile-update-interval');
-    final supportUrl = response.headers.value('support-url');
-    final dashboardHeader = response.headers.value('flclashx-widgets');
-    final serviceName = response.headers.value('flclashx-servicename');
-    final customBehavior = response.headers.value('flclashx-custom');
-
-    final denyWidgetHeader = response.headers.value('flclashx-denywidgets');
-      bool? denyWidgetValue;
-      if (denyWidgetHeader == 'true') {
-        denyWidgetValue = true;
-      } else if (denyWidgetHeader == 'false') {
-        denyWidgetValue = false;
-      }
     
-      Duration? durationFromHeader;
-      if (updateIntervalHeader != null) {
-        final hours = int.tryParse(updateIntervalHeader);
-        if (hours != null && hours > 0) {
-          durationFromHeader = Duration(hours: hours);
-        }
-      }
-
-    final proxiesViewHeader = response.headers.value('flclashx-view');
     final responseData = response.data;
     if (responseData == null) {
       throw Exception("Failed to get profile data from response.");
     }
 
-    return await copyWith(
+    final providerHeaders = <String, String>{};
+    
+    final headersToCollect = [
+      'announce',
+      'support-url', 
+      'profile-update-interval',
+      'x-hwid-limit',
+    ];
+    
+    for (final headerName in headersToCollect) {
+      final value = response.headers.value(headerName);
+      if (value != null && value.isNotEmpty) {
+        providerHeaders[headerName] = value;
+      }
+    }
+    
+    response.headers.forEach((name, values) {
+      if (name.toLowerCase().startsWith('flclashx-') && values.isNotEmpty) {
+        providerHeaders[name.toLowerCase()] = values.first;
+      }
+    });
+    
+    Duration? durationFromHeader;
+    final updateIntervalHeader = providerHeaders['profile-update-interval'];
+    if (updateIntervalHeader != null) {
+      final hours = int.tryParse(updateIntervalHeader);
+      if (hours != null && hours > 0) {
+        durationFromHeader = Duration(hours: hours);
+      }
+    }
+    
+    return copyWith(
       label: label ?? utils.getFileNameForDisposition(disposition) ?? id,
       subscriptionInfo: SubscriptionInfo.formHString(userinfo),
-      announceText: announce,
-      supportUrl: supportUrl,
-      dashboardLayout: dashboardHeader,
       autoUpdateDuration: durationFromHeader ?? autoUpdateDuration,
-      denyWidgetEditing: denyWidgetValue,
-      proxiesView: proxiesViewHeader,
-      customBehavior: customBehavior,
+      providerHeaders: providerHeaders,
     ).saveFile(responseData);
   }
 

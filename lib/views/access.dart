@@ -39,13 +39,12 @@ class _AccessViewState extends ConsumerState<AccessView> {
     super.dispose();
   }
 
-  _updateInitList() {
+  void _updateInitList() {
     acceptList = globalState.config.vpnProps.accessControl.acceptList;
     rejectList = globalState.config.vpnProps.accessControl.rejectList;
   }
 
-  Widget _buildSearchButton() {
-    return IconButton(
+  Widget _buildSearchButton() => IconButton(
       tooltip: appLocalizations.search,
       onPressed: () {
         showSearch(
@@ -56,15 +55,12 @@ class _AccessViewState extends ConsumerState<AccessView> {
           ),
         ).then(
           (_) => setState(
-            () {
-              _updateInitList();
-            },
+            _updateInitList,
           ),
         );
       },
       icon: const Icon(Icons.search),
     );
-  }
 
   Widget _buildSelectedAllButton({
     required bool isSelectedAll,
@@ -106,7 +102,7 @@ class _AccessViewState extends ConsumerState<AccessView> {
     );
   }
 
-  _intelligentSelected() async {
+  Future<void> _intelligentSelected() async {
     final packageNames = ref.read(
       packageListSelectorStateProvider.select(
         (state) => state.list.map((item) => item.packageName),
@@ -116,9 +112,7 @@ class _AccessViewState extends ConsumerState<AccessView> {
     if (commonScaffoldState?.mounted != true) return;
     final selectedPackageNames =
         (await commonScaffoldState?.loadingRun<List<String>>(
-              () async {
-                return await app?.getChinaPackageNames() ?? [];
-              },
+              () async => await app?.getChinaPackageNames() ?? [],
             ))
                 ?.toSet() ??
             {};
@@ -126,7 +120,7 @@ class _AccessViewState extends ConsumerState<AccessView> {
         .where((item) => !selectedPackageNames.contains(item))
         .toList();
     final rejectList = packageNames
-        .where((item) => selectedPackageNames.contains(item))
+        .where(selectedPackageNames.contains)
         .toList();
     ref.read(vpnSettingProvider.notifier).updateState(
           (state) => state.copyWith.accessControl(
@@ -136,21 +130,18 @@ class _AccessViewState extends ConsumerState<AccessView> {
         );
   }
 
-  Widget _buildSettingButton() {
-    return IconButton(
+  Widget _buildSettingButton() => IconButton(
       onPressed: () async {
         final res = await showSheet<int>(
           context: context,
-          props: SheetProps(
+          props: const SheetProps(
             isScrollControlled: true,
           ),
-          builder: (_, type) {
-            return AdaptiveSheetScaffold(
+          builder: (_, type) => AdaptiveSheetScaffold(
               type: type,
-              body: AccessControlPanel(),
+              body: const AccessControlPanel(),
               title: appLocalizations.proxiesSetting,
-            );
-          },
+            ),
         );
         if (res == 1) {
           _intelligentSelected();
@@ -158,16 +149,14 @@ class _AccessViewState extends ConsumerState<AccessView> {
       },
       icon: const Icon(Icons.tune),
     );
-  }
 
-  _handleSelected(List<String> valueList, Package package, bool? value) {
+  void _handleSelected(List<String> valueList, Package package, bool? value) {
     if (value == true) {
       valueList.add(package.packageName);
     } else {
       valueList.remove(package.packageName);
     }
-    ref.read(vpnSettingProvider.notifier).updateState((state) {
-      return switch (
+    ref.read(vpnSettingProvider.notifier).updateState((state) => switch (
           state.accessControl.mode == AccessControlMode.acceptSelected) {
         true => state.copyWith.accessControl(
             acceptList: valueList,
@@ -175,8 +164,7 @@ class _AccessViewState extends ConsumerState<AccessView> {
         false => state.copyWith.accessControl(
             rejectList: valueList,
           ),
-      };
-    });
+      });
   }
 
   @override
@@ -317,7 +305,7 @@ class _AccessViewState extends ConsumerState<AccessView> {
                       future: _completer.future,
                       builder: (_, snapshot) {
                         if (snapshot.connectionState != ConnectionState.done) {
-                          return Center(
+                          return const Center(
                             child: CircularProgressIndicator(),
                           );
                         }
@@ -359,10 +347,6 @@ class _AccessViewState extends ConsumerState<AccessView> {
 }
 
 class PackageListItem extends StatelessWidget {
-  final Package package;
-  final bool value;
-  final bool isActive;
-  final void Function(bool?) onChanged;
 
   const PackageListItem({
     super.key,
@@ -371,10 +355,13 @@ class PackageListItem extends StatelessWidget {
     required this.isActive,
     required this.onChanged,
   });
+  final Package package;
+  final bool value;
+  final bool isActive;
+  final void Function(bool?) onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    return FadeScaleEnterBox(
+  Widget build(BuildContext context) => FadeScaleEnterBox(
       child: ActivateBox(
         active: isActive,
         child: ListItem.checkbox(
@@ -418,21 +405,19 @@ class PackageListItem extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class AccessControlSearchDelegate extends SearchDelegate {
-  List<String> acceptList = [];
-  List<String> rejectList = [];
 
   AccessControlSearchDelegate({
     required this.acceptList,
     required this.rejectList,
   });
+  List<String> acceptList = [];
+  List<String> rejectList = [];
 
   @override
-  List<Widget>? buildActions(BuildContext context) {
-    return [
+  List<Widget>? buildActions(BuildContext context) => [
       IconButton(
         onPressed: () {
           if (query.isEmpty) {
@@ -447,27 +432,23 @@ class AccessControlSearchDelegate extends SearchDelegate {
         width: 8,
       )
     ];
-  }
 
   @override
-  Widget? buildLeading(BuildContext context) {
-    return IconButton(
+  Widget? buildLeading(BuildContext context) => IconButton(
       onPressed: () {
         close(context, null);
       },
       icon: const Icon(Icons.arrow_back),
     );
-  }
 
-  _handleSelected(
+  void _handleSelected(
       WidgetRef ref, List<String> valueList, Package package, bool? value) {
     if (value == true) {
       valueList.add(package.packageName);
     } else {
       valueList.remove(package.packageName);
     }
-    ref.read(vpnSettingProvider.notifier).updateState((state) {
-      return switch (
+    ref.read(vpnSettingProvider.notifier).updateState((state) => switch (
           state.accessControl.mode == AccessControlMode.acceptSelected) {
         true => state.copyWith.accessControl(
             acceptList: valueList,
@@ -475,8 +456,7 @@ class AccessControlSearchDelegate extends SearchDelegate {
         false => state.copyWith.accessControl(
             rejectList: valueList,
           ),
-      };
-    });
+      });
   }
 
   Widget _packageList() {
@@ -536,14 +516,10 @@ class AccessControlSearchDelegate extends SearchDelegate {
   }
 
   @override
-  Widget buildResults(BuildContext context) {
-    return buildSuggestions(context);
-  }
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
 
   @override
-  Widget buildSuggestions(BuildContext context) {
-    return _packageList();
-  }
+  Widget buildSuggestions(BuildContext context) => _packageList();
 }
 
 class AccessControlPanel extends ConsumerStatefulWidget {
@@ -556,38 +532,29 @@ class AccessControlPanel extends ConsumerStatefulWidget {
 }
 
 class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
-  IconData _getIconWithAccessControlMode(AccessControlMode mode) {
-    return switch (mode) {
+  IconData _getIconWithAccessControlMode(AccessControlMode mode) => switch (mode) {
       AccessControlMode.acceptSelected => Icons.adjust_outlined,
       AccessControlMode.rejectSelected => Icons.block_outlined,
     };
-  }
 
-  String _getTextWithAccessControlMode(AccessControlMode mode) {
-    return switch (mode) {
+  String _getTextWithAccessControlMode(AccessControlMode mode) => switch (mode) {
       AccessControlMode.acceptSelected => appLocalizations.whitelistMode,
       AccessControlMode.rejectSelected => appLocalizations.blacklistMode,
     };
-  }
 
-  String _getTextWithAccessSortType(AccessSortType type) {
-    return switch (type) {
+  String _getTextWithAccessSortType(AccessSortType type) => switch (type) {
       AccessSortType.none => appLocalizations.defaultText,
       AccessSortType.name => appLocalizations.name,
       AccessSortType.time => appLocalizations.time,
     };
-  }
 
-  IconData _getIconWithProxiesSortType(AccessSortType type) {
-    return switch (type) {
+  IconData _getIconWithProxiesSortType(AccessSortType type) => switch (type) {
       AccessSortType.none => Icons.sort,
       AccessSortType.name => Icons.sort_by_alpha,
       AccessSortType.time => Icons.timeline,
     };
-  }
 
-  List<Widget> _buildModeSetting() {
-    return generateSection(
+  List<Widget> _buildModeSetting() => generateSection(
       title: appLocalizations.mode,
       items: [
         SingleChildScrollView(
@@ -623,10 +590,8 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
         )
       ],
     );
-  }
 
-  List<Widget> _buildSortSetting() {
-    return generateSection(
+  List<Widget> _buildSortSetting() => generateSection(
       title: appLocalizations.sort,
       items: [
         SingleChildScrollView(
@@ -662,10 +627,8 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
         ),
       ],
     );
-  }
 
-  List<Widget> _buildSourceSetting() {
-    return generateSection(
+  List<Widget> _buildSourceSetting() => generateSection(
       title: appLocalizations.source,
       items: [
         SingleChildScrollView(
@@ -713,9 +676,8 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
         )
       ],
     );
-  }
 
-  _copyToClipboard() async {
+  Future<void> _copyToClipboard() async {
     await globalState.safeRun(() {
       final data = globalState.config.vpnProps.accessControl.toJson();
       Clipboard.setData(
@@ -728,7 +690,7 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
     Navigator.of(context).pop();
   }
 
-  _pasteToClipboard() async {
+  Future<void> _pasteToClipboard() async {
     await globalState.safeRun(
       () async {
         final data = await Clipboard.getData('text/plain');
@@ -747,8 +709,7 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
     Navigator.of(context).pop();
   }
 
-  List<Widget> _buildActionSetting() {
-    return generateSection(
+  List<Widget> _buildActionSetting() => generateSection(
       title: appLocalizations.action,
       items: [
         Padding(
@@ -781,11 +742,9 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
         )
       ],
     );
-  }
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
+  Widget build(BuildContext context) => SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.only(bottom: 32),
         child: Column(
@@ -800,5 +759,4 @@ class _AccessControlPanelState extends ConsumerState<AccessControlPanel> {
         ),
       ),
     );
-  }
 }

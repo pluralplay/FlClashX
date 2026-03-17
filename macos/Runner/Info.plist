@@ -30,6 +30,7 @@
 				<string>clash</string>
 				<string>clashmeta</string>
 				<string>flclash</string>
+				<string>flclashx</string>
 			</array>
 		</dict>
 	</array>
@@ -37,6 +38,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSUIElement</key>
+	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>

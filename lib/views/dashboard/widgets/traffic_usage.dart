@@ -15,8 +15,7 @@ class TrafficUsage extends StatelessWidget {
     BuildContext context,
     Icon icon,
     TrafficValue trafficValue,
-  ) {
-    return Row(
+  ) => Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       mainAxisSize: MainAxisSize.max,
       children: [
@@ -47,7 +46,6 @@ class TrafficUsage extends StatelessWidget {
         ),
       ],
     );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +75,7 @@ class TrafficUsage extends StatelessWidget {
                 children: [
                   Flexible(
                     child: Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         vertical: 12,
                       ),
                       child: Row(
@@ -99,7 +97,7 @@ class TrafficUsage extends StatelessWidget {
                               ],
                             ),
                           ),
-                          SizedBox(
+                          const SizedBox(
                             width: 8,
                           ),
                           Flexible(
@@ -143,7 +141,7 @@ class TrafficUsage extends StatelessWidget {
                                             ),
                                           ),
                                         ),
-                                        SizedBox(
+                                        const SizedBox(
                                           width: 4,
                                         ),
                                         Text(
@@ -154,7 +152,7 @@ class TrafficUsage extends StatelessWidget {
                                         ),
                                       ],
                                     ),
-                                    SizedBox(
+                                    const SizedBox(
                                       height: 4,
                                     ),
                                     Row(
@@ -171,7 +169,7 @@ class TrafficUsage extends StatelessWidget {
                                             ),
                                           ),
                                         ),
-                                        SizedBox(
+                                        const SizedBox(
                                           width: 4,
                                         ),
                                         Text(

@@ -24,7 +24,7 @@ val isRelease = mStoreFile.exists()
 
 android {
     namespace = "com.follow.clashx"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "28.0.13004108"
 
     compileOptions {
@@ -39,7 +39,7 @@ android {
 
     defaultConfig {
         applicationId = "com.follow.clashx"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -56,6 +56,12 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -64,6 +70,7 @@ android {
 
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             isDebuggable = false
 
             signingConfig = if (isRelease) {
@@ -87,6 +94,7 @@ flutter {
 dependencies {
     implementation(project(":core"))
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.android.tools.smali:smali-dexlib2:3.0.9") {
         exclude(group = "com.google.guava", module = "guava")

@@ -16,18 +16,18 @@ abstract mixin class TileListener {
 
 class Tile {
 
-  final MethodChannel _channel = const MethodChannel('tile');
-
   Tile._() {
     _channel.setMethodCallHandler(_methodCallHandler);
   }
+
+  final MethodChannel _channel = const MethodChannel('tile');
 
   static final Tile instance = Tile._();
 
   final ObserverList<TileListener> _listeners = ObserverList<TileListener>();
 
   Future<void> _methodCallHandler(MethodCall call) async {
-    for (final TileListener listener in _listeners) {
+    for (final listener in _listeners) {
       switch (call.method) {
         case "start":
           listener.onStart();
@@ -42,9 +42,7 @@ class Tile {
     }
   }
 
-  bool get hasListeners {
-    return _listeners.isNotEmpty;
-  }
+  bool get hasListeners => _listeners.isNotEmpty;
 
   void addListener(TileListener listener) {
     _listeners.add(listener);
@@ -52,6 +50,24 @@ class Tile {
 
   void removeListener(TileListener listener) {
     _listeners.remove(listener);
+  }
+  
+  Future<void> updateTile() async {
+    try {
+      await _channel.invokeMethod('updateTile');
+    } catch (e) {
+      // Ignore errors if tile service not available
+    }
+  }
+  
+  /// Signal to native side that Dart service is ready to receive commands.
+  /// This should be called after _service entrypoint has finished initialization.
+  Future<void> signalServiceReady() async {
+    try {
+      await _channel.invokeMethod('serviceReady');
+    } catch (e) {
+      // Ignore errors if tile service not available
+    }
   }
 }
 

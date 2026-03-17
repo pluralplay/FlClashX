@@ -1,0 +1,15 @@
+// Signing configuration
+// Can be overridden by Local.xcconfig (copy from Local.xcconfig.example)
+// or by environment variables in CI/CD
+
+// For local development, copy Local.xcconfig.example to Local.xcconfig
+// and set your credentials there (it's gitignored)
+#include? "Local.xcconfig"
+
+// In CI/CD, these are set via environment variables in GitHub Actions
+// The certificate is imported into keychain, and Xcode automatically finds it
+// CODE_SIGN_IDENTITY will be set from APPLE_DEVELOPER_ID secret
+// DEVELOPMENT_TEAM will be set from APPLE_TEAM_ID secret
+
+// Note: If Local.xcconfig exists, it will override these settings for local development
+

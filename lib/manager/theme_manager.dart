@@ -8,15 +8,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ThemeManager extends ConsumerWidget {
-  final Widget child;
 
   const ThemeManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textScale = ref.read(
       themeSettingProvider.select((state) => state.textScale),
     );

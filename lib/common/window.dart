@@ -7,7 +7,7 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 class Window {
-  init(int version) async {
+  Future<void> init(int version) async {
     final props = globalState.config.windowProps;
     final acquire = await singleInstanceLock.acquire();
     if (!acquire) {
@@ -18,14 +18,18 @@ class Window {
       protocol.register("flclash");
       protocol.register("flclashx");
     }
+
+    // On macOS, the app runs in status bar with popover - no window manager needed
+    if (Platform.isMacOS) {
+      return;
+    }
+
     await windowManager.ensureInitialized();
-    WindowOptions windowOptions = WindowOptions(
+    final windowOptions = WindowOptions(
       size: Size(props.width, props.height),
       minimumSize: const Size(380, 400),
     );
-    if (!Platform.isMacOS || version > 10) {
-      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-    }
+    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     if (!Platform.isMacOS) {
       final left = props.left ?? 0;
       final top = props.top ?? 0;
@@ -62,7 +66,9 @@ class Window {
     });
   }
 
-  show() async {
+  Future<void> show() async {
+    if (Platform.isMacOS) return;
+
     render?.resume();
     await windowManager.show();
     await windowManager.focus();
@@ -70,16 +76,20 @@ class Window {
   }
 
   Future<bool> get isVisible async {
+    if (Platform.isMacOS) return false;
+
     final value = await windowManager.isVisible();
     commonPrint.log("window visible check: $value");
     return value;
   }
 
-  close() async {
+  Future<void> close() async {
     exit(0);
   }
 
-  hide() async {
+  Future<void> hide() async {
+    if (Platform.isMacOS) return;
+
     render?.pause();
     await windowManager.hide();
     await windowManager.setSkipTaskbar(true);

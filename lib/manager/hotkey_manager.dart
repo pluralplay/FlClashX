@@ -9,12 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
 class HotKeyManager extends ConsumerStatefulWidget {
-  final Widget child;
 
   const HotKeyManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   ConsumerState<HotKeyManager> createState() => _HotKeyManagerState();
@@ -35,7 +35,7 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
     );
   }
 
-  _handleHotKeyAction(HotAction action) async {
+  Future<void> _handleHotKeyAction(HotAction action) async {
     switch (action) {
       case HotAction.mode:
         globalState.appController.updateMode();
@@ -50,14 +50,12 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
     }
   }
 
-  _updateHotKeys({
+  Future<void> _updateHotKeys({
     required List<HotKeyAction> hotKeyActions,
   }) async {
     await hotKeyManager.unregisterAll();
     final hotkeyActionHandles = hotKeyActions.where(
-      (hotKeyAction) {
-        return hotKeyAction.key != null && hotKeyAction.modifiers.isNotEmpty;
-      },
+      (hotKeyAction) => hotKeyAction.key != null && hotKeyAction.modifiers.isNotEmpty,
     ).map<Future>(
       (hotKeyAction) async {
         final modifiers = hotKeyAction.modifiers
@@ -67,7 +65,7 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
           key: PhysicalKeyboardKey(hotKeyAction.key!),
           modifiers: modifiers,
         );
-        return await hotKeyManager.register(
+        return hotKeyManager.register(
           hotKey,
           keyDownHandler: (_) {
             _handleHotKeyAction(hotKeyAction.action);
@@ -78,11 +76,10 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
     await Future.wait(hotkeyActionHandles);
   }
 
-  _buildShortcuts(Widget child) {
-    return Shortcuts(
+  Shortcuts _buildShortcuts(Widget child) => Shortcuts(
       shortcuts: {
         utils.controlSingleActivator(LogicalKeyboardKey.keyW):
-            CloseWindowIntent(),
+            const CloseWindowIntent(),
       },
       child: Actions(
         actions: {
@@ -96,12 +93,9 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
         child: child,
       ),
     );
-  }
 
   @override
-  Widget build(BuildContext context) {
-    return _buildShortcuts(
+  Widget build(BuildContext context) => _buildShortcuts(
       widget.child,
     );
-  }
 }

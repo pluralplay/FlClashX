@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flclashx/common/common.dart';
 
 extension CompleterExt<T> on Completer<T> {
-  safeFuture({
+  Future<Object?> safeFuture({
     Duration? timeout,
     VoidCallback? onLast,
     FutureOr<T> Function()? onTimeout,
@@ -29,8 +29,7 @@ extension FutureExt<T> on Future<T> {
     required Duration timeout,
     required String functionName,
     FutureOr<T> Function()? onTimeout,
-  }) {
-    return this.timeout(
+  }) => this.timeout(
       timeout,
       onTimeout: () async {
         if (onTimeout != null) {
@@ -40,5 +39,4 @@ extension FutureExt<T> on Future<T> {
         }
       },
     );
-  }
 }

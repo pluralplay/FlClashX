@@ -7,15 +7,20 @@ import 'print.dart';
 typedef InstallConfigCallBack = void Function(String url);
 
 class LinkManager {
-  static LinkManager? _instance;
-  late AppLinks _appLinks;
-  StreamSubscription? subscription;
+
+  factory LinkManager() {
+    _instance ??= LinkManager._internal();
+    return _instance!;
+  }
 
   LinkManager._internal() {
     _appLinks = AppLinks();
   }
+  static LinkManager? _instance;
+  late AppLinks _appLinks;
+  StreamSubscription? subscription;
 
-  initAppLinksListen(installConfigCallBack) async {
+  Future<void> initAppLinksListen(installConfigCallBack) async {
     commonPrint.log("initAppLinksListen");
     destroy();
     subscription = _appLinks.uriLinkStream.listen(
@@ -32,16 +37,11 @@ class LinkManager {
     );
   }
 
-  destroy() {
+  void destroy() {
     if (subscription != null) {
       subscription?.cancel();
       subscription = null;
     }
-  }
-
-  factory LinkManager() {
-    _instance ??= LinkManager._internal();
-    return _instance!;
   }
 }
 

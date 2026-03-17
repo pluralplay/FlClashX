@@ -7,22 +7,22 @@ import 'package:flutter/services.dart';
 import 'receive_profile_dialog.dart';
 
 class AddProfileView extends StatelessWidget {
-  final BuildContext context;
 
   const AddProfileView({
     super.key,
     required this.context,
   });
+  final BuildContext context;
 
-  _handleAddProfileFormFile() async {
+  Future<void> _handleAddProfileFormFile() async {
     globalState.appController.addProfileFormFile();
   }
 
-  _handleAddProfileFormURL(String url) async {
+  Future<void> _handleAddProfileFormURL(String url) async {
     globalState.appController.addProfileFormURL(url);
   }
 
-  _toScan() async {
+  Future<void> _toScan() async {
     if (system.isDesktop) {
       globalState.appController.addProfileFormQrCode();
       return;
@@ -38,7 +38,7 @@ class AddProfileView extends StatelessWidget {
     }
   }
 
-  _toAdd() async {
+  Future<void> _toAdd() async {
     final url = await globalState.showCommonDialog<String>(
       child: const URLFormDialog(),
     );
@@ -47,8 +47,8 @@ class AddProfileView extends StatelessWidget {
     }
   }
 
-  _handleReceiveFromPhone() async {
-  final String? url = await showDialog<String>(
+  Future<void> _handleReceiveFromPhone() async {
+  final url = await showDialog<String>(
     context: context,
     builder: (_) => const ReceiveProfileDialog(),
   );
@@ -58,8 +58,7 @@ class AddProfileView extends StatelessWidget {
 }
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
+  Widget build(BuildContext context) => FutureBuilder<bool>(
       future: system.isAndroidTV,
       builder: (context, snapshot) {
         final isTV = snapshot.data ?? false;
@@ -94,7 +93,6 @@ class AddProfileView extends StatelessWidget {
         );
       },
     );
-  }
 }
 
 class URLFormDialog extends StatefulWidget {
@@ -122,8 +120,7 @@ class _URLFormDialogState extends State<URLFormDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: appLocalizations.importFromURL,
       actions: [
         TextButton(
@@ -152,5 +149,4 @@ class _URLFormDialogState extends State<URLFormDialog> {
         ),
       ),
     );
-  }
 }

@@ -11,15 +11,13 @@ class TUNButton extends StatelessWidget {
   const TUNButton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
+  Widget build(BuildContext context) => SizedBox(
       height: getWidgetHeight(1),
       child: CommonCard(
         onPressed: () {
           showSheet(
             context: context,
-            builder: (_, type) {
-              return AdaptiveSheetScaffold(
+            builder: (_, type) => AdaptiveSheetScaffold(
                 type: type,
                 body: generateListView(
                   generateSection(
@@ -31,8 +29,7 @@ class TUNButton extends StatelessWidget {
                   ),
                 ),
                 title: appLocalizations.tun,
-              );
-            },
+              ),
           );
         },
         info: Info(
@@ -85,34 +82,30 @@ class TUNButton extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class SystemProxyButton extends StatelessWidget {
   const SystemProxyButton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
+  Widget build(BuildContext context) => SizedBox(
       height: getWidgetHeight(1),
       child: CommonCard(
         onPressed: () {
           showSheet(
             context: context,
-            builder: (_, type) {
-              return AdaptiveSheetScaffold(
+            builder: (_, type) => AdaptiveSheetScaffold(
                 type: type,
                 body: generateListView(
                   generateSection(
                     items: [
-                      SystemProxyItem(),
-                      BypassDomainItem(),
+                      const SystemProxyItem(),
+                      const BypassDomainItem(),
                     ],
                   ),
                 ),
                 title: appLocalizations.systemProxy,
-              );
-            },
+              ),
           );
         },
         info: Info(
@@ -166,22 +159,19 @@ class SystemProxyButton extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class VpnButton extends StatelessWidget {
   const VpnButton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
+  Widget build(BuildContext context) => SizedBox(
       height: getWidgetHeight(1),
       child: CommonCard(
         onPressed: () {
           showSheet(
             context: context,
-            builder: (_, type) {
-              return AdaptiveSheetScaffold(
+            builder: (_, type) => AdaptiveSheetScaffold(
                 type: type,
                 body: generateListView(
                   generateSection(
@@ -193,11 +183,10 @@ class VpnButton extends StatelessWidget {
                   ),
                 ),
                 title: "VPN",
-              );
-            },
+              ),
           );
         },
-        info: Info(
+        info: const Info(
           label: "VPN",
           iconData: Icons.stacked_line_chart,
         ),
@@ -250,5 +239,4 @@ class VpnButton extends StatelessWidget {
         ),
       ),
     );
-  }
 }

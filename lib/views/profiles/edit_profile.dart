@@ -12,14 +12,14 @@ import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 
 class EditProfileView extends StatefulWidget {
-  final Profile profile;
-  final BuildContext context;
 
   const EditProfileView({
     super.key,
     required this.context,
     required this.profile,
   });
+  final Profile profile;
+  final BuildContext context;
 
   @override
   State<EditProfileView> createState() => _EditProfileViewState();
@@ -51,10 +51,10 @@ class _EditProfileViewState extends State<EditProfileView> {
     });
   }
 
-  _handleConfirm() async {
+  Future<void> _handleConfirm() async {
     if (!_formKey.currentState!.validate()) return;
     final appController = globalState.appController;
-    Profile profile = this.profile.copyWith(
+    var profile = this.profile.copyWith(
           url: urlController.text,
           label: labelController.text,
           autoUpdate: autoUpdate,
@@ -99,7 +99,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     }
   }
 
-  _setAutoUpdate(bool value) {
+  void _setAutoUpdate(bool value) {
     if (autoUpdate == value) return;
     setState(() {
       autoUpdate = value;
@@ -119,7 +119,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  _handleSaveEdit(BuildContext context, String data) async {
+  Future<void> _handleSaveEdit(BuildContext context, String data) async {
     final message = await globalState.safeRun<String>(
       () async {
         final message = await clashCore.validateConfig(data);
@@ -139,7 +139,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     }
   }
 
-  _editProfileFile() async {
+  Future<void> _editProfileFile() async {
     if (rawText == null) {
       final profilePath = await appPath.getProfilePath(widget.profile.id);
       final file = File(profilePath);
@@ -188,7 +188,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  _uploadProfileFile() async {
+  Future<void> _uploadProfileFile() async {
     final platformFile = await globalState.safeRun(picker.pickerFile);
     if (platformFile?.bytes == null) return;
     fileData = platformFile?.bytes;
@@ -198,7 +198,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  _handleBack() async {
+  Future<void> _handleBack() async {
     final res = await globalState.showMessage(
       title: appLocalizations.tip,
       message: TextSpan(text: appLocalizations.fileIsUpdate),
@@ -223,7 +223,7 @@ class _EditProfileViewState extends State<EditProfileView> {
             border: const OutlineInputBorder(),
             labelText: appLocalizations.name,
           ),
-          validator: (String? value) {
+          validator: (value) {
             if (value == null || value.isEmpty) {
               return appLocalizations.profileNameNullValidationDesc;
             }
@@ -243,7 +243,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               border: const OutlineInputBorder(),
               labelText: appLocalizations.url,
             ),
-            validator: (String? value) {
+            validator: (value) {
               if (value == null || value.isEmpty) {
                 return appLocalizations.profileUrlNullValidationDesc;
               }
@@ -270,7 +270,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                 border: const OutlineInputBorder(),
                 labelText: appLocalizations.autoUpdateInterval,
               ),
-              validator: (String? value) {
+              validator: (value) {
                 if (value == null || value.isEmpty) {
                   return appLocalizations
                       .profileAutoUpdateIntervalNullValidationDesc;
@@ -288,8 +288,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       ],
       ValueListenableBuilder<FileInfo?>(
         valueListenable: fileInfoNotifier,
-        builder: (_, fileInfo, __) {
-          return FadeThroughBox(
+        builder: (_, fileInfo, __) => FadeThroughBox(
             child: fileInfo == null
                 ? Container()
                 : ListItem(
@@ -327,8 +326,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                       ],
                     ),
                   ),
-          );
-        },
+          ),
       ),
     ];
     return CommonPopScope(
@@ -358,14 +356,10 @@ class _EditProfileViewState extends State<EditProfileView> {
               padding: kMaterialListPadding.copyWith(
                 bottom: 72,
               ),
-              itemBuilder: (_, index) {
-                return items[index];
-              },
-              separatorBuilder: (_, __) {
-                return const SizedBox(
+              itemBuilder: (_, index) => items[index],
+              separatorBuilder: (_, __) => const SizedBox(
                   height: 24,
-                );
-              },
+                ),
               itemCount: items.length,
             ),
           ),

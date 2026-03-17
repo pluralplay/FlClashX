@@ -1,12 +1,12 @@
 import 'package:flutter/cupertino.dart';
 
 class CommonView extends StatefulWidget {
-  final List<Widget> actions;
 
   const CommonView({
     super.key,
     required this.actions,
   });
+  final List<Widget> actions;
 
   @override
   State<CommonView> createState() => _CommonViewState();
@@ -14,7 +14,5 @@ class CommonView extends StatefulWidget {
 
 class _CommonViewState extends State<CommonView> {
   @override
-  Widget build(BuildContext context) {
-    return const Placeholder();
-  }
+  Widget build(BuildContext context) => const Placeholder();
 }

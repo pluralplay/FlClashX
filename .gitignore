@@ -1,3 +1,7 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+
 # Miscellaneous
 *.class
 *.log
@@ -36,6 +40,7 @@ migrate_working_dir/
 /dist/
 /android/core/.cxx/
 /service/
+
 # Symbolication related
 app.*.symbols
 
@@ -47,9 +52,19 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Helper
+/services/helper/target/
 #libclash
 /libclash/
 
 #jniLibs
 /android/app/src/main/jniLibs/
 /android/core/src/main/jniLibs/
+
+# Signing keys (sensitive data)
+/android/app/keystore.jks
+*.jks
+
+# Environment variables (contains sensitive data)
+.env
+*.local.sh

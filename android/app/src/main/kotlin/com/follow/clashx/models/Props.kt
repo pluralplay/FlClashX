@@ -30,5 +30,6 @@ data class VpnOptions(
 
 data class StartForegroundParams(
     val title: String,
+    val server: String?,
     val content: String,
 )

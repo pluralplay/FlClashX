@@ -6,9 +6,6 @@ import 'package:flclashx/models/models.dart';
 import 'package:webdav_client/webdav_client.dart';
 
 class DAVClient {
-  late Client client;
-  Completer<bool> pingCompleter = Completer();
-  late String fileName;
 
   DAVClient(DAV dav) {
     client = newClient(
@@ -28,6 +25,9 @@ class DAVClient {
     client.setReceiveTimeout(60000);
     pingCompleter.complete(_ping());
   }
+  late Client client;
+  Completer<bool> pingCompleter = Completer();
+  late String fileName;
 
   Future<bool> _ping() async {
     try {
@@ -38,18 +38,18 @@ class DAVClient {
     }
   }
 
-  get root => "/$appName";
+  String get root => "/$appName";
 
-  get backupFile => "$root/$fileName";
+  String get backupFile => "$root/$fileName";
 
-  backup(Uint8List data) async {
-    await client.mkdir("$root");
-    await client.write("$backupFile", data);
+  Future<bool> backup(Uint8List data) async {
+    await client.mkdir(root);
+    await client.write(backupFile, data);
     return true;
   }
 
   Future<List<int>> recovery() async {
-    await client.mkdir("$root");
+    await client.mkdir(root);
     final data = await client.read(backupFile);
     return data;
   }

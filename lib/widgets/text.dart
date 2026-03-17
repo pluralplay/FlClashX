@@ -1,20 +1,19 @@
+import 'package:emoji_regex/emoji_regex.dart';
 import 'package:flclashx/enum/enum.dart';
 import 'package:flutter/material.dart';
-import 'package:emoji_regex/emoji_regex.dart';
 
 import '../state.dart';
 
 class TooltipText extends StatelessWidget {
-  final Text text;
 
   const TooltipText({
     super.key,
     required this.text,
   });
+  final Text text;
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
+  Widget build(BuildContext context) => LayoutBuilder(
       builder: (context, container) {
         final maxWidth = container.maxWidth;
         final size = globalState.measure.computeTextSize(
@@ -30,14 +29,9 @@ class TooltipText extends StatelessWidget {
         return text;
       },
     );
-  }
 }
 
 class EmojiText extends StatelessWidget {
-  final String text;
-  final TextStyle? style;
-  final int? maxLines;
-  final TextOverflow? overflow;
 
   const EmojiText(
     this.text, {
@@ -46,12 +40,16 @@ class EmojiText extends StatelessWidget {
     this.overflow,
     this.style,
   });
+  final String text;
+  final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   List<TextSpan> _buildTextSpans(String emojis) {
-    final List<TextSpan> spans = [];
+    final spans = <TextSpan>[];
     final matches = emojiRegex().allMatches(text);
 
-    int lastMatchEnd = 0;
+    var lastMatchEnd = 0;
     for (final match in matches) {
       if (match.start > lastMatchEnd) {
         spans.add(
@@ -82,8 +80,7 @@ class EmojiText extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return RichText(
+  Widget build(BuildContext context) => RichText(
       textScaler: MediaQuery.of(context).textScaler,
       maxLines: maxLines,
       overflow: overflow ?? TextOverflow.clip,
@@ -91,5 +88,4 @@ class EmojiText extends StatelessWidget {
         children: _buildTextSpans(text),
       ),
     );
-  }
 }

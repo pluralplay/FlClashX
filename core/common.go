@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"sync"
+
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
@@ -22,8 +25,6 @@ import (
 	"github.com/metacubex/mihomo/log"
 	rp "github.com/metacubex/mihomo/rules/provider"
 	"github.com/metacubex/mihomo/tunnel"
-	"os"
-	"sync"
 )
 
 var (
@@ -240,6 +241,9 @@ func setupConfig(params *SetupParams) error {
 	defer runLock.Unlock()
 	var err error
 	constant.DefaultTestURL = params.TestURL
+	
+	extractProxyDescriptionsFromRaw(params.Config)
+	
 	currentConfig, err = config.ParseRawConfig(params.Config)
 	if err != nil {
 		currentConfig, _ = config.ParseRawConfig(config.DefaultRawConfig())

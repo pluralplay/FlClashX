@@ -44,7 +44,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
       ];
 
   @override
-  get onSearch => (value) {
+  Null Function(String value) get onSearch => (value) {
         _connectionsStateNotifier.value =
             _connectionsStateNotifier.value.copyWith(
           query: value,
@@ -52,19 +52,19 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
       };
 
   @override
-  get onKeywordsUpdate => (keywords) {
+  Null Function(List<String> keywords) get onKeywordsUpdate => (keywords) {
         _connectionsStateNotifier.value =
             _connectionsStateNotifier.value.copyWith(keywords: keywords);
       };
 
-  _updateConnections() async {
+  Future<void> _updateConnections() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         _connectionsStateNotifier.value =
             _connectionsStateNotifier.value.copyWith(
           connections: await clashCore.getConnections(),
         );
-        timer = Timer(Duration(seconds: 1), () async {
+        timer = Timer(const Duration(seconds: 1), () async {
           _updateConnections();
         });
       }
@@ -90,7 +90,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
     _updateConnections();
   }
 
-  _handleBlockConnection(String id) async {
+  Future<void> _handleBlockConnection(String id) async {
     clashCore.closeConnection(id);
     _connectionsStateNotifier.value = _connectionsStateNotifier.value.copyWith(
       connections: await clashCore.getConnections(),
@@ -107,8 +107,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<ConnectionsState>(
+  Widget build(BuildContext context) => ValueListenableBuilder<ConnectionsState>(
       valueListenable: _connectionsStateNotifier,
       builder: (_, state, __) {
         final connections = state.list;
@@ -137,15 +136,12 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
                 ),
               );
             },
-            separatorBuilder: (BuildContext context, int index) {
-              return const Divider(
+            separatorBuilder: (context, index) => const Divider(
                 height: 0,
-              );
-            },
+              ),
             itemCount: connections.length,
           ),
         );
       },
     );
-  }
 }

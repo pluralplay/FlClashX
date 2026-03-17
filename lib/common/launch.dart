@@ -8,7 +8,11 @@ import 'constant.dart';
 import 'system.dart';
 
 class AutoLaunch {
-  static AutoLaunch? _instance;
+
+  factory AutoLaunch() {
+    _instance ??= AutoLaunch._internal();
+    return _instance!;
+  }
 
   AutoLaunch._internal() {
     launchAtStartup.setup(
@@ -16,26 +20,16 @@ class AutoLaunch {
       appPath: Platform.resolvedExecutable,
     );
   }
+  static AutoLaunch? _instance;
 
-  factory AutoLaunch() {
-    _instance ??= AutoLaunch._internal();
-    return _instance!;
-  }
+  Future<bool> get isEnable async => launchAtStartup.isEnabled();
 
-  Future<bool> get isEnable async {
-    return await launchAtStartup.isEnabled();
-  }
+  Future<bool> enable() async => launchAtStartup.enable();
 
-  Future<bool> enable() async {
-    return await launchAtStartup.enable();
-  }
+  Future<bool> disable() async => launchAtStartup.disable();
 
-  Future<bool> disable() async {
-    return await launchAtStartup.disable();
-  }
-
-  updateStatus(bool isAutoLaunch) async {
-    if(kDebugMode){
+  Future<void> updateStatus(bool isAutoLaunch) async {
+    if (kDebugMode) {
       return;
     }
     if (await isEnable == isAutoLaunch) return;

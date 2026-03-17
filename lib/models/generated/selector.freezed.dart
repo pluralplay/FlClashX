@@ -727,6 +727,7 @@ abstract class _VM5<A, B, C, D, E> implements VM5<A, B, C, D, E> {
 mixin _$StartButtonSelectorState {
   bool get isInit => throw _privateConstructorUsedError;
   bool get hasProfile => throw _privateConstructorUsedError;
+  bool get hasProxiesInit => throw _privateConstructorUsedError;
 
   /// Create a copy of StartButtonSelectorState
   /// with the given fields replaced by the non-null parameter values.
@@ -741,7 +742,7 @@ abstract class $StartButtonSelectorStateCopyWith<$Res> {
           $Res Function(StartButtonSelectorState) then) =
       _$StartButtonSelectorStateCopyWithImpl<$Res, StartButtonSelectorState>;
   @useResult
-  $Res call({bool isInit, bool hasProfile});
+  $Res call({bool isInit, bool hasProfile, bool hasProxiesInit});
 }
 
 /// @nodoc
@@ -762,6 +763,7 @@ class _$StartButtonSelectorStateCopyWithImpl<$Res,
   $Res call({
     Object? isInit = null,
     Object? hasProfile = null,
+    Object? hasProxiesInit = null,
   }) {
     return _then(_value.copyWith(
       isInit: null == isInit
@@ -771,6 +773,10 @@ class _$StartButtonSelectorStateCopyWithImpl<$Res,
       hasProfile: null == hasProfile
           ? _value.hasProfile
           : hasProfile // ignore: cast_nullable_to_non_nullable
+              as bool,
+      hasProxiesInit: null == hasProxiesInit
+          ? _value.hasProxiesInit
+          : hasProxiesInit // ignore: cast_nullable_to_non_nullable
               as bool,
     ) as $Val);
   }
@@ -785,7 +791,7 @@ abstract class _$$StartButtonSelectorStateImplCopyWith<$Res>
       __$$StartButtonSelectorStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({bool isInit, bool hasProfile});
+  $Res call({bool isInit, bool hasProfile, bool hasProxiesInit});
 }
 
 /// @nodoc
@@ -805,6 +811,7 @@ class __$$StartButtonSelectorStateImplCopyWithImpl<$Res>
   $Res call({
     Object? isInit = null,
     Object? hasProfile = null,
+    Object? hasProxiesInit = null,
   }) {
     return _then(_$StartButtonSelectorStateImpl(
       isInit: null == isInit
@@ -815,6 +822,10 @@ class __$$StartButtonSelectorStateImplCopyWithImpl<$Res>
           ? _value.hasProfile
           : hasProfile // ignore: cast_nullable_to_non_nullable
               as bool,
+      hasProxiesInit: null == hasProxiesInit
+          ? _value.hasProxiesInit
+          : hasProxiesInit // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -823,16 +834,20 @@ class __$$StartButtonSelectorStateImplCopyWithImpl<$Res>
 
 class _$StartButtonSelectorStateImpl implements _StartButtonSelectorState {
   const _$StartButtonSelectorStateImpl(
-      {required this.isInit, required this.hasProfile});
+      {required this.isInit,
+      required this.hasProfile,
+      required this.hasProxiesInit});
 
   @override
   final bool isInit;
   @override
   final bool hasProfile;
+  @override
+  final bool hasProxiesInit;
 
   @override
   String toString() {
-    return 'StartButtonSelectorState(isInit: $isInit, hasProfile: $hasProfile)';
+    return 'StartButtonSelectorState(isInit: $isInit, hasProfile: $hasProfile, hasProxiesInit: $hasProxiesInit)';
   }
 
   @override
@@ -842,11 +857,14 @@ class _$StartButtonSelectorStateImpl implements _StartButtonSelectorState {
             other is _$StartButtonSelectorStateImpl &&
             (identical(other.isInit, isInit) || other.isInit == isInit) &&
             (identical(other.hasProfile, hasProfile) ||
-                other.hasProfile == hasProfile));
+                other.hasProfile == hasProfile) &&
+            (identical(other.hasProxiesInit, hasProxiesInit) ||
+                other.hasProxiesInit == hasProxiesInit));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, isInit, hasProfile);
+  int get hashCode =>
+      Object.hash(runtimeType, isInit, hasProfile, hasProxiesInit);
 
   /// Create a copy of StartButtonSelectorState
   /// with the given fields replaced by the non-null parameter values.
@@ -861,12 +879,15 @@ class _$StartButtonSelectorStateImpl implements _StartButtonSelectorState {
 abstract class _StartButtonSelectorState implements StartButtonSelectorState {
   const factory _StartButtonSelectorState(
       {required final bool isInit,
-      required final bool hasProfile}) = _$StartButtonSelectorStateImpl;
+      required final bool hasProfile,
+      required final bool hasProxiesInit}) = _$StartButtonSelectorStateImpl;
 
   @override
   bool get isInit;
   @override
   bool get hasProfile;
+  @override
+  bool get hasProxiesInit;
 
   /// Create a copy of StartButtonSelectorState
   /// with the given fields replaced by the non-null parameter values.
@@ -1240,6 +1261,7 @@ mixin _$TrayState {
   Brightness? get brightness => throw _privateConstructorUsedError;
   List<Group> get groups => throw _privateConstructorUsedError;
   Map<String, String> get selectedMap => throw _privateConstructorUsedError;
+  bool get globalModeEnabled => throw _privateConstructorUsedError;
 
   /// Create a copy of TrayState
   /// with the given fields replaced by the non-null parameter values.
@@ -1263,7 +1285,8 @@ abstract class $TrayStateCopyWith<$Res> {
       String? locale,
       Brightness? brightness,
       List<Group> groups,
-      Map<String, String> selectedMap});
+      Map<String, String> selectedMap,
+      bool globalModeEnabled});
 }
 
 /// @nodoc
@@ -1291,6 +1314,7 @@ class _$TrayStateCopyWithImpl<$Res, $Val extends TrayState>
     Object? brightness = freezed,
     Object? groups = null,
     Object? selectedMap = null,
+    Object? globalModeEnabled = null,
   }) {
     return _then(_value.copyWith(
       mode: null == mode
@@ -1333,6 +1357,10 @@ class _$TrayStateCopyWithImpl<$Res, $Val extends TrayState>
           ? _value.selectedMap
           : selectedMap // ignore: cast_nullable_to_non_nullable
               as Map<String, String>,
+      globalModeEnabled: null == globalModeEnabled
+          ? _value.globalModeEnabled
+          : globalModeEnabled // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -1355,7 +1383,8 @@ abstract class _$$TrayStateImplCopyWith<$Res>
       String? locale,
       Brightness? brightness,
       List<Group> groups,
-      Map<String, String> selectedMap});
+      Map<String, String> selectedMap,
+      bool globalModeEnabled});
 }
 
 /// @nodoc
@@ -1381,6 +1410,7 @@ class __$$TrayStateImplCopyWithImpl<$Res>
     Object? brightness = freezed,
     Object? groups = null,
     Object? selectedMap = null,
+    Object? globalModeEnabled = null,
   }) {
     return _then(_$TrayStateImpl(
       mode: null == mode
@@ -1423,6 +1453,10 @@ class __$$TrayStateImplCopyWithImpl<$Res>
           ? _value._selectedMap
           : selectedMap // ignore: cast_nullable_to_non_nullable
               as Map<String, String>,
+      globalModeEnabled: null == globalModeEnabled
+          ? _value.globalModeEnabled
+          : globalModeEnabled // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -1440,7 +1474,8 @@ class _$TrayStateImpl implements _TrayState {
       required this.locale,
       required this.brightness,
       required final List<Group> groups,
-      required final Map<String, String> selectedMap})
+      required final Map<String, String> selectedMap,
+      this.globalModeEnabled = true})
       : _groups = groups,
         _selectedMap = selectedMap;
 
@@ -1477,8 +1512,12 @@ class _$TrayStateImpl implements _TrayState {
   }
 
   @override
+  @JsonKey()
+  final bool globalModeEnabled;
+
+  @override
   String toString() {
-    return 'TrayState(mode: $mode, port: $port, autoLaunch: $autoLaunch, systemProxy: $systemProxy, tunEnable: $tunEnable, isStart: $isStart, locale: $locale, brightness: $brightness, groups: $groups, selectedMap: $selectedMap)';
+    return 'TrayState(mode: $mode, port: $port, autoLaunch: $autoLaunch, systemProxy: $systemProxy, tunEnable: $tunEnable, isStart: $isStart, locale: $locale, brightness: $brightness, groups: $groups, selectedMap: $selectedMap, globalModeEnabled: $globalModeEnabled)';
   }
 
   @override
@@ -1500,7 +1539,9 @@ class _$TrayStateImpl implements _TrayState {
                 other.brightness == brightness) &&
             const DeepCollectionEquality().equals(other._groups, _groups) &&
             const DeepCollectionEquality()
-                .equals(other._selectedMap, _selectedMap));
+                .equals(other._selectedMap, _selectedMap) &&
+            (identical(other.globalModeEnabled, globalModeEnabled) ||
+                other.globalModeEnabled == globalModeEnabled));
   }
 
   @override
@@ -1515,7 +1556,8 @@ class _$TrayStateImpl implements _TrayState {
       locale,
       brightness,
       const DeepCollectionEquality().hash(_groups),
-      const DeepCollectionEquality().hash(_selectedMap));
+      const DeepCollectionEquality().hash(_selectedMap),
+      globalModeEnabled);
 
   /// Create a copy of TrayState
   /// with the given fields replaced by the non-null parameter values.
@@ -1537,7 +1579,8 @@ abstract class _TrayState implements TrayState {
       required final String? locale,
       required final Brightness? brightness,
       required final List<Group> groups,
-      required final Map<String, String> selectedMap}) = _$TrayStateImpl;
+      required final Map<String, String> selectedMap,
+      final bool globalModeEnabled}) = _$TrayStateImpl;
 
   @override
   Mode get mode;
@@ -1559,6 +1602,8 @@ abstract class _TrayState implements TrayState {
   List<Group> get groups;
   @override
   Map<String, String> get selectedMap;
+  @override
+  bool get globalModeEnabled;
 
   /// Create a copy of TrayState
   /// with the given fields replaced by the non-null parameter values.

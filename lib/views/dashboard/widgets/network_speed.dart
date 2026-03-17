@@ -16,7 +16,7 @@ class _NetworkSpeedState extends State<NetworkSpeed> {
   List<Point> initPoints = const [Point(0, 0), Point(1, 0)];
 
   List<Point> _getPoints(List<Traffic> traffics) {
-    List<Point> trafficPoints = traffics
+    final trafficPoints = traffics
         .toList()
         .asMap()
         .map(
@@ -57,7 +57,7 @@ class _NetworkSpeedState extends State<NetworkSpeed> {
               children: [
                 Positioned.fill(
                   child: Padding(
-                    padding: EdgeInsets.all(16).copyWith(
+                    padding: const EdgeInsets.all(16).copyWith(
                       bottom: 0,
                       left: 0,
                       right: 0,
@@ -73,7 +73,7 @@ class _NetworkSpeedState extends State<NetworkSpeed> {
                   top: 0,
                   right: 0,
                   child: Transform.translate(
-                    offset: Offset(
+                    offset: const Offset(
                       -16,
                       -20,
                     ),

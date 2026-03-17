@@ -3,15 +3,15 @@ import 'dart:io';
 import 'package:flclashx/common/common.dart';
 
 class SingleInstanceLock {
-  static SingleInstanceLock? _instance;
-  RandomAccessFile? _accessFile;
-
-  SingleInstanceLock._internal();
 
   factory SingleInstanceLock() {
     _instance ??= SingleInstanceLock._internal();
     return _instance!;
   }
+
+  SingleInstanceLock._internal();
+  static SingleInstanceLock? _instance;
+  RandomAccessFile? _accessFile;
 
   Future<bool> acquire() async {
     try {

@@ -4,13 +4,19 @@ import 'package:flclashx/views/views.dart';
 import 'package:flutter/material.dart';
 
 class Navigation {
+
+  factory Navigation() {
+    _instance ??= Navigation._internal();
+    return _instance!;
+  }
+
+  Navigation._internal();
   static Navigation? _instance;
 
   List<NavigationItem> getItems({
     bool openLogs = false,
     bool hasProxies = false,
-  }) {
-    return [
+  }) => [
       const NavigationItem(
         keep: false,
         icon: Icon(Icons.space_dashboard),
@@ -97,14 +103,6 @@ class Navigation {
         modes: [NavigationItemMode.desktop, NavigationItemMode.mobile],
       ),
     ];
-  }
-
-  Navigation._internal();
-
-  factory Navigation() {
-    _instance ??= Navigation._internal();
-    return _instance!;
-  }
 }
 
 final navigation = Navigation();

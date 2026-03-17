@@ -19,7 +19,7 @@ class LogsView extends ConsumerStatefulWidget {
 
 class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
   final _logsStateNotifier = ValueNotifier<LogsState>(
-    LogsState(loading: true),
+    const LogsState(loading: true),
   );
   late ScrollController _scrollController;
 
@@ -70,9 +70,7 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
   @override
   List<Widget> get actions => [
         IconButton(
-          onPressed: () {
-            _handleExport();
-          },
+          onPressed: _handleExport,
           icon: const Icon(
             Icons.file_download_outlined,
           ),
@@ -80,14 +78,14 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
       ];
 
   @override
-  get onSearch => (value) {
+  Null Function(String value) get onSearch => (value) {
         _logsStateNotifier.value = _logsStateNotifier.value.copyWith(
           query: value,
         );
       };
 
   @override
-  get onKeywordsUpdate => (keywords) {
+  Null Function(List<String> keywords) get onKeywordsUpdate => (keywords) {
         _logsStateNotifier.value =
             _logsStateNotifier.value.copyWith(keywords: keywords);
       };
@@ -99,12 +97,10 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
     super.dispose();
   }
 
-  _handleExport() async {
+  Future<void> _handleExport() async {
     final commonScaffoldState = context.commonScaffoldState;
     final res = await commonScaffoldState?.loadingRun<bool>(
-      () async {
-        return await globalState.appController.exportLogs();
-      },
+      () async => globalState.appController.exportLogs(),
       title: appLocalizations.exportLogs,
     );
     if (res != true) return;
@@ -130,7 +126,7 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
     return height + bodySmallHeight + 8 + bodyMediumHeight + 40 + 8;
   }
 
-  updateLogsThrottler() {
+  void updateLogsThrottler() {
     throttler.call(FunctionTag.logs, () {
       final isEquality = logListEquality.equals(
         _logs,
@@ -149,7 +145,7 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
     }, duration: commonDuration);
   }
 
-  _preLoad() {
+  void _preLoad() {
     if (_isLoad == true) {
       return;
     }
@@ -160,13 +156,13 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
       }
       final isMobileView = ref.read(isMobileViewProvider);
       if (isMobileView) {
-        await Future.delayed(Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 300));
       }
       final parts = _logs.batch(10);
       globalState.cacheHeightMap[_tag] ??= FixedMap(
         _logs.length,
       );
-      for (int i = 0; i < parts.length; i++) {
+      for (var i = 0; i < parts.length; i++) {
         final part = parts[i];
         await Future(
           () {
@@ -186,8 +182,7 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
+  Widget build(BuildContext context) => LayoutBuilder(
       builder: (_, constraints) {
         _currentMaxWidth = constraints.maxWidth - 40;
         return ValueListenableBuilder<LogsState>(
@@ -229,11 +224,9 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
                           tag: _tag,
                           reverse: true,
                           shrinkWrap: true,
-                          physics: NextClampingScrollPhysics(),
+                          physics: const NextClampingScrollPhysics(),
                           controller: _scrollController,
-                          itemBuilder: (_, index) {
-                            return items[index];
-                          },
+                          itemBuilder: (_, index) => items[index],
                           itemExtentBuilder: (index) {
                             if (index.isOdd) {
                               return 0;
@@ -241,7 +234,7 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
                             return _getItemHeight(logs[index ~/ 2]);
                           },
                           itemCount: items.length,
-                          keyBuilder: (int index) {
+                          keyBuilder: (index) {
                             if (index.isOdd) {
                               return "divider";
                             }
@@ -253,7 +246,7 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
                   );
             return FadeBox(
               child: state.loading
-                  ? Center(
+                  ? const Center(
                       child: CircularProgressIndicator(),
                     )
                   : content,
@@ -262,22 +255,20 @@ class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
         );
       },
     );
-  }
 }
 
 class LogItem extends StatelessWidget {
-  final Log log;
-  final Function(String)? onClick;
 
   const LogItem({
     super.key,
     required this.log,
     this.onClick,
   });
+  final Log log;
+  final Function(String)? onClick;
 
   @override
-  Widget build(BuildContext context) {
-    return ListItem(
+  Widget build(BuildContext context) => ListItem(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 4,
@@ -311,5 +302,4 @@ class LogItem extends StatelessWidget {
         ],
       ),
     );
-  }
 }

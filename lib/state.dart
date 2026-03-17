@@ -25,6 +25,13 @@ import 'models/models.dart';
 typedef UpdateTasks = List<FutureOr Function()>;
 
 class GlobalState {
+
+  factory GlobalState() {
+    _instance ??= GlobalState._internal();
+    return _instance!;
+  }
+
+  GlobalState._internal();
   static GlobalState? _instance;
   Map<CacheTag, double> cacheScrollPosition = {};
   Map<CacheTag, FixedMap<String, double>> cacheHeightMap = {};
@@ -35,6 +42,7 @@ class GlobalState {
   late AppState appState;
   bool isPre = true;
   String? coreSHA256;
+  String? coreVersion;
   late PackageInfo packageInfo;
   Function? updateCurrentDelayDebounce;
   late Measure measure;
@@ -57,15 +65,9 @@ class GlobalState {
     isInit = true;
   }
 
-  GlobalState._internal();
-
-  factory GlobalState() {
-    _instance ??= GlobalState._internal();
-    return _instance!;
-  }
-
-  initApp(int version) async {
+  Future<void> initApp(int version) async {
     coreSHA256 = const String.fromEnvironment("CORE_SHA256");
+    coreVersion = const String.fromEnvironment("CORE_VERSION");
     isPre = const String.fromEnvironment("APP_ENV") != 'stable';
     appState = AppState(
       version: version,
@@ -79,18 +81,18 @@ class GlobalState {
     await init();
   }
 
-  _initDynamicColor() async {
+  Future<void> _initDynamicColor() async {
     try {
       corePalette = await DynamicColorPlugin.getCorePalette();
       accentColor = await DynamicColorPlugin.getAccentColor() ??
-          Color(defaultPrimaryColor);
+          const Color(defaultPrimaryColor);
     } catch (_) {}
   }
 
-  init() async {
+  Future<void> init() async {
     packageInfo = await PackageInfo.fromPlatform();
     config = await preferences.getConfig() ??
-        Config(
+        const Config(
           themeProps: defaultThemeProps,
         );
     await globalState.migrateOldData(config);
@@ -102,7 +104,7 @@ class GlobalState {
 
   String get ua => config.patchClashConfig.globalUa ?? packageInfo.ua;
 
-  startUpdateTasks([UpdateTasks? tasks]) async {
+  Future<void> startUpdateTasks([UpdateTasks? tasks]) async {
     if (timer != null && timer!.isActive == true) return;
     if (tasks != null) {
       this.tasks = tasks;
@@ -113,20 +115,20 @@ class GlobalState {
     });
   }
 
-  executorUpdateTask() async {
+  Future<void> executorUpdateTask() async {
     for (final task in tasks) {
       await task();
     }
     timer = null;
   }
 
-  stopUpdateTasks() {
+  void stopUpdateTasks() {
     if (timer == null || timer?.isActive == false) return;
     timer?.cancel();
     timer = null;
   }
 
-  handleStart([UpdateTasks? tasks]) async {
+  Future<void> handleStart([UpdateTasks? tasks]) async {
     startTime ??= DateTime.now();
     await clashCore.startListener();
     await service?.startVpn();
@@ -149,11 +151,9 @@ class GlobalState {
     required InlineSpan message,
     String? confirmText,
     bool cancelable = true,
-  }) async {
-    return await showCommonDialog<bool>(
+  }) async => showCommonDialog<bool>(
       child: Builder(
-        builder: (context) {
-          return CommonDialog(
+        builder: (context) => CommonDialog(
             title: title ?? appLocalizations.tip,
             actions: [
               if (cancelable)
@@ -185,11 +185,9 @@ class GlobalState {
                 ),
               ),
             ),
-          );
-        },
+          ),
       ),
     );
-  }
 
   // Future<Map<String, dynamic>> getProfileMap(String id) async {
   //   final profilePath = await appPath.getProfilePath(id);
@@ -215,8 +213,7 @@ class GlobalState {
   Future<T?> showCommonDialog<T>({
     required Widget child,
     bool dismissible = true,
-  }) async {
-    return await showModal<T>(
+  }) async => showModal<T>(
       context: navigatorKey.currentState!.context,
       configuration: FadeScaleTransitionConfiguration(
         barrierColor: Colors.black38,
@@ -225,7 +222,6 @@ class GlobalState {
       builder: (_) => child,
       filter: commonFilter,
     );
-  }
 
   Future<T?> safeRun<T>(
     FutureOr<T> Function() futureFunction, {
@@ -251,14 +247,14 @@ class GlobalState {
     }
   }
 
-  showNotifier(String text) {
+  void showNotifier(String text) {
     if (text.isEmpty) {
       return;
     }
     navigatorKey.currentContext?.showNotifier(text);
   }
 
-  openUrl(String url) async {
+  Future<void> openUrl(String url) async {
     final res = await showMessage(
       message: TextSpan(text: url),
       title: appLocalizations.externalLink,
@@ -305,6 +301,52 @@ class GlobalState {
     return params;
   }
 
+  Future<ClashConfig> syncNetworkSettingsFromProvider(ClashConfig patchConfig) async {
+    if (config.appSetting.overrideNetworkSettings) {
+      return patchConfig; // User wants to override, keep current settings
+    }
+
+    final profile = config.currentProfile;
+    if (profile == null) {
+      return patchConfig;
+    }
+
+    try {
+      final profileId = profile.id;
+      final configMap = await getProfileConfig(profileId);
+      final rawConfig = await handleEvaluate(configMap);
+
+      final providerIpv6 = rawConfig['ipv6'] as bool? ?? patchConfig.ipv6;
+      final providerAllowLan = rawConfig['allow-lan'] as bool? ?? patchConfig.allowLan;
+      final providerMixedPort = rawConfig['mixed-port'] as int? ?? patchConfig.mixedPort;
+      final providerFindProcessModeStr = rawConfig['find-process-mode'] as String?;
+      final providerFindProcessMode = providerFindProcessModeStr != null 
+          ? FindProcessMode.values.firstWhere(
+              (e) => e.name.toLowerCase() == providerFindProcessModeStr.toLowerCase(),
+              orElse: () => patchConfig.findProcessMode,
+            )
+          : patchConfig.findProcessMode;
+      
+      final providerTunStackStr = rawConfig['tun']?['stack'] as String?;
+      final providerTunStack = providerTunStackStr != null
+          ? TunStack.values.firstWhere(
+              (e) => e.name.toLowerCase() == providerTunStackStr.toLowerCase(),
+              orElse: () => patchConfig.tun.stack,
+            )
+          : patchConfig.tun.stack;
+
+      return patchConfig.copyWith(
+        ipv6: providerIpv6,
+        allowLan: providerAllowLan,
+        mixedPort: providerMixedPort,
+        findProcessMode: providerFindProcessMode,
+      ).copyWith.tun(stack: providerTunStack);
+    } catch (e) {
+      commonPrint.log("Error syncing network settings from provider: $e");
+      return patchConfig;
+    }
+  }
+
   Future<Map<String, dynamic>> patchRawConfig({
     required ClashConfig patchConfig,
   }) async {
@@ -315,35 +357,72 @@ class GlobalState {
     final profileId = profile.id;
     final configMap = await getProfileConfig(profileId);
     final rawConfig = await handleEvaluate(configMap);
+    
     final realPatchConfig = patchConfig.copyWith(
       tun: patchConfig.tun.getRealTun(config.networkProps.routeMode),
     );
     rawConfig["external-controller"] = realPatchConfig.externalController.value;
-    rawConfig["external-ui"] = "";
+    if (rawConfig["external-ui"] == null || rawConfig["external-ui"] == "") {
+      rawConfig["external-ui"] = "";
+    }
     rawConfig["interface-name"] = "";
-    rawConfig["external-ui-url"] = "";
+    if (rawConfig["external-ui-url"] == null || rawConfig["external-ui-url"] == "") {
+      rawConfig["external-ui-url"] = "";
+    }
     rawConfig["tcp-concurrent"] = realPatchConfig.tcpConcurrent;
     rawConfig["unified-delay"] = realPatchConfig.unifiedDelay;
-    rawConfig["ipv6"] = realPatchConfig.ipv6;
     rawConfig["log-level"] = realPatchConfig.logLevel.name;
     rawConfig["port"] = 0;
     rawConfig["socks-port"] = 0;
     rawConfig["keep-alive-interval"] = realPatchConfig.keepAliveInterval;
-    rawConfig["mixed-port"] = realPatchConfig.mixedPort;
     rawConfig["port"] = realPatchConfig.port;
     rawConfig["socks-port"] = realPatchConfig.socksPort;
     rawConfig["redir-port"] = realPatchConfig.redirPort;
     rawConfig["tproxy-port"] = realPatchConfig.tproxyPort;
-    rawConfig["find-process-mode"] = realPatchConfig.findProcessMode.name;
-    rawConfig["allow-lan"] = realPatchConfig.allowLan;
     rawConfig["mode"] = realPatchConfig.mode.name;
+    
+    // Set network settings: use patchConfig if overriding, otherwise keep provider values
+    if (config.appSetting.overrideNetworkSettings) {
+      // User wants to override - use values from UI (always write)
+      rawConfig["find-process-mode"] = realPatchConfig.findProcessMode.name;
+      rawConfig["allow-lan"] = realPatchConfig.allowLan;
+      rawConfig["ipv6"] = realPatchConfig.ipv6;
+      rawConfig["mixed-port"] = realPatchConfig.mixedPort;
+    } else {
+      // Use provider values - only set if not already in rawConfig, use patchConfig values (which are synced from provider)
+      if (rawConfig["find-process-mode"] == null) {
+        rawConfig["find-process-mode"] = realPatchConfig.findProcessMode.name;
+      }
+      if (rawConfig["allow-lan"] == null) {
+        rawConfig["allow-lan"] = realPatchConfig.allowLan;
+      }
+      if (rawConfig["ipv6"] == null) {
+        rawConfig["ipv6"] = realPatchConfig.ipv6;
+      }
+      if (rawConfig["mixed-port"] == null) {
+        rawConfig["mixed-port"] = realPatchConfig.mixedPort;
+      }
+    }
+    
     if (rawConfig["tun"] == null) {
       rawConfig["tun"] = {};
     }
     rawConfig["tun"]["enable"] = realPatchConfig.tun.enable;
     rawConfig["tun"]["device"] = realPatchConfig.tun.device;
     rawConfig["tun"]["dns-hijack"] = realPatchConfig.tun.dnsHijack;
-    rawConfig["tun"]["stack"] = realPatchConfig.tun.stack.name;
+    
+    // Set TUN stack
+    if (config.appSetting.overrideNetworkSettings) {
+      // User wants to override - use value from UI (always write)
+      rawConfig["tun"]["stack"] = realPatchConfig.tun.stack.name;
+    } else {
+      // Use provider value - only set if not already in rawConfig, use patchConfig value (which is synced from provider)
+      final currentStack = rawConfig["tun"]["stack"];
+      if (currentStack == null) {
+        rawConfig["tun"]["stack"] = realPatchConfig.tun.stack.name;
+      }
+    }
+    
     rawConfig["tun"]["route-address"] = realPatchConfig.tun.routeAddress;
     rawConfig["tun"]["auto-route"] = realPatchConfig.tun.autoRoute;
     rawConfig["geodata-loader"] = realPatchConfig.geodataLoader.name;
@@ -393,7 +472,24 @@ class GlobalState {
     }
 
     rawConfig["profile"]["store-selected"] = false;
-    rawConfig["geox-url"] = realPatchConfig.geoXUrl.toJson();
+    
+    final mergedGeoXUrl = <String, dynamic>{};
+    final patchGeoX = realPatchConfig.geoXUrl.toJson();
+    final profileGeoX = rawConfig["geox-url"];
+    
+    mergedGeoXUrl['geoip'] = patchGeoX['geoip'];
+    mergedGeoXUrl['mmdb'] = patchGeoX['mmdb'];
+    mergedGeoXUrl['asn'] = patchGeoX['asn'];
+    mergedGeoXUrl['geosite'] = patchGeoX['geosite'];
+    
+    if (profileGeoX != null && profileGeoX is Map) {
+      if (profileGeoX['geoip'] != null) mergedGeoXUrl['geoip'] = profileGeoX['geoip'];
+      if (profileGeoX['mmdb'] != null) mergedGeoXUrl['mmdb'] = profileGeoX['mmdb'];
+      if (profileGeoX['asn'] != null) mergedGeoXUrl['asn'] = profileGeoX['asn'];
+      if (profileGeoX['geosite'] != null) mergedGeoXUrl['geosite'] = profileGeoX['geosite'];
+    }
+    
+    rawConfig["geox-url"] = mergedGeoXUrl;
     rawConfig["global-ua"] = realPatchConfig.globalUa;
     if (rawConfig["hosts"] == null) {
       rawConfig["hosts"] = {};
@@ -477,10 +573,18 @@ class GlobalState {
 final globalState = GlobalState();
 
 class DetectionState {
+
+  factory DetectionState() {
+    _instance ??= DetectionState._internal();
+    return _instance!;
+  }
+
+  DetectionState._internal();
   static DetectionState? _instance;
   bool? _preIsStart;
   Timer? _setTimeoutTimer;
   CancelToken? cancelToken;
+  DateTime? _lastManualCheck;
 
   final state = ValueNotifier<NetworkDetectionState>(
     const NetworkDetectionState(
@@ -490,24 +594,29 @@ class DetectionState {
     ),
   );
 
-  DetectionState._internal();
-
-  factory DetectionState() {
-    _instance ??= DetectionState._internal();
-    return _instance!;
-  }
-
-  startCheck() {
+  void startCheck() {
     debouncer.call(
       FunctionTag.checkIp,
       _checkIp,
-      duration: Duration(
+      duration: const Duration(
         milliseconds: 1200,
       ),
     );
   }
 
-  _checkIp() async {
+  bool forceCheck() {
+    if (_lastManualCheck != null) {
+      final timeSinceLastCheck = DateTime.now().difference(_lastManualCheck!);
+      if (timeSinceLastCheck.inSeconds < 15) {
+        return false;
+      }
+    }
+    _lastManualCheck = DateTime.now();
+    _checkIp();
+    return true;
+  }
+
+  Future<void> _checkIp() async {
     final appState = globalState.appState;
     final isInit = appState.isInit;
     if (!isInit) return;
@@ -559,7 +668,7 @@ class DetectionState {
     });
   }
 
-  _clearSetTimeoutTimer() {
+  void _clearSetTimeoutTimer() {
     if (_setTimeoutTimer != null) {
       _setTimeoutTimer?.cancel();
       _setTimeoutTimer = null;

@@ -14,33 +14,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 class ThemeModeItem {
-  final ThemeMode themeMode;
-  final IconData iconData;
-  final String label;
 
   const ThemeModeItem({
     required this.themeMode,
     required this.iconData,
     required this.label,
   });
+  final ThemeMode themeMode;
+  final IconData iconData;
+  final String label;
 }
 
 class FontFamilyItem {
-  final FontFamily fontFamily;
-  final String label;
 
   const FontFamilyItem({
     required this.fontFamily,
     required this.label,
   });
+  final FontFamily fontFamily;
+  final String label;
 }
 
 class ThemeView extends StatelessWidget {
   const ThemeView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
+  Widget build(BuildContext context) => const SingleChildScrollView(
       child: Column(
         spacing: 24,
         children: [
@@ -48,19 +47,15 @@ class ThemeView extends StatelessWidget {
           _PrimaryColorItem(),
           _PrueBlackItem(),
           _TextScaleFactorItem(),
-          const SizedBox(
+          SizedBox(
             height: 64,
           ),
         ],
       ),
     );
-  }
 }
 
 class ItemCard extends StatelessWidget {
-  final Widget child;
-  final Info info;
-  final List<Widget> actions;
 
   const ItemCard({
     super.key,
@@ -68,10 +63,12 @@ class ItemCard extends StatelessWidget {
     required this.child,
     this.actions = const [],
   });
+  final Widget child;
+  final Info info;
+  final List<Widget> actions;
 
   @override
-  Widget build(BuildContext context) {
-    return Wrap(
+  Widget build(BuildContext context) => Wrap(
       runSpacing: 16,
       children: [
         InfoHeader(
@@ -81,7 +78,6 @@ class ItemCard extends StatelessWidget {
         child,
       ],
     );
-  }
 }
 
 class _ThemeModeItem extends ConsumerWidget {
@@ -91,7 +87,7 @@ class _ThemeModeItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode =
         ref.watch(themeSettingProvider.select((state) => state.themeMode));
-    List<ThemeModeItem> themeModeItems = [
+    final themeModeItems = <ThemeModeItem>[
       ThemeModeItem(
         iconData: Icons.auto_mode,
         label: appLocalizations.auto,
@@ -115,7 +111,7 @@ class _ThemeModeItem extends ConsumerWidget {
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        height: 56,
+        height: 44,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: themeModeItems.length,
@@ -131,20 +127,24 @@ class _ThemeModeItem extends ConsumerWidget {
                     );
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Flexible(
-                      child: Icon(themeModeItem.iconData),
+                      child: Icon(
+                        themeModeItem.iconData,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(
-                      width: 8,
+                      width: 6,
                     ),
                     Flexible(
                       child: Text(
                         themeModeItem.label,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
                   ],
@@ -152,11 +152,9 @@ class _ThemeModeItem extends ConsumerWidget {
               ),
             );
           },
-          separatorBuilder: (_, __) {
-            return const SizedBox(
-              width: 16,
-            );
-          },
+          separatorBuilder: (_, __) => const SizedBox(
+              width: 12,
+            ),
         ),
       ),
     );
@@ -173,11 +171,9 @@ class _PrimaryColorItem extends ConsumerStatefulWidget {
 class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
   int? _removablePrimaryColor;
 
-  int _calcColumns(double maxWidth) {
-    return max((maxWidth / 96).ceil(), 3);
-  }
+  int _calcColumns(double maxWidth) => max((maxWidth / 96).ceil(), 3);
 
-  _handleReset() async {
+  Future<void> _handleReset() async {
     final res = await globalState.showMessage(
       message: TextSpan(
         text: appLocalizations.resetTip,
@@ -187,17 +183,15 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
       return;
     }
     ref.read(themeSettingProvider.notifier).updateState(
-      (state) {
-        return state.copyWith(
+      (state) => state.copyWith(
           primaryColors: defaultPrimaryColors,
           primaryColor: defaultPrimaryColor,
           schemeVariant: DynamicSchemeVariant.tonalSpot,
-        );
-      },
+        ),
     );
   }
 
-  _handleDel() async {
+  Future<void> _handleDel() async {
     if (_removablePrimaryColor == null) {
       return;
     }
@@ -215,7 +209,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
       (state) {
         final newPrimaryColors = List<int>.from(state.primaryColors)
           ..remove(_removablePrimaryColor);
-        int? newPrimaryColor = state.primaryColor;
+        var newPrimaryColor = state.primaryColor;
         if (state.primaryColor == _removablePrimaryColor) {
           if (newPrimaryColors.contains(defaultPrimaryColor)) {
             newPrimaryColor = defaultPrimaryColor;
@@ -234,9 +228,9 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
     });
   }
 
-  _handleAdd() async {
+  Future<void> _handleAdd() async {
     final res = await globalState.showCommonDialog<int>(
-      child: _PaletteDialog(),
+      child: const _PaletteDialog(),
     );
     if (res == null) {
       return;
@@ -253,17 +247,15 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
       return;
     }
     ref.read(themeSettingProvider.notifier).updateState(
-      (state) {
-        return state.copyWith(
+      (state) => state.copyWith(
           primaryColors: List.from(
             state.primaryColors,
           )..add(res),
-        );
-      },
+        ),
     );
   }
 
-  _handleChangeSchemeVariant() async {
+  Future<void> _handleChangeSchemeVariant() async {
     final schemeVariant = ref.read(
       themeSettingProvider.select(
         (state) => state.schemeVariant,
@@ -281,11 +273,9 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
       return;
     }
     ref.read(themeSettingProvider.notifier).updateState(
-      (state) {
-        return state.copyWith(
+      (state) => state.copyWith(
           schemeVariant: value,
-        );
-      },
+        ),
     );
   }
 
@@ -326,7 +316,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
           [
             if (_removablePrimaryColor == null)
               FilledButton(
-                style: ButtonStyle(
+                style: const ButtonStyle(
                   visualDensity: VisualDensity.compact,
                 ),
                 onPressed: _handleChangeSchemeVariant,
@@ -334,7 +324,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
               ),
             if (_removablePrimaryColor != null)
               FilledButton(
-                style: ButtonStyle(
+                style: const ButtonStyle(
                   visualDensity: VisualDensity.compact,
                 ),
                 onPressed: () {
@@ -347,10 +337,10 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
             if (_removablePrimaryColor == null && !isEquals)
               IconButton.filledTonal(
                 iconSize: 20,
-                padding: EdgeInsets.all(4),
+                padding: const EdgeInsets.all(4),
                 visualDensity: VisualDensity.compact,
                 onPressed: _handleReset,
-                icon: Icon(Icons.replay),
+                icon: const Icon(Icons.replay),
               )
           ],
           space: 8,
@@ -404,10 +394,10 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
                               _removablePrimaryColor == color)
                             Container(
                               color: Colors.white.opacity0,
-                              padding: EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(8),
                               child: IconButton.filledTonal(
                                 onPressed: _handleDel,
-                                padding: EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(12),
                                 iconSize: 30,
                                 icon: Icon(
                                   color: context.colorScheme.primary,
@@ -422,7 +412,7 @@ class _PrimaryColorItemState extends ConsumerState<_PrimaryColorItem> {
                     Container(
                       width: itemWidth,
                       height: itemWidth,
-                      padding: EdgeInsets.all(
+                      padding: const EdgeInsets.all(
                         4,
                       ),
                       child: IconButton.filledTonal(
@@ -455,7 +445,7 @@ class _PrueBlackItem extends ConsumerWidget {
       ),
     );
     return ListItem.switchItem(
-      leading: Icon(
+      leading: const Icon(
         Icons.contrast,
       ),
       horizontalTitleGap: 12,
@@ -489,14 +479,14 @@ class _TextScaleFactorItem extends ConsumerWidget {
         (state) => state.textScale,
       ),
     );
-    final String process = "${((textScale.scale * 100) as double).round()}%";
+    final process = "${((textScale.scale * 100) as double).round()}%";
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: 8),
           child: ListItem.switchItem(
-            leading: Icon(
+            leading: const Icon(
               Icons.text_fields,
             ),
             horizontalTitleGap: 12,
@@ -519,7 +509,7 @@ class _TextScaleFactorItem extends ConsumerWidget {
           ),
         ),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             mainAxisSize: MainAxisSize.max,
@@ -550,7 +540,7 @@ class _TextScaleFactorItem extends ConsumerWidget {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.only(right: 4),
                 child: Text(
                   process,
                   style: context.textTheme.titleMedium,
@@ -575,8 +565,7 @@ class _PaletteDialogState extends State<_PaletteDialog> {
   final _controller = ValueNotifier<ui.Color>(Colors.transparent);
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: appLocalizations.palette,
       actions: [
         TextButton(
@@ -594,7 +583,7 @@ class _PaletteDialogState extends State<_PaletteDialog> {
       ],
       child: Column(
         children: [
-          SizedBox(
+          const SizedBox(
             height: 8,
           ),
           SizedBox(
@@ -604,13 +593,12 @@ class _PaletteDialogState extends State<_PaletteDialog> {
               controller: _controller,
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 24,
           ),
           ValueListenableBuilder(
             valueListenable: _controller,
-            builder: (_, color, __) {
-              return PrimaryColorBox(
+            builder: (_, color, __) => PrimaryColorBox(
                 primaryColor: color,
                 child: FilledButton(
                   onPressed: () {},
@@ -618,13 +606,11 @@ class _PaletteDialogState extends State<_PaletteDialog> {
                     _controller.value.hex,
                   ),
                 ),
-              );
-            },
+              ),
           ),
         ],
       ),
     );
-  }
 }
 
 class _SliderDefaultsM3 extends SliderThemeData {
@@ -673,7 +659,7 @@ class _SliderDefaultsM3 extends SliderThemeData {
 
   @override
   Color? get overlayColor =>
-      WidgetStateColor.resolveWith((Set<WidgetState> states) {
+      WidgetStateColor.resolveWith((states) {
         if (states.contains(WidgetState.dragged)) {
           return _colors.primary.withOpacity(0.1);
         }
@@ -714,8 +700,7 @@ class _SliderDefaultsM3 extends SliderThemeData {
       const RoundSliderTickMarkShape(tickMarkRadius: 4.0 / 2);
 
   @override
-  WidgetStateProperty<Size?>? get thumbSize {
-    return WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+  WidgetStateProperty<Size?>? get thumbSize => WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.disabled)) {
         return const Size(4.0, 44.0);
       }
@@ -730,7 +715,6 @@ class _SliderDefaultsM3 extends SliderThemeData {
       }
       return const Size(4.0, 44.0);
     });
-  }
 
   @override
   double? get trackGap => 6.0;

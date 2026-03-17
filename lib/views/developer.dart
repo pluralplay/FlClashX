@@ -13,8 +13,7 @@ import '../providers/app.dart';
 class DeveloperView extends ConsumerWidget {
   const DeveloperView({super.key});
 
-  Widget _getDeveloperList(BuildContext context, WidgetRef ref) {
-    return generateSectionV2(
+  Widget _getDeveloperList(BuildContext context, WidgetRef ref) => generateSectionV2(
       title: appLocalizations.options,
       items: [
         ListItem(
@@ -28,7 +27,7 @@ class DeveloperView extends ConsumerWidget {
         ListItem(
           title: Text(appLocalizations.logsTest),
           onTap: () {
-            for (int i = 0; i < 1000; i++) {
+            for (var i = 0; i < 1000; i++) {
               ref.read(requestsProvider.notifier).addRequest(Connection(
                     id: utils.id,
                     start: DateTime.now(),
@@ -73,10 +72,9 @@ class DeveloperView extends ConsumerWidget {
         )
       ],
     );
-  }
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final enable = ref.watch(
       appSettingProvider.select(
         (state) => state.developerMode,
@@ -107,7 +105,7 @@ class DeveloperView extends ConsumerWidget {
               ),
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 16,
           ),
           _getDeveloperList(context, ref)

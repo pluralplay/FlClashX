@@ -5,6 +5,12 @@ import (
 	"core/state"
 	"encoding/json"
 	"fmt"
+	"net"
+	"runtime"
+	"sort"
+	"strconv"
+	"time"
+
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/common/observable"
@@ -20,17 +26,13 @@ import (
 	"github.com/metacubex/mihomo/log"
 	"github.com/metacubex/mihomo/tunnel"
 	"github.com/metacubex/mihomo/tunnel/statistic"
-	"net"
-	"runtime"
-	"sort"
-	"strconv"
-	"time"
 )
 
 var (
-	isInit            = false
-	externalProviders = map[string]cp.Provider{}
-	logSubscriber     observable.Subscription[log.Event]
+	isInit                = false
+	externalProviders     = map[string]cp.Provider{}
+	logSubscriber         observable.Subscription[log.Event]
+	proxyDescriptions     = map[string]string{} // Store serverDescription for each proxy
 )
 
 func handleInitClash(paramsString string) bool {
@@ -40,8 +42,9 @@ func handleInitClash(paramsString string) bool {
 		return false
 	}
 	version = params.Version
+	// Always update homeDir to ensure correct path even on re-initialization
+	constant.SetHomeDir(params.HomeDir)
 	if !isInit {
-		constant.SetHomeDir(params.HomeDir)
 		isInit = true
 	}
 	return isInit
@@ -91,10 +94,58 @@ func handleValidateConfig(bytes []byte) string {
 	return ""
 }
 
-func handleGetProxies() map[string]constant.Proxy {
+// extractProxyDescriptionsFromRaw extracts serverDescription from raw YAML config
+// Note: Caller must hold runLock
+func extractProxyDescriptionsFromRaw(rawConfig *config.RawConfig) {
+	if rawConfig == nil || rawConfig.Proxy == nil {
+		return
+	}
+	
+	// Clear previous descriptions
+	proxyDescriptions = make(map[string]string)
+	
+	// Extract serverDescription from each proxy
+	for _, proxyMap := range rawConfig.Proxy {
+		if name, ok := proxyMap["name"].(string); ok {
+			if desc, ok := proxyMap["serverDescription"].(string); ok && desc != "" {
+				proxyDescriptions[name] = desc
+			}
+		}
+	}
+}
+
+func handleGetProxies() interface{} {
 	runLock.Lock()
 	defer runLock.Unlock()
-	return tunnel.ProxiesWithProviders()
+	proxies := tunnel.ProxiesWithProviders()
+	
+	// Convert to map for JSON manipulation
+	result := make(map[string]interface{})
+	for name, proxy := range proxies {
+		// Marshal proxy to JSON
+		proxyJSON, err := json.Marshal(proxy)
+		if err != nil {
+			result[name] = proxy
+			continue
+		}
+		
+		// Unmarshal to map
+		var proxyMap map[string]interface{}
+		err = json.Unmarshal(proxyJSON, &proxyMap)
+		if err != nil {
+			result[name] = proxy
+			continue
+		}
+		
+		// Add serverDescription if exists
+		if desc, ok := proxyDescriptions[name]; ok {
+			proxyMap["serverDescription"] = desc
+		}
+		
+		result[name] = proxyMap
+	}
+	
+	return result
 }
 
 func handleChangeProxy(data string, fn func(string string)) {
@@ -151,7 +202,7 @@ func handleGetTraffic() string {
 }
 
 func handleGetTotalTraffic() string {
-	up, down := statistic.DefaultManager.Total(state.CurrentState.OnlyStatisticsProxy)
+	up, down := statistic.DefaultManager.TotalWithOption(state.CurrentState.OnlyStatisticsProxy)
 	traffic := map[string]int64{
 		"up":   up,
 		"down": down,

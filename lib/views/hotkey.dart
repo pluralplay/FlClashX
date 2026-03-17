@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 extension IntlExt on Intl {
-  static actionMessage(String messageText) =>
+  static String actionMessage(String messageText) =>
       Intl.message("action_$messageText");
 }
 
@@ -35,8 +35,7 @@ class HotKeyView extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
+  Widget build(BuildContext context) => ListView.builder(
       itemCount: HotAction.values.length,
       itemBuilder: (_, index) {
         final hotAction = HotAction.values[index];
@@ -62,16 +61,15 @@ class HotKeyView extends StatelessWidget {
         );
       },
     );
-  }
 }
 
 class HotKeyRecorder extends StatefulWidget {
-  final HotKeyAction hotKeyAction;
 
   const HotKeyRecorder({
     super.key,
     required this.hotKeyAction,
   });
+  final HotKeyAction hotKeyAction;
 
   @override
   State<HotKeyRecorder> createState() => _HotKeyRecorderState();
@@ -112,7 +110,7 @@ class _HotKeyRecorderState extends State<HotKeyRecorder> {
     super.dispose();
   }
 
-  _handleRemove() {
+  void _handleRemove() {
     Navigator.of(context).pop();
     globalState.appController.updateOrAddHotKeyAction(
       hotKeyActionNotifier.value.copyWith(
@@ -122,7 +120,7 @@ class _HotKeyRecorderState extends State<HotKeyRecorder> {
     );
   }
 
-  _handleConfirm() {
+  void _handleConfirm() {
     Navigator.of(context).pop();
     final config = globalState.config;
     final currentHotkeyAction = hotKeyActionNotifier.value;
@@ -156,28 +154,21 @@ class _HotKeyRecorderState extends State<HotKeyRecorder> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Focus(
-      onKeyEvent: (_, __) {
-        return KeyEventResult.handled;
-      },
+  Widget build(BuildContext context) => Focus(
+      onKeyEvent: (_, __) => KeyEventResult.handled,
       autofocus: true,
       child: CommonDialog(
         title: IntlExt.actionMessage(widget.hotKeyAction.action.name),
         actions: [
           TextButton(
-            onPressed: () {
-              _handleRemove();
-            },
+            onPressed: _handleRemove,
             child: Text(appLocalizations.remove),
           ),
           const SizedBox(
             width: 8,
           ),
           TextButton(
-            onPressed: () {
-              _handleConfirm();
-            },
+            onPressed: _handleConfirm,
             child: Text(
               appLocalizations.confirm,
             ),
@@ -218,20 +209,18 @@ class _HotKeyRecorderState extends State<HotKeyRecorder> {
         ),
       ),
     );
-  }
 }
 
 class KeyboardKeyBox extends StatelessWidget {
-  final KeyboardKey keyboardKey;
 
   const KeyboardKeyBox({
     super.key,
     required this.keyboardKey,
   });
+  final KeyboardKey keyboardKey;
 
   @override
-  Widget build(BuildContext context) {
-    return CommonCard(
+  Widget build(BuildContext context) => CommonCard(
       type: CommonCardType.filled,
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -244,5 +233,4 @@ class KeyboardKeyBox extends StatelessWidget {
       ),
       onPressed: () {},
     );
-  }
 }

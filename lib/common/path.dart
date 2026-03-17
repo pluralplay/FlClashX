@@ -6,11 +6,11 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
 class AppPath {
-  static AppPath? _instance;
-  Completer<Directory> dataDir = Completer();
-  Completer<Directory> downloadDir = Completer();
-  Completer<Directory> tempDir = Completer();
-  late String appDirPath;
+
+  factory AppPath() {
+    _instance ??= AppPath._internal();
+    return _instance!;
+  }
 
   AppPath._internal() {
     appDirPath = join(dirname(Platform.resolvedExecutable));
@@ -24,15 +24,13 @@ class AppPath {
       downloadDir.complete(value);
     });
   }
+  static AppPath? _instance;
+  Completer<Directory> dataDir = Completer();
+  Completer<Directory> downloadDir = Completer();
+  Completer<Directory> tempDir = Completer();
+  late String appDirPath;
 
-  factory AppPath() {
-    _instance ??= AppPath._internal();
-    return _instance!;
-  }
-
-  String get executableExtension {
-    return Platform.isWindows ? ".exe" : "";
-  }
+  String get executableExtension => Platform.isWindows ? ".exe" : "";
 
   String get executableDirPath {
     final currentExecutablePath = Platform.resolvedExecutable;
@@ -40,12 +38,16 @@ class AppPath {
   }
 
   String get corePath {
+    if (Platform.isMacOS) {
+      // Core is stored in Application Support/com.follow.clash/cores/ (copied by Swift code on launch)
+      // Permissions are set automatically in Swift
+      final home = Platform.environment['HOME'] ?? '';
+      return '$home/Library/Application Support/com.follow.clash/cores/FlClashCore';
+    }
     return join(executableDirPath, "FlClashCore$executableExtension");
   }
 
-  String get helperPath {
-    return join(executableDirPath, "$appHelperService$executableExtension");
-  }
+  String get helperPath => join(executableDirPath, "$appHelperService$executableExtension");
 
   Future<String> get downloadDirPath async {
     final directory = await downloadDir.future;

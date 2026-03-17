@@ -13,9 +13,9 @@ extension IterableExt<T> on Iterable<T> {
 
   Iterable<List<T>> chunks(int size) sync* {
     if (length == 0) return;
-    var iterator = this.iterator;
+    final iterator = this.iterator;
     while (iterator.moveNext()) {
-      var chunk = [iterator.current];
+      final chunk = [iterator.current];
       for (var i = 1; i < size && iterator.moveNext(); i++) {
         chunk.add(iterator.current);
       }
@@ -27,8 +27,8 @@ extension IterableExt<T> on Iterable<T> {
     int length, {
     required T Function(int count) filler,
   }) sync* {
-    int count = 0;
-    for (var item in this) {
+    var count = 0;
+    for (final item in this) {
       yield item;
       count++;
       if (count >= length) return;
@@ -53,14 +53,12 @@ extension ListExt<T> on List<T> {
     }
   }
 
-  List<T> intersection(List<T> list) {
-    return where((item) => list.contains(item)).toList();
-  }
+  List<T> intersection(List<T> list) => where((item) => list.contains(item)).toList();
 
   List<List<T>> batch(int maxConcurrent) {
     final batches = (length / maxConcurrent).ceil();
-    final List<List<T>> res = [];
-    for (int i = 0; i < batches; i++) {
+    final res = <List<T>>[];
+    for (var i = 0; i < batches; i++) {
       if (i != batches - 1) {
         res.add(sublist(i * maxConcurrent, maxConcurrent * (i + 1)));
       } else {
@@ -83,11 +81,11 @@ extension DoubleListExt on List<double> {
     if (target < first) return -1;
     if (target >= last) return length - 1;
 
-    int left = 0;
-    int right = length - 1;
+    var left = 0;
+    var right = length - 1;
 
     while (left <= right) {
-      int mid = left + (right - left) ~/ 2;
+      final mid = left + (right - left) ~/ 2;
 
       if (mid == length - 1 ||
           (this[mid] <= target && target < this[mid + 1])) {
@@ -104,7 +102,7 @@ extension DoubleListExt on List<double> {
 }
 
 extension MapExt<K, V> on Map<K, V> {
-  updateCacheValue(K key, V Function() callback) {
+  V? updateCacheValue(K key, V Function() callback) {
     if (this[key] == null) {
       this[key] = callback();
     }

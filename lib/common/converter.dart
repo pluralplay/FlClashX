@@ -3,14 +3,10 @@ import 'dart:typed_data';
 
 class Uint8ListToListIntConverter extends Converter<Uint8List, List<int>> {
   @override
-  List<int> convert(Uint8List input) {
-    return input.toList();
-  }
+  List<int> convert(Uint8List input) => input.toList();
 
   @override
-  Sink<Uint8List> startChunkedConversion(Sink<List<int>> sink) {
-    return _Uint8ListToListIntConverterSink(sink);
-  }
+  Sink<Uint8List> startChunkedConversion(Sink<List<int>> sink) => _Uint8ListToListIntConverterSink(sink);
 }
 
 class _Uint8ListToListIntConverterSink implements Sink<Uint8List> {

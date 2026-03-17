@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'card.dart';
 
 class SettingInfoCard extends StatelessWidget {
-  final Info info;
-  final bool? isSelected;
-  final VoidCallback onPressed;
 
   const SettingInfoCard(
       this.info, {
@@ -14,10 +11,12 @@ class SettingInfoCard extends StatelessWidget {
         this.isSelected,
         required this.onPressed,
       });
+  final Info info;
+  final bool? isSelected;
+  final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return CommonCard(
+  Widget build(BuildContext context) => CommonCard(
       isSelected: isSelected,
       onPressed: onPressed,
       child: Padding(
@@ -42,13 +41,9 @@ class SettingInfoCard extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class SettingTextCard extends StatelessWidget {
-  final String text;
-  final bool? isSelected;
-  final VoidCallback onPressed;
 
   const SettingTextCard(
       this.text, {
@@ -56,10 +51,12 @@ class SettingTextCard extends StatelessWidget {
         this.isSelected,
         required this.onPressed,
       });
+  final String text;
+  final bool? isSelected;
+  final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return CommonCard(
+  Widget build(BuildContext context) => CommonCard(
       onPressed: onPressed,
       isSelected: isSelected,
       child: Padding(
@@ -70,5 +67,4 @@ class SettingTextCard extends StatelessWidget {
         ),
       ),
     );
-  }
 }

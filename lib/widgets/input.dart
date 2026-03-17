@@ -12,10 +12,6 @@ import 'float_layout.dart';
 import 'list.dart';
 
 class OptionsDialog<T> extends StatelessWidget {
-  final String title;
-  final List<T> options;
-  final T value;
-  final String Function(T value) textBuilder;
 
   const OptionsDialog({
     super.key,
@@ -24,10 +20,13 @@ class OptionsDialog<T> extends StatelessWidget {
     required this.textBuilder,
     required this.value,
   });
+  final String title;
+  final List<T> options;
+  final T value;
+  final String Function(T value) textBuilder;
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: title,
       padding: const EdgeInsets.symmetric(
         horizontal: 8,
@@ -47,7 +46,7 @@ class OptionsDialog<T> extends StatelessWidget {
                   delegate: RadioDelegate(
                     value: option,
                     groupValue: value,
-                    onChanged: (T? value) {
+                    onChanged: (value) {
                       Navigator.of(context).pop(value);
                     },
                   ),
@@ -58,13 +57,9 @@ class OptionsDialog<T> extends StatelessWidget {
         ],
       ),
     );
-  }
 }
 
 class CommonCheckBox extends StatelessWidget {
-  final bool? value;
-  final ValueChanged<bool?>? onChanged;
-  final bool isCircle;
 
   const CommonCheckBox({
     required this.value,
@@ -72,26 +67,19 @@ class CommonCheckBox extends StatelessWidget {
     this.isCircle = false,
     super.key,
   });
+  final bool? value;
+  final ValueChanged<bool?>? onChanged;
+  final bool isCircle;
 
   @override
-  Widget build(BuildContext context) {
-    return Checkbox(
+  Widget build(BuildContext context) => Checkbox(
       shape: isCircle ? const CircleBorder() : null,
       value: value,
       onChanged: onChanged,
     );
-  }
 }
 
 class InputDialog extends StatefulWidget {
-  final String title;
-  final String value;
-  final String? suffixText;
-  final String? labelText;
-  final String? resetValue;
-  final String? hintText;
-  final FormFieldValidator<String>? validator;
-  final AutovalidateMode? autovalidateMode;
 
   const InputDialog({
     super.key,
@@ -104,6 +92,14 @@ class InputDialog extends StatefulWidget {
     this.labelText,
     this.autovalidateMode = AutovalidateMode.onUserInteraction,
   });
+  final String title;
+  final String value;
+  final String? suffixText;
+  final String? labelText;
+  final String? resetValue;
+  final String? hintText;
+  final FormFieldValidator<String>? validator;
+  final AutovalidateMode? autovalidateMode;
 
   @override
   State<InputDialog> createState() => _InputDialogState();
@@ -128,13 +124,13 @@ class _InputDialogState extends State<InputDialog> {
     );
   }
 
-  _handleUpdate() async {
+  Future<void> _handleUpdate() async {
     if (_formKey.currentState?.validate() == false) return;
     final text = textController.value.text;
     Navigator.of(context).pop<String>(text);
   }
 
-  _handleReset() async {
+  Future<void> _handleReset() async {
     if (widget.resetValue == null) {
       return;
     }
@@ -142,8 +138,7 @@ class _InputDialogState extends State<InputDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: title,
       actions: [
         if (widget.resetValue != null &&
@@ -187,17 +182,9 @@ class _InputDialogState extends State<InputDialog> {
         ),
       ),
     );
-  }
 }
 
 class ListInputPage extends StatelessWidget {
-  final String title;
-  final List<String> items;
-  final Widget Function(String item) titleBuilder;
-  final Widget Function(String item)? subtitleBuilder;
-  final Widget Function(String item)? leadingBuilder;
-  final String? valueLabel;
-  final Function(List<String> items) onChange;
 
   const ListInputPage({
     super.key,
@@ -209,13 +196,18 @@ class ListInputPage extends StatelessWidget {
     this.valueLabel,
     this.subtitleBuilder,
   });
+  final String title;
+  final List<String> items;
+  final Widget Function(String item) titleBuilder;
+  final Widget Function(String item)? subtitleBuilder;
+  final Widget Function(String item)? leadingBuilder;
+  final String? valueLabel;
+  final Function(List<String> items) onChange;
 
-  _handleAddOrEdit([String? item]) async {
-    uniqueValidator(String? value) {
+  Future<void> _handleAddOrEdit([String? item]) async {
+    String? uniqueValidator(String? value) {
       final index = items.indexWhere(
-        (entry) {
-          return entry == value;
-        },
+        (entry) => entry == value,
       );
       final current = item == value;
       if (index != -1 && !current) {
@@ -237,9 +229,7 @@ class ListInputPage extends StatelessWidget {
     );
     if (value == null) return;
     final index = items.indexWhere(
-      (entry) {
-        return entry == item;
-      },
+      (entry) => entry == item,
     );
     final nextItems = List<String>.from(items);
     if (item != null) {
@@ -250,14 +240,12 @@ class ListInputPage extends StatelessWidget {
     onChange(nextItems);
   }
 
-  _handleDelete(String? item) {
+  void _handleDelete(String? item) {
     final entries = List<String>.from(
       items,
     );
     final index = entries.indexWhere(
-      (entry) {
-        return entry == item;
-      },
+      (entry) => entry == item,
     );
     if (index != -1) {
       entries.removeAt(index);
@@ -266,8 +254,7 @@ class ListInputPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return FloatLayout(
+  Widget build(BuildContext context) => FloatLayout(
       floatingWidget: FloatWrapper(
         child: FloatingActionButton(
           onPressed: () async {
@@ -323,18 +310,9 @@ class ListInputPage extends StatelessWidget {
               },
             ),
     );
-  }
 }
 
 class MapInputPage extends StatelessWidget {
-  final String title;
-  final Map<String, String> map;
-  final Widget Function(MapEntry<String, String> item) titleBuilder;
-  final Widget Function(MapEntry<String, String> item)? subtitleBuilder;
-  final Widget Function(MapEntry<String, String> item)? leadingBuilder;
-  final String? keyLabel;
-  final String? valueLabel;
-  final Function(Map<String, String> items) onChange;
 
   const MapInputPage({
     super.key,
@@ -347,18 +325,24 @@ class MapInputPage extends StatelessWidget {
     this.valueLabel,
     this.subtitleBuilder,
   });
+  final String title;
+  final Map<String, String> map;
+  final Widget Function(MapEntry<String, String> item) titleBuilder;
+  final Widget Function(MapEntry<String, String> item)? subtitleBuilder;
+  final Widget Function(MapEntry<String, String> item)? leadingBuilder;
+  final String? keyLabel;
+  final String? valueLabel;
+  final Function(Map<String, String> items) onChange;
 
   List<MapEntry<String, String>> get items =>
       List<MapEntry<String, String>>.from(
         map.entries,
       );
 
-  _handleAddOrEdit([MapEntry<String, String>? item]) async {
-    uniqueValidator(String? value) {
+  Future<void> _handleAddOrEdit([MapEntry<String, String>? item]) async {
+    String? uniqueValidator(String? value) {
       final index = items.indexWhere(
-        (entry) {
-          return entry.key == value;
-        },
+        (entry) => entry.key == value,
       );
       final current = item?.key == value;
       if (index != -1 && !current) {
@@ -387,9 +371,7 @@ class MapInputPage extends StatelessWidget {
     );
     if (value == null) return;
     final index = items.indexWhere(
-      (entry) {
-        return entry.key == item?.key;
-      },
+      (entry) => entry.key == item?.key,
     );
 
     final nextItems = List<MapEntry<String, String>>.from(items);
@@ -401,14 +383,12 @@ class MapInputPage extends StatelessWidget {
     onChange(Map.fromEntries(nextItems));
   }
 
-  _handleDelete(MapEntry<String, String> item) {
+  void _handleDelete(MapEntry<String, String> item) {
     final entries = List<MapEntry<String, String>>.from(
       items,
     );
     final index = entries.indexWhere(
-      (entry) {
-        return entry.key == item.key && item.value == entry.value;
-      },
+      (entry) => entry.key == item.key && item.value == entry.value,
     );
     if (index != -1) {
       entries.removeAt(index);
@@ -417,8 +397,7 @@ class MapInputPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return FloatLayout(
+  Widget build(BuildContext context) => FloatLayout(
       floatingWidget: FloatWrapper(
         child: FloatingActionButton(
           onPressed: () async {
@@ -475,13 +454,9 @@ class MapInputPage extends StatelessWidget {
               },
             ),
     );
-  }
 }
 
 class AddDialog extends StatefulWidget {
-  final String title;
-  final Field? keyField;
-  final Field valueField;
 
   const AddDialog({
     super.key,
@@ -489,6 +464,9 @@ class AddDialog extends StatefulWidget {
     this.keyField,
     required this.valueField,
   });
+  final String title;
+  final Field? keyField;
+  final Field valueField;
 
   @override
   State<AddDialog> createState() => _AddDialogState();
@@ -516,7 +494,7 @@ class _AddDialogState extends State<AddDialog> {
     );
   }
 
-  _submit() {
+  void _submit() {
     if (!_formKey.currentState!.validate()) return;
     if (keyField != null) {
       Navigator.of(context).pop<MapEntry<String, String>>(
@@ -533,8 +511,7 @@ class _AddDialogState extends State<AddDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: widget.title,
       actions: [
         TextButton(
@@ -557,7 +534,7 @@ class _AddDialogState extends State<AddDialog> {
                   border: const OutlineInputBorder(),
                   labelText: keyField!.label,
                 ),
-                validator: (String? value) {
+                validator: (value) {
                   String? res;
                   if (keyField!.validator != null) {
                     res = keyField!.validator!(value);
@@ -579,7 +556,7 @@ class _AddDialogState extends State<AddDialog> {
                 border: const OutlineInputBorder(),
                 labelText: valueField.label,
               ),
-              validator: (String? value) {
+              validator: (value) {
                 String? res;
                 if (valueField.validator != null) {
                   res = valueField.validator!(value);
@@ -597,25 +574,22 @@ class _AddDialogState extends State<AddDialog> {
         ),
       ),
     );
-  }
 }
 
 class _InputItem extends StatelessWidget {
-  final Widget child;
 
   const _InputItem(this.child, {super.key});
+  final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
+  Widget build(BuildContext context) => Material(
       elevation: 0,
       key: key,
       color: Colors.transparent,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        margin: EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        margin: const EdgeInsets.symmetric(vertical: 8),
         child: child,
       ),
     );
-  }
 }

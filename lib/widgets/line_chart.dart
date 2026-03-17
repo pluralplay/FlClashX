@@ -3,17 +3,13 @@ import 'package:flclashx/common/color.dart';
 import 'package:flutter/material.dart';
 
 class Point {
-  final double x;
-  final double y;
 
   const Point(this.x, this.y);
+  final double x;
+  final double y;
 }
 
 class LineChart extends StatefulWidget {
-  final List<Point> points;
-  final Color color;
-  final Duration duration;
-  final bool gradient;
 
   const LineChart({
     super.key,
@@ -22,6 +18,10 @@ class LineChart extends StatefulWidget {
     required this.color,
     this.duration = Duration.zero,
   });
+  final List<Point> points;
+  final Color color;
+  final Duration duration;
+  final bool gradient;
 
   @override
   State<LineChart> createState() => _LineChartState();
@@ -61,12 +61,9 @@ class _LineChartState extends State<LineChart>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (_, container) {
-      return AnimatedBuilder(
+  Widget build(BuildContext context) => LayoutBuilder(builder: (_, container) => AnimatedBuilder(
         animation: _controller.view,
-        builder: (_, __) {
-          return CustomPaint(
+        builder: (_, __) => CustomPaint(
             painter: LineChartPainter(
               prevPoints: prevPoints,
               points: points,
@@ -78,19 +75,11 @@ class _LineChartState extends State<LineChart>
               height: container.maxHeight,
               width: container.maxWidth,
             ),
-          );
-        },
-      );
-    });
-  }
+          ),
+      ));
 }
 
 class LineChartPainter extends CustomPainter {
-  final List<Point> prevPoints;
-  final List<Point> points;
-  final double progress;
-  final Color color;
-  final bool gradient;
 
   LineChartPainter({
     required this.prevPoints,
@@ -99,13 +88,18 @@ class LineChartPainter extends CustomPainter {
     required this.color,
     required this.gradient,
   });
+  final List<Point> prevPoints;
+  final List<Point> points;
+  final double progress;
+  final Color color;
+  final bool gradient;
 
   List<Point> getRenderPoints(List<Point> points) {
     if (points.isEmpty) return [];
-    double maxX = points[0].x;
-    double minX = points[0].x;
-    double maxY = points[0].y;
-    double minY = points[0].y;
+    var maxX = points[0].x;
+    var minX = points[0].x;
+    var maxY = points[0].y;
+    var minY = points[0].y;
 
     for (final point in points) {
       if (point.x > maxX) maxX = point.x;
@@ -178,7 +172,7 @@ class LineChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final strokeWidth = 2.0;
+    const strokeWidth = 2.0;
     final chartSize = Size(size.width, size.height * 0.7);
     final path = getAnimatedPath(chartSize);
 
@@ -217,11 +211,9 @@ class LineChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant LineChartPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
+  bool shouldRepaint(covariant LineChartPainter oldDelegate) => oldDelegate.progress != progress ||
         oldDelegate.prevPoints != prevPoints ||
         oldDelegate.points != points ||
         oldDelegate.color != color ||
         oldDelegate.gradient != gradient;
-  }
 }

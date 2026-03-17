@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/providers/app.dart';
 import 'package:flclashx/providers/config.dart';
+import 'package:flclashx/providers/app.dart';
 import 'package:flclashx/state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,12 +12,12 @@ import 'package:window_ext/window_ext.dart';
 import 'package:window_manager/window_manager.dart';
 
 class WindowManager extends ConsumerStatefulWidget {
-  final Widget child;
 
   const WindowManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   ConsumerState<WindowManager> createState() => _WindowContainerState();
@@ -26,9 +26,7 @@ class WindowManager extends ConsumerStatefulWidget {
 class _WindowContainerState extends ConsumerState<WindowManager>
     with WindowListener, WindowExtListener {
   @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 
   @override
   void initState() {
@@ -46,8 +44,11 @@ class _WindowContainerState extends ConsumerState<WindowManager>
         }
       },
     );
+    // On macOS, we still need windowExtManager for quit handling, but not windowManager
     windowExtManager.addListener(this);
-    windowManager.addListener(this);
+    if (!Platform.isMacOS) {
+      windowManager.addListener(this);
+    }
   }
 
   @override
@@ -110,29 +111,30 @@ class _WindowContainerState extends ConsumerState<WindowManager>
 
   @override
   Future<void> dispose() async {
-    windowManager.removeListener(this);
     windowExtManager.removeListener(this);
+    if (!Platform.isMacOS) {
+      windowManager.removeListener(this);
+    }
     super.dispose();
   }
 }
 
 class WindowHeaderContainer extends StatelessWidget {
-  final Widget child;
 
   const WindowHeaderContainer({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    if (Platform.isMacOS) {
+      return child;
+    }
+
     return Consumer(
-      builder: (_, ref, child) {
-        final version = ref.watch(versionProvider);
-        if (version <= 10 && Platform.isMacOS) {
-          return child!;
-        }
-        return Stack(
+      builder: (_, ref, child) => Stack(
           children: [
             Column(
               children: [
@@ -147,8 +149,7 @@ class WindowHeaderContainer extends StatelessWidget {
             ),
             const WindowHeader(),
           ],
-        );
-      },
+        ),
       child: child,
     );
   }
@@ -168,10 +169,12 @@ class _WindowHeaderState extends State<WindowHeader> {
   @override
   void initState() {
     super.initState();
-    _initNotifier();
+    if (!Platform.isMacOS) {
+      _initNotifier();
+    }
   }
 
-  _initNotifier() async {
+  Future<void> _initNotifier() async {
     isMaximizedNotifier.value = await windowManager.isMaximized();
     isPinNotifier.value = await windowManager.isAlwaysOnTop();
   }
@@ -183,7 +186,7 @@ class _WindowHeaderState extends State<WindowHeader> {
     super.dispose();
   }
 
-  _updateMaximized() async {
+  Future<void> _updateMaximized() async {
     final isMaximized = await windowManager.isMaximized();
     switch (isMaximized) {
       case true:
@@ -196,106 +199,230 @@ class _WindowHeaderState extends State<WindowHeader> {
     isMaximizedNotifier.value = await windowManager.isMaximized();
   }
 
-  _updatePin() async {
+  Future<void> _updatePin() async {
     final isAlwaysOnTop = await windowManager.isAlwaysOnTop();
     await windowManager.setAlwaysOnTop(!isAlwaysOnTop);
     isPinNotifier.value = await windowManager.isAlwaysOnTop();
   }
 
-  _buildActions() {
+  // Windows 11 style window control button
+  Widget _buildWindowButton({
+    required Widget icon,
+    required VoidCallback onPressed,
+    Color? hoverColor,
+    Color? hoverIconColor,
+  }) {
+    return _WindowControlButton(
+      icon: icon,
+      onPressed: onPressed,
+      hoverColor: hoverColor,
+      hoverIconColor: hoverIconColor,
+    );
+  }
+
+  Widget _buildActions(BuildContext context) {
+    final colorScheme = context.colorScheme;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          onPressed: () async {
-            _updatePin();
-          },
+        // Pin button
+        _buildWindowButton(
           icon: ValueListenableBuilder(
             valueListenable: isPinNotifier,
-            builder: (_, value, ___) {
-              return value
-                  ? const Icon(
-                      Icons.push_pin,
-                    )
-                  : const Icon(
-                      Icons.push_pin_outlined,
-                    );
-            },
+            builder: (_, value, ___) => Icon(
+              value ? Icons.push_pin : Icons.push_pin_outlined,
+              size: 16,
+              color: colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
           ),
+          onPressed: _updatePin,
         ),
-        IconButton(
-          onPressed: () {
-            windowManager.minimize();
-          },
-          icon: const Icon(Icons.remove),
+        // Minimize button
+        _buildWindowButton(
+          icon: Icon(
+            Icons.remove,
+            size: 18,
+            color: colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+          onPressed: windowManager.minimize,
         ),
-        IconButton(
-          onPressed: () async {
-            _updateMaximized();
-          },
+        // Maximize/Restore button
+        _buildWindowButton(
           icon: ValueListenableBuilder(
             valueListenable: isMaximizedNotifier,
-            builder: (_, value, ___) {
-              return value
-                  ? const Icon(
-                      Icons.filter_none,
-                      size: 20,
-                    )
-                  : const Icon(
-                      Icons.crop_square,
-                    );
-            },
+            builder: (_, value, ___) => Icon(
+              value ? Icons.filter_none : Icons.crop_square,
+              size: value ? 14 : 16,
+              color: colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
           ),
+          onPressed: _updateMaximized,
         ),
-        IconButton(
-          onPressed: () {
-            globalState.appController.handleBackOrExit();
-          },
-          icon: const Icon(Icons.close),
+        // Close button - red hover
+        _buildWindowButton(
+          icon: Icon(
+            Icons.close,
+            size: 18,
+            color: colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+          onPressed: () => globalState.appController.handleBackOrExit(),
+          hoverColor: const Color.fromARGB(255, 238, 44, 60),
+          hoverIconColor: Colors.white,
         ),
-        // const SizedBox(
-        //   width: 8,
-        // ),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    
     return Material(
-      child: Stack(
-        alignment: AlignmentDirectional.center,
-        children: [
-          Positioned(
-            child: GestureDetector(
-              onPanStart: (_) {
-                windowManager.startDragging();
-              },
-              onDoubleTap: () {
-                _updateMaximized();
-              },
-              child: Container(
-                color: context.colorScheme.secondary.opacity15,
-                alignment: Alignment.centerLeft,
-                height: kHeaderHeight,
-              ),
+      color: Colors.transparent,
+      child: Container(
+        height: kHeaderHeight,
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              width: 1,
             ),
           ),
-          if (Platform.isMacOS)
-            const Text(
-              appName,
-            )
-          else ...[
-            const Positioned(
-              left: 0,
-              child: AppIcon(),
+        ),
+        child: Stack(
+          children: [
+            // Draggable area
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onPanStart: (_) => windowManager.startDragging(),
+                onDoubleTap: _updateMaximized,
+              ),
             ),
-            Positioned(
-              right: 0,
-              child: _buildActions(),
-            ),
-          ]
-        ],
+            // Content
+            if (Platform.isMacOS)
+              const Center(child: Text(appName))
+            else
+              Row(
+                children: [
+                  const SizedBox(width: 12),
+                  // Connection status indicator
+                  const _ConnectionStatusIndicator(),
+                  const Spacer(),
+                  // Window controls
+                  _buildActions(context),
+                ],
+              ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+// Windows 11 style control button with hover effect
+class _WindowControlButton extends StatefulWidget {
+  final Widget icon;
+  final VoidCallback onPressed;
+  final Color? hoverColor;
+  final Color? hoverIconColor;
+
+  const _WindowControlButton({
+    required this.icon,
+    required this.onPressed,
+    this.hoverColor,
+    this.hoverIconColor,
+  });
+
+  @override
+  State<_WindowControlButton> createState() => _WindowControlButtonState();
+}
+
+class _WindowControlButtonState extends State<_WindowControlButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    final defaultHoverColor = colorScheme.onSurface.withValues(alpha: 0.08);
+    
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 46,
+          height: kHeaderHeight,
+          decoration: BoxDecoration(
+            color: _isHovered 
+                ? (widget.hoverColor ?? defaultHoverColor)
+                : Colors.transparent,
+          ),
+          child: Center(
+            child: _isHovered && widget.hoverIconColor != null
+                ? IconTheme(
+                    data: IconThemeData(color: widget.hoverIconColor),
+                    child: widget.icon,
+                  )
+                : widget.icon,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Connection status indicator for title bar
+class _ConnectionStatusIndicator extends ConsumerWidget {
+  const _ConnectionStatusIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = context.colorScheme;
+    
+    // Watch VPN/TUN status via runTimeProvider
+    final isStart = ref.watch(runTimeProvider.select((state) => state != null));
+    
+    final statusColor = isStart 
+        ? const Color(0xFF4CAF50) // Green when connected
+        : colorScheme.onSurface.withValues(alpha: 0.3); // Gray when disconnected
+    
+    final statusText = isStart 
+        ? appLocalizations.running 
+        : appLocalizations.stopped;
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: statusColor,
+            shape: BoxShape.circle,
+            boxShadow: isStart
+                ? [
+                    BoxShadow(
+                      color: statusColor.withValues(alpha: 0.4),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          statusText,
+          style: context.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -304,8 +431,7 @@ class AppIcon extends StatelessWidget {
   const AppIcon({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context) => Container(
       margin: const EdgeInsets.only(left: 8),
       child: const Row(
         children: [
@@ -326,5 +452,4 @@ class AppIcon extends StatelessWidget {
         ],
       ),
     );
-  }
 }

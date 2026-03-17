@@ -4,18 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class TextScaleNotification extends StatelessWidget {
-  final Widget child;
-  final Function(TextScale textScale) onNotification;
 
   const TextScaleNotification({
     super.key,
     required this.child,
     required this.onNotification,
   });
+  final Widget child;
+  final Function(TextScale textScale) onNotification;
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer(
+  Widget build(BuildContext context) => Consumer(
       builder: (_, ref, child) {
         ref.listen(
           themeSettingProvider.select((state) => state.textScale),
@@ -29,5 +28,4 @@ class TextScaleNotification extends StatelessWidget {
       },
       child: child,
     );
-  }
 }

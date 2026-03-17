@@ -27,7 +27,7 @@ class Utils {
   }
 
   String getDateStringLast2(int value) {
-    var valueRaw = "0$value";
+    final valueRaw = "0$value";
     return valueRaw.substring(
       valueRaw.length - 2,
     );
@@ -38,10 +38,10 @@ class Utils {
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
 
-    int length = minLength + random.nextInt(maxLength - minLength + 1);
+    final length = minLength + random.nextInt(maxLength - minLength + 1);
 
-    String result = '';
-    for (int i = 0; i < length; i++) {
+    var result = '';
+    for (var i = 0; i < length; i++) {
       if (random.nextBool()) {
         result +=
             String.fromCharCode(0x4E00 + random.nextInt(0x9FA5 - 0x4E00 + 1));
@@ -54,7 +54,7 @@ class Utils {
   }
 
   String get uuidV4 {
-    final Random random = Random();
+    final random = Random();
     final bytes = List.generate(16, (_) => random.nextInt(256));
 
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
@@ -67,11 +67,11 @@ class Utils {
   }
 
   String getTimeDifference(DateTime dateTime) {
-    var currentDateTime = DateTime.now();
-    var difference = currentDateTime.difference(dateTime);
-    var inHours = difference.inHours;
-    var inMinutes = difference.inMinutes;
-    var inSeconds = difference.inSeconds;
+    final currentDateTime = DateTime.now();
+    final difference = currentDateTime.difference(dateTime);
+    final inHours = difference.inHours;
+    final inMinutes = difference.inMinutes;
+    final inSeconds = difference.inSeconds;
 
     return "${getDateStringLast2(inHours)}:${getDateStringLast2(inMinutes)}:${getDateStringLast2(inSeconds)}";
   }
@@ -81,19 +81,28 @@ class Utils {
       return '00:00:00';
     }
     final diff = timeStamp / 1000;
-    final inHours = (diff / 3600).floor();
-    if (inHours > 99) {
-      return "99:59:59";
-    }
-    final inMinutes = (diff / 60 % 60).floor();
-    final inSeconds = (diff % 60).floor();
+    final totalSeconds = diff.floor();
 
-    return "${getDateStringLast2(inHours)}:${getDateStringLast2(inMinutes)}:${getDateStringLast2(inSeconds)}";
+    const maxSeconds = 31 * 86400 + 23 * 3600 + 59 * 60 + 59;
+    if (totalSeconds >= maxSeconds) {
+      return "Seriously?";
+    }
+
+    final days = (totalSeconds / 86400).floor();
+    final hours = ((totalSeconds % 86400) / 3600).floor();
+    final minutes = ((totalSeconds % 3600) / 60).floor();
+    final seconds = (totalSeconds % 60).floor();
+
+    if (days == 0) {
+      return "${getDateStringLast2(hours)}:${getDateStringLast2(minutes)}:${getDateStringLast2(seconds)}";
+    }
+
+    return "${days}d ${getDateStringLast2(hours)}:${getDateStringLast2(minutes)}:${getDateStringLast2(seconds)}";
   }
 
   Locale? getLocaleForString(String? localString) {
     if (localString == null) return null;
-    var localSplit = localString.split("_");
+    final localSplit = localString.split("_");
     if (localSplit.length == 1) {
       return Locale(localSplit[0]);
     }
@@ -143,46 +152,51 @@ class Utils {
 
   String getTrayIconPath({
     required Brightness brightness,
+    bool isRunning = false,
   }) {
     if (Platform.isMacOS) {
+      // macOS always uses white icon for menu bar
       return "assets/images/icon_white.png";
     }
-    final suffix = Platform.isWindows ? "ico" : "png";
-    return "assets/images/icon.$suffix";
-    // return switch (brightness) {
-    //   Brightness.dark => "assets/images/icon_white.$suffix",
-    //   Brightness.light => "assets/images/icon_black.$suffix",
-    // };
+    
+    // When running - use colored icon
+    if (isRunning) {
+      return "assets/images/icon.ico";
+    }
+    
+    // When stopped - use stop icons based on theme
+    return switch (brightness) {
+      Brightness.dark => "assets/images/icon_stop_white.ico",
+      Brightness.light => "assets/images/icon_stop_black.ico",
+    };
   }
 
   int compareVersions(String version1, String version2) {
-    List<String> v1 = version1.split('+')[0].split('.');
-    List<String> v2 = version2.split('+')[0].split('.');
-    int major1 = int.parse(v1[0]);
-    int major2 = int.parse(v2[0]);
+    final v1 = version1.split('+')[0].split('.');
+    final v2 = version2.split('+')[0].split('.');
+    final major1 = int.parse(v1[0]);
+    final major2 = int.parse(v2[0]);
     if (major1 != major2) {
       return major1.compareTo(major2);
     }
-    int minor1 = v1.length > 1 ? int.parse(v1[1]) : 0;
-    int minor2 = v2.length > 1 ? int.parse(v2[1]) : 0;
+    final minor1 = v1.length > 1 ? int.parse(v1[1]) : 0;
+    final minor2 = v2.length > 1 ? int.parse(v2[1]) : 0;
     if (minor1 != minor2) {
       return minor1.compareTo(minor2);
     }
-    int patch1 = v1.length > 2 ? int.parse(v1[2]) : 0;
-    int patch2 = v2.length > 2 ? int.parse(v2[2]) : 0;
+    final patch1 = v1.length > 2 ? int.parse(v1[2]) : 0;
+    final patch2 = v2.length > 2 ? int.parse(v2[2]) : 0;
     if (patch1 != patch2) {
       return patch1.compareTo(patch2);
     }
-    int build1 = version1.contains('+') ? int.parse(version1.split('+')[1]) : 0;
-    int build2 = version2.contains('+') ? int.parse(version2.split('+')[1]) : 0;
+    final build1 = version1.contains('+') ? int.parse(version1.split('+')[1]) : 0;
+    final build2 = version2.contains('+') ? int.parse(version2.split('+')[1]) : 0;
     return build1.compareTo(build2);
   }
 
-  String getPinyin(String value) {
-    return value.isNotEmpty
+  String getPinyin(String value) => value.isNotEmpty
         ? PinyinHelper.getFirstWordPinyin(value.substring(0, 1))
         : "";
-  }
 
   String? getFileNameForDisposition(String? disposition) {
     if (disposition == null) return null;
@@ -202,9 +216,7 @@ class Utils {
     return parameters[fileNameKey];
   }
 
-  FlutterView getScreen() {
-    return WidgetsBinding.instance.platformDispatcher.views.first;
-  }
+  FlutterView getScreen() => WidgetsBinding.instance.platformDispatcher.views.first;
 
   List<String> parseReleaseBody(String? body) {
     if (body == null) return [];
@@ -232,9 +244,7 @@ class Utils {
     };
   }
 
-  int getProfilesColumns(double viewWidth) {
-    return max((viewWidth / 320).floor(), 1);
-  }
+  int getProfilesColumns(double viewWidth) => max((viewWidth / 320).floor(), 1);
 
   final _indexPrimary = [
     50,
@@ -250,14 +260,14 @@ class Utils {
     900,
   ];
 
-  _createPrimarySwatch(Color color) {
-    final Map<int, Color> swatch = <int, Color>{};
-    final int a = color.alpha8bit;
-    final int r = color.red8bit;
-    final int g = color.green8bit;
-    final int b = color.blue8bit;
-    for (final int strength in _indexPrimary) {
-      final double ds = 0.5 - strength / 1000;
+  MaterialColor _createPrimarySwatch(Color color) {
+    final swatch = <int, Color>{};
+    final a = color.alpha8bit;
+    final r = color.red8bit;
+    final g = color.green8bit;
+    final b = color.blue8bit;
+    for (final strength in _indexPrimary) {
+      final ds = 0.5 - strength / 1000;
       swatch[strength] = Color.fromARGB(
         a,
         r + ((ds < 0 ? r : (255 - r)) * ds).round(),
@@ -293,16 +303,12 @@ class Utils {
     ];
   }
 
-  String getBackupFileName() {
-    return "${appName}_backup_${DateTime.now().show}.zip";
-  }
+  String getBackupFileName() => "${appName}_backup_${DateTime.now().show}.zip";
 
-  String get logFile {
-    return "${appName}_${DateTime.now().show}.log";
-  }
+  String get logFile => "${appName}_${DateTime.now().show}.log";
 
   Future<String?> getLocalIpAddress() async {
-    List<NetworkInterface> interfaces = await NetworkInterface.list(
+    final interfaces = await NetworkInterface.list(
       includeLoopback: false,
     )
       ..sort((a, b) {
@@ -382,7 +388,7 @@ class Utils {
   //   return node;
   // }
 
-  FutureOr<T> handleWatch<T>(Function function) async {
+  FutureOr<T> handleWatch<T>(FutureOr<T> Function() function) async {
     if (kDebugMode) {
       final stopwatch = Stopwatch()..start();
       final res = await function();

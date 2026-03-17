@@ -9,7 +9,7 @@ import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 
 final _memoryInfoStateNotifier = ValueNotifier<TrafficValue>(
-  TrafficValue(value: 0),
+  const TrafficValue(value: 0),
 );
 
 class MemoryInfo extends StatefulWidget {
@@ -34,30 +34,27 @@ class _MemoryInfoState extends State<MemoryInfo> {
     super.dispose();
   }
 
-  _updateMemory() async {
+  Future<void> _updateMemory() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final rss = ProcessInfo.currentRss;
       _memoryInfoStateNotifier.value = TrafficValue(
         value: clashLib != null ? rss : await clashCore.getMemory() + rss,
       );
-      timer = Timer(Duration(seconds: 2), () async {
+      timer = Timer(const Duration(seconds: 2), () async {
         _updateMemory();
       });
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
+  Widget build(BuildContext context) => SizedBox(
       height: getWidgetHeight(1),
       child: CommonCard(
         info: Info(
           iconData: Icons.memory,
           label: appLocalizations.memoryInfo,
         ),
-        onPressed: () {
-          clashCore.requestGc();
-        },
+        onPressed: clashCore.requestGc,
         child: Container(
           padding: baseInfoEdgeInsets.copyWith(
             top: 0,
@@ -71,8 +68,7 @@ class _MemoryInfoState extends State<MemoryInfo> {
                 height: globalState.measure.bodyMediumHeight + 2,
                 child: ValueListenableBuilder(
                   valueListenable: _memoryInfoStateNotifier,
-                  builder: (_, trafficValue, __) {
-                    return Row(
+                  builder: (_, trafficValue, __) => Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Text(
@@ -80,7 +76,7 @@ class _MemoryInfoState extends State<MemoryInfo> {
                           style: context.textTheme.bodyMedium?.toLight
                               .adjustSize(1),
                         ),
-                        SizedBox(
+                        const SizedBox(
                           width: 8,
                         ),
                         Text(
@@ -89,8 +85,7 @@ class _MemoryInfoState extends State<MemoryInfo> {
                               .adjustSize(1),
                         )
                       ],
-                    );
-                  },
+                    ),
                 ),
               )
             ],
@@ -98,7 +93,6 @@ class _MemoryInfoState extends State<MemoryInfo> {
         ),
       ),
     );
-  }
 }
 
 // class AnimatedCounter extends StatefulWidget {

@@ -4,7 +4,7 @@ import 'package:flclashx/plugins/app.dart';
 import 'package:flclashx/state.dart';
 
 class Android {
-  init() async {
+  Future<void> init() async {
     app?.onExit = () async {
       await globalState.appController.savePreferences();
     };

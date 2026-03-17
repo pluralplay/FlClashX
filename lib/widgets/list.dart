@@ -15,43 +15,38 @@ class Delegate {
 }
 
 class RadioDelegate<T> extends Delegate {
-  final T value;
-  final T groupValue;
-  final void Function(T?)? onChanged;
 
   const RadioDelegate({
     required this.value,
     required this.groupValue,
     this.onChanged,
   });
+  final T value;
+  final T groupValue;
+  final void Function(T?)? onChanged;
 }
 
 class SwitchDelegate<T> extends Delegate {
-  final bool value;
-  final ValueChanged<bool>? onChanged;
 
   const SwitchDelegate({
     required this.value,
     this.onChanged,
   });
+  final bool value;
+  final ValueChanged<bool>? onChanged;
 }
 
 class CheckboxDelegate<T> extends Delegate {
-  final bool value;
-  final ValueChanged<bool?>? onChanged;
 
   const CheckboxDelegate({
     this.value = false,
     this.onChanged,
   });
+  final bool value;
+  final ValueChanged<bool?>? onChanged;
 }
 
 class OpenDelegate extends Delegate {
-  final Widget widget;
-  final String title;
-  final double? maxWidth;
-  final Widget? action;
-  final bool blur;
 
   const OpenDelegate({
     required this.title,
@@ -60,14 +55,14 @@ class OpenDelegate extends Delegate {
     this.action,
     this.blur = true,
   });
-}
-
-class NextDelegate extends Delegate {
   final Widget widget;
   final String title;
   final double? maxWidth;
   final Widget? action;
   final bool blur;
+}
+
+class NextDelegate extends Delegate {
 
   const NextDelegate({
     required this.title,
@@ -76,14 +71,14 @@ class NextDelegate extends Delegate {
     this.action,
     this.blur = true,
   });
+  final Widget widget;
+  final String title;
+  final double? maxWidth;
+  final Widget? action;
+  final bool blur;
 }
 
 class OptionsDelegate<T> extends Delegate {
-  final List<T> options;
-  final String title;
-  final T value;
-  final String Function(T value) textBuilder;
-  final Function(T? value) onChanged;
 
   const OptionsDelegate({
     required this.title,
@@ -92,16 +87,14 @@ class OptionsDelegate<T> extends Delegate {
     required this.value,
     required this.onChanged,
   });
+  final List<T> options;
+  final String title;
+  final T value;
+  final String Function(T value) textBuilder;
+  final Function(T? value) onChanged;
 }
 
 class InputDelegate extends Delegate {
-  final String title;
-  final String value;
-  final String? suffixText;
-  final Function(String? value) onChanged;
-  final FormFieldValidator<String>? validator;
-
-  final String? resetValue;
 
   const InputDelegate({
     required this.title,
@@ -111,21 +104,16 @@ class InputDelegate extends Delegate {
     this.resetValue,
     this.validator,
   });
+  final String title;
+  final String value;
+  final String? suffixText;
+  final Function(String? value) onChanged;
+  final FormFieldValidator<String>? validator;
+
+  final String? resetValue;
 }
 
 class ListItem<T> extends StatelessWidget {
-  final Widget? leading;
-  final Widget title;
-  final Widget? subtitle;
-  final EdgeInsets padding;
-  final ListTileTitleAlignment tileTitleAlignment;
-  final bool? dense;
-  final Widget? trailing;
-  final Delegate delegate;
-  final double? horizontalTitleGap;
-  final TextStyle? titleTextStyle;
-  final TextStyle? subtitleTextStyle;
-  final void Function()? onTap;
 
   const ListItem({
     super.key,
@@ -246,13 +234,24 @@ class ListItem<T> extends StatelessWidget {
     this.tileTitleAlignment = ListTileTitleAlignment.center,
   })  : leading = null,
         onTap = null;
+  final Widget? leading;
+  final Widget title;
+  final Widget? subtitle;
+  final EdgeInsets padding;
+  final ListTileTitleAlignment tileTitleAlignment;
+  final bool? dense;
+  final Widget? trailing;
+  final Delegate delegate;
+  final double? horizontalTitleGap;
+  final TextStyle? titleTextStyle;
+  final TextStyle? subtitleTextStyle;
+  final void Function()? onTap;
 
-  _buildListTile({
+  ListTile _buildListTile({
     void Function()? onTap,
     Widget? trailing,
     Widget? leading,
-  }) {
-    return ListTile(
+  }) => ListTile(
       key: key,
       dense: dense,
       titleTextStyle: titleTextStyle,
@@ -267,7 +266,6 @@ class ListItem<T> extends StatelessWidget {
       trailing: trailing ?? this.trailing,
       contentPadding: padding,
     );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -278,7 +276,7 @@ class ListItem<T> extends StatelessWidget {
       );
       return OpenContainer(
         closedBuilder: (_, action) {
-          openAction() {
+          void openAction() {
             final isMobile = globalState.appState.viewMode == ViewMode.mobile;
             if (!isMobile) {
               showExtend(
@@ -287,16 +285,14 @@ class ListItem<T> extends StatelessWidget {
                   blur: openDelegate.blur,
                   maxWidth: openDelegate.maxWidth,
                 ),
-                builder: (_, type) {
-                  return AdaptiveSheetScaffold(
+                builder: (_, type) => AdaptiveSheetScaffold(
                     actions: [
                       if (openDelegate.action != null) openDelegate.action!,
                     ],
                     type: type,
                     body: child,
                     title: openDelegate.title,
-                  );
-                },
+                  ),
               );
               return;
             }
@@ -307,17 +303,16 @@ class ListItem<T> extends StatelessWidget {
             onTap: openAction,
           );
         },
-        openBuilder: (_, action) {
-          return CommonScaffold.open(
+        openBuilder: (_, action) => CommonScaffold.open(
             key: Key(openDelegate.title),
             onBack: action,
             title: openDelegate.title,
             body: child,
+            disableBackground: true,
             actions: [
               if (openDelegate.action != null) openDelegate.action!,
             ],
-          );
-        },
+          ),
       );
     }
     if (delegate is NextDelegate) {
@@ -334,16 +329,14 @@ class ListItem<T> extends StatelessWidget {
               blur: nextDelegate.blur,
               maxWidth: nextDelegate.maxWidth,
             ),
-            builder: (_, type) {
-              return AdaptiveSheetScaffold(
+            builder: (_, type) => AdaptiveSheetScaffold(
                 actions: [
                   if (nextDelegate.action != null) nextDelegate.action!,
                 ],
                 type: type,
                 body: child,
                 title: nextDelegate.title,
-              );
-            },
+              ),
           );
         },
       );
@@ -435,11 +428,6 @@ class ListItem<T> extends StatelessWidget {
 }
 
 class ListHeader extends StatelessWidget {
-  final String title;
-  final String? subTitle;
-  final List<Widget> actions;
-  final EdgeInsets? padding;
-  final double? space;
 
   const ListHeader({
     super.key,
@@ -449,10 +437,14 @@ class ListHeader extends StatelessWidget {
     List<Widget>? actions,
     this.space,
   }) : actions = actions ?? const [];
+  final String title;
+  final String? subTitle;
+  final List<Widget> actions;
+  final EdgeInsets? padding;
+  final double? space;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context) => Container(
       alignment: Alignment.centerLeft,
       padding: padding ??
           const EdgeInsets.only(
@@ -502,7 +494,6 @@ class ListHeader extends StatelessWidget {
         ],
       ),
     );
-  }
 }
 
 List<Widget> generateSection({
@@ -533,8 +524,7 @@ Widget generateSectionV2({
   required Iterable<Widget> items,
   List<Widget>? actions,
   bool separated = true,
-}) {
-  return Column(
+}) => Column(
     children: [
       if (items.isNotEmpty && title != null)
         ListHeader(
@@ -552,7 +542,6 @@ Widget generateSectionV2({
       )
     ],
   );
-}
 
 List<Widget> generateInfoSection({
   required Info info,
@@ -577,12 +566,10 @@ List<Widget> generateInfoSection({
   ];
 }
 
-Widget generateListView(List<Widget> items) {
-  return ListView.builder(
+Widget generateListView(List<Widget> items) => ListView.builder(
     itemCount: items.length,
     itemBuilder: (_, index) => items[index],
     padding: const EdgeInsets.only(
       bottom: 16,
     ),
   );
-}

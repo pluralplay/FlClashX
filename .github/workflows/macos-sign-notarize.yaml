@@ -1,0 +1,176 @@
+name: macOS Sign & Notarize
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
+      arch:
+        required: true
+        type: string
+    secrets:
+      APPLE_CERTIFICATE:
+        required: true
+      APPLE_CERTIFICATE_PASSWORD:
+        required: true
+      APPLE_DEVELOPER_ID:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
+      APPLE_API_KEY_BASE64:
+        required: true
+      APPLE_API_ISSUER:
+        required: true
+      APPLE_API_KEY_ID:
+        required: true
+
+jobs:
+  sign-and-notarize:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./dist
+
+      - name: Setup Signing Certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          rm certificate.p12
+
+      - name: Setup Notarization Credentials
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          mkdir -p ~/private_keys
+
+
+          KEY_FILE=~/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8
+
+          echo "📦 Decoding API key from base64..."
+          echo "$APPLE_API_KEY_BASE64" | base64 -d > "$KEY_FILE"
+
+
+          if [ ! -f "$KEY_FILE" ]; then
+            echo "❌ Failed to create API key file"
+            exit 1
+          fi
+
+          echo "🔐 Storing notarization credentials..."
+
+          if xcrun notarytool store-credentials "flclash-notarization" \
+            --key "$KEY_FILE" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER" \
+            --verbose; then
+            echo "✅ Notarization credentials stored successfully!"
+          else
+            echo "❌ Failed to store notarization credentials"
+            echo ""
+            echo "Double-check your secrets:"
+            echo "  - APPLE_API_KEY_BASE64: base64 of .p8 file"
+            echo "  - APPLE_API_KEY_ID: Key ID from filename."
+            echo "  - APPLE_API_ISSUER: UUID from App Store Connect"
+            exit 1
+          fi
+
+      - name: Sign and Notarize DMG
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -n 1)
+
+          if [ -z "$DMG_FILE" ]; then
+            echo "❌ DMG file not found!"
+            exit 1
+          fi
+
+          echo "📦 Found DMG: $DMG_FILE"
+
+          echo "📮 Submitting for notarization..."
+          xcrun notarytool submit "$DMG_FILE" \
+            --keychain-profile "flclash-notarization" \
+            --wait
+
+          NOTARIZATION_STATUS=$?
+          if [ $NOTARIZATION_STATUS -ne 0 ]; then
+            echo "❌ Notarization failed!"
+            exit 1
+          fi
+
+          echo "📎 Stapling notarization ticket..."
+          xcrun stapler staple "$DMG_FILE"
+
+          echo "✅ Verifying staple..."
+          xcrun stapler validate "$DMG_FILE"
+
+          echo "✅ Successfully signed and notarized!"
+
+          echo "📋 File info:"
+          ls -lh "$DMG_FILE"
+          codesign -dvv "$DMG_FILE"
+
+      - name: Rename DMG (remove version)
+        run: |
+          DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -n 1)
+          BASENAME=$(basename "$DMG_FILE")
+          
+          # FlClashX-0.3.0-macos-arm64.dmg -> FlClashX-macos-arm64.dmg
+          NEW_NAME=$(echo "$BASENAME" | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+(-[^-]+)?-/-/')
+          
+          if [ "$BASENAME" != "$NEW_NAME" ]; then
+            echo "📝 Renaming: $BASENAME -> $NEW_NAME"
+            mv "$DMG_FILE" "./dist/$NEW_NAME"
+          else
+            echo "✅ Filename already correct: $BASENAME"
+          fi
+
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}-signed
+          path: ./dist/*.dmg
+          overwrite: true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+          rm -rf ~/private_keys

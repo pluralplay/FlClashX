@@ -84,9 +84,7 @@ extension ConnectionExt on Connection {
   }
 }
 
-String _logDateTime(_) {
-  return DateTime.now().toString();
-}
+String _logDateTime(_) => DateTime.now().toString();
 
 // String _logId(_) {
 //   return utils.id;
@@ -102,13 +100,11 @@ class Log with _$Log {
 
   factory Log.app(
     String payload,
-  ) {
-    return Log(
+  ) => Log(
       payload: payload,
       dateTime: _logDateTime(null),
       // id: _logId(null),
     );
-  }
 
   factory Log.fromJson(Map<String, Object?> json) => _$LogFromJson(json);
 }
@@ -208,28 +204,24 @@ class VersionInfo with _$VersionInfo {
 }
 
 class Traffic {
-  int id;
-  TrafficValue up;
-  TrafficValue down;
 
   Traffic({int? up, int? down})
       : id = DateTime.now().millisecondsSinceEpoch,
         up = TrafficValue(value: up),
         down = TrafficValue(value: down);
 
-  num get speed => up.value + down.value;
-
-  factory Traffic.fromMap(Map<String, dynamic> map) {
-    return Traffic(
+  factory Traffic.fromMap(Map<String, dynamic> map) => Traffic(
       up: map['up'],
       down: map['down'],
     );
-  }
+  int id;
+  TrafficValue up;
+  TrafficValue down;
+
+  num get speed => up.value + down.value;
 
   @override
-  String toString() {
-    return '$up↑ $down↓';
-  }
+  String toString() => '$up↑ $down↓';
 
   @override
   bool operator ==(Object other) =>
@@ -246,22 +238,22 @@ class Traffic {
 
 @immutable
 class TrafficValueShow {
-  final double value;
-  final TrafficUnit unit;
 
   const TrafficValueShow({
     required this.value,
     required this.unit,
   });
+  final double value;
+  final TrafficUnit unit;
 }
 
 @freezed
 class Proxy with _$Proxy {
-  const factory Proxy({
-    required String name,
-    required String type,
-    String? now,
-  }) = _Proxy;
+  const factory Proxy(
+      {required String name,
+      required String type,
+      String? now,
+      String? serverDescription}) = _Proxy;
 
   factory Proxy.fromJson(Map<String, Object?> json) => _$ProxyFromJson(json);
 }
@@ -301,9 +293,9 @@ extension GroupExt on Group {
 
 @immutable
 class TrafficValue {
-  final int _value;
 
   const TrafficValue({int? value}) : _value = value ?? 0;
+  final int _value;
 
   int get value => _value;
 
@@ -346,9 +338,7 @@ class TrafficValue {
   }
 
   @override
-  String toString() {
-    return "$showValue$showUnit";
-  }
+  String toString() => "$showValue$showUnit";
 
   @override
   bool operator ==(Object other) =>
@@ -382,7 +372,7 @@ extension ColorSchemesExt on ColorSchemes {
               dynamicSchemeVariant: schemeVariant,
             )
           : ColorScheme.fromSeed(
-              seedColor: Color(defaultPrimaryColor),
+              seedColor: const Color(defaultPrimaryColor),
               brightness: Brightness.dark,
               dynamicSchemeVariant: schemeVariant,
             );
@@ -393,23 +383,22 @@ extension ColorSchemesExt on ColorSchemes {
             dynamicSchemeVariant: schemeVariant,
           )
         : ColorScheme.fromSeed(
-            seedColor: Color(defaultPrimaryColor),
+            seedColor: const Color(defaultPrimaryColor),
             dynamicSchemeVariant: schemeVariant,
           );
   }
 }
 
 class IpInfo {
-  final String ip;
-  final String countryCode;
 
   const IpInfo({
     required this.ip,
     required this.countryCode,
   });
+  final String ip;
+  final String countryCode;
 
-  static IpInfo fromIpInfoIoJson(Map<String, dynamic> json) {
-    return switch (json) {
+  static IpInfo fromIpInfoIoJson(Map<String, dynamic> json) => switch (json) {
       {
         "ip": final String ip,
         "country": final String country,
@@ -420,10 +409,8 @@ class IpInfo {
         ),
       _ => throw const FormatException("invalid json"),
     };
-  }
 
-  static IpInfo fromIpApiCoJson(Map<String, dynamic> json) {
-    return switch (json) {
+  static IpInfo fromIpApiCoJson(Map<String, dynamic> json) => switch (json) {
       {
         "ip": final String ip,
         "country_code": final String countryCode,
@@ -434,10 +421,8 @@ class IpInfo {
         ),
       _ => throw const FormatException("invalid json"),
     };
-  }
 
-  static IpInfo fromIpSbJson(Map<String, dynamic> json) {
-    return switch (json) {
+  static IpInfo fromIpSbJson(Map<String, dynamic> json) => switch (json) {
       {
         "ip": final String ip,
         "country_code": final String countryCode,
@@ -448,10 +433,8 @@ class IpInfo {
         ),
       _ => throw const FormatException("invalid json"),
     };
-  }
 
-  static IpInfo fromIpwhoIsJson(Map<String, dynamic> json) {
-    return switch (json) {
+  static IpInfo fromIpwhoIsJson(Map<String, dynamic> json) => switch (json) {
       {
         "ip": final String ip,
         "country_code": final String countryCode,
@@ -462,12 +445,9 @@ class IpInfo {
         ),
       _ => throw const FormatException("invalid json"),
     };
-  }
 
   @override
-  String toString() {
-    return 'IpInfo{ip: $ip, countryCode: $countryCode}';
-  }
+  String toString() => 'IpInfo{ip: $ip, countryCode: $countryCode}';
 }
 
 @freezed
@@ -566,13 +546,11 @@ class Script with _$Script {
   factory Script.create({
     required String label,
     required String content,
-  }) {
-    return Script(
+  }) => Script(
       id: utils.uuidV4,
       label: label,
       content: content,
     );
-  }
 
   factory Script.fromJson(Map<String, Object?> json) => _$ScriptFromJson(json);
 }

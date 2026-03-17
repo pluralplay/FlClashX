@@ -19,7 +19,7 @@ class ConfigView extends StatefulWidget {
 class _ConfigViewState extends State<ConfigView> {
   @override
   Widget build(BuildContext context) {
-    List<Widget> items = [
+    final items = <Widget>[
       ListItem.open(
         title: Text(appLocalizations.general),
         subtitle: Text(appLocalizations.generalDesc),
@@ -48,8 +48,7 @@ class _ConfigViewState extends State<ConfigView> {
         leading: const Icon(Icons.dns),
         delegate: OpenDelegate(
           title: "DNS",
-          action: Consumer(builder: (_, ref, __) {
-            return IconButton(
+          action: Consumer(builder: (_, ref, __) => IconButton(
               onPressed: () async {
                 final res = await globalState.showMessage(
                   title: appLocalizations.reset,
@@ -70,8 +69,7 @@ class _ConfigViewState extends State<ConfigView> {
               icon: const Icon(
                 Icons.replay,
               ),
-            );
-          }),
+            )),
           widget: const DnsListView(),
           blur: false,
         ),

@@ -51,8 +51,8 @@ const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
 const defaultTestUrl = "https://www.gstatic.com/generate_204";
 final commonFilter = ImageFilter.blur(
-  sigmaX: 5,
-  sigmaY: 5,
+  sigmaX: 2.5,
+  sigmaY: 2.5,
   tileMode: TileMode.mirror,
 );
 
@@ -82,25 +82,23 @@ const viewModeColumnsMap = {
 // const toolsStoreKey = PageStorageKey<String>('tools');
 // const profilesStoreKey = PageStorageKey<String>('profiles');
 
-const defaultPrimaryColor = 0XFFD8C0C3;
+const defaultPrimaryColor = 0xFF03A9F4;
 
-double getWidgetHeight(num lines) {
-  return max(lines * 84 + (lines - 1) * 16, 0).ap;
-}
+double getWidgetHeight(num lines) => max(lines * 84 + (lines - 1) * 16, 0).ap;
 
 const maxLength = 150;
 
-final mainIsolate = "FlClashXMainIsolate";
+const mainIsolate = "FlClashXMainIsolate";
 
-final serviceIsolate = "FlClashXServiceIsolate";
+const serviceIsolate = "FlClashXServiceIsolate";
 
 const defaultPrimaryColors = [
   0xFF795548,
-  0xFF03A9F4,
+  defaultPrimaryColor,
   0xFFFFFF00,
   0XFFBBC9CC,
   0XFFABD397,
-  defaultPrimaryColor,
+  0XFFD8C0C3,
   0XFF665390,
 ];
 

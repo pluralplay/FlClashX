@@ -145,11 +145,13 @@ class FlClashXVpnService : VpnService(), BaseServiceInterface {
     }
 
     @SuppressLint("ForegroundServiceType")
-    override suspend fun startForeground(title: String, content: String) {
+    override suspend fun startForeground(title: String, server: String?, content: String) {
         startForeground(
             notificationBuilder()
                 .setContentTitle(title)
-                .setContentText(content).build()
+                .setContentText(content)
+                .setSubText(server ?: "")
+                .build()
         )
     }
 

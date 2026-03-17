@@ -16,41 +16,39 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return HomeBackScope(
-      child: Consumer(
-        builder: (_, ref, child) {
-          final state = ref.watch(homeStateProvider);
-          final viewMode = state.viewMode;
-          final navigationItems = state.navigationItems;
-          final pageLabel = state.pageLabel;
-          final index = navigationItems.lastIndexWhere(
-            (element) => element.label == pageLabel,
-          );
-          final currentIndex = index == -1 ? 0 : index;
-          final navigationBar = CommonNavigationBar(
-            viewMode: viewMode,
-            navigationItems: navigationItems,
-            currentIndex: currentIndex,
-          );
-          final bottomNavigationBar =
-              viewMode == ViewMode.mobile ? navigationBar : null;
-          final sideNavigationBar =
-              viewMode != ViewMode.mobile ? navigationBar : null;
-          return CommonScaffold(
-            key: globalState.homeScaffoldKey,
-            title: Intl.message(
-              pageLabel.name,
-            ),
-            sideNavigationBar: sideNavigationBar,
-            body: child!,
-            bottomNavigationBar: bottomNavigationBar,
-          );
-        },
-        child: _HomePageView(),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => HomeBackScope(
+        child: Consumer(
+          builder: (_, ref, child) {
+            final state = ref.watch(homeStateProvider);
+            final viewMode = state.viewMode;
+            final navigationItems = state.navigationItems;
+            final pageLabel = state.pageLabel;
+            final index = navigationItems.lastIndexWhere(
+              (element) => element.label == pageLabel,
+            );
+            final currentIndex = index == -1 ? 0 : index;
+            final navigationBar = CommonNavigationBar(
+              viewMode: viewMode,
+              navigationItems: navigationItems,
+              currentIndex: currentIndex,
+            );
+            final bottomNavigationBar =
+                viewMode == ViewMode.mobile ? navigationBar : null;
+            final sideNavigationBar =
+                viewMode != ViewMode.mobile ? navigationBar : null;
+            return CommonScaffold(
+              key: globalState.homeScaffoldKey,
+              title: Intl.message(
+                pageLabel.name,
+              ),
+              sideNavigationBar: sideNavigationBar,
+              body: child!,
+              bottomNavigationBar: bottomNavigationBar,
+            );
+          },
+          child: _HomePageView(),
+        ),
+      );
 }
 
 class _HomePageView extends ConsumerStatefulWidget {
@@ -189,6 +187,41 @@ class CommonNavigationBar extends ConsumerWidget {
       color: context.colorScheme.surfaceContainer,
       child: Column(
         children: [
+          // App logo at the top of sidebar
+          if (!Platform.isMacOS) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                children: [
+                  const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: CircleAvatar(
+                      foregroundImage: AssetImage("assets/images/icon.png"),
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
+                  if (showLabel) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      appName,
+                      style: context.textTheme.labelSmall?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Divider(
+              height: 1,
+              indent: 12,
+              endIndent: 12,
+              color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ],
           Expanded(
             child: ScrollConfiguration(
               behavior: HiddenBarScrollBehavior(),
@@ -278,18 +311,15 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
   Color? get surfaceTintColor => Colors.transparent;
 
   @override
-  WidgetStateProperty<IconThemeData?>? get iconTheme {
-    return WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-      return IconThemeData(
-        size: 24.0,
-        color: states.contains(WidgetState.disabled)
-            ? _colors.onSurfaceVariant.opacity38
-            : states.contains(WidgetState.selected)
-                ? _colors.onSecondaryContainer
-                : _colors.onSurfaceVariant,
-      );
-    });
-  }
+  WidgetStateProperty<IconThemeData?>? get iconTheme =>
+      WidgetStateProperty.resolveWith((Set<WidgetState> states) => IconThemeData(
+            size: 24.0,
+            color: states.contains(WidgetState.disabled)
+                ? _colors.onSurfaceVariant.opacity38
+                : states.contains(WidgetState.selected)
+                    ? _colors.onSecondaryContainer
+                    : _colors.onSurfaceVariant,
+          ));
 
   @override
   Color? get indicatorColor => _colors.secondaryContainer;
@@ -298,18 +328,15 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
   ShapeBorder? get indicatorShape => const StadiumBorder();
 
   @override
-  WidgetStateProperty<TextStyle?>? get labelTextStyle {
-    return WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-      final TextStyle style = _textTheme.labelMedium!;
-      return style.apply(
-          overflow: TextOverflow.ellipsis,
-          color: states.contains(WidgetState.disabled)
-              ? _colors.onSurfaceVariant.opacity38
-              : states.contains(WidgetState.selected)
-                  ? _colors.onSurface
-                  : _colors.onSurfaceVariant);
-    });
-  }
+  WidgetStateProperty<TextStyle?>? get labelTextStyle =>
+      WidgetStateProperty.resolveWith((Set<WidgetState> states) =>
+          _textTheme.labelMedium!.apply(
+              overflow: TextOverflow.ellipsis,
+              color: states.contains(WidgetState.disabled)
+                  ? _colors.onSurfaceVariant.opacity38
+                  : states.contains(WidgetState.selected)
+                      ? _colors.onSurface
+                      : _colors.onSurfaceVariant));
 }
 
 class HomeBackScope extends StatelessWidget {

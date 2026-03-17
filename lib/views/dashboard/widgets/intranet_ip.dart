@@ -9,8 +9,7 @@ class IntranetIP extends StatelessWidget {
   const IntranetIP({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
+  Widget build(BuildContext context) => SizedBox(
       height: getWidgetHeight(1),
       child: CommonCard(
         info: Info(
@@ -45,8 +44,8 @@ class IntranetIP extends StatelessWidget {
                               ),
                             )
                           : Container(
-                              padding: EdgeInsets.all(2),
-                              child: AspectRatio(
+                              padding: const EdgeInsets.all(2),
+                              child: const AspectRatio(
                                 aspectRatio: 1,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
@@ -62,5 +61,4 @@ class IntranetIP extends StatelessWidget {
         ),
       ),
     );
-  }
 }

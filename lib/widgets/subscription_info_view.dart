@@ -3,12 +3,12 @@ import 'package:flclashx/models/models.dart';
 import 'package:flutter/material.dart';
 
 class SubscriptionInfoView extends StatelessWidget {
-  final SubscriptionInfo? subscriptionInfo;
 
   const SubscriptionInfoView({
     super.key,
     this.subscriptionInfo,
   });
+  final SubscriptionInfo? subscriptionInfo;
 
   @override
   Widget build(BuildContext context) {

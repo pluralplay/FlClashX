@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flclashx/clash/clash.dart';
@@ -41,13 +42,17 @@ class ApplicationState extends ConsumerState<Application> {
   ColorScheme _getAppColorScheme({
     required Brightness brightness,
     int? primaryColor,
-  }) {
-    return ref.read(genColorSchemeProvider(brightness));
-  }
+  }) =>
+      ref.read(genColorSchemeProvider(brightness));
 
   @override
   void initState() {
     super.initState();
+
+    if (Platform.isWindows) {
+      windows?.enableDarkModeForApp();
+    }
+
     _autoUpdateGroupTask();
     _autoUpdateProfilesTask();
     globalState.appController = AppController(context, ref);
@@ -62,7 +67,7 @@ class ApplicationState extends ConsumerState<Application> {
     });
   }
 
-  _autoUpdateGroupTask() {
+  void _autoUpdateGroupTask() {
     _autoUpdateGroupTaskTimer = Timer(const Duration(milliseconds: 20000), () {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         globalState.appController.updateGroupsDebounce();
@@ -71,14 +76,14 @@ class ApplicationState extends ConsumerState<Application> {
     });
   }
 
-  _autoUpdateProfilesTask() {
+  void _autoUpdateProfilesTask() {
     _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
       await globalState.appController.autoUpdateProfiles();
       _autoUpdateProfilesTask();
     });
   }
 
-  _buildPlatformState(Widget child) {
+  Widget _buildPlatformState(Widget child) {
     if (system.isDesktop) {
       return WindowManager(
         child: TrayManager(
@@ -97,24 +102,22 @@ class ApplicationState extends ConsumerState<Application> {
     );
   }
 
-  _buildState(Widget child) {
-    return AppStateManager(
-      child: ClashManager(
-        child: ConnectivityManager(
-          onConnectivityChanged: (results) async {
-            if (!results.contains(ConnectivityResult.vpn)) {
-              await clashCore.closeConnections();
-            }
-            globalState.appController.updateLocalIp();
-            globalState.appController.addCheckIpNumDebounce();
-          },
-          child: child,
+  Widget _buildState(Widget child) => AppStateManager(
+        child: ClashManager(
+          child: ConnectivityManager(
+            onConnectivityChanged: (results) async {
+              if (!results.contains(ConnectivityResult.vpn)) {
+                clashCore.closeConnections();
+              }
+              globalState.appController.updateLocalIp();
+              globalState.appController.addCheckIpNumDebounce();
+            },
+            child: child,
+          ),
         ),
-      ),
-    );
-  }
+      );
 
-  _buildPlatformApp(Widget child) {
+  Widget _buildPlatformApp(Widget child) {
     if (system.isDesktop) {
       return WindowHeaderContainer(
         child: child,
@@ -125,68 +128,85 @@ class ApplicationState extends ConsumerState<Application> {
     );
   }
 
-  _buildApp(Widget child) {
-    return MessageManager(
-      child: ThemeManager(
-        child: child,
-      ),
-    );
-  }
+  Widget _buildApp(Widget child) => MessageManager(
+        child: ThemeManager(
+          child: child,
+        ),
+      );
 
   @override
-  Widget build(context) {
-    return _buildPlatformState(
-      _buildState(
-        Consumer(
-          builder: (_, ref, child) {
-            final locale =
-                ref.watch(appSettingProvider.select((state) => state.locale));
-            final themeProps = ref.watch(themeSettingProvider);
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              navigatorKey: globalState.navigatorKey,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate
-              ],
-              builder: (_, child) {
-                return AppEnvManager(
-                  child: _buildPlatformApp(
-                    _buildApp(child!),
+  Widget build(BuildContext context) => _buildPlatformState(
+        _buildState(
+          Consumer(
+            builder: (_, ref, child) {
+              final locale =
+                  ref.watch(appSettingProvider.select((state) => state.locale));
+              final themeProps = ref.watch(themeSettingProvider);
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                navigatorKey: globalState.navigatorKey,
+                checkerboardRasterCacheImages: false,
+                checkerboardOffscreenLayers: false,
+                showPerformanceOverlay: false,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate
+                ],
+                builder: (_, child) {
+                  final Widget app = AppEnvManager(
+                    child: _buildPlatformApp(
+                      _buildApp(child!),
+                    ),
+                  );
+
+                  if (Platform.isMacOS) {
+                    return FittedBox(
+                      fit: BoxFit.contain,
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: 500,
+                        height: 800,
+                        child: app,
+                      ),
+                    );
+                  }
+
+                  return app;
+                },
+                scrollBehavior: BaseScrollBehavior(),
+                title: appName,
+                locale: utils.getLocaleForString(locale),
+                supportedLocales: AppLocalizations.delegate.supportedLocales,
+                themeMode: themeProps.themeMode,
+                theme: ThemeData(
+                  useMaterial3: true,
+                  pageTransitionsTheme: _pageTransitionsTheme,
+                  colorScheme: _getAppColorScheme(
+                    brightness: Brightness.light,
+                    primaryColor: themeProps.primaryColor,
                   ),
-                );
-              },
-              scrollBehavior: BaseScrollBehavior(),
-              title: appName,
-              locale: utils.getLocaleForString(locale),
-              supportedLocales: AppLocalizations.delegate.supportedLocales,
-              themeMode: themeProps.themeMode,
-              theme: ThemeData(
-                useMaterial3: true,
-                pageTransitionsTheme: _pageTransitionsTheme,
-                colorScheme: _getAppColorScheme(
-                  brightness: Brightness.light,
-                  primaryColor: themeProps.primaryColor,
+                  // Reduce animation duration for snappier feel
+                  visualDensity: VisualDensity.adaptivePlatformDensity,
                 ),
-              ),
-              darkTheme: ThemeData(
-                useMaterial3: true,
-                pageTransitionsTheme: _pageTransitionsTheme,
-                colorScheme: _getAppColorScheme(
-                  brightness: Brightness.dark,
-                  primaryColor: themeProps.primaryColor,
-                ).toPureBlack(themeProps.pureBlack),
-              ),
-              home: child,
-            );
-          },
-          child: const HomePage(),
+                darkTheme: ThemeData(
+                  useMaterial3: true,
+                  pageTransitionsTheme: _pageTransitionsTheme,
+                  colorScheme: _getAppColorScheme(
+                    brightness: Brightness.dark,
+                    primaryColor: themeProps.primaryColor,
+                  ).toPureBlack(themeProps.pureBlack),
+                  // Reduce animation duration for snappier feel
+                  visualDensity: VisualDensity.adaptivePlatformDensity,
+                ),
+                home: child,
+              );
+            },
+            child: const HomePage(),
+          ),
         ),
-      ),
-    );
-  }
+      );
 
   @override
   Future<void> dispose() async {

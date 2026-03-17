@@ -5,7 +5,6 @@ import 'package:flclashx/models/models.dart';
 import 'package:flutter/foundation.dart';
 
 class ClashMessage {
-  final controller = StreamController<Map<String, Object?>>();
 
   ClashMessage._() {
     controller.stream.listen(
@@ -14,7 +13,7 @@ class ClashMessage {
           return;
         }
         final m = AppMessage.fromJson(message);
-        for (final AppMessageListener listener in _listeners) {
+        for (final listener in _listeners) {
           switch (m.type) {
             case AppMessageType.log:
               listener.onLog(Log.fromJson(m.data));
@@ -33,15 +32,14 @@ class ClashMessage {
       },
     );
   }
+  final controller = StreamController<Map<String, Object?>>();
 
   static final ClashMessage instance = ClashMessage._();
 
   final ObserverList<AppMessageListener> _listeners =
       ObserverList<AppMessageListener>();
 
-  bool get hasListeners {
-    return _listeners.isNotEmpty;
-  }
+  bool get hasListeners => _listeners.isNotEmpty;
 
   void addListener(AppMessageListener listener) {
     _listeners.add(listener);

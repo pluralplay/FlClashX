@@ -160,9 +160,7 @@ class Sniffer with _$Sniffer {
       _$SnifferFromJson(json);
 }
 
-List<String> _formJsonPorts(List? ports) {
-  return ports?.map((item) => item.toString()).toList() ?? [];
-}
+List<String> _formJsonPorts(List? ports) => ports?.map((item) => item.toString()).toList() ?? [];
 
 @freezed
 class SnifferConfig with _$SnifferConfig {
@@ -390,8 +388,7 @@ class ParsedRule with _$ParsedRule {
 }
 
 extension ParsedRuleExt on ParsedRule {
-  String get value {
-    return [
+  String get value => [
       ruleAction.value,
       ruleAction == RuleAction.RULE_SET ? ruleProvider : content,
       ruleAction == RuleAction.SUB_RULE ? subRule : ruleTarget,
@@ -400,7 +397,6 @@ extension ParsedRuleExt on ParsedRule {
         if (noResolve) "no-resolve",
       ]
     ].join(",");
-  }
 }
 
 @freezed
@@ -410,12 +406,10 @@ class Rule with _$Rule {
     required String value,
   }) = _Rule;
 
-  factory Rule.value(String value) {
-    return Rule(
+  factory Rule.value(String value) => Rule(
       value: value,
       id: utils.uuidV4,
     );
-  }
 
   factory Rule.fromJson(Map<String, Object?> json) => _$RuleFromJson(json);
 }
@@ -430,7 +424,7 @@ class SubRule with _$SubRule {
       _$SubRuleFromJson(json);
 }
 
-_genRule(List<dynamic>? rules) {
+List<Rule> _genRule(List<dynamic>? rules) {
   if (rules == null) {
     return [];
   }
@@ -441,19 +435,15 @@ _genRule(List<dynamic>? rules) {
       .toList();
 }
 
-List<RuleProvider> _genRuleProviders(Map<String, dynamic> json) {
-  return json.entries.map((entry) => RuleProvider(name: entry.key)).toList();
-}
+List<RuleProvider> _genRuleProviders(Map<String, dynamic> json) => json.entries.map((entry) => RuleProvider(name: entry.key)).toList();
 
-List<SubRule> _genSubRules(Map<String, dynamic> json) {
-  return json.entries
+List<SubRule> _genSubRules(Map<String, dynamic> json) => json.entries
       .map(
         (entry) => SubRule(
           name: entry.key,
         ),
       )
       .toList();
-}
 
 @freezed
 class ClashConfigSnippet with _$ClashConfigSnippet {

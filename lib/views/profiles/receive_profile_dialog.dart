@@ -1,5 +1,6 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flclashx/common/common.dart';
 import 'package:flutter/material.dart';
 import 'package:network_info_plus/network_info_plus.dart';
@@ -45,7 +46,7 @@ class _ReceiveProfileDialogState extends State<ReceiveProfileDialog> {
         return shelf.Response.badRequest(body: 'URL not found');
       });
 
-      _server = await shelf_io.serve(router, ip!, port);
+      _server = await shelf_io.serve(router.call, ip!, port);
       print('Server started at http://${_server?.address.host}:${_server?.port}');
 
       setState(() {
@@ -96,7 +97,7 @@ class _ReceiveProfileDialogState extends State<ReceiveProfileDialog> {
                       ),
                     ),
                   )
-                : Center(child: Text('Could not get IP address')),
+                : const Center(child: Text('Could not get IP address')),
       ),
       actions: [
         TextButton(

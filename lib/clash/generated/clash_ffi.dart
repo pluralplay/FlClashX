@@ -2614,6 +2614,16 @@ class ClashFFI {
   late final _getCurrentProfileName =
       _getCurrentProfileNamePtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
 
+  ffi.Pointer<ffi.Char> getCurrentProxyName() {
+    return _getCurrentProxyName();
+  }
+
+  late final _getCurrentProxyNamePtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Char> Function()>>(
+          'getCurrentProxyName');
+  late final _getCurrentProxyName =
+      _getCurrentProxyNamePtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
+
   ffi.Pointer<ffi.Char> getAndroidVpnOptions() {
     return _getAndroidVpnOptions();
   }

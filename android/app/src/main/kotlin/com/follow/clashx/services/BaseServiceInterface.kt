@@ -27,7 +27,7 @@ interface BaseServiceInterface {
 
     fun stop()
 
-    suspend fun startForeground(title: String, content: String)
+    suspend fun startForeground(title: String, server: String?, content: String)
 }
 
 fun Service.createFlClashXNotificationBuilder(): Deferred<NotificationCompat.Builder> =

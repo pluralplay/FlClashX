@@ -126,7 +126,7 @@ final proxyStateProvider = AutoDisposeProvider<ProxyState>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef ProxyStateRef = AutoDisposeProviderRef<ProxyState>;
-String _$trayStateHash() => r'61c99bbae2cb7ed69dc9ee0f2149510eb6a87df4';
+String _$trayStateHash() => r'2d9dd23e9b51508d2bb8f1eb91c89c5f0da1aae2';
 
 /// See also [trayState].
 @ProviderFor(trayState)
@@ -211,7 +211,7 @@ final proxiesActionsStateProvider =
 // ignore: unused_element
 typedef ProxiesActionsStateRef = AutoDisposeProviderRef<ProxiesActionsState>;
 String _$startButtonSelectorStateHash() =>
-    r'537aff93c98b0a689cf8cabd080c610c9c58e611';
+    r'fc1555d326829ce796ef8882a1f797f65d470a6c';
 
 /// See also [startButtonSelectorState].
 @ProviderFor(startButtonSelectorState)
@@ -231,7 +231,7 @@ final startButtonSelectorStateProvider =
 typedef StartButtonSelectorStateRef
     = AutoDisposeProviderRef<StartButtonSelectorState>;
 String _$profilesSelectorStateHash() =>
-    r'aac2deee6e747eceaf62cb5f279ec99ce9227a5a';
+    r'08a0b4d3a9a3168037856b383e8fd9c2229840cb';
 
 /// See also [profilesSelectorState].
 @ProviderFor(profilesSelectorState)
@@ -251,7 +251,7 @@ final profilesSelectorStateProvider =
 typedef ProfilesSelectorStateRef
     = AutoDisposeProviderRef<ProfilesSelectorState>;
 String _$proxiesListSelectorStateHash() =>
-    r'5e6bbe1a0cecbdea6c9c62e6ccf314968deac264';
+    r'91caade26c6fdfd28c8dc173dc9416f3544a1113';
 
 /// See also [proxiesListSelectorState].
 @ProviderFor(proxiesListSelectorState)
@@ -271,7 +271,7 @@ final proxiesListSelectorStateProvider =
 typedef ProxiesListSelectorStateRef
     = AutoDisposeProviderRef<ProxiesListSelectorState>;
 String _$proxiesSelectorStateHash() =>
-    r'4b96e83c09efd17de6caede484e71c904273c9f8';
+    r'7bd67f71ec73cf976c4a2329a82235a5272f7720';
 
 /// See also [proxiesSelectorState].
 @ProviderFor(proxiesSelectorState)
@@ -289,7 +289,7 @@ final proxiesSelectorStateProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef ProxiesSelectorStateRef = AutoDisposeProviderRef<ProxiesSelectorState>;
-String _$groupNamesStateHash() => r'd4ba8f2fd72a0db7186ab5d96aa1548bd5a7cdcb';
+String _$groupNamesStateHash() => r'7226345462405908b11d34ccdc05d88ea31238c9';
 
 /// See also [groupNamesState].
 @ProviderFor(groupNamesState)
@@ -307,7 +307,7 @@ final groupNamesStateProvider = AutoDisposeProvider<GroupNamesState>.internal(
 // ignore: unused_element
 typedef GroupNamesStateRef = AutoDisposeProviderRef<GroupNamesState>;
 String _$proxyGroupSelectorStateHash() =>
-    r'27d42af16ed77f2d22017edbb34ab60f45566be3';
+    r'ab32d582cf61e59b0c6cf7325aba559ab47e7aa7';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -484,7 +484,7 @@ final packageListSelectorStateProvider =
 typedef PackageListSelectorStateRef
     = AutoDisposeProviderRef<PackageListSelectorState>;
 String _$moreToolsSelectorStateHash() =>
-    r'd27e3eceec2422ad6b6231cf52b892e63c67e365';
+    r'b4d493dcd8ef574c453c427feaf2a181afc72432';
 
 /// See also [moreToolsSelectorState].
 @ProviderFor(moreToolsSelectorState)
@@ -959,7 +959,7 @@ final unfoldSetProvider = AutoDisposeProvider<Set<String>>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef UnfoldSetRef = AutoDisposeProviderRef<Set<String>>;
-String _$getHotKeyActionHash() => r'4dc74ea7ffb25624ce70c7c8214806f3ef022223';
+String _$getHotKeyActionHash() => r'17d32ae5db419f287235467de2d4238be40d1542';
 
 /// See also [getHotKeyAction].
 @ProviderFor(getHotKeyAction)
@@ -1106,6 +1106,92 @@ final currentProfileProvider = AutoDisposeProvider<Profile?>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef CurrentProfileRef = AutoDisposeProviderRef<Profile?>;
+String _$globalModeEnabledHash() => r'c498d6822cb0d8e250d5725137a106f9840ce6da';
+
+/// See also [globalModeEnabled].
+@ProviderFor(globalModeEnabled)
+final globalModeEnabledProvider = AutoDisposeProvider<bool>.internal(
+  globalModeEnabled,
+  name: r'globalModeEnabledProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$globalModeEnabledHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef GlobalModeEnabledRef = AutoDisposeProviderRef<bool>;
+String _$hasAnnounceDataHash() => r'518399bf6581fbf003d0fe26afbe9db97e6c0322';
+
+/// See also [hasAnnounceData].
+@ProviderFor(hasAnnounceData)
+final hasAnnounceDataProvider = AutoDisposeProvider<bool>.internal(
+  hasAnnounceData,
+  name: r'hasAnnounceDataProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$hasAnnounceDataHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef HasAnnounceDataRef = AutoDisposeProviderRef<bool>;
+String _$hasServiceInfoDataHash() =>
+    r'055787255c43f3a469414256f73d41492a2752d3';
+
+/// See also [hasServiceInfoData].
+@ProviderFor(hasServiceInfoData)
+final hasServiceInfoDataProvider = AutoDisposeProvider<bool>.internal(
+  hasServiceInfoData,
+  name: r'hasServiceInfoDataProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$hasServiceInfoDataHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef HasServiceInfoDataRef = AutoDisposeProviderRef<bool>;
+String _$hasServerInfoDataHash() => r'9692b3a04a067504f58d8f6403ce9622fa02b003';
+
+/// See also [hasServerInfoData].
+@ProviderFor(hasServerInfoData)
+final hasServerInfoDataProvider = AutoDisposeProvider<bool>.internal(
+  hasServerInfoData,
+  name: r'hasServerInfoDataProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$hasServerInfoDataHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef HasServerInfoDataRef = AutoDisposeProviderRef<bool>;
+String _$backgroundUrlHash() => r'13f97b984026adac4ccddacb35f9f9c06b420afc';
+
+/// See also [backgroundUrl].
+@ProviderFor(backgroundUrl)
+final backgroundUrlProvider = AutoDisposeProvider<String?>.internal(
+  backgroundUrl,
+  name: r'backgroundUrlProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$backgroundUrlHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef BackgroundUrlRef = AutoDisposeProviderRef<String?>;
 String _$getProxiesColumnsHash() => r'725066b5fc21f590a4c2656a1fd5e14ab7079079';
 
 /// See also [getProxiesColumns].
@@ -1516,7 +1602,7 @@ class _GetSelectedProxyNameProviderElement
   String get groupName => (origin as GetSelectedProxyNameProvider).groupName;
 }
 
-String _$getProxyDescHash() => r'c173fe2393d9c4f5d5d17480e69f9126bb76a17d';
+String _$getProxyDescHash() => r'dd1aa9efd5ba1f9f15105bba010a3677fc4bec7c';
 
 /// See also [getProxyDesc].
 @ProviderFor(getProxyDesc)
@@ -1647,7 +1733,7 @@ class _GetProxyDescProviderElement extends AutoDisposeProviderElement<String>
 }
 
 String _$getProfileOverrideDataHash() =>
-    r'a17ec085f1733b63b123ac08aa7737588c048c5f';
+    r'f1cbade42b110c8f39e6f1d4978ab105e697c401';
 
 /// See also [getProfileOverrideData].
 @ProviderFor(getProfileOverrideData)
@@ -2012,7 +2098,7 @@ final autoSetSystemDnsStateProvider =
 // ignore: unused_element
 typedef AutoSetSystemDnsStateRef = AutoDisposeProviderRef<VM2<bool, bool>>;
 String _$profileOverrideStateHash() =>
-    r'fa26570a355ab39e27b1f93d1d2f358717065592';
+    r'8d01dc59a6aa899d2865536fa45a4acb78aacb4c';
 
 /// See also [ProfileOverrideState].
 @ProviderFor(ProfileOverrideState)

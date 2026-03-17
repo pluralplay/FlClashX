@@ -1,18 +1,18 @@
 import 'iterable.dart';
 
 class FixedList<T> {
-  final int maxLength;
-  final List<T> _list;
 
   FixedList(this.maxLength, {List<T>? list})
       : _list = (list ?? [])..truncate(maxLength);
+  final int maxLength;
+  final List<T> _list;
 
-  add(T item) {
+  void add(T item) {
     _list.add(item);
     _list.truncate(maxLength);
   }
 
-  clear() {
+  void clear() {
     _list.clear();
   }
 
@@ -22,23 +22,21 @@ class FixedList<T> {
 
   T operator [](int index) => _list[index];
 
-  FixedList<T> copyWith() {
-    return FixedList(
+  FixedList<T> copyWith() => FixedList(
       maxLength,
       list: _list,
     );
-  }
 }
 
 class FixedMap<K, V> {
-  int maxLength;
-  late Map<K, V> _map;
 
   FixedMap(this.maxLength, {Map<K, V>? map}) {
     _map = map ?? {};
   }
+  int maxLength;
+  late Map<K, V> _map;
 
-  updateCacheValue(K key, V Function() callback) {
+  V? updateCacheValue(K key, V Function() callback) {
     final realValue = _map.updateCacheValue(
       key,
       callback,
@@ -47,21 +45,21 @@ class FixedMap<K, V> {
     return realValue;
   }
 
-  clear() {
+  void clear() {
     _map.clear();
   }
 
-  updateMaxLength(int size) {
+  void updateMaxLength(int size) {
     maxLength = size;
     _adjustMap();
   }
 
-  updateMap(Map<K, V> map) {
+  void updateMap(Map<K, V> map) {
     _map = map;
     _adjustMap();
   }
 
-  _adjustMap() {
+  void _adjustMap() {
     if (_map.length > maxLength) {
       _map = Map.fromEntries(
         map.entries.toList()..truncate(maxLength),

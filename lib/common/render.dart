@@ -3,33 +3,33 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flutter/scheduler.dart';
 
 class Render {
-  static Render? _instance;
-  bool _isPaused = false;
-  final _dispatcher = SchedulerBinding.instance.platformDispatcher;
-  FrameCallback? _beginFrame;
-  VoidCallback? _drawFrame;
-
-  Render._internal();
 
   factory Render() {
     _instance ??= Render._internal();
     return _instance!;
   }
 
-  active() {
+  Render._internal();
+  static Render? _instance;
+  bool _isPaused = false;
+  final _dispatcher = SchedulerBinding.instance.platformDispatcher;
+  FrameCallback? _beginFrame;
+  VoidCallback? _drawFrame;
+
+  void active() {
     resume();
     pause();
   }
 
-  pause() {
+  void pause() {
     throttler.call(
       FunctionTag.renderPause,
       _pause,
-      duration: Duration(seconds: 5),
+      duration: const Duration(seconds: 5),
     );
   }
 
-  resume() {
+  void resume() {
     throttler.cancel(FunctionTag.renderPause);
     _resume();
   }

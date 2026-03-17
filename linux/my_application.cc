@@ -4,6 +4,7 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -14,11 +15,51 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// Helper function to get the executable directory path
+static gchar* get_executable_dir() {
+  g_autoptr(GError) error = nullptr;
+  g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", &error);
+  if (exe_path == nullptr) {
+    return nullptr;
+  }
+  return g_path_get_dirname(exe_path);
+}
+
+// Helper function to set the window icon
+static void set_window_icon(GtkWindow* window) {
+  g_autofree gchar* exe_dir = get_executable_dir();
+  if (exe_dir == nullptr) {
+    return;
+  }
+  
+  g_autofree gchar* icon_path = g_build_filename(
+    exe_dir, "data", "flutter_assets", "assets", "images", "icon.png", nullptr);
+  
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GdkPixbuf) icon = gdk_pixbuf_new_from_file(icon_path, &error);
+  
+  if (icon != nullptr) {
+    gtk_window_set_icon(window, icon);
+  }
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  
+  // Check if a window already exists
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(application));
+  if (windows) {
+    // Bring the existing window to front
+    gtk_window_present(GTK_WINDOW(windows->data));
+    return;
+  }
+  
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+
+  // Set the window icon for taskbar/dock display
+  set_window_icon(window);
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -48,14 +89,17 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
-  gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
-  gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+
+  // Show widgets after the view has been added to the window to avoid
+  // early exposes without a ready EGL/GL surface on low-power GPUs.
+  gtk_widget_show(GTK_WIDGET(view));
+  gtk_widget_show(GTK_WIDGET(window));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
@@ -83,6 +127,20 @@ static gboolean my_application_local_command_line(GApplication* application, gch
 
 // Implements GApplication::startup.
 static void my_application_startup(GApplication* application) {
+  // On some Raspberry Pi environments, setting safer defaults helps the
+  // Flutter engine initialize EGL/GL correctly. Only set if not already
+  // provided by the user environment.
+#if defined(__arm__) || defined(__aarch64__)
+  if (!g_getenv("GDK_BACKEND")) {
+    g_setenv("GDK_BACKEND", "x11", FALSE);
+  }
+  if (!g_getenv("GDK_GL")) {
+    g_setenv("GDK_GL", "gles", FALSE);
+  }
+  if (!g_getenv("LIBGL_DRI3_DISABLE")) {
+    g_setenv("LIBGL_DRI3_DISABLE", "1", FALSE);
+  }
+#endif
   //MyApplication* self = MY_APPLICATION(object);
 
   // Perform any actions required at application startup.
@@ -125,5 +183,6 @@ MyApplication* my_application_new() {
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID,
+                                     "flags", G_APPLICATION_DEFAULT_FLAGS,
                                      nullptr));
 }

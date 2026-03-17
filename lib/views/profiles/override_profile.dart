@@ -8,12 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class OverrideProfileView extends StatefulWidget {
-  final String profileId;
 
   const OverrideProfileView({
     super.key,
     required this.profileId,
   });
+  final String profileId;
 
   @override
   State<OverrideProfileView> createState() => _OverrideProfileViewState();
@@ -23,9 +23,9 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
   final _controller = ScrollController();
   double _currentMaxWidth = 0;
 
-  _initState(WidgetRef ref) {
+  void _initState(WidgetRef ref) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(Duration(milliseconds: 300), () async {
+      Future.delayed(const Duration(milliseconds: 300), () async {
         final rawConfig = await globalState.getProfileConfig(widget.profileId);
         final snippet = ClashConfigSnippet.fromJson(rawConfig);
         final overrideData = ref.read(
@@ -41,7 +41,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
     });
   }
 
-  _handleSave(WidgetRef ref, OverrideData overrideData) {
+  void _handleSave(WidgetRef ref, OverrideData overrideData) {
     ref.read(profilesProvider.notifier).updateProfile(
           widget.profileId,
           (state) => state.copyWith(
@@ -51,7 +51,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
     globalState.appController.setupClashConfigDebounce();
   }
 
-  _handleDelete(WidgetRef ref) async {
+  Future<void> _handleDelete(WidgetRef ref) async {
     final res = await globalState.showMessage(
       title: appLocalizations.tip,
       message: TextSpan(
@@ -89,8 +89,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
         );
   }
 
-  _buildContent() {
-    return Consumer(
+  Consumer _buildContent() => Consumer(
       builder: (_, ref, child) {
         final isInit = ref.watch(
           profileOverrideStateProvider.select(
@@ -98,13 +97,13 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
           ),
         );
         if (!isInit) {
-          return Center(
+          return const Center(
             child: CircularProgressIndicator(),
           );
         }
         return FadeBox(
           child: !isInit
-              ? Center(
+              ? const Center(
                   child: CircularProgressIndicator(),
                 )
               : child!,
@@ -118,7 +117,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
             child: CustomScrollView(
               controller: _controller,
               slivers: [
-                SliverToBoxAdapter(
+                const SliverToBoxAdapter(
                   child: SizedBox(
                     height: 8,
                   ),
@@ -129,19 +128,19 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                       final scriptMode = ref.watch(scriptStateProvider
                           .select((state) => state.realId != null));
                       if (!scriptMode) {
-                        return SizedBox();
+                        return const SizedBox();
                       }
                       return child!;
                     },
                     child: ListItem(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 0,
                       ),
                       title: Row(
                         spacing: 8,
                         children: [
-                          Icon(Icons.info),
+                          const Icon(Icons.info),
                           Text(
                             appLocalizations.overrideInvalidTip,
                           )
@@ -150,12 +149,12 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
+                const SliverToBoxAdapter(
                   child: SizedBox(
                     height: 8,
                   ),
                 ),
-                SliverPadding(
+                const SliverPadding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverToBoxAdapter(
                     child: OverrideSwitch(),
@@ -163,7 +162,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.only(
+                    padding: const EdgeInsets.only(
                       left: 8,
                       right: 8,
                     ),
@@ -173,12 +172,12 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                   ),
                 ),
                 SliverPadding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
                   sliver: RuleContent(
                     maxWidth: _currentMaxWidth,
                   ),
                 ),
-                SliverToBoxAdapter(
+                const SliverToBoxAdapter(
                   child: SizedBox(
                     height: 16,
                   ),
@@ -189,13 +188,11 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
         },
       ),
     );
-  }
 
   @override
-  Widget build(BuildContext context) {
-    return ProviderScope(
+  Widget build(BuildContext context) => ProviderScope(
       overrides: [
-        profileOverrideStateProvider.overrideWith(() => ProfileOverrideState()),
+        profileOverrideStateProvider.overrideWith(ProfileOverrideState.new),
       ],
       child: Consumer(
         builder: (_, ref, child) {
@@ -211,6 +208,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
             );
             final isEdit = editCount != 0;
             return CommonScaffold(
+              disableBackground: true,
               title: appLocalizations.override,
               body: _buildContent(),
               actions: [
@@ -226,7 +224,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                       );
                       final equals = overrideData == newOverrideData;
                       if (equals || newOverrideData == null) {
-                        return SizedBox();
+                        return const SizedBox();
                       }
                       return CommonPopScope(
                         onPop: () async {
@@ -258,7 +256,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                             }
                             _handleSave(ref, newOverrideData);
                           },
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.save,
                           ),
                         ),
@@ -269,11 +267,9 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                   IconButton(
                     onPressed: () {
                       final rule = ref.read(profileOverrideStateProvider.select(
-                        (state) {
-                          return state.overrideData?.rule.rules.firstWhere(
+                        (state) => state.overrideData?.rule.rules.firstWhere(
                             (item) => item.id == state.selectedRules.first,
-                          );
-                        },
+                          ),
                       ));
                       if (rule == null) {
                         return;
@@ -283,7 +279,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                         rule,
                       );
                     },
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.edit,
                     ),
                   ),
@@ -292,7 +288,7 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
                     onPressed: () {
                       _handleDelete(ref);
                     },
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.delete,
                     ),
                   )
@@ -313,7 +309,6 @@ class _OverrideProfileViewState extends State<OverrideProfileView> {
         ),
       ),
     );
-  }
 }
 
 class OverrideSwitch extends ConsumerWidget {
@@ -354,14 +349,14 @@ class OverrideSwitch extends ConsumerWidget {
 }
 
 class RuleTitle extends ConsumerWidget {
-  final String profileId;
 
   const RuleTitle({
     super.key,
     required this.profileId,
   });
+  final String profileId;
 
-  _handleChangeType(WidgetRef ref, isOverrideRule) {
+  void _handleChangeType(WidgetRef ref, isOverrideRule) {
     ref.read(profileOverrideStateProvider.notifier).updateState(
           (state) => state.copyWith.overrideData!.rule(
             type: isOverrideRule
@@ -372,7 +367,7 @@ class RuleTitle extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final vm3 = ref.watch(
       profileOverrideStateProvider.select(
         (state) {
@@ -391,7 +386,7 @@ class RuleTitle extends ConsumerWidget {
     final isSelectAll = vm3.b;
     final isOverrideRule = vm3.c;
     return FilledButtonTheme(
-      data: FilledButtonThemeData(
+      data: const FilledButtonThemeData(
         style: ButtonStyle(
           padding: WidgetStatePropertyAll(EdgeInsets.symmetric(
             horizontal: 8,
@@ -400,7 +395,7 @@ class RuleTitle extends ConsumerWidget {
         ),
       ),
       child: IconButtonTheme(
-        data: IconButtonThemeData(
+        data: const IconButtonThemeData(
           style: ButtonStyle(
             padding: WidgetStatePropertyAll(EdgeInsets.zero),
             visualDensity: VisualDensity.compact,
@@ -469,23 +464,22 @@ class RuleTitle extends ConsumerWidget {
 }
 
 class RuleContent extends ConsumerWidget {
-  final double maxWidth;
 
   const RuleContent({
     super.key,
     required this.maxWidth,
   });
+  final double maxWidth;
 
   Widget _buildItem({
     required Rule rule,
     required bool isSelected,
     required VoidCallback onTab,
     required BuildContext context,
-  }) {
-    return Material(
+  }) => Material(
       color: Colors.transparent,
       child: Container(
-        margin: EdgeInsets.symmetric(
+        margin: const EdgeInsets.symmetric(
           vertical: 4,
         ),
         child: CommonCard(
@@ -526,9 +520,8 @@ class RuleContent extends ConsumerWidget {
         ),
       ),
     );
-  }
 
-  _handleSelect(WidgetRef ref, String ruleId) {
+  void _handleSelect(WidgetRef ref, String ruleId) {
     ref.read(profileOverrideStateProvider.notifier).updateState(
       (state) {
         final newSelectedRules = Set<String>.from(state.selectedRules);
@@ -545,7 +538,7 @@ class RuleContent extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final vm3 = ref.watch(
       profileOverrideStateProvider.select(
         (state) {
@@ -580,11 +573,9 @@ class RuleContent extends ConsumerWidget {
                       ref
                           .read(profileOverrideStateProvider.notifier)
                           .updateState(
-                        (state) {
-                          return state.copyWith.overrideData!.rule(
+                        (state) => state.copyWith.overrideData!.rule(
                             overrideRules: rules,
-                          );
-                        },
+                          ),
                       );
                     },
                     child: Text(appLocalizations.getOriginRules),
@@ -625,9 +616,7 @@ class RuleContent extends ConsumerWidget {
               ),
             );
       },
-      keyBuilder: (int index) {
-        return rules[index].value;
-      },
+      keyBuilder: (index) => rules[index].value,
       itemExtentBuilder: (index) {
         final rule = rules[index];
         return 40 +
@@ -646,14 +635,14 @@ class RuleContent extends ConsumerWidget {
 }
 
 class AddRuleDialog extends StatefulWidget {
-  final ClashConfigSnippet snippet;
-  final Rule? rule;
 
   const AddRuleDialog({
     super.key,
     required this.snippet,
     this.rule,
   });
+  final ClashConfigSnippet snippet;
+  final Rule? rule;
 
   @override
   State<AddRuleDialog> createState() => _AddRuleDialogState();
@@ -667,9 +656,9 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
   final _subRuleController = TextEditingController();
   bool _noResolve = false;
   bool _src = false;
-  List<DropdownMenuEntry> _targetItems = [];
-  List<DropdownMenuEntry> _ruleProviderItems = [];
-  List<DropdownMenuEntry> _subRuleItems = [];
+  List<DropdownMenuEntry<String>> _targetItems = [];
+  List<DropdownMenuEntry<String>> _ruleProviderItems = [];
+  List<DropdownMenuEntry<String>> _subRuleItems = [];
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -678,7 +667,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
     super.initState();
   }
 
-  _initState() {
+  void _initState() {
     _targetItems = [
       ...widget.snippet.proxyGroups.map(
         (item) => DropdownMenuEntry(
@@ -740,7 +729,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
     }
   }
 
-  _handleSubmit() {
+  void _handleSubmit() {
     final res = _formKey.currentState?.validate();
     if (res == false) {
       return;
@@ -763,8 +752,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: appLocalizations.addRule,
       actions: [
         TextButton(
@@ -777,7 +765,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
       child: DropdownMenuTheme(
         data: DropdownMenuThemeData(
           inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
             labelStyle: context.textTheme.bodyLarge
                 ?.copyWith(overflow: TextOverflow.ellipsis),
           ),
@@ -785,8 +773,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
         child: Form(
           key: _formKey,
           child: LayoutBuilder(
-            builder: (_, constraints) {
-              return Column(
+            builder: (_, constraints) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   FilledButton.tonal(
@@ -805,7 +792,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                     },
                     child: Text(_ruleAction.name),
                   ),
-                  SizedBox(
+                  const SizedBox(
                     height: 24,
                   ),
                   _ruleAction == RuleAction.RULE_SET
@@ -817,16 +804,14 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                             }
                             return null;
                           },
-                          builder: (field) {
-                            return DropdownMenu(
+                          builder: (field) => DropdownMenu(
                               expandedInsets: EdgeInsets.zero,
                               controller: _ruleProviderController,
                               label: Text(appLocalizations.ruleProviders),
                               menuHeight: 250,
                               errorText: field.errorText,
                               dropdownMenuEntries: _ruleProviderItems,
-                            );
-                          },
+                            ),
                         )
                       : TextFormField(
                           controller: _contentController,
@@ -842,7 +827,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                             return null;
                           },
                         ),
-                  SizedBox(
+                  const SizedBox(
                     height: 24,
                   ),
                   _ruleAction == RuleAction.SUB_RULE
@@ -854,8 +839,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                             }
                             return null;
                           },
-                          builder: (filed) {
-                            return DropdownMenu(
+                          builder: (filed) => DropdownMenu(
                               width: 200,
                               enableFilter: false,
                               enableSearch: false,
@@ -863,8 +847,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                               label: Text(appLocalizations.subRule),
                               menuHeight: 250,
                               dropdownMenuEntries: _subRuleItems,
-                            );
-                          },
+                            ),
                         )
                       : FormField<String>(
                           validator: (_) {
@@ -875,8 +858,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                             }
                             return null;
                           },
-                          builder: (filed) {
-                            return DropdownMenu(
+                          builder: (filed) => DropdownMenu(
                               controller: _ruleTargetController,
                               label: Text(appLocalizations.ruleTarget),
                               width: 200,
@@ -885,11 +867,10 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                               enableSearch: false,
                               dropdownMenuEntries: _targetItems,
                               errorText: filed.errorText,
-                            );
-                          },
+                            ),
                         ),
                   if (_ruleAction.hasParams) ...[
-                    SizedBox(
+                    const SizedBox(
                       height: 20,
                     ),
                     Wrap(
@@ -899,7 +880,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                           radius: 8,
                           isSelected: _src,
                           child: Padding(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 8),
                             child: Text(
                               appLocalizations.sourceIp,
@@ -916,7 +897,7 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                           radius: 8,
                           isSelected: _noResolve,
                           child: Padding(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 8),
                             child: Text(
                               appLocalizations.noResolve,
@@ -932,15 +913,13 @@ class _AddRuleDialogState extends State<AddRuleDialog> {
                       ],
                     ),
                   ],
-                  SizedBox(
+                  const SizedBox(
                     height: 20,
                   ),
                 ],
-              );
-            },
+              ),
           ),
         ),
       ),
     );
-  }
 }

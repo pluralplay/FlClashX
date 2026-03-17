@@ -16,9 +16,11 @@ import 'window.dart';
 class Tray {
   Future _updateSystemTray({
     required Brightness? brightness,
+    required bool isRunning,
     bool force = false,
   }) async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isMacOS) {
+      // Skip tray on Android and macOS (macOS uses native status bar)
       return;
     }
     if (Platform.isLinux || force) {
@@ -28,6 +30,7 @@ class Tray {
       utils.getTrayIconPath(
         brightness: brightness ??
             WidgetsBinding.instance.platformDispatcher.platformBrightness,
+        isRunning: isRunning,
       ),
       isTemplate: true,
     );
@@ -38,20 +41,22 @@ class Tray {
     }
   }
 
-  update({
+  Future<void> update({
     required TrayState trayState,
     bool focus = false,
   }) async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isMacOS) {
+      // Skip tray on Android and macOS (macOS uses native status bar)
       return;
     }
     if (!Platform.isLinux) {
       await _updateSystemTray(
         brightness: trayState.brightness,
+        isRunning: trayState.isStart,
         force: focus,
       );
     }
-    List<MenuItem> menuItems = [];
+    final menuItems = <MenuItem>[];
     final showMenuItem = MenuItem(
       label: appLocalizations.show,
       onClick: (_) {
@@ -67,54 +72,21 @@ class Tray {
       checked: false,
     );
     menuItems.add(startMenuItem);
-    menuItems.add(MenuItem.separator());
-    for (final mode in Mode.values) {
-      menuItems.add(
-        MenuItem.checkbox(
-          label: Intl.message(mode.name),
-          onClick: (_) {
-            globalState.appController.changeMode(mode);
-          },
-          checked: mode == trayState.mode,
-        ),
-      );
-    }
-    menuItems.add(MenuItem.separator());
-    if (Platform.isMacOS) {
-      for (final group in trayState.groups) {
-        List<MenuItem> subMenuItems = [];
-        for (final proxy in group.all) {
-          subMenuItems.add(
-            MenuItem.checkbox(
-              label: proxy.name,
-              checked: trayState.selectedMap[group.name] == proxy.name,
-              onClick: (_) {
-                final appController = globalState.appController;
-                appController.updateCurrentSelectedMap(
-                  group.name,
-                  proxy.name,
-                );
-                appController.changeProxy(
-                  groupName: group.name,
-                  proxyName: proxy.name,
-                );
-              },
-            ),
-          );
-        }
+    if (trayState.globalModeEnabled) {
+      menuItems.add(MenuItem.separator());
+      for (final mode in Mode.values) {
         menuItems.add(
-          MenuItem.submenu(
-            label: group.name,
-            submenu: Menu(
-              items: subMenuItems,
-            ),
+          MenuItem.checkbox(
+            label: Intl.message(mode.name),
+            onClick: (_) {
+              globalState.appController.changeMode(mode);
+            },
+            checked: mode == trayState.mode,
           ),
         );
       }
-      if (trayState.groups.isNotEmpty) {
-        menuItems.add(MenuItem.separator());
-      }
     }
+    menuItems.add(MenuItem.separator());
     if (trayState.isStart) {
       menuItems.add(
         MenuItem.checkbox(
@@ -152,6 +124,13 @@ class Tray {
     menuItems.add(autoStartMenuItem);
     menuItems.add(copyEnvVarMenuItem);
     menuItems.add(MenuItem.separator());
+    final restartMenuItem = MenuItem(
+      label: appLocalizations.restart,
+      onClick: (_) async {
+        await globalState.appController.handleRestart();
+      },
+    );
+    menuItems.add(restartMenuItem);
     final exitMenuItem = MenuItem(
       label: appLocalizations.exit,
       onClick: (_) async {
@@ -164,12 +143,13 @@ class Tray {
     if (Platform.isLinux) {
       await _updateSystemTray(
         brightness: trayState.brightness,
+        isRunning: trayState.isStart,
         force: focus,
       );
     }
   }
 
-  updateTrayTitle([Traffic? traffic]) async {
+  Future<void> updateTrayTitle([Traffic? traffic]) async {
     // if (!Platform.isMacOS) {
     //   return;
     // }

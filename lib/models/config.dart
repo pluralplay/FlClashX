@@ -67,30 +67,30 @@ class AppSettingProps with _$AppSettingProps {
     @JsonKey(fromJson: dashboardWidgetsSafeFormJson)
     List<DashboardWidget> dashboardWidgets,
     @Default(false) bool onlyStatisticsProxy,
-    @Default(true) bool autoLaunch,
+    @Default(false) bool autoLaunch,
     @Default(false) bool silentLaunch,
     @Default(false) bool autoRun,
     @Default(false) bool openLogs,
     @Default(true) bool closeConnections,
     @Default(defaultTestUrl) String testUrl,
     @Default(true) bool isAnimateToPage,
-    @Default(true) bool autoCheckUpdate,
+    @Default(false) bool autoCheckUpdate,
     @Default(false) bool showLabel,
     @Default(false) bool disclaimerAccepted,
-    @Default(true) bool minimizeOnExit,
+    @Default(false) bool minimizeOnExit,
     @Default(false) bool hidden,
     @Default(false) bool developerMode,
+    @Default(false) bool overrideProviderSettings,
+    @Default(false) bool overrideNetworkSettings,
     @Default(RecoveryStrategy.compatible) RecoveryStrategy recoveryStrategy,
   }) = _AppSettingProps;
 
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>
       _$AppSettingPropsFromJson(json);
 
-  factory AppSettingProps.safeFromJson(Map<String, Object?>? json) {
-    return json == null
+  factory AppSettingProps.safeFromJson(Map<String, Object?>? json) => json == null
         ? defaultAppSettingProps
         : AppSettingProps.fromJson(json);
-  }
 }
 
 @freezed
@@ -139,7 +139,7 @@ class VpnProps with _$VpnProps {
     @Default(defaultAccessControl) AccessControl accessControl,
   }) = _VpnProps;
 
-  factory VpnProps.fromJson(Map<String, Object?> json) => 
+  factory VpnProps.fromJson(Map<String, Object?> json) =>
       _$VpnPropsFromJson(json);
 }
 
@@ -162,7 +162,9 @@ class ProxiesStyle with _$ProxiesStyle {
     @Default(ProxiesType.list) ProxiesType type,
     @Default(ProxiesSortType.none) ProxiesSortType sortType,
     @Default(ProxiesLayout.standard) ProxiesLayout layout,
-    @Default(ProxiesIconStyle.standard) ProxiesIconStyle iconStyle,
+    @JsonKey(unknownEnumValue: ProxiesIconStyle.icon)
+    @Default(ProxiesIconStyle.icon)
+    ProxiesIconStyle iconStyle,
     @Default(ProxyCardType.expand) ProxyCardType cardType,
     @Default({}) Map<String, String> iconMap,
   }) = _ProxiesStyle;
@@ -266,7 +268,15 @@ class Config with _$Config {
       if (accessControlMap != null) {
         (accessControlMap as Map)["enable"] = isAccessControl;
         if (json["vpnProps"] != null) {
-          (json["vpnProps"] as Map)["accessControl"] = accessControlMap;
+          (json["vpnProps"]! as Map)["accessControl"] = accessControlMap;
+        }
+      }
+      
+      // Migration: Replace deprecated "standard" iconStyle with "icon"
+      final proxiesStyle = json["proxiesStyle"];
+      if (proxiesStyle is Map) {
+        if (proxiesStyle["iconStyle"] == "standard") {
+          proxiesStyle["iconStyle"] = "icon";
         }
       }
     } catch (_) {}
@@ -275,7 +285,5 @@ class Config with _$Config {
 }
 
 extension ConfigExt on Config {
-  Profile? get currentProfile {
-    return profiles.getProfile(currentProfileId);
-  }
+  Profile? get currentProfile => profiles.getProfile(currentProfileId);
 }

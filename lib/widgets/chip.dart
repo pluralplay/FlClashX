@@ -3,10 +3,6 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flutter/material.dart';
 
 class CommonChip extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final ChipType type;
-  final Widget? avatar;
 
   const CommonChip({
     super.key,
@@ -15,6 +11,10 @@ class CommonChip extends StatelessWidget {
     this.avatar,
     this.type = ChipType.action,
   });
+  final String label;
+  final VoidCallback? onPressed;
+  final ChipType type;
+  final Widget? avatar;
 
   @override
   Widget build(BuildContext context) {

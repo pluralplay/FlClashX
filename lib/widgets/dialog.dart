@@ -5,12 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class CommonDialog extends ConsumerWidget {
-  final String title;
-  final Widget? child;
-  final List<Widget>? actions;
-  final EdgeInsets? padding;
-  final bool overrideScroll;
-  final Color? backgroundColor;
 
   const CommonDialog({
     super.key,
@@ -21,15 +15,23 @@ class CommonDialog extends ConsumerWidget {
     this.overrideScroll = false,
     this.backgroundColor,
   });
+  final String title;
+  final Widget? child;
+  final List<Widget>? actions;
+  final EdgeInsets? padding;
+  final bool overrideScroll;
+  final Color? backgroundColor;
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = ref.watch(viewSizeProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return AlertDialog(
       title: Text(title),
       actions: actions,
       contentPadding: padding,
-      backgroundColor: backgroundColor,
+      backgroundColor: backgroundColor ?? colorScheme.surface.withValues(alpha: 0.92),
       content: Container(
         constraints: BoxConstraints(
           maxHeight: min(
@@ -50,21 +52,23 @@ class CommonDialog extends ConsumerWidget {
 }
 
 class CommonModal extends ConsumerWidget {
-  final Widget? child;
 
   const CommonModal({
     super.key,
     this.child,
   });
+  final Widget? child;
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = ref.watch(viewSizeProvider);
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Container(
         width: size.width * 0.85,
         height: size.height * 0.85,
         decoration: BoxDecoration(
+          color: colorScheme.surface.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(12),
         ),
         clipBehavior: Clip.antiAlias,

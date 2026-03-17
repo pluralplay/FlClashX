@@ -1,10 +1,10 @@
 name: flclashx
 description: Fork multi-platform proxy client FlClash based on ClashMeta, simple and easy to use, open-source and ad-free.
-publish_to: 'none'
-version: 0.2.1
+publish_to: "none"
+version: 0.3.2+2026012301
 
 environment:
-  sdk: '>=3.1.0 <4.0.0'
+  sdk: ">=3.5.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -12,73 +12,73 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
-  path_provider: ^2.1.0
-  path: ^1.9.0
-  shared_preferences: ^2.2.3
-  window_manager: ^0.5.0
-  dynamic_color: ^1.7.0
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  shared_preferences: ^2.3.5
+  window_manager: ^0.5.1
+  dynamic_color: ^1.8.1
   proxy:
     path: plugins/proxy
   window_ext:
     path: plugins/window_ext
   launch_at_startup: ^0.5.1
   json_annotation: ^4.9.0
-  file_picker: ^8.0.3
-  mobile_scanner: ^7.0.0
-  app_links: ^6.4.0
-  win32_registry: ^2.0.0
-  tray_manager: ^0.5.0
+  file_picker: ^10.3.8
+  mobile_scanner: ^7.1.4
+  app_links: ^6.4.1
+  win32_registry: ^2.1.0
+  tray_manager: ^0.5.2
   qr_flutter: ^4.1.0
-  shelf: ^1.4.1
+  shelf: ^1.4.2
   shelf_router: ^1.1.4
-  network_info_plus: ^5.0.3
-  collection: ^1.18.0
-  animations: ^2.0.11
-  package_info_plus: ^8.0.0
-  url_launcher: ^6.2.6
-  freezed_annotation: ^2.4.1
-  image_picker: ^1.1.2
+  http: ^1.6.0
+  network_info_plus: ^7.0.0
+  collection: ^1.19.1
+  animations: ^2.1.1
+  package_info_plus: ^9.0.0
+  url_launcher: ^6.3.1
+  freezed_annotation: ^2.4.4
+  image_picker: ^1.2.1
   webdav_client: ^1.2.2
-  dio: ^5.8.0+1
-  win32: ^5.5.1
-  ffi: ^2.1.2
+  dio: ^5.9.0
+  win32: ^5.15.0
+  ffi: ^2.1.5
   re_editor:
     git:
       url: https://github.com/chen08209/re-editor.git
       ref: main
   re_highlight: ^0.0.3
-  archive: ^3.6.1
+  archive: ^4.0.7
   lpinyin: ^2.0.3
   emoji_regex: ^0.0.5
   hotkey_manager: ^0.2.3
   uni_platform: ^0.1.3
-  device_info_plus: ^11.5.0
-  connectivity_plus: ^6.1.0
+  device_info_plus: ^12.3.0
+  connectivity_plus: ^7.0.0
   screen_retriever: ^0.2.0
   defer_pointer: ^0.0.2
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
-  material_color_utilities: ^0.11.1
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
   flutter_js:
     git:
       url: https://github.com/chen08209/flutter_js
       ref: master
-  flutter_svg: ^2.1.0
+  flutter_svg: ^2.2.3
   flutter_cache_manager: ^3.4.1
-  crypto: ^3.0.3
+  cached_network_image: ^3.4.1
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
-  build_runner: ^2.4.10
-  freezed: ^2.5.2
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.15
+  freezed: ^2.5.7
   json_serializable: ^6.8.0
-  riverpod_generator: ^2.4.0
-  riverpod_lint: ^2.3.10
-  custom_lint: ^0.6.4
-  flutter_launcher_icons: ^0.14.0
-
+  riverpod_generator: ^2.4.3
+  riverpod_lint: ^2.3.13
+  custom_lint: ^0.7.3
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -97,13 +97,16 @@ flutter:
     - family: Icons
       fonts:
         - asset: assets/fonts/Icons.ttf
+    - family: Unbounded
+      fonts:
+        - asset: assets/fonts/Unbounded-Regular.ttf
 
 ffigen:
   name: "ClashFFI"
-  output: 'lib/clash/generated/clash_ffi.dart'
+  output: "lib/clash/generated/clash_ffi.dart"
   headers:
     entry-points:
-      - 'libclash/android/arm64-v8a/libclash.h'
+      - "libclash/android/arm64-v8a/libclash.h"
 
 flutter_intl:
   enabled: true
@@ -115,3 +118,6 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#202020"
+  adaptive_icon_foreground: "assets/images/icon.png"
+  adaptive_icon_monochrome: "assets/images/icon_white.png"

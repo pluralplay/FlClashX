@@ -1,7 +1,7 @@
-display_name: FlClash
+display_name: FlClashX
 
-packager: chen08209
-packagerEmail: chen08209@gmail.com
+packager: pluralplay
+packagerEmail: mail@pluralplay.rw
 license: Other
 
 priority: optional
@@ -13,8 +13,7 @@ icon: ./assets/images/icon.png
 keywords:
   - FlClashX
   - Clash
-  - ClashMeta
-  - Proxy
+    - Proxy
 
 generic_name: FlClashX
 

@@ -7,22 +7,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'constant.dart';
 
 class Preferences {
-  static Preferences? _instance;
-  Completer<SharedPreferences?> sharedPreferencesCompleter = Completer();
 
-  Future<bool> get isInit async =>
-      await sharedPreferencesCompleter.future != null;
+  factory Preferences() {
+    _instance ??= Preferences._internal();
+    return _instance!;
+  }
 
   Preferences._internal() {
     SharedPreferences.getInstance()
         .then((value) => sharedPreferencesCompleter.complete(value))
         .onError((_, __) => sharedPreferencesCompleter.complete(null));
   }
+  static Preferences? _instance;
+  Completer<SharedPreferences?> sharedPreferencesCompleter = Completer();
 
-  factory Preferences() {
-    _instance ??= Preferences._internal();
-    return _instance!;
-  }
+  Future<bool> get isInit async =>
+      await sharedPreferencesCompleter.future != null;
 
   Future<ClashConfig?> getClashConfig() async {
     final preferences = await sharedPreferencesCompleter.future;
@@ -49,12 +49,12 @@ class Preferences {
         false;
   }
 
-  clearClashConfig() async {
+  Future<void> clearClashConfig() async {
     final preferences = await sharedPreferencesCompleter.future;
     preferences?.remove(clashConfigKey);
   }
 
-  clearPreferences() async {
+  Future<void> clearPreferences() async {
     final sharedPreferencesIns = await sharedPreferencesCompleter.future;
     sharedPreferencesIns?.clear();
   }

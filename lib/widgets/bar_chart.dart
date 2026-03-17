@@ -6,24 +6,24 @@ import 'package:flutter/material.dart';
 
 @immutable
 class BarChartData {
-  final double value;
-  final String label;
 
   const BarChartData({
     required this.value,
     required this.label,
   });
+  final double value;
+  final String label;
 }
 
 class BarChart extends StatefulWidget {
-  final List<BarChartData> data;
-  final Duration duration;
 
   const BarChart({
     super.key,
     required this.data,
     this.duration = commonDuration,
   });
+  final List<BarChartData> data;
+  final Duration duration;
 
   @override
   State<BarChart> createState() => _BarChartState();
@@ -61,48 +61,42 @@ class _BarChartState extends State<BarChart>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (_, container) {
-      return AnimatedBuilder(
+  Widget build(BuildContext context) => LayoutBuilder(builder: (_, container) => AnimatedBuilder(
         animation: _animationController,
-        builder: (context, child) {
-          return CustomPaint(
+        builder: (context, child) => CustomPaint(
             painter: BarChartPainter(
               _oldData,
               widget.data,
               _animationController.value,
             ),
             size: Size(container.maxWidth, container.maxHeight),
-          );
-        },
-      );
-    });
-  }
+          ),
+      ));
 }
 
 class BarChartPainter extends CustomPainter {
+
+  BarChartPainter(this.oldData, this.newData, this.progress);
   final List<BarChartData> oldData;
   final List<BarChartData> newData;
   final double progress;
 
-  BarChartPainter(this.oldData, this.newData, this.progress);
-
   Map<String, Rect> getRectMap(List<BarChartData> dataList, Size size) {
     final spacing = size.width * 0.05;
-    final maxBarWidth = 30;
+    const maxBarWidth = 30;
     final barWidth =
         (size.width - spacing * (dataList.length - 1)) / dataList.length;
     final maxValue =
         dataList.fold(0.0, (max, item) => max > item.value ? max : item.value);
     final rects = <String, Rect>{};
-    for (int i = 0; i < dataList.length; i++) {
+    for (var i = 0; i < dataList.length; i++) {
       final data = dataList[i];
-      double barHeight = (data.value / maxValue) * size.height;
+      final barHeight = (data.value / maxValue) * size.height;
 
       final adjustLeft =
           barWidth > maxBarWidth ? (barWidth - maxBarWidth) / 2 : 0;
-      double left = i * (barWidth + spacing) + adjustLeft;
-      double top = size.height - barHeight;
+      final left = i * (barWidth + spacing) + adjustLeft;
+      final top = size.height - barHeight;
       rects[data.label] = Rect.fromLTWH(
         left,
         top,
@@ -122,7 +116,7 @@ class BarChartPainter extends CustomPainter {
       ..color = Colors.blue
       ..style = PaintingStyle.fill;
     final newRectEntries = newRectMap.entries.toList();
-    for (int i = 0; i < newRectEntries.length; i++) {
+    for (var i = 0; i < newRectEntries.length; i++) {
       final newRectEntry = newRectEntries[i];
       final newRect = newRectEntry.value;
       final oldRect = oldRectMap[newRectEntry.key] ??
@@ -140,9 +134,7 @@ class BarChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(BarChartPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
+  bool shouldRepaint(BarChartPainter oldDelegate) => oldDelegate.progress != progress ||
         oldDelegate.oldData != oldData ||
         oldDelegate.newData != newData;
-  }
 }

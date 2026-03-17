@@ -1,9 +1,7 @@
 import 'package:flclashx/common/app_localizations.dart';
 
 extension DateTimeExtension on DateTime {
-  bool get isBeforeNow {
-    return isBefore(DateTime.now());
-  }
+  bool get isBeforeNow => isBefore(DateTime.now());
 
   bool isBeforeSecure(DateTime? dateTime) {
     if (dateTime == null) {
@@ -36,7 +34,5 @@ extension DateTimeExtension on DateTime {
     return appLocalizations.just;
   }
 
-  String get show {
-    return toIso8601String().substring(0, 10);
-  }
+  String get show => toIso8601String().substring(0, 10);
 }

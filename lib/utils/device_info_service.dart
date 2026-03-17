@@ -1,12 +1,6 @@
 import 'package:package_info_plus/package_info_plus.dart';
 
 class DeviceDetails {
-  final String? hwid;
-  final String? os;
-  final String? osVersion;
-  final String? model;
-  final String? appVersion;
-
   DeviceDetails({
     this.hwid,
     this.os,
@@ -14,6 +8,11 @@ class DeviceDetails {
     this.model,
     this.appVersion,
   });
+  final String? hwid;
+  final String? os;
+  final String? osVersion;
+  final String? model;
+  final String? appVersion;
 }
 
 class DeviceInfoService {

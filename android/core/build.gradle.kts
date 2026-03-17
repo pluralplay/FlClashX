@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.argumentsWithVarargAsSingleArray
-
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
@@ -7,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.follow.clashx.core"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "28.0.13004108"
 
     defaultConfig {
-        minSdk = 21
+        minSdk = 23
     }
 
     buildTypes {
@@ -56,6 +54,18 @@ val copyNativeLibs by tasks.register<Copy>("copyNativeLibs") {
     }
     from("../../libclash/android")
     into("src/main/jniLibs")
+
+    doLast {
+        val includesDir = file("src/main/jniLibs/includes")
+        val targetDir = file("src/main/cpp/includes")
+        if (includesDir.exists()) {
+            copy {
+                from(includesDir)
+                into(targetDir)
+            }
+            delete(includesDir)
+        }
+    }
 }
 
 afterEvaluate {

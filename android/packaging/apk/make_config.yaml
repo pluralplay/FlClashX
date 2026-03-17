@@ -1,0 +1,8 @@
+# Android APK packaging configuration
+# This config is used by flutter_distributor to package APK files
+
+# Package format
+format: apk
+
+# Output configuration
+# The APK maker will automatically handle split APKs and universal APK

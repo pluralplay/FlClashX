@@ -3,7 +3,7 @@ name: build
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 env:
   IS_STABLE: ${{ !contains(github.ref, '-') }}
 
@@ -20,10 +20,10 @@ jobs:
             os: windows-latest
             arch: amd64
           - platform: linux
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             arch: amd64
           - platform: macos
-            os: macos-13
+            os: macos-latest
             arch: amd64
           - platform: macos
             os: macos-latest
@@ -36,18 +36,62 @@ jobs:
             arch: arm64
 
     steps:
-      - name: Setup rust
+      - name: Setup Rust for Windows ARM64
         if: startsWith(matrix.os, 'windows-11-arm')
         run: |
           Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
           .\rustup-init.exe -y --default-toolchain stable
           $cargoPath = "$env:USERPROFILE\.cargo\bin"
           Add-Content $env:GITHUB_PATH $cargoPath
+      
+      - name: Setup Rust ARM64 target for cross-compilation
+        if: matrix.platform == 'windows' && matrix.arch == 'arm64' && !startsWith(matrix.os, 'windows-11-arm')
+        run: rustup target add aarch64-pc-windows-msvc
 
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Setup macOS Signing Certificate
+        if: matrix.platform == 'macos'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(uuidgen)
+
+          echo "🔐 Creating temporary keychain..."
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "📥 Importing certificate..."
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "✅ Verifying identity..."
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          rm certificate.p12
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
 
       - name: Setup Android Signing
         if: startsWith(matrix.platform,'android')
@@ -60,7 +104,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.0'
+          go-version: "1.24.0"
           cache-dependency-path: |
             core/go.sum
 
@@ -68,18 +112,31 @@ jobs:
         if: startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')
         uses: subosito/flutter-action@v2
         with:
-          channel: 'master'
+          channel: "master"
           cache: true
       - name: Setup Flutter
         if: ${{ !(startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')) }}
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: "stable"
           cache: true
-      #          flutter-version: 3.29.3
+          flutter-version: 3.32.8
 
       - name: Get Flutter Dependency
         run: flutter pub get
+
+      - name: Setup Xcode Signing Configuration
+        if: matrix.platform == 'macos'
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > macos/Runner/Configs/Local.xcconfig << EOF
+          CODE_SIGN_IDENTITY = $APPLE_DEVELOPER_ID
+          DEVELOPMENT_TEAM = $APPLE_TEAM_ID
+          EOF
+
+          echo "✅ Created Local.xcconfig for signing"
 
       - name: Setup
         run: dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }}
@@ -91,9 +148,46 @@ jobs:
           path: ./dist
           overwrite: true
 
+      - name: Cleanup macOS Keychain
+        if: always() && matrix.platform == 'macos'
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            echo "🧹 Cleaning up keychain..."
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+
+          if [ -f macos/Runner/Configs/Local.xcconfig ]; then
+            echo "🧹 Cleaning up Local.xcconfig..."
+            rm macos/Runner/Configs/Local.xcconfig || true
+          fi
+
+  sign-macos:
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - platform: macos
+            arch: arm64
+          - platform: macos
+            arch: amd64
+    uses: ./.github/workflows/macos-sign-notarize.yaml
+    with:
+      artifact-name: artifact-${{ matrix.platform }}-${{ matrix.arch }}
+      arch: ${{ matrix.arch }}
+    secrets:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+
   changelog:
     runs-on: ubuntu-latest
-    needs: [ build ]
+    needs: [build]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -159,14 +253,6 @@ jobs:
     if: ${{ always() }}
     needs: [ build ]
     runs-on: ubuntu-latest
-    services:
-      telegram-bot-api:
-        image: aiogram/telegram-bot-api:latest
-        env:
-          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-        ports:
-          - 8081:8081
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -180,10 +266,37 @@ jobs:
           pattern: artifact-*
           merge-multiple: true
 
+      - name: Download signed macOS artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist/
+          pattern: artifact-macos-*-signed
+          merge-multiple: true
+
       - name: Generate release.md
         run: |
           tags=($(git tag --merged $(git rev-parse HEAD) --sort=-creatordate))
-          preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
+          
+          # Determine previous tag based on release type
+          if [ "${{ env.IS_STABLE }}" == "true" ]; then
+            # For stable: get latest stable release from API
+            preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
+          else
+            # For pre-release: get the latest pre-release tag (last tag with '-' in name before current)
+            preTag=""
+            for tag in "${tags[@]}"; do
+              if [ "$tag" != "${tags[0]}" ] && [[ "$tag" == *-* ]]; then
+                preTag="$tag"
+                break
+              fi
+            done
+            # If no previous pre-release found, use latest stable
+            if [ -z "$preTag" ]; then
+              preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
+            fi
+          fi
+          
           currentTag=""
           for ((i = 0; i <= ${#tags[@]}; i++)); do
             if (( i < ${#tags[@]} )); then
@@ -210,7 +323,11 @@ jobs:
       - name: Patch release.md
         run: |
           version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
-          sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
+          if [ "${{ env.IS_STABLE }}" == "true" ]; then
+            sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
+          else
+            sed "s|VERSION|$version|g" ./.github/pre_release_template.md >> release.md
+          fi
 
       - name: Generate sha256
         if: env.IS_STABLE == 'true'
@@ -218,12 +335,44 @@ jobs:
           cd ./dist
           for file in $(find . -type f -not -name "*.sha256"); do
             sha256sum "$file" > "${file}.sha256"
-          done  
+          done
 
-      - name: Release
+      - name: Release (Stable)
         if: ${{ env.IS_STABLE == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           files: ./dist/*
-          body_path: './release.md'
+          body_path: "./release.md"
+          prerelease: false
 
+      - name: Release (Pre-release)
+        if: ${{ env.IS_STABLE != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/*
+          body_path: "./release.md"
+          prerelease: true
+
+      - name: Prepare commit list for notification
+        id: prepare_commits
+        run: |
+          # Extract first 10 commits from release.md (without the template footer)
+          commits=$(head -n 20 release.md | grep "^- " | head -n 10)
+          # Escape special characters for JSON
+          commits_escaped=$(echo "$commits" | jq -Rs .)
+          echo "commits=$commits_escaped" >> $GITHUB_OUTPUT
+
+      - name: Send Telegram notifications
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID_1: ${{ secrets.TELEGRAM_CHANNEL_ID_1 }}
+          TELEGRAM_CHANNEL_ID_2: ${{ secrets.TELEGRAM_CHANNEL_ID_2 }}
+          TELEGRAM_CHANNEL_ID_3: ${{ secrets.TELEGRAM_CHANNEL_ID_3 }}
+          VERSION: ${{ github.ref_name }}
+          COMMITS: ${{ fromJSON(steps.prepare_commits.outputs.commits) }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+          IS_STABLE: ${{ env.IS_STABLE }}
+        run: |
+          python3 -m pip install requests --quiet
+          python3 .github/scripts/notify_telegram.py

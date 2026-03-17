@@ -7,12 +7,12 @@ import 'package:flclashx/widgets/fade_box.dart';
 import 'package:flutter/material.dart';
 
 class MessageManager extends StatefulWidget {
-  final Widget child;
 
   const MessageManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   State<MessageManager> createState() => MessageManagerState();
@@ -44,7 +44,7 @@ class MessageManagerState extends State<MessageManager> {
     await _showMessage();
   }
 
-  _showMessage() async {
+  Future<void> _showMessage() async {
     if (_pushing == true) {
       return;
     }
@@ -55,7 +55,7 @@ class MessageManagerState extends State<MessageManager> {
         ..add(
           commonMessage,
         );
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 1));
       Future.delayed(commonMessage.duration, () {
         _handleRemove(commonMessage);
       });
@@ -65,32 +65,29 @@ class MessageManagerState extends State<MessageManager> {
     }
   }
 
-  _handleRemove(CommonMessage commonMessage) async {
+  Future<void> _handleRemove(CommonMessage commonMessage) async {
     _messagesNotifier.value = List<CommonMessage>.from(_messagesNotifier.value)
       ..remove(commonMessage);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Stack(
+  Widget build(BuildContext context) => Stack(
       children: [
         widget.child,
         ValueListenableBuilder(
           valueListenable: _messagesNotifier,
-          builder: (_, messages, __) {
-            return FadeThroughBox(
-              margin: EdgeInsets.only(
+          builder: (_, messages, __) => FadeThroughBox(
+              margin: const EdgeInsets.only(
                 top: kToolbarHeight + 8,
                 left: 12,
                 right: 12,
               ),
               alignment: Alignment.topRight,
               child: messages.isEmpty
-                  ? SizedBox()
+                  ? const SizedBox()
                   : LayoutBuilder(
                       key: Key(messages.last.id),
-                      builder: (_, constraints) {
-                        return Card(
+                      builder: (_, constraints) => Card(
                           shape: const RoundedSuperellipseBorder(
                             borderRadius: BorderRadius.all(
                               Radius.circular(12.0),
@@ -103,7 +100,7 @@ class MessageManagerState extends State<MessageManager> {
                               constraints.maxWidth,
                               500,
                             ),
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 16,
                             ),
@@ -111,13 +108,10 @@ class MessageManagerState extends State<MessageManager> {
                               messages.last.text,
                             ),
                           ),
-                        );
-                      },
+                        ),
                     ),
-            );
-          },
+            ),
         ),
       ],
     );
-  }
 }

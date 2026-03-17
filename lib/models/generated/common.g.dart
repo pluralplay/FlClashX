@@ -123,6 +123,7 @@ _$ProxyImpl _$$ProxyImplFromJson(Map<String, dynamic> json) => _$ProxyImpl(
       name: json['name'] as String,
       type: json['type'] as String,
       now: json['now'] as String?,
+      serverDescription: json['serverDescription'] as String?,
     );
 
 Map<String, dynamic> _$$ProxyImplToJson(_$ProxyImpl instance) =>
@@ -130,6 +131,7 @@ Map<String, dynamic> _$$ProxyImplToJson(_$ProxyImpl instance) =>
       'name': instance.name,
       'type': instance.type,
       'now': instance.now,
+      'serverDescription': instance.serverDescription,
     };
 
 _$GroupImpl _$$GroupImplFromJson(Map<String, dynamic> json) => _$GroupImpl(

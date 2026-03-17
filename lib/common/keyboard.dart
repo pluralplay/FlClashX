@@ -50,7 +50,7 @@ final Map<PhysicalKeyboardKey, String> _knownKeyLabels =
   PhysicalKeyboardKey.equal: '=',
   PhysicalKeyboardKey.bracketLeft: '[',
   PhysicalKeyboardKey.bracketRight: ']',
-  PhysicalKeyboardKey.backslash: '\\',
+  PhysicalKeyboardKey.backslash: r'\',
   PhysicalKeyboardKey.semicolon: ';',
   PhysicalKeyboardKey.quote: '"',
   PhysicalKeyboardKey.backquote: '`',

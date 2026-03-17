@@ -11,6 +11,45 @@ import 'package:intl/intl.dart';
 class MetainfoWidget extends ConsumerWidget {
   const MetainfoWidget({super.key});
 
+  String _getDaysDeclension(int days) {
+    if (days % 100 >= 11 && days % 100 <= 19) {
+      return appLocalizations.days;
+    }
+    switch (days % 10) {
+      case 1:
+        return appLocalizations.day;
+      case 2:
+      case 3:
+      case 4:
+        return appLocalizations.daysGenitive;
+      default:
+        return appLocalizations.days;
+    }
+  }
+
+  String _getHoursDeclension(int hours) {
+    if (hours % 100 >= 11 && hours % 100 <= 19) {
+      return appLocalizations.hoursGenitive;
+    }
+    switch (hours % 10) {
+      case 1:
+        return appLocalizations.hour;
+      case 2:
+      case 3:
+      case 4:
+        return appLocalizations.hoursPlural;
+      default:
+        return appLocalizations.hoursGenitive;
+    }
+  }
+
+  String _getRemainingDeclension(int value) {
+    if (value % 100 != 11 && value % 10 == 1) {
+      return appLocalizations.remainingSingular;
+    }
+    return appLocalizations.remainingPlural;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final allProfiles = ref.watch(profilesProvider);
@@ -19,32 +58,26 @@ class MetainfoWidget extends ConsumerWidget {
 
     if (allProfiles.isEmpty) {
       return CommonCard(
-        onPressed: () {
-          showExtend(
-            context,
-            builder: (_, type) {
-              return AdaptiveSheetScaffold(
-                type: type,
-                body: AddProfileView(
-                  context: context,
-                ),
-                title: "${appLocalizations.add}${appLocalizations.profile}",
-              );
-            },
+        onPressed: () async {
+          final url = await globalState.showCommonDialog<String>(
+            child: const URLFormDialog(),
           );
+          if (url != null) {
+            globalState.appController.addProfileFormURL(url);
+          }
         },
-        child: const Center(
+        child: Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 24.0),
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.add_circle_outline,
                   size: 48,
                 ),
-                SizedBox(height: 8),
-                Text("Добавить профиль"),
+                const SizedBox(height: 8),
+                Text(appLocalizations.addProfile),
               ],
             ),
           ),
@@ -58,16 +91,37 @@ class MetainfoWidget extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final bool isUnlimitedTraffic = subscriptionInfo.total == 0;
-    final bool isPerpetual = subscriptionInfo.expire == 0;
-    final supportUrl = currentProfile.supportUrl;
+    final isUnlimitedTraffic = subscriptionInfo.total == 0;
+    final isPerpetual = subscriptionInfo.expire == 0;
+    final supportUrl = currentProfile.providerHeaders['support-url'];
 
-    String daysLeft = '';
+    var timeLeftValue = '';
+    var timeLeftUnit = '';
+    var remainingText = '';
+    var showTimeLeft = false;
+
     if (!isPerpetual) {
-      final expireDateTime = DateTime.fromMillisecondsSinceEpoch(subscriptionInfo.expire * 1000);
-      final diff = expireDateTime.difference(DateTime.now()).inDays;
-      if (diff >= 0) {
-        daysLeft = diff.toString();
+      final expireDateTime =
+          DateTime.fromMillisecondsSinceEpoch(subscriptionInfo.expire * 1000);
+      final difference = expireDateTime.difference(DateTime.now());
+      final days = difference.inDays;
+
+      if (days >= 0 && days <= 3) {
+        showTimeLeft = true;
+        if (days > 0) {
+          timeLeftValue = days.toString();
+          timeLeftUnit = _getDaysDeclension(days);
+          remainingText = _getRemainingDeclension(days);
+        } else {
+          final hours = difference.inHours;
+          if (hours >= 0) {
+            timeLeftValue = hours.toString();
+            timeLeftUnit = _getHoursDeclension(hours);
+            remainingText = _getRemainingDeclension(hours);
+          } else {
+            showTimeLeft = false;
+          }
+        }
       }
     }
 
@@ -87,7 +141,7 @@ class MetainfoWidget extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            currentProfile.label ?? 'Профиль',
+                            currentProfile.label ?? appLocalizations.profile,
                             style: theme.textTheme.headlineSmall,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -111,20 +165,23 @@ class MetainfoWidget extends ConsumerWidget {
                           iconSize: 34,
                           color: theme.colorScheme.primary,
                           onPressed: () {
-                            globalState.appController.updateProfile(currentProfile);
+                            globalState.appController
+                                .updateProfile(currentProfile);
                           },
                         ),
                       ],
                     ),
-
                     const Spacer(),
                     if (!isUnlimitedTraffic)
                       Builder(builder: (context) {
-                        final totalTraffic = TrafficValue(value: subscriptionInfo.total);
-                        final usedTrafficValue = subscriptionInfo.upload + subscriptionInfo.download;
-                        final usedTraffic = TrafficValue(value: usedTrafficValue);
+                        final totalTraffic =
+                            TrafficValue(value: subscriptionInfo.total);
+                        final usedTrafficValue =
+                            subscriptionInfo.upload + subscriptionInfo.download;
+                        final usedTraffic =
+                            TrafficValue(value: usedTrafficValue);
 
-                        double progress = 0.0;
+                        var progress = 0.0;
                         if (subscriptionInfo.total > 0) {
                           progress = usedTrafficValue / subscriptionInfo.total;
                         }
@@ -149,8 +206,10 @@ class MetainfoWidget extends ConsumerWidget {
                               child: LinearProgressIndicator(
                                 value: progress,
                                 minHeight: 6,
-                                backgroundColor: theme.colorScheme.surfaceVariant,
-                                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    progressColor),
                               ),
                             ),
                           ],
@@ -171,19 +230,19 @@ class MetainfoWidget extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (!isPerpetual && daysLeft.isNotEmpty) ...[
+              if (showTimeLeft) ...[
                 const VerticalDivider(width: 32),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      appLocalizations.remaining,
+                      remainingText,
                       style: theme.textTheme.bodySmall,
                     ),
                     FittedBox(
                       fit: BoxFit.contain,
                       child: Text(
-                        daysLeft,
+                        timeLeftValue,
                         style: theme.textTheme.displaySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: theme.colorScheme.primary,
@@ -191,7 +250,7 @@ class MetainfoWidget extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      appLocalizations.days,
+                      timeLeftUnit,
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],

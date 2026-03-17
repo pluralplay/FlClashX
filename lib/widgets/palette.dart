@@ -42,7 +42,7 @@ class _PaletteState extends State<Palette> {
     _focusNode = FocusNode();
   }
 
-  _handleChange() {
+  void _handleChange() {
     widget.controller.value = HSVColor.fromAHSV(
       color.alpha,
       colorHue,
@@ -64,7 +64,7 @@ class _PaletteState extends State<Palette> {
       (radius - trackSquarePadding) / math.sqrt(2);
 
   void onStart(Offset offset) {
-    final RenderBox renderBox =
+    final renderBox =
         renderBoxKey.currentContext!.findRenderObject()! as RenderBox;
     final size = renderBox.size;
     final radius = trackRadius(size);
@@ -94,7 +94,7 @@ class _PaletteState extends State<Palette> {
   }
 
   void onUpdate(Offset offset) {
-    final RenderBox renderBox =
+    final renderBox =
         renderBoxKey.currentContext!.findRenderObject()! as RenderBox;
     final size = renderBox.size;
     final radius = trackRadius(size);
@@ -127,21 +127,19 @@ class _PaletteState extends State<Palette> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder(
+  Widget build(BuildContext context) => ValueListenableBuilder(
       valueListenable: widget.controller,
-      builder: (_, __, ___) {
-        return GestureDetector(
+      builder: (_, __, ___) => GestureDetector(
           dragStartBehavior: DragStartBehavior.down,
-          onVerticalDragDown: (DragDownDetails details) =>
+          onVerticalDragDown: (details) =>
               onStart(details.globalPosition),
-          onVerticalDragUpdate: (DragUpdateDetails details) =>
+          onVerticalDragUpdate: (details) =>
               onUpdate(details.globalPosition),
-          onHorizontalDragUpdate: (DragUpdateDetails details) =>
+          onHorizontalDragUpdate: (details) =>
               onUpdate(details.globalPosition),
-          onVerticalDragEnd: (DragEndDetails details) => onEnd(),
-          onHorizontalDragEnd: (DragEndDetails details) => onEnd(),
-          onTapUp: (TapUpDetails details) => onEnd(),
+          onVerticalDragEnd: (details) => onEnd(),
+          onHorizontalDragEnd: (details) => onEnd(),
+          onTapUp: (details) => onEnd(),
           child: SizedBox(
             key: renderBoxKey,
             child: Focus(
@@ -190,10 +188,8 @@ class _PaletteState extends State<Palette> {
               ),
             ),
           ),
-        );
-      },
+        ),
     );
-  }
 }
 
 class _ShadePainter extends CustomPainter {
@@ -223,25 +219,25 @@ class _ShadePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = trackRadius(size, thickness);
-    final double effectiveSquareRadius = squareRadius(
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = trackRadius(size, thickness);
+    final effectiveSquareRadius = squareRadius(
       radius,
       thickness,
       padding,
     );
 
-    final Rect rectBox = Rect.fromLTWH(
+    final rectBox = Rect.fromLTWH(
         center.dx - effectiveSquareRadius,
         center.dy - effectiveSquareRadius,
         effectiveSquareRadius * 2,
         effectiveSquareRadius * 2);
-    final RRect rRect = RRect.fromRectAndRadius(
+    final rRect = RRect.fromRectAndRadius(
       rectBox,
       Radius.circular(trackBorderRadius),
     );
 
-    final Shader horizontal = LinearGradient(
+    final horizontal = LinearGradient(
       colors: <Color>[
         Colors.white,
         HSVColor.fromAHSV(1, colorHue, 1, 1).toColor()
@@ -253,7 +249,7 @@ class _ShadePainter extends CustomPainter {
           ..style = PaintingStyle.fill
           ..shader = horizontal);
 
-    final Shader vertical = const LinearGradient(
+    final vertical = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: <Color>[Colors.transparent, Colors.black],
@@ -266,14 +262,12 @@ class _ShadePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ShadePainter oldDelegate) {
-    return oldDelegate.thickness != thickness ||
+  bool shouldRepaint(_ShadePainter oldDelegate) => oldDelegate.thickness != thickness ||
         oldDelegate.padding != padding ||
         oldDelegate.trackBorderRadius != trackBorderRadius ||
         oldDelegate.colorHue != colorHue ||
         oldDelegate.colorSaturation != colorSaturation ||
         oldDelegate.colorValue != colorValue;
-  }
 }
 
 class _TrackPainter extends CustomPainter {
@@ -286,24 +280,24 @@ class _TrackPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
+    final center = Offset(size.width / 2, size.height / 2);
 
-    const double rads = (2 * math.pi) / 360;
+    const rads = (2 * math.pi) / 360;
     const double step = 1;
-    const double aliasing = 0.5;
+    const aliasing = 0.5;
 
     final double shortestRectSide = math.min(size.width, size.height);
 
-    final Rect rectCircle = Rect.fromCenter(
+    final rectCircle = Rect.fromCenter(
       center: center,
       width: shortestRectSide - thickness,
       height: shortestRectSide - thickness,
     );
 
-    for (int i = 0; i < ticks; i++) {
-      final double sRad = (i - aliasing) * rads;
-      final double eRad = (i + step) * rads;
-      final Paint segmentPaint = Paint()
+    for (var i = 0; i < ticks; i++) {
+      final sRad = (i - aliasing) * rads;
+      final eRad = (i + step) * rads;
+      final segmentPaint = Paint()
         ..color = HSVColor.fromAHSV(1, i.toDouble(), 1, 1).toColor()
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness;
@@ -318,9 +312,7 @@ class _TrackPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TrackPainter oldDelegate) {
-    return oldDelegate.thickness != thickness || oldDelegate.ticks != ticks;
-  }
+  bool shouldRepaint(_TrackPainter oldDelegate) => oldDelegate.thickness != thickness || oldDelegate.ticks != ticks;
 }
 
 class _ShadeThumbPainter extends CustomPainter {
@@ -345,36 +337,34 @@ class _ShadeThumbPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = trackRadius(size, thickness);
-    final double effectiveSquareRadius =
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = trackRadius(size, thickness);
+    final effectiveSquareRadius =
         squareRadius(radius, thickness, padding);
 
-    final Paint paintBlack = Paint()
+    final paintBlack = Paint()
       ..color = Colors.black
       ..strokeWidth = 5
       ..style = PaintingStyle.stroke;
-    final Paint paintWhite = Paint()
+    final paintWhite = Paint()
       ..color = Colors.white
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
 
-    final double paletteX = _Computer.saturationToVector(
+    final paletteX = _Computer.saturationToVector(
         colorSaturation, effectiveSquareRadius, center.dx);
-    final double paletteY =
+    final paletteY =
         _Computer.valueToVector(colorValue, effectiveSquareRadius, center.dy);
-    final Offset paletteVector = Offset(paletteX, paletteY);
+    final paletteVector = Offset(paletteX, paletteY);
     canvas.drawCircle(paletteVector, 12, paintBlack);
     canvas.drawCircle(paletteVector, 12, paintWhite);
   }
 
   @override
-  bool shouldRepaint(_ShadeThumbPainter oldDelegate) {
-    return oldDelegate.thickness != thickness ||
+  bool shouldRepaint(_ShadeThumbPainter oldDelegate) => oldDelegate.thickness != thickness ||
         oldDelegate.colorSaturation != colorSaturation ||
         oldDelegate.colorValue != colorValue ||
         oldDelegate.padding != padding;
-  }
 }
 
 class _TrackThumbPainter extends CustomPainter {
@@ -391,17 +381,17 @@ class _TrackThumbPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = trackRadius(size, thickness);
-    final Paint paintBlack = Paint()
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = trackRadius(size, thickness);
+    final paintBlack = Paint()
       ..color = Colors.black
       ..strokeWidth = 5
       ..style = PaintingStyle.stroke;
-    final Paint paintWhite = Paint()
+    final paintWhite = Paint()
       ..color = Colors.white
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-    final Offset track = _Computer.hueToVector(
+    final track = _Computer.hueToVector(
       (colorHue + 360.0) * math.pi / 180.0,
       radius,
       center,
@@ -411,10 +401,8 @@ class _TrackThumbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TrackThumbPainter oldDelegate) {
-    return oldDelegate.thickness != thickness ||
+  bool shouldRepaint(_TrackThumbPainter oldDelegate) => oldDelegate.thickness != thickness ||
         oldDelegate.colorHue != colorHue;
-  }
 }
 
 class _Computer {

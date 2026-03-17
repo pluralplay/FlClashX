@@ -13,13 +13,9 @@ extension NetworkInterfaceExt on NetworkInterface {
     return false;
   }
 
-  bool get includesIPv4 {
-    return addresses.any((addr) => addr.isIPv4);
-  }
+  bool get includesIPv4 => addresses.any((addr) => addr.isIPv4);
 }
 
 extension InternetAddressExt on InternetAddress {
-  bool get isIPv4 {
-    return type == InternetAddressType.IPv4;
-  }
+  bool get isIPv4 => type == InternetAddressType.IPv4;
 }

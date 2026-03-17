@@ -3,48 +3,28 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 extension ColorExtension on Color {
-  Color get opacity80 {
-    return withAlpha(204);
-  }
+  Color get opacity80 => withAlpha(204);
 
-  Color get opacity60 {
-    return withAlpha(153);
-  }
+  Color get opacity60 => withAlpha(153);
 
-  Color get opacity50 {
-    return withAlpha(128);
-  }
+  Color get opacity50 => withAlpha(128);
 
-  Color get opacity38 {
-    return withAlpha(97);
-  }
+  Color get opacity38 => withAlpha(97);
 
-  Color get opacity30 {
-    return withAlpha(77);
-  }
+  Color get opacity30 => withAlpha(77);
 
-  Color get opacity15 {
-    return withAlpha(38);
-  }
+  Color get opacity15 => withAlpha(38);
 
-  Color get opacity10 {
-    return withAlpha(15);
-  }
+  Color get opacity10 => withAlpha(15);
 
-  Color get opacity3 {
-    return withAlpha(76);
-  }
+  Color get opacity3 => withAlpha(76);
 
-  Color get opacity0 {
-    return withAlpha(0);
-  }
+  Color get opacity0 => withAlpha(0);
 
-  int get value32bit {
-    return _floatToInt8(a) << 24 |
+  int get value32bit => _floatToInt8(a) << 24 |
         _floatToInt8(r) << 16 |
         _floatToInt8(g) << 8 |
         _floatToInt8(b) << 0;
-  }
 
   int get alpha8bit => (0xff000000 & value32bit) >> 24;
 
@@ -54,14 +34,12 @@ extension ColorExtension on Color {
 
   int get blue8bit => (0x000000ff & value32bit) >> 0;
 
-  int _floatToInt8(double x) {
-    return (x * 255.0).round() & 0xff;
-  }
+  int _floatToInt8(double x) => (x * 255.0).round() & 0xff;
 
   Color lighten([double amount = 10]) {
     if (amount <= 0) return this;
     if (amount > 100) return Colors.white;
-    final HSLColor hsl = this == const Color(0xFF000000)
+    final hsl = this == const Color(0xFF000000)
         ? HSLColor.fromColor(this).withSaturation(0)
         : HSLColor.fromColor(this);
     return hsl
@@ -83,7 +61,7 @@ extension ColorExtension on Color {
   Color darken([final int amount = 10]) {
     if (amount <= 0) return this;
     if (amount > 100) return Colors.black;
-    final HSLColor hsl = HSLColor.fromColor(this);
+    final hsl = HSLColor.fromColor(this);
     return hsl
         .withLightness(min(1, max(0, hsl.lightness - amount / 100)))
         .toColor();

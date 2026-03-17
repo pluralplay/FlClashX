@@ -18,7 +18,7 @@ import 'package:intl/intl.dart';
 class BackupAndRecovery extends ConsumerWidget {
   const BackupAndRecovery({super.key});
 
-  _showAddWebDAV(DAV? dav) async {
+  Future<void> _showAddWebDAV(DAV? dav) async {
     await globalState.showCommonDialog<String>(
       child: WebDAVFormDialog(
         dav: dav?.copyWith(),
@@ -26,12 +26,12 @@ class BackupAndRecovery extends ConsumerWidget {
     );
   }
 
-  _backupOnWebDAV(BuildContext context, DAVClient client) async {
+  Future<void> _backupOnWebDAV(BuildContext context, DAVClient client) async {
     final commonScaffoldState = context.commonScaffoldState;
     final res = await commonScaffoldState?.loadingRun<bool>(
       () async {
         final backupData = await globalState.appController.backupData();
-        return await client.backup(Uint8List.fromList(backupData));
+        return client.backup(Uint8List.fromList(backupData));
       },
       title: appLocalizations.backup,
     );
@@ -42,7 +42,7 @@ class BackupAndRecovery extends ConsumerWidget {
     );
   }
 
-  _recoveryOnWebDAV(
+  Future<void> _recoveryOnWebDAV(
     BuildContext context,
     DAVClient client,
     RecoveryOption recoveryOption,
@@ -63,7 +63,7 @@ class BackupAndRecovery extends ConsumerWidget {
     );
   }
 
-  _handleRecoveryOnWebDAV(BuildContext context, DAVClient client) async {
+  Future<void> _handleRecoveryOnWebDAV(BuildContext context, DAVClient client) async {
     final recoveryOption = await globalState.showCommonDialog<RecoveryOption>(
       child: const RecoveryOptionsDialog(),
     );
@@ -71,7 +71,7 @@ class BackupAndRecovery extends ConsumerWidget {
     _recoveryOnWebDAV(context, client, recoveryOption);
   }
 
-  _backupOnLocal(BuildContext context) async {
+  Future<void> _backupOnLocal(BuildContext context) async {
     final commonScaffoldState = context.commonScaffoldState;
     final res = await commonScaffoldState?.loadingRun<bool>(
       () async {
@@ -92,7 +92,7 @@ class BackupAndRecovery extends ConsumerWidget {
     );
   }
 
-  _recoveryOnLocal(
+  Future<void> _recoveryOnLocal(
     BuildContext context,
     RecoveryOption recoveryOption,
   ) async {
@@ -117,7 +117,7 @@ class BackupAndRecovery extends ConsumerWidget {
     );
   }
 
-  _handleRecoveryOnLocal(BuildContext context) async {
+  Future<void> _handleRecoveryOnLocal(BuildContext context) async {
     final recoveryOption = await globalState.showCommonDialog<RecoveryOption>(
       child: const RecoveryOptionsDialog(),
     );
@@ -125,7 +125,7 @@ class BackupAndRecovery extends ConsumerWidget {
     _recoveryOnLocal(context, recoveryOption);
   }
 
-  _handleChange(String? value, WidgetRef ref) {
+  void _handleChange(String? value, WidgetRef ref) {
     if (value == null) {
       return;
     }
@@ -136,7 +136,7 @@ class BackupAndRecovery extends ConsumerWidget {
         );
   }
 
-  _handleUpdateRecoveryStrategy(WidgetRef ref) async {
+  Future<void> _handleUpdateRecoveryStrategy(WidgetRef ref) async {
     final recoveryStrategy = ref.read(appSettingProvider.select(
       (state) => state.recoveryStrategy,
     ));
@@ -161,7 +161,7 @@ class BackupAndRecovery extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dav = ref.watch(appDAVSettingProvider);
     final client = dav != null ? DAVClient(dav) : null;
     return ListView(
@@ -199,8 +199,7 @@ class BackupAndRecovery extends ConsumerWidget {
                   Text(appLocalizations.connectivity),
                   FutureBuilder<bool>(
                     future: client!.pingCompleter.future,
-                    builder: (_, snapshot) {
-                      return Center(
+                    builder: (_, snapshot) => Center(
                         child: FadeThroughBox(
                           child:
                               snapshot.connectionState != ConnectionState.done
@@ -222,8 +221,7 @@ class BackupAndRecovery extends ConsumerWidget {
                                       height: 12,
                                     ),
                         ),
-                      );
-                    },
+                      ),
                   ),
                 ],
               ),
@@ -315,14 +313,13 @@ class RecoveryOptionsDialog extends StatefulWidget {
 }
 
 class _RecoveryOptionsDialogState extends State<RecoveryOptionsDialog> {
-  _handleOnTab(RecoveryOption? value) {
+  void _handleOnTab(RecoveryOption? value) {
     if (value == null) return;
     Navigator.of(context).pop(value);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: appLocalizations.recovery,
       padding: const EdgeInsets.symmetric(
         horizontal: 8,
@@ -345,13 +342,12 @@ class _RecoveryOptionsDialogState extends State<RecoveryOptionsDialog> {
         ],
       ),
     );
-  }
 }
 
 class WebDAVFormDialog extends ConsumerStatefulWidget {
-  final DAV? dav;
 
   const WebDAVFormDialog({super.key, this.dav});
+  final DAV? dav;
 
   @override
   ConsumerState<WebDAVFormDialog> createState() => _WebDAVFormDialogState();
@@ -372,7 +368,7 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
     passwordController = TextEditingController(text: widget.dav?.password);
   }
 
-  _submit() {
+  void _submit() {
     if (!_formKey.currentState!.validate()) return;
     ref.read(appDAVSettingProvider.notifier).value = DAV(
       uri: uriController.text,
@@ -382,7 +378,7 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
     Navigator.pop(context);
   }
 
-  _delete() {
+  void _delete() {
     ref.read(appDAVSettingProvider.notifier).value = null;
     Navigator.pop(context);
   }
@@ -394,8 +390,7 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonDialog(
+  Widget build(BuildContext context) => CommonDialog(
       title: appLocalizations.webDAVConfiguration,
       actions: [
         if (widget.dav != null)
@@ -423,7 +418,7 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
                 labelText: appLocalizations.address,
                 helperText: appLocalizations.addressHelp,
               ),
-              validator: (String? value) {
+              validator: (value) {
                 if (value == null || value.isEmpty || !value.isUrl) {
                   return appLocalizations.addressTip;
                 }
@@ -437,7 +432,7 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
                 border: const OutlineInputBorder(),
                 labelText: appLocalizations.account,
               ),
-              validator: (String? value) {
+              validator: (value) {
                 if (value == null || value.isEmpty) {
                   return appLocalizations.emptyTip(appLocalizations.account);
                 }
@@ -446,8 +441,7 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
             ),
             ValueListenableBuilder(
               valueListenable: _obscureController,
-              builder: (_, obscure, __) {
-                return TextFormField(
+              builder: (_, obscure, __) => TextFormField(
                   controller: passwordController,
                   obscureText: obscure,
                   decoration: InputDecoration(
@@ -463,19 +457,17 @@ class _WebDAVFormDialogState extends ConsumerState<WebDAVFormDialog> {
                     ),
                     labelText: appLocalizations.password,
                   ),
-                  validator: (String? value) {
+                  validator: (value) {
                     if (value == null || value.isEmpty) {
                       return appLocalizations
                           .emptyTip(appLocalizations.password);
                     }
                     return null;
                   },
-                );
-              },
+                ),
             ),
           ],
         ),
       ),
     );
-  }
 }

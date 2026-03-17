@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:intl/intl.dart';
 
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
@@ -13,6 +12,7 @@ import 'package:flclashx/views/profiles/scripts.dart';
 import 'package:flclashx/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'add_profile.dart';
 
@@ -26,22 +26,20 @@ class ProfilesView extends StatefulWidget {
 class _ProfilesViewState extends State<ProfilesView> with PageMixin {
   Function? applyConfigDebounce;
 
-  _handleShowAddExtendPage() {
+  void _handleShowAddExtendPage() {
     showExtend(
       globalState.navigatorKey.currentState!.context,
-      builder: (_, type) {
-        return AdaptiveSheetScaffold(
+      builder: (_, type) => AdaptiveSheetScaffold(
           type: type,
           body: AddProfileView(
             context: globalState.navigatorKey.currentState!.context,
           ),
           title: "${appLocalizations.add}${appLocalizations.profile}",
-        );
-      },
+        ),
     );
   }
 
-  _updateProfiles() async {
+  Future<void> _updateProfiles() async {
     final profiles = globalState.config.profiles;
     final messages = [];
     final updateProfiles = profiles.map<Future>(
@@ -80,18 +78,14 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
   @override
   List<Widget> get actions => [
         IconButton(
-          onPressed: () {
-            _updateProfiles();
-          },
+          onPressed: _updateProfiles,
           icon: const Icon(Icons.sync),
         ),
         IconButton(
           onPressed: () {
             showExtend(
               context,
-              builder: (_, type) {
-                return const ScriptsView();
-              },
+              builder: (_, type) => const ScriptsView(),
             );
           },
           icon: Consumer(
@@ -110,12 +104,10 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
             final profiles = globalState.config.profiles;
             showSheet(
               context: context,
-              builder: (_, type) {
-                return ReorderableProfilesSheet(
+              builder: (_, type) => ReorderableProfilesSheet(
                   type: type,
                   profiles: profiles,
-                );
-              },
+                ),
             );
           },
           icon: const Icon(Icons.sort),
@@ -133,8 +125,7 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
       );
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer(
+  Widget build(BuildContext context) => Consumer(
       builder: (_, ref, __) {
         ref.listenManual(
           isCurrentPageProvider(PageLabel.profiles),
@@ -183,13 +174,9 @@ class _ProfilesViewState extends State<ProfilesView> with PageMixin {
         );
       },
     );
-  }
 }
 
 class ProfileItem extends StatefulWidget {
-  final Profile profile;
-  final String? groupValue;
-  final void Function(String? value) onChanged;
 
   const ProfileItem({
     super.key,
@@ -197,6 +184,9 @@ class ProfileItem extends StatefulWidget {
     required this.groupValue,
     required this.onChanged,
   });
+  final Profile profile;
+  final String? groupValue;
+  final void Function(String? value) onChanged;
 
   @override
   State<ProfileItem> createState() => _ProfileItemState();
@@ -235,7 +225,7 @@ class _ProfileItemState extends State<ProfileItem> {
     super.dispose();
   }
 
-  _handleDeleteProfile(BuildContext context) async {
+  Future<void> _handleDeleteProfile(BuildContext context) async {
     final res = await globalState.showMessage(
       title: appLocalizations.tip,
       message: TextSpan(
@@ -270,19 +260,18 @@ class _ProfileItemState extends State<ProfileItem> {
     });
   }
 
-  _handleShowEditExtendPage(BuildContext context) {
+  void _handleShowEditExtendPage(BuildContext context) {
     showExtend(
       context,
-      builder: (_, type) {
-        return AdaptiveSheetScaffold(
+      builder: (_, type) => AdaptiveSheetScaffold(
           type: type,
+          disableBackground: false,
           body: EditProfileView(
             profile: widget.profile,
             context: context,
           ),
           title: "${appLocalizations.edit}${appLocalizations.profile}",
-        );
-      },
+        ),
     );
   }
 
@@ -298,7 +287,7 @@ class _ProfileItemState extends State<ProfileItem> {
       ];
     }
 
-    final bool isUnlimited = subscriptionInfo.total == 0;
+    final isUnlimited = subscriptionInfo.total == 0;
 
     final expireDate = subscriptionInfo.expire > 0
         ? DateFormat('dd.MM.yyyy').format(
@@ -314,7 +303,7 @@ class _ProfileItemState extends State<ProfileItem> {
               subscriptionInfo.upload + subscriptionInfo.download;
           final usedTraffic = TrafficValue(value: usedTrafficValue);
 
-          double progress = 0.0;
+          var progress = 0.0;
           if (subscriptionInfo.total > 0) {
             progress = usedTrafficValue / subscriptionInfo.total;
           }
@@ -362,19 +351,9 @@ class _ProfileItemState extends State<ProfileItem> {
     ];
   }
 
-  List<Widget> _buildFileProfileInfo(BuildContext context) {
-    return [
-      const SizedBox(
-        height: 8,
-      ),
-      Text(
-        widget.profile.lastUpdateDate?.lastUpdateTimeDesc ?? "",
-        style: context.textTheme.labelMedium?.toLight,
-      ),
-    ];
-  }
 
-  _handleExportFile(BuildContext context) async {
+
+  Future<void> _handleExportFile(BuildContext context) async {
     final commonScaffoldState = context.commonScaffoldState;
     final res = await commonScaffoldState?.loadingRun<bool>(
       () async {
@@ -393,7 +372,7 @@ class _ProfileItemState extends State<ProfileItem> {
     }
   }
 
-  _handlePushGenProfilePage(BuildContext context, String id) {
+  void _handlePushGenProfilePage(BuildContext context, String id) {
     final overrideProfileView = OverrideProfileView(
       profileId: id,
     );
@@ -404,8 +383,7 @@ class _ProfileItemState extends State<ProfileItem> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonCard(
+  Widget build(BuildContext context) => CommonCard(
       isSelected: widget.profile.id == widget.groupValue,
       onPressed: _isTV
           ? null
@@ -465,9 +443,7 @@ class _ProfileItemState extends State<ProfileItem> {
                               PopupMenuItemData(
                                 icon: Icons.sync_alt_sharp,
                                 label: appLocalizations.sync,
-                                onPressed: () {
-                                  updateProfile();
-                                },
+                                onPressed: updateProfile,
                               ),
                             ],
                             if (system.isMobile && !_isTV)
@@ -479,14 +455,14 @@ class _ProfileItemState extends State<ProfileItem> {
                                       SendToTvPage(profileUrl: widget.profile.url));
                                 },
                               ),
-                              if (widget.profile.supportUrl != null && widget.profile.supportUrl!.isNotEmpty && !_isTV )
+                              if (widget.profile.providerHeaders['support-url'] != null && widget.profile.providerHeaders['support-url']!.isNotEmpty && !_isTV )
                             PopupMenuItemData(
-                              icon: widget.profile.supportUrl!.toLowerCase().contains('t.me')
+                              icon: widget.profile.providerHeaders['support-url']!.toLowerCase().contains('t.me')
                               ? Icons.telegram
                               : Icons.insert_link,
                               label: appLocalizations.support,
                               onPressed: () {
-                                globalState.openUrl(widget.profile.supportUrl!);
+                                globalState.openUrl(widget.profile.providerHeaders['support-url']!);
                               },
                             ),
                             PopupMenuItemData(
@@ -513,8 +489,7 @@ class _ProfileItemState extends State<ProfileItem> {
                             ),
                           ],
                         ),
-                        targetBuilder: (open) {
-                          return Focus(
+                        targetBuilder: (open) => Focus(
                             focusNode: _menuFocusNode,
                             canRequestFocus: true,
                             child: Material(
@@ -527,8 +502,7 @@ class _ProfileItemState extends State<ProfileItem> {
                                 icon: const Icon(Icons.more_vert),
                               ),
                             ),
-                          );
-                        },
+                          ),
                       ),
               ),
             ),
@@ -536,18 +510,17 @@ class _ProfileItemState extends State<ProfileItem> {
         ),
       ),
     );
-  }
 }
 
 class ReorderableProfilesSheet extends StatefulWidget {
-  final List<Profile> profiles;
-  final SheetType type;
 
   const ReorderableProfilesSheet({
     super.key,
     required this.profiles,
     required this.type,
   });
+  final List<Profile> profiles;
+  final SheetType type;
 
   @override
   State<ReorderableProfilesSheet> createState() =>
@@ -571,9 +544,9 @@ class _ReorderableProfilesSheetState extends State<ReorderableProfilesSheet> {
     final profile = profiles[index];
     return AnimatedBuilder(
       animation: animation,
-      builder: (_, Widget? child) {
-        final double animValue = Curves.easeInOut.transform(animation.value);
-        final double scale = lerpDouble(1, 1.02, animValue)!;
+      builder: (_, child) {
+        final animValue = Curves.easeInOut.transform(animation.value);
+        final scale = lerpDouble(1, 1.02, animValue)!;
         return Transform.scale(
           scale: scale,
           child: child,
@@ -597,8 +570,7 @@ class _ReorderableProfilesSheetState extends State<ReorderableProfilesSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AdaptiveSheetScaffold(
+  Widget build(BuildContext context) => AdaptiveSheetScaffold(
       type: widget.type,
       actions: [
         IconButton(
@@ -657,5 +629,4 @@ class _ReorderableProfilesSheetState extends State<ReorderableProfilesSheet> {
       ),
       title: appLocalizations.profilesSort,
     );
-  }
 }

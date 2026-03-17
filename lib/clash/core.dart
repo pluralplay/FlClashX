@@ -13,8 +13,11 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 
 class ClashCore {
-  static ClashCore? _instance;
-  late ClashHandlerInterface clashInterface;
+
+  factory ClashCore() {
+    _instance ??= ClashCore._internal();
+    return _instance!;
+  }
 
   ClashCore._internal() {
     if (Platform.isAndroid) {
@@ -23,15 +26,10 @@ class ClashCore {
       clashInterface = clashService!;
     }
   }
+  static ClashCore? _instance;
+  late ClashHandlerInterface clashInterface;
 
-  factory ClashCore() {
-    _instance ??= ClashCore._internal();
-    return _instance!;
-  }
-
-  Future<bool> preload() {
-    return clashInterface.preload();
-  }
+  Future<bool> preload() => clashInterface.preload();
 
   static Future<void> initGeo() async {
     final homePath = await appPath.homeDirPath;
@@ -56,7 +54,7 @@ class ClashCore {
           continue;
         }
         final data = await rootBundle.load('assets/data/$geoFileName');
-        List<int> bytes = data.buffer.asUint8List();
+        final List<int> bytes = data.buffer.asUint8List();
         await geoFile.writeAsBytes(bytes, flush: true);
       }
     } catch (e) {
@@ -72,7 +70,7 @@ class ClashCore {
       clashCore.stopLog();
     }
     final homeDirPath = await appPath.homeDirPath;
-    return await clashInterface.init(
+    return clashInterface.init(
       InitParams(
         homeDir: homeDirPath,
         version: globalState.appState.version,
@@ -80,27 +78,19 @@ class ClashCore {
     );
   }
 
-  Future<bool> setState(CoreState state) async {
-    return await clashInterface.setState(state);
-  }
+  Future<bool> setState(CoreState state) => clashInterface.setState(state);
 
-  shutdown() async {
+  Future<void> shutdown() async {
     await clashInterface.shutdown();
   }
 
   FutureOr<bool> get isInit => clashInterface.isInit;
 
-  FutureOr<String> validateConfig(String data) {
-    return clashInterface.validateConfig(data);
-  }
+  FutureOr<String> validateConfig(String data) => clashInterface.validateConfig(data);
 
-  Future<String> updateConfig(UpdateParams updateParams) async {
-    return await clashInterface.updateConfig(updateParams);
-  }
+  Future<String> updateConfig(UpdateParams updateParams) => clashInterface.updateConfig(updateParams);
 
-  Future<String> setupConfig(SetupParams setupParams) async {
-    return await clashInterface.setupConfig(setupParams);
-  }
+  Future<String> setupConfig(SetupParams setupParams) => clashInterface.setupConfig(setupParams);
 
   Future<List<Group>> getProxiesGroups() async {
     final proxies = await clashInterface.getProxies();
@@ -129,9 +119,7 @@ class ClashCore {
         .toList();
   }
 
-  FutureOr<String> changeProxy(ChangeProxyParams changeProxyParams) async {
-    return await clashInterface.changeProxy(changeProxyParams);
-  }
+  FutureOr<String> changeProxy(ChangeProxyParams changeProxyParams) async => await clashInterface.changeProxy(changeProxyParams);
 
   Future<List<Connection>> getConnections() async {
     final res = await clashInterface.getConnections();
@@ -140,15 +128,15 @@ class ClashCore {
     return connectionsRaw.map((e) => Connection.fromJson(e)).toList();
   }
 
-  closeConnection(String id) {
+  void closeConnection(String id) {
     clashInterface.closeConnection(id);
   }
 
-  closeConnections() {
+  void closeConnections() {
     clashInterface.closeConnections();
   }
 
-  resetConnections() {
+  void resetConnections() {
     clashInterface.resetConnections();
   }
 
@@ -184,29 +172,23 @@ class ClashCore {
     return ExternalProvider.fromJson(json.decode(externalProvidersRawString));
   }
 
-  Future<String> updateGeoData(UpdateGeoDataParams params) {
-    return clashInterface.updateGeoData(params);
-  }
+  Future<String> updateGeoData(UpdateGeoDataParams params) => clashInterface.updateGeoData(params);
 
   Future<String> sideLoadExternalProvider({
     required String providerName,
     required String data,
-  }) {
-    return clashInterface.sideLoadExternalProvider(
+  }) => clashInterface.sideLoadExternalProvider(
         providerName: providerName, data: data);
-  }
 
   Future<String> updateExternalProvider({
     required String providerName,
-  }) async {
-    return clashInterface.updateExternalProvider(providerName);
-  }
+  }) async => clashInterface.updateExternalProvider(providerName);
 
-  startListener() async {
+  Future<void> startListener() async {
     await clashInterface.startListener();
   }
 
-  stopListener() async {
+  Future<void> stopListener() async {
     await clashInterface.stopListener();
   }
 
@@ -260,23 +242,23 @@ class ClashCore {
     return int.parse(value);
   }
 
-  resetTraffic() {
+  void resetTraffic() {
     clashInterface.resetTraffic();
   }
 
-  startLog() {
+  void startLog() {
     clashInterface.startLog();
   }
 
-  stopLog() {
+  void stopLog() {
     clashInterface.stopLog();
   }
 
-  requestGc() {
+  void requestGc() {
     clashInterface.forceGc();
   }
 
-  destroy() async {
+  Future<void> destroy() async {
     await clashInterface.destroy();
   }
 }

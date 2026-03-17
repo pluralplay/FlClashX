@@ -1,15 +1,15 @@
-name: 功能请求 / Feature request
+name: Запрос фунционала / Feature request
 title: "[Feature] "
-description: 提出你的功能请求 / Propose your feature request
+description: Предложите новый функционал / Propose your feature request
 
 body:
   - type: markdown
     attributes:
       value: |
-        ## 在提交问题之前，请确认以下事项：
-        1. 请务必给issue填写一个简洁明了的标题，以便他人快速检索
-        2. 请确保[已有的问题](https://github.com/pluralplay/FlClashX/issues?q=is%3Aissue) 中没有人提交过相似issue，否则请在已有的issue下进行讨论
-        3. 请务必按照模板规范详细描述问题，否则issue将会被直接关闭
+        ## Прежде чем создавать проблему, убедитесь в следующем:
+        1. Обязательно укажите краткий и понятный заголовок, чтобы другим было проще найти вашу проблему.
+        2. Убедитесь, что похожая проблема ещё не создана в разделе [существующих проблем](https://github.com/pluralplay/FlClashX/issues?q=is%3Aissue), иначе обсудите свой вопрос там.
+        3. Опишите проблему подробно и по шаблону, иначе заявка будет закрыта без рассмотрения.
         ## Before submitting the issue, please make sure of the following checklist:
         1. Please be sure to fill in a concise and clear title for the issue so that others can quickly search
         2. Please make sure there is no similar issue in the [existing issues](https://github.com/pluralplay/FlClashX/issues?q=is%3Aissue), otherwise please discuss under the existing issue
@@ -18,21 +18,21 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: 功能描述 / Feature description
-      description: 详细清晰地描述你的功能请求 / A clear and concise description of what the feature is
+      label: Описание фунции / Feature description
+      description: Четкое и краткое описание функции / A clear and concise description of what the feature is
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 使用场景 / Use case
-      description: 请描述你的功能请求的使用场景 / Please describe the use case of your feature request
+      label: Сценарий использования / Use case
+      description: Пожалуйста, опишите сценарий использования вашего запроса на функцию / Please describe the use case of your feature request
     validations:
       required: true
   - type: checkboxes
     id: os-labels
     attributes:
-      label: 适用系统 / Target OS
-      description: 请选择该功能适用的操作系统（至少选择一个） / Please select the operating system(s) for this feature request (select at least one)
+      label: Операционная система / Target OS
+      description: Пожалуйста, выберите операционную систему(ы), для которых предназначена эта функция (выберите минимум одну) / Please select the operating system(s) for this feature request (select at least one)
       options:
         - label: Android
         - label: Windows

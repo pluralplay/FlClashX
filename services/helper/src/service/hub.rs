@@ -15,6 +15,7 @@ const LISTEN_PORT: u16 = 47890;
 pub struct StartParams {
     pub path: String,
     pub arg: String,
+    pub home_dir: Option<String>,
 }
 
 fn sha256_file(path: &str) -> Result<String, Error> {
@@ -45,11 +46,16 @@ fn start(start_params: StartParams) -> impl Reply {
     }
     stop();
     let mut process = PROCESS.lock().unwrap();
-    match Command::new(&start_params.path)
-        .stderr(Stdio::piped())
-        .arg(&start_params.arg)
-        .spawn()
-    {
+    let mut command = Command::new(&start_params.path);
+    command.stderr(Stdio::piped()).arg(&start_params.arg);
+    
+    // Set SAFE_PATHS to prevent "path is not subpath of home directory" errors
+    // This ensures the core can access provider files before SetHomeDir is called
+    if let Some(home_dir) = start_params.home_dir {
+        command.env("SAFE_PATHS", home_dir);
+    }
+    
+    match command.spawn() {
         Ok(child) => {
             *process = Some(child);
             if let Some(ref mut child) = *process {
@@ -87,6 +93,12 @@ fn stop() -> impl Reply {
     "".to_string()
 }
 
+fn shutdown_service() -> impl Reply {
+    // Do not allow shutting down the Windows service via HTTP in production
+    log_message("Received shutdown request - ignored".to_string());
+    "Shutdown endpoint is disabled".to_string()
+}
+
 fn log_message(message: String) {
     let mut log_buffer = LOGS.lock().unwrap();
     if log_buffer.len() == 100 {
@@ -116,6 +128,7 @@ pub async fn run_service() -> anyhow::Result<()> {
     let api_stop = warp::post().and(warp::path("stop")).map(|| stop());
 
     let api_logs = warp::get().and(warp::path("logs")).map(|| get_logs());
+
 
     warp::serve(api_ping.or(api_start).or(api_stop).or(api_logs))
         .run(([127, 0, 0, 1], LISTEN_PORT))

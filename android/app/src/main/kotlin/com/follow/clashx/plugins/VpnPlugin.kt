@@ -1,5 +1,8 @@
 package com.follow.clashx.plugins
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -8,8 +11,10 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.follow.clashx.FlClashXApplication
 import com.follow.clashx.GlobalState
@@ -93,6 +98,15 @@ data object VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 result.success(true)
             }
 
+            "showSubscriptionNotification" -> {
+                val title = call.argument<String>("title") ?: ""
+                val message = call.argument<String>("message") ?: ""
+                val actionLabel = call.argument<String>("actionLabel") ?: ""
+                val actionUrl = call.argument<String>("actionUrl") ?: ""
+                showSubscriptionNotification(title, message, actionLabel, actionUrl)
+                result.success(true)
+            }
+
             else -> {
                 result.notImplemented()
             }
@@ -172,12 +186,13 @@ data object VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             val startForegroundParams = if (data != null) Gson().fromJson(
                 data, StartForegroundParams::class.java
             ) else StartForegroundParams(
-                title = "", content = ""
+                title = "", server = "", content = ""
             )
             if (lastStartForegroundParams != startForegroundParams) {
                 lastStartForegroundParams = startForegroundParams
                 flClashXService?.startForeground(
                     startForegroundParams.title,
+                    startForegroundParams.server,
                     startForegroundParams.content,
                 )
             }
@@ -272,5 +287,56 @@ data object VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             false -> Intent(FlClashXApplication.getAppContext(), FlClashXService::class.java)
         }
         FlClashXApplication.getAppContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
+    }
+
+    private fun showSubscriptionNotification(title: String, message: String, actionLabel: String, actionUrl: String) {
+        val context = FlClashXApplication.getAppContext()
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Create notification channel for subscription alerts (Android O+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                GlobalState.SUBSCRIPTION_NOTIFICATION_CHANNEL,
+                "Subscription Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications about subscription expiration"
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        // Create intent for action button (open URL)
+        val actionIntent = Intent(Intent.ACTION_VIEW, Uri.parse(actionUrl))
+        val actionPendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            actionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Create intent to open app when notification is tapped
+        val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val openAppPendingIntent = PendingIntent.getActivity(
+            context,
+            1,
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, GlobalState.SUBSCRIPTION_NOTIFICATION_CHANNEL)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openAppPendingIntent)
+        
+        // Only add action button if actionLabel is not empty
+        if (actionLabel.isNotEmpty() && actionUrl.isNotEmpty()) {
+            builder.addAction(0, actionLabel, actionPendingIntent)
+        }
+
+        notificationManager.notify(GlobalState.SUBSCRIPTION_NOTIFICATION_ID, builder.build())
     }
 }

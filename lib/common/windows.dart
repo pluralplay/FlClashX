@@ -5,18 +5,170 @@ import 'package:ffi/ffi.dart';
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
 import 'package:path/path.dart';
+import 'package:win32/win32.dart';
 
 class Windows {
-  static Windows? _instance;
-  late DynamicLibrary _shell32;
-
-  Windows._internal() {
-    _shell32 = DynamicLibrary.open('shell32.dll');
-  }
-
   factory Windows() {
     _instance ??= Windows._internal();
     return _instance!;
+  }
+
+  Windows._internal() {
+    _shell32 = DynamicLibrary.open('shell32.dll');
+    try {
+      _uxtheme = DynamicLibrary.open('uxtheme.dll');
+    } catch (e) {
+      // Ignore if uxtheme.dll is not available
+    }
+  }
+  static Windows? _instance;
+  late DynamicLibrary _shell32;
+  late DynamicLibrary _uxtheme;
+
+  bool isDarkMode() {
+    try {
+      final keyPath =
+          r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+              .toNativeUtf16();
+      final valueName = 'AppsUseLightTheme'.toNativeUtf16();
+
+      final phkResult = calloc<HKEY>();
+      var result = RegOpenKeyEx(
+        HKEY_CURRENT_USER,
+        keyPath,
+        0,
+        KEY_READ,
+        phkResult,
+      );
+
+      calloc.free(keyPath);
+
+      if (result != ERROR_SUCCESS) {
+        calloc.free(valueName);
+        calloc.free(phkResult);
+        return false;
+      }
+
+      final hKey = phkResult.value;
+      calloc.free(phkResult);
+
+      final data = calloc<DWORD>();
+      final dataSize = calloc<DWORD>();
+      dataSize.value = sizeOf<DWORD>();
+
+      result = RegQueryValueEx(
+        hKey,
+        valueName,
+        nullptr,
+        nullptr,
+        data.cast(),
+        dataSize,
+      );
+
+      calloc.free(valueName);
+      RegCloseKey(hKey);
+
+      if (result != ERROR_SUCCESS) {
+        calloc.free(data);
+        calloc.free(dataSize);
+        return false;
+      }
+
+      final isLightMode = data.value != 0;
+      calloc.free(data);
+      calloc.free(dataSize);
+
+      return !isLightMode;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void enableDarkModeForApp() {
+    try {
+      final isDark = isDarkMode();
+      if (!isDark) return;
+
+      try {
+        final kernel32 = DynamicLibrary.open('kernel32.dll');
+        final moduleName = 'uxtheme.dll'.toNativeUtf16();
+
+        final getProcAddressFunc = kernel32.lookupFunction<
+            IntPtr Function(IntPtr hModule, Pointer<Utf8> lpProcName),
+            int Function(
+                int hModule, Pointer<Utf8> lpProcName)>('GetProcAddress');
+
+        final getModuleHandleFunc = kernel32.lookupFunction<
+            IntPtr Function(Pointer<Utf16> lpModuleName),
+            int Function(Pointer<Utf16> lpModuleName)>('GetModuleHandleW');
+
+        final uxthemeHandle = getModuleHandleFunc(moduleName);
+        calloc.free(moduleName);
+
+        if (uxthemeHandle != 0) {
+          final ordinal135 = Pointer<Utf8>.fromAddress(135);
+          final setPreferredAppModePtr =
+              getProcAddressFunc(uxthemeHandle, ordinal135);
+
+          if (setPreferredAppModePtr != 0) {
+            final setPreferredAppMode =
+                Pointer<NativeFunction<Int32 Function(Int32)>>.fromAddress(
+                        setPreferredAppModePtr)
+                    .asFunction<int Function(int)>();
+            setPreferredAppMode(1);
+          } else {
+            final ordinal133 = Pointer<Utf8>.fromAddress(133);
+            final allowDarkModePtr =
+                getProcAddressFunc(uxthemeHandle, ordinal133);
+
+            if (allowDarkModePtr != 0) {
+              final allowDarkModeForApp =
+                  Pointer<NativeFunction<Int32 Function(Int32)>>.fromAddress(
+                          allowDarkModePtr)
+                      .asFunction<int Function(int)>();
+              allowDarkModeForApp(1); // TRUE
+            }
+          }
+
+          // Ordinal 136 = FlushMenuThemes
+          final ordinal136 = Pointer<Utf8>.fromAddress(136);
+          final flushMenuThemesPtr =
+              getProcAddressFunc(uxthemeHandle, ordinal136);
+
+          if (flushMenuThemesPtr != 0) {
+            final flushMenuThemes =
+                Pointer<NativeFunction<Void Function()>>.fromAddress(
+                        flushMenuThemesPtr)
+                    .asFunction<void Function()>();
+            flushMenuThemes();
+          }
+        }
+      } catch (e) {}
+    } catch (e) {}
+  }
+
+  void applyDarkModeToMenu(int hwnd) {
+    if (hwnd == 0) return;
+
+    try {
+      final isDark = isDarkMode();
+
+      final themeName = isDark ? 'DarkMode_Explorer'.toNativeUtf16() : nullptr;
+
+      try {
+        final setWindowTheme = _uxtheme.lookupFunction<
+            Int32 Function(IntPtr hwnd, Pointer<Utf16> pszSubAppName,
+                Pointer<Utf16> pszSubIdList),
+            int Function(int hwnd, Pointer<Utf16> pszSubAppName,
+                Pointer<Utf16> pszSubIdList)>('SetWindowTheme');
+
+        setWindowTheme(hwnd, themeName, nullptr);
+      } catch (e) {}
+
+      if (themeName != nullptr) {
+        calloc.free(themeName);
+      }
+    } catch (e) {}
   }
 
   bool runas(String command, String arguments) {
@@ -61,7 +213,7 @@ class Windows {
     return true;
   }
 
-  _killProcess(int port) async {
+  Future<void> _killProcess(int port) async {
     final result = await Process.run('netstat', ['-ano']);
     final lines = result.stdout.toString().trim().split('\n');
     for (final line in lines) {
@@ -83,7 +235,7 @@ class Windows {
     //   return WindowsHelperServiceStatus.none;
     // }
     final result = await Process.run('sc', ['query', appHelperService]);
-    if(result.exitCode != 0){
+    if (result.exitCode != 0) {
       return WindowsHelperServiceStatus.none;
     }
     final output = result.stdout.toString();
@@ -93,7 +245,11 @@ class Windows {
     return WindowsHelperServiceStatus.presence;
   }
 
-  Future<bool> registerService() async {
+  /// Install the helper service (requires UAC elevation).
+  /// This should only be called when the service is not installed.
+  /// After installation, sets security descriptor to allow non-admin users
+  /// to start/stop the service without UAC.
+  Future<bool> installService() async {
     final status = await checkService();
 
     if (status == WindowsHelperServiceStatus.running) {
@@ -108,7 +264,6 @@ class Windows {
         "sc",
         "delete",
         appHelperService,
-        "/force",
         "&&",
       ],
       "sc",
@@ -125,10 +280,88 @@ class Windows {
     final res = runas("cmd.exe", command);
 
     await Future.delayed(
-      Duration(milliseconds: 300),
+      const Duration(milliseconds: 300),
     );
 
     return res;
+  }
+
+  /// Try to start an existing service without UAC.
+  /// Returns true if the service was started successfully or is already running.
+  /// Returns false if the service is not installed or failed to start.
+  Future<bool> tryStartExistingService() async {
+    final status = await checkService();
+
+    if (status == WindowsHelperServiceStatus.running) {
+      return true;
+    }
+
+    if (status == WindowsHelperServiceStatus.none) {
+      return false;
+    }
+
+    // Service exists but not running - try to start it without elevation
+    final result = await Process.run('sc', ['start', appHelperService]);
+
+    if (result.exitCode == 0) {
+      // Wait for service to fully start
+      await Future.delayed(const Duration(milliseconds: 500));
+      // Verify it's actually running and responding
+      final newStatus = await checkService();
+      return newStatus == WindowsHelperServiceStatus.running;
+    }
+
+    return false;
+  }
+
+  /// Register the service - will request UAC only if service is not installed.
+  /// If the service is already installed, it will try to start it without UAC.
+  Future<bool> registerService() async {
+    // First, try to start existing service without UAC
+    if (await tryStartExistingService()) {
+      return true;
+    }
+
+    // Service not installed or couldn't start - need to install with UAC
+    return installService();
+  }
+
+  Future<bool> startService() async {
+    final status = await checkService();
+
+    if (status == WindowsHelperServiceStatus.running) {
+      return true;
+    }
+
+    if (status == WindowsHelperServiceStatus.none) {
+      return false;
+    }
+
+    final result = await Process.run('sc', ['start', appHelperService]);
+
+    if (result.exitCode == 0) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<bool> stopService() async {
+    final status = await checkService();
+
+    if (status == WindowsHelperServiceStatus.none) {
+      return true;
+    }
+
+    final result = await Process.run('sc', ['stop', appHelperService]);
+
+    if (result.exitCode == 0) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return true;
+    }
+
+    return false;
   }
 
   Future<bool> registerTask(String appName) async {

@@ -6,19 +6,16 @@ import 'package:flutter/material.dart';
 import 'text.dart';
 
 class Info {
-  final String label;
-  final IconData? iconData;
 
   const Info({
     required this.label,
     this.iconData,
   });
+  final String label;
+  final IconData? iconData;
 }
 
 class InfoHeader extends StatelessWidget {
-  final Info info;
-  final List<Widget> actions;
-  final EdgeInsetsGeometry? padding;
 
   const InfoHeader({
     super.key,
@@ -26,10 +23,12 @@ class InfoHeader extends StatelessWidget {
     this.padding,
     List<Widget>? actions,
   }) : actions = actions ?? const [];
+  final Info info;
+  final List<Widget> actions;
+  final EdgeInsetsGeometry? padding;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
+  Widget build(BuildContext context) => Padding(
       padding: padding ?? baseInfoEdgeInsets,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -78,7 +77,6 @@ class InfoHeader extends StatelessWidget {
         ],
       ),
     );
-  }
 }
 
 class CommonCard extends StatelessWidget {
@@ -136,12 +134,12 @@ class CommonCard extends StatelessWidget {
       if (isSelected) {
         return colorScheme.secondaryContainer.opacity80;
       }
-      return colorScheme.surfaceContainer;
+      return colorScheme.surfaceContainer.withValues(alpha: 0.85);
     }
     if (isSelected) {
-      return colorScheme.secondaryContainer;
+      return colorScheme.secondaryContainer.withValues(alpha: 0.85);
     }
-    return colorScheme.surfaceContainerLow;
+    return colorScheme.surfaceContainerLow.withValues(alpha: 0.85);
   }
 
   @override
@@ -167,7 +165,7 @@ class CommonCard extends StatelessWidget {
     }
 
     if (selectWidget != null && isSelected) {
-      final List<Widget> children = [];
+      final children = <Widget>[];
       children.add(childWidget);
       children.add(
         Positioned.fill(
@@ -215,8 +213,7 @@ class SelectIcon extends StatelessWidget {
   const SelectIcon({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
+  Widget build(BuildContext context) => Material(
       color: Theme.of(context).colorScheme.inversePrimary,
       shape: const CircleBorder(),
       child: Container(
@@ -227,23 +224,21 @@ class SelectIcon extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class SettingsBlock extends StatelessWidget {
-  final String title;
-  final List<Widget> settings;
 
   const SettingsBlock({
     super.key,
     required this.title,
     required this.settings,
   });
+  final String title;
+  final List<Widget> settings;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.all(8),
+  Widget build(BuildContext context) => Padding(
+      padding: const EdgeInsets.all(8),
       child: Column(
         children: [
           InfoHeader(
@@ -252,7 +247,7 @@ class SettingsBlock extends StatelessWidget {
             ),
           ),
           Card(
-            color: context.colorScheme.surfaceContainer,
+            color: context.colorScheme.surfaceContainer.withValues(alpha: 0.85),
             child: Column(
               children: settings,
             ),
@@ -260,5 +255,4 @@ class SettingsBlock extends StatelessWidget {
         ],
       ),
     );
-  }
 }

@@ -10,11 +10,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+class OverrideNetworkSettingsItemNetwork extends ConsumerWidget {
+  const OverrideNetworkSettingsItemNetwork({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final overrideNetworkSettings = ref.watch(
+      appSettingProvider.select((state) => state.overrideNetworkSettings),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListItem.switchItem(
+          title: Text(appLocalizations.overrideNetworkSettings),
+          subtitle: Text(appLocalizations.overrideNetworkSettingsDesc),
+          delegate: SwitchDelegate(
+            value: overrideNetworkSettings,
+            onChanged: (value) {
+              ref.read(appSettingProvider.notifier).updateState(
+                    (state) => state.copyWith(
+                      overrideNetworkSettings: value,
+                    ),
+                  );
+            },
+          ),
+        ),
+        if (!overrideNetworkSettings)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    appLocalizations.managedByProvider,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class VPNItem extends ConsumerWidget {
   const VPNItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final enable =
         ref.watch(vpnSettingProvider.select((state) => state.enable));
     return ListItem.switchItem(
@@ -38,7 +93,7 @@ class TUNItem extends ConsumerWidget {
   const TUNItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final enable =
         ref.watch(patchClashConfigProvider.select((state) => state.tun.enable));
 
@@ -63,7 +118,7 @@ class AllowBypassItem extends ConsumerWidget {
   const AllowBypassItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final allowBypass =
         ref.watch(vpnSettingProvider.select((state) => state.allowBypass));
     return ListItem.switchItem(
@@ -71,7 +126,7 @@ class AllowBypassItem extends ConsumerWidget {
       subtitle: Text(appLocalizations.allowBypassDesc),
       delegate: SwitchDelegate(
         value: allowBypass,
-        onChanged: (bool value) async {
+        onChanged: (value) async {
           ref.read(vpnSettingProvider.notifier).updateState(
                 (state) => state.copyWith(
                   allowBypass: value,
@@ -87,7 +142,7 @@ class VpnSystemProxyItem extends ConsumerWidget {
   const VpnSystemProxyItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final systemProxy =
         ref.watch(vpnSettingProvider.select((state) => state.systemProxy));
     return ListItem.switchItem(
@@ -95,7 +150,7 @@ class VpnSystemProxyItem extends ConsumerWidget {
       subtitle: Text(appLocalizations.systemProxyDesc),
       delegate: SwitchDelegate(
         value: systemProxy,
-        onChanged: (bool value) async {
+        onChanged: (value) async {
           ref.read(vpnSettingProvider.notifier).updateState(
                 (state) => state.copyWith(
                   systemProxy: value,
@@ -111,7 +166,7 @@ class SystemProxyItem extends ConsumerWidget {
   const SystemProxyItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final systemProxy =
         ref.watch(networkSettingProvider.select((state) => state.systemProxy));
 
@@ -120,7 +175,7 @@ class SystemProxyItem extends ConsumerWidget {
       subtitle: Text(appLocalizations.systemProxyDesc),
       delegate: SwitchDelegate(
         value: systemProxy,
-        onChanged: (bool value) async {
+        onChanged: (value) async {
           ref.read(networkSettingProvider.notifier).updateState(
                 (state) => state.copyWith(
                   systemProxy: value,
@@ -136,14 +191,14 @@ class Ipv6Item extends ConsumerWidget {
   const Ipv6Item({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ipv6 = ref.watch(vpnSettingProvider.select((state) => state.ipv6));
     return ListItem.switchItem(
       title: const Text("IPv6"),
       subtitle: Text(appLocalizations.ipv6InboundDesc),
       delegate: SwitchDelegate(
         value: ipv6,
-        onChanged: (bool value) async {
+        onChanged: (value) async {
           ref.read(vpnSettingProvider.notifier).updateState(
                 (state) => state.copyWith(
                   ipv6: value,
@@ -159,14 +214,14 @@ class AutoSetSystemDnsItem extends ConsumerWidget {
   const AutoSetSystemDnsItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final autoSetSystemDns = ref.watch(
         networkSettingProvider.select((state) => state.autoSetSystemDns));
     return ListItem.switchItem(
       title: Text(appLocalizations.autoSetSystemDns),
       delegate: SwitchDelegate(
         value: autoSetSystemDns,
-        onChanged: (bool value) async {
+        onChanged: (value) async {
           ref.read(networkSettingProvider.notifier).updateState(
                 (state) => state.copyWith(
                   autoSetSystemDns: value,
@@ -182,28 +237,40 @@ class TunStackItem extends ConsumerWidget {
   const TunStackItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stack =
         ref.watch(patchClashConfigProvider.select((state) => state.tun.stack));
+    final overrideNetworkSettings = ref.watch(
+      appSettingProvider.select((state) => state.overrideNetworkSettings),
+    );
+    final isEnabled = overrideNetworkSettings;
+    commonPrint.log("TunStackItem.build: stack=${stack.name}, isEnabled=$isEnabled");
 
-    return ListItem.options(
-      title: Text(appLocalizations.stackMode),
-      subtitle: Text(stack.name),
-      delegate: OptionsDelegate<TunStack>(
-        value: stack,
-        options: TunStack.values,
-        textBuilder: (value) => value.name,
-        onChanged: (value) {
-          if (value == null) {
-            return;
-          }
-          ref.read(patchClashConfigProvider.notifier).updateState(
-                (state) => state.copyWith.tun(
-                  stack: value,
-                ),
-              );
-        },
-        title: appLocalizations.stackMode,
+    return AbsorbPointer(
+      absorbing: !isEnabled,
+      child: Opacity(
+        opacity: isEnabled ? 1.0 : 0.5,
+        child: ListItem.options(
+          title: Text(appLocalizations.stackMode),
+          subtitle: Text(stack.name),
+          delegate: OptionsDelegate<TunStack>(
+            value: stack,
+            options: TunStack.values,
+            textBuilder: (value) => value.name,
+            onChanged: (value) async {
+              if (value == null) {
+                return;
+              }
+              ref.read(patchClashConfigProvider.notifier).updateState(
+                    (state) => state.copyWith.tun(
+                      stack: value,
+                    ),
+                  );
+              globalState.appController.updateClashConfigDebounce();
+            },
+            title: appLocalizations.stackMode,
+          ),
+        ),
       ),
     );
   }
@@ -212,7 +279,7 @@ class TunStackItem extends ConsumerWidget {
 class BypassDomainItem extends StatelessWidget {
   const BypassDomainItem({super.key});
 
-  _initActions(BuildContext context, WidgetRef ref) {
+  void _initActions(BuildContext context, WidgetRef ref) {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       context.commonScaffoldState?.actions = [
         IconButton(
@@ -242,8 +309,7 @@ class BypassDomainItem extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListItem.open(
+  Widget build(BuildContext context) => ListItem.open(
       title: Text(appLocalizations.bypassDomain),
       subtitle: Text(appLocalizations.bypassDomainDesc),
       delegate: OpenDelegate(
@@ -257,7 +323,7 @@ class BypassDomainItem extends StatelessWidget {
             return ListInputPage(
               title: appLocalizations.bypassDomain,
               items: bypassDomain,
-              titleBuilder: (item) => Text(item),
+              titleBuilder: Text.new,
               onChange: (items) {
                 ref.read(networkSettingProvider.notifier).updateState(
                       (state) => state.copyWith(
@@ -270,14 +336,13 @@ class BypassDomainItem extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class RouteModeItem extends ConsumerWidget {
   const RouteModeItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final routeMode =
         ref.watch(networkSettingProvider.select((state) => state.routeMode));
     return ListItem<RouteMode>.options(
@@ -286,7 +351,7 @@ class RouteModeItem extends ConsumerWidget {
       delegate: OptionsDelegate<RouteMode>(
         title: appLocalizations.routeMode,
         options: RouteMode.values,
-        onChanged: (RouteMode? value) {
+        onChanged: (value) {
           if (value == null) {
             return;
           }
@@ -309,7 +374,7 @@ class RouteAddressItem extends ConsumerWidget {
   const RouteAddressItem({super.key});
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bypassPrivate = ref.watch(networkSettingProvider
         .select((state) => state.routeMode == RouteMode.bypassPrivate));
     if (bypassPrivate) {
@@ -332,7 +397,7 @@ class RouteAddressItem extends ConsumerWidget {
             return ListInputPage(
               title: appLocalizations.routeAddress,
               items: routeAddress,
-              titleBuilder: (item) => Text(item),
+              titleBuilder: Text.new,
               onChange: (items) {
                 ref.read(patchClashConfigProvider.notifier).updateState(
                       (state) => state.copyWith.tun(
@@ -364,13 +429,14 @@ final networkItems = [
     ...generateSection(
       title: appLocalizations.system,
       items: [
-        SystemProxyItem(),
-        BypassDomainItem(),
+        const SystemProxyItem(),
+        const BypassDomainItem(),
       ],
     ),
   ...generateSection(
     title: appLocalizations.options,
     items: [
+      const OverrideNetworkSettingsItemNetwork(),
       if (system.isDesktop) const TUNItem(),
       if (Platform.isMacOS) const AutoSetSystemDnsItem(),
       const TunStackItem(),
@@ -385,7 +451,7 @@ final networkItems = [
 class NetworkListView extends ConsumerWidget {
   const NetworkListView({super.key});
 
-  _initActions(BuildContext context, WidgetRef ref) {
+  void _initActions(BuildContext context, WidgetRef ref) {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       context.commonScaffoldState?.actions = [
         IconButton(
@@ -420,7 +486,7 @@ class NetworkListView extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     _initActions(context, ref);
     return generateListView(
       networkItems,

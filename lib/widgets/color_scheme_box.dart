@@ -6,9 +6,6 @@ import 'card.dart';
 import 'grid.dart';
 
 class ColorSchemeBox extends StatelessWidget {
-  final Color? primaryColor;
-  final bool? isSelected;
-  final void Function()? onPressed;
 
   const ColorSchemeBox({
     super.key,
@@ -16,10 +13,12 @@ class ColorSchemeBox extends StatelessWidget {
     this.onPressed,
     this.isSelected,
   });
+  final Color? primaryColor;
+  final bool? isSelected;
+  final void Function()? onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
+  Widget build(BuildContext context) => AspectRatio(
       aspectRatio: 1,
       child: PrimaryColorBox(
         primaryColor: primaryColor,
@@ -84,21 +83,20 @@ class ColorSchemeBox extends StatelessWidget {
         ),
       ),
     );
-  }
 }
 
 class PrimaryColorBox extends ConsumerWidget {
-  final Color? primaryColor;
-  final Widget child;
 
   const PrimaryColorBox({
     super.key,
     required this.primaryColor,
     required this.child,
   });
+  final Color? primaryColor;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final themeData = Theme.of(context);
     final colorScheme = ref.watch(
       genColorSchemeProvider(

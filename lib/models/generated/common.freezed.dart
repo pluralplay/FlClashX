@@ -2263,6 +2263,7 @@ mixin _$Proxy {
   String get name => throw _privateConstructorUsedError;
   String get type => throw _privateConstructorUsedError;
   String? get now => throw _privateConstructorUsedError;
+  String? get serverDescription => throw _privateConstructorUsedError;
 
   /// Serializes this Proxy to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -2278,7 +2279,7 @@ abstract class $ProxyCopyWith<$Res> {
   factory $ProxyCopyWith(Proxy value, $Res Function(Proxy) then) =
       _$ProxyCopyWithImpl<$Res, Proxy>;
   @useResult
-  $Res call({String name, String type, String? now});
+  $Res call({String name, String type, String? now, String? serverDescription});
 }
 
 /// @nodoc
@@ -2299,6 +2300,7 @@ class _$ProxyCopyWithImpl<$Res, $Val extends Proxy>
     Object? name = null,
     Object? type = null,
     Object? now = freezed,
+    Object? serverDescription = freezed,
   }) {
     return _then(_value.copyWith(
       name: null == name
@@ -2313,6 +2315,10 @@ class _$ProxyCopyWithImpl<$Res, $Val extends Proxy>
           ? _value.now
           : now // ignore: cast_nullable_to_non_nullable
               as String?,
+      serverDescription: freezed == serverDescription
+          ? _value.serverDescription
+          : serverDescription // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -2324,7 +2330,7 @@ abstract class _$$ProxyImplCopyWith<$Res> implements $ProxyCopyWith<$Res> {
       __$$ProxyImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String name, String type, String? now});
+  $Res call({String name, String type, String? now, String? serverDescription});
 }
 
 /// @nodoc
@@ -2343,6 +2349,7 @@ class __$$ProxyImplCopyWithImpl<$Res>
     Object? name = null,
     Object? type = null,
     Object? now = freezed,
+    Object? serverDescription = freezed,
   }) {
     return _then(_$ProxyImpl(
       name: null == name
@@ -2357,6 +2364,10 @@ class __$$ProxyImplCopyWithImpl<$Res>
           ? _value.now
           : now // ignore: cast_nullable_to_non_nullable
               as String?,
+      serverDescription: freezed == serverDescription
+          ? _value.serverDescription
+          : serverDescription // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -2364,7 +2375,11 @@ class __$$ProxyImplCopyWithImpl<$Res>
 /// @nodoc
 @JsonSerializable()
 class _$ProxyImpl implements _Proxy {
-  const _$ProxyImpl({required this.name, required this.type, this.now});
+  const _$ProxyImpl(
+      {required this.name,
+      required this.type,
+      this.now,
+      this.serverDescription});
 
   factory _$ProxyImpl.fromJson(Map<String, dynamic> json) =>
       _$$ProxyImplFromJson(json);
@@ -2375,10 +2390,12 @@ class _$ProxyImpl implements _Proxy {
   final String type;
   @override
   final String? now;
+  @override
+  final String? serverDescription;
 
   @override
   String toString() {
-    return 'Proxy(name: $name, type: $type, now: $now)';
+    return 'Proxy(name: $name, type: $type, now: $now, serverDescription: $serverDescription)';
   }
 
   @override
@@ -2388,12 +2405,15 @@ class _$ProxyImpl implements _Proxy {
             other is _$ProxyImpl &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.type, type) || other.type == type) &&
-            (identical(other.now, now) || other.now == now));
+            (identical(other.now, now) || other.now == now) &&
+            (identical(other.serverDescription, serverDescription) ||
+                other.serverDescription == serverDescription));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, name, type, now);
+  int get hashCode =>
+      Object.hash(runtimeType, name, type, now, serverDescription);
 
   /// Create a copy of Proxy
   /// with the given fields replaced by the non-null parameter values.
@@ -2415,7 +2435,8 @@ abstract class _Proxy implements Proxy {
   const factory _Proxy(
       {required final String name,
       required final String type,
-      final String? now}) = _$ProxyImpl;
+      final String? now,
+      final String? serverDescription}) = _$ProxyImpl;
 
   factory _Proxy.fromJson(Map<String, dynamic> json) = _$ProxyImpl.fromJson;
 
@@ -2425,6 +2446,8 @@ abstract class _Proxy implements Proxy {
   String get type;
   @override
   String? get now;
+  @override
+  String? get serverDescription;
 
   /// Create a copy of Proxy
   /// with the given fields replaced by the non-null parameter values.

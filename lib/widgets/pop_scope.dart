@@ -4,18 +4,17 @@ import 'package:flclashx/state.dart';
 import 'package:flutter/widgets.dart';
 
 class CommonPopScope extends StatelessWidget {
-  final Widget child;
-  final FutureOr<bool> Function()? onPop;
 
   const CommonPopScope({
     super.key,
     required this.child,
     this.onPop,
   });
+  final Widget child;
+  final FutureOr<bool> Function()? onPop;
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
+  Widget build(BuildContext context) => PopScope(
       canPop: onPop == null ? true : false,
       onPopInvokedWithResult: onPop == null
           ? null
@@ -34,16 +33,15 @@ class CommonPopScope extends StatelessWidget {
             },
       child: child,
     );
-  }
 }
 
 class SystemBackBlock extends StatefulWidget {
-  final Widget child;
 
   const SystemBackBlock({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   State<SystemBackBlock> createState() => _SystemBackBlockState();
@@ -67,7 +65,5 @@ class _SystemBackBlockState extends State<SystemBackBlock> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 }

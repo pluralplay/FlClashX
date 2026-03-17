@@ -13,9 +13,11 @@ class StartButton extends ConsumerStatefulWidget {
 }
 
 class _StartButtonState extends ConsumerState<StartButton>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _pressController;
   late Animation<double> _animation;
+  late Animation<double> _scaleAnimation;
   bool isStart = false;
 
   @override
@@ -25,12 +27,24 @@ class _StartButtonState extends ConsumerState<StartButton>
     _controller = AnimationController(
       vsync: this,
       value: isStart ? 1 : 0,
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300),
     );
     _animation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutBack,
     );
+
+    _pressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(
+        parent: _pressController,
+        curve: Curves.easeOut,
+      ),
+    );
+
     ref.listenManual(
       runTimeProvider.select((state) => state != null),
       (prev, next) {
@@ -46,10 +60,11 @@ class _StartButtonState extends ConsumerState<StartButton>
   @override
   void dispose() {
     _controller.dispose();
+    _pressController.dispose();
     super.dispose();
   }
 
-  handleSwitchStart() {
+  void handleSwitchStart() {
     isStart = !isStart;
     updateController();
     debouncer.call(
@@ -61,7 +76,7 @@ class _StartButtonState extends ConsumerState<StartButton>
     );
   }
 
-  updateController() {
+  void updateController() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (isStart) {
         _controller.forward();
@@ -71,79 +86,128 @@ class _StartButtonState extends ConsumerState<StartButton>
     });
   }
 
+  void _onTapDown(TapDownDetails details) {
+    _pressController.forward();
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    _pressController.reverse();
+  }
+
+  void _onTapCancel() {
+    _pressController.reverse();
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(startButtonSelectorStateProvider);
     if (!state.isInit || !state.hasProfile) {
       return Container();
     }
-    return Transform.scale(
-      scale: 1.1,
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          floatingActionButtonTheme: const FloatingActionButtonThemeData(
-            sizeConstraints: BoxConstraints(
-              minWidth: 56,
-              maxWidth: 200,
-            ),
-          ),
-        ),
-        child: AnimatedBuilder(
-          animation: _controller.view,
-          builder: (_, child) {
-            final textWidth = globalState.measure
-                    .computeTextSize(
-                      Text(
-                        utils.getTimeDifference(
-                          DateTime.now(),
-                        ),
-                        style: context.textTheme.titleMedium?.toSoftBold,
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final activeColor = Colors.green.shade600.withValues(alpha: 0.9);
+    final inactiveColor = colorScheme.secondaryContainer.withValues(alpha: 0.85);
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_controller, _pressController]),
+        builder: (_, child) => Transform.scale(
+            scale: _scaleAnimation.value,
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: GestureDetector(
+                onTapDown: _onTapDown,
+                onTapUp: _onTapUp,
+                onTapCancel: _onTapCancel,
+                child: FilledButton(
+                  onPressed: handleSwitchStart,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isStart ? activeColor : inactiveColor,
+                    foregroundColor: isStart
+                        ? Colors.white
+                        : colorScheme.onSecondaryContainer,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: isStart ? 4 : 0,
+                  ),
+                  child: Center(
+                    child: AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedIcon(
+                            icon: AnimatedIcons.play_pause,
+                            progress: _animation,
+                            size: 36,
+                            color: isStart
+                                ? Colors.white
+                                : colorScheme.onSecondaryContainer,
+                          ),
+                          if (child != null) ...[
+                            const SizedBox(width: 12),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              transitionBuilder: (childWidget, animation) {
+                                final offsetAnimation = Tween<Offset>(
+                                  begin: const Offset(0, 0.3),
+                                  end: Offset.zero,
+                                ).animate(CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeOutCubic,
+                                ));
+
+                                return SlideTransition(
+                                  position: offsetAnimation,
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: childWidget,
+                                  ),
+                                );
+                              },
+                              layoutBuilder: (currentChild, previousChildren) => Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    ...previousChildren,
+                                    if (currentChild != null) currentChild,
+                                  ],
+                                ),
+                              child: child,
+                            ),
+                          ],
+                        ],
                       ),
-                    )
-                    .width +
-                16;
-            return FloatingActionButton(
-              clipBehavior: Clip.antiAlias,
-              materialTapTargetSize: MaterialTapTargetSize.padded,
-              heroTag: null,
-              onPressed: () {
-                handleSwitchStart();
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  Container(
-                    height: 56,
-                    width: 56,
-                    alignment: Alignment.center,
-                    child: AnimatedIcon(
-                      icon: AnimatedIcons.play_pause,
-                      progress: _animation,
                     ),
                   ),
-                  SizedBox(
-                    width: textWidth * _animation.value,
-                    child: child!,
-                  )
-                ],
+                ),
               ),
-            );
-          },
-          child: Consumer(
-            builder: (_, ref, __) {
-              final runTime = ref.watch(runTimeProvider);
+            ),
+          ),
+        child: Consumer(
+          builder: (_, ref, __) {
+            final runTime = ref.watch(runTimeProvider);
+            if (runTime != null) {
               final text = utils.getTimeText(runTime);
               return Text(
                 text,
-                maxLines: 1,
-                overflow: TextOverflow.visible,
-                style:
-                    Theme.of(context).textTheme.titleMedium?.toSoftBold.copyWith(
-                          color: context.colorScheme.onPrimaryContainer,
-                        ),
+                key: ValueKey('time_$text'),
+                style: context.textTheme.titleMedium?.toSoftBold.copyWith(
+                  color: Colors.white,
+                ),
               );
-            },
-          ),
+            } else {
+              return const SizedBox.shrink(
+                key: ValueKey('empty'),
+              );
+            }
+          },
         ),
       ),
     );

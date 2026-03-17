@@ -17,7 +17,7 @@ mixin AutoDisposeNotifierMixin<T> on AutoDisposeNotifier<T> {
     return res;
   }
 
-  onUpdate(T value) {}
+  void onUpdate(T value) {}
 }
 
 mixin PageMixin<T extends StatefulWidget> on State<T> {
@@ -25,7 +25,7 @@ mixin PageMixin<T extends StatefulWidget> on State<T> {
     initPageState();
   }
 
-  initPageState() {
+  void initPageState() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final commonScaffoldState = context.commonScaffoldState;
       commonScaffoldState?.actions = actions;

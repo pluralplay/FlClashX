@@ -8,12 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AppStateManager extends ConsumerStatefulWidget {
-  final Widget child;
 
   const AppStateManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   ConsumerState<AppStateManager> createState() => _AppStateManagerState();
@@ -62,7 +62,7 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
   }
 
   @override
-  reassemble() {
+  void reassemble() {
     super.reassemble();
   }
 
@@ -92,23 +92,21 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Listener(
+  Widget build(BuildContext context) => Listener(
       onPointerHover: (_) {
         render?.resume();
       },
       child: widget.child,
     );
-  }
 }
 
 class AppEnvManager extends StatelessWidget {
-  final Widget child;
 
   const AppEnvManager({
     super.key,
     required this.child,
   });
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {

@@ -21,7 +21,7 @@ class ScriptsView extends ConsumerStatefulWidget {
 }
 
 class _ScriptsViewState extends ConsumerState<ScriptsView> {
-  _handleDelScript(String label) async {
+  Future<void> _handleDelScript(String label) async {
     final res = await globalState.showMessage(
       message:
           TextSpan(text: appLocalizations.deleteTip(appLocalizations.script)),
@@ -32,8 +32,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
     ref.read(scriptStateProvider.notifier).del(label);
   }
 
-  Widget _buildContent() {
-    return Consumer(builder: (_, ref, __) {
+  Widget _buildContent() => Consumer(builder: (_, ref, __) {
       final vm2 = ref.watch(scriptStateProvider.select(
         (state) => VM2(a: state.currentId, b: state.scripts),
       ));
@@ -41,7 +40,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
       final scripts = vm2.b;
       if (scripts.isEmpty) {
         return NullStatus(
-          label: appLocalizations.nullTip(appLocalizations.script),
+          label: appLocalizations.nullScriptTip,
         );
       }
       return ListView.builder(
@@ -53,7 +52,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
           final script = scripts[index];
           return Container(
             padding: kTabLabelPadding,
-            margin: EdgeInsets.symmetric(
+            margin: const EdgeInsets.symmetric(
               vertical: 6,
             ),
             child: CommonCard(
@@ -75,16 +74,14 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
                   },
                 ),
                 trailing: CommonPopupBox(
-                  targetBuilder: (open) {
-                    return IconButton(
+                  targetBuilder: (open) => IconButton(
                       onPressed: () {
                         open();
                       },
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.more_vert,
                       ),
-                    );
-                  },
+                    ),
                   popup: CommonPopupMenu(
                     items: [
                       PopupMenuItemData(
@@ -114,10 +111,9 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
         },
       );
     });
-  }
 
-  _handleEditorSave(_, String title, String content, {Script? script}) async {
-    Script newScript = script?.copyWith(
+  Future<void> _handleEditorSave(_, String title, String content, {Script? script}) async {
+    var newScript = script?.copyWith(
           label: title,
           content: content,
         ) ??
@@ -199,7 +195,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
     return false;
   }
 
-  _handleToEditor({Script? script}) {
+  void _handleToEditor({Script? script}) {
     final title = script?.label ?? "";
     final raw = script?.content ?? scriptTemplate;
     BaseNavigator.modal(
@@ -216,15 +212,13 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
             script: script,
           );
         },
-        onPop: (context, title, content) {
-          return _handleEditorPop(
+        onPop: (context, title, content) => _handleEditorPop(
             context,
             title,
             content,
             raw,
             script: script,
-          );
-        },
+          ),
         languages: const [
           Language.javaScript,
         ],
@@ -234,16 +228,13 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return CommonScaffold(
+  Widget build(BuildContext context) => CommonScaffold(
+      disableBackground: true,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _handleToEditor();
-        },
-        child: Icon(Icons.add),
+        onPressed: _handleToEditor,
+        child: const Icon(Icons.add),
       ),
       body: _buildContent(),
       title: appLocalizations.script,
     );
-  }
 }

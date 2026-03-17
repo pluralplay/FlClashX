@@ -227,6 +227,8 @@ LRESULT CALLBACK Win32Window::WndProc(HWND const window,
     auto that = static_cast<Win32Window *>(window_struct->lpCreateParams);
     EnableFullDpiSupportIfAvailable(window);
     that->window_handle_ = window;
+    
+    ChangeWindowMessageFilterEx(window, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
   }
   else if (Win32Window *that = GetThisFromHandle(window))
   {
