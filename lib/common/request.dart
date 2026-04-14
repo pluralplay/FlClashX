@@ -27,6 +27,11 @@ class Request {
         client.userAgent = globalState.ua;
         return FlClashHttpOverrides.handleFindProxy(uri);
       };
+      client.authenticateProxy =
+          (host, port, scheme, realm) =>
+              FlClashHttpOverrides.handleAuthenticateProxy(
+                client, host, port, scheme, realm,
+              );
       return client;
     });
   }

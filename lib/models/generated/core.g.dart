@@ -34,6 +34,9 @@ _$UpdateParamsImpl _$$UpdateParamsImplFromJson(Map<String, dynamic> json) =>
       externalController: $enumDecode(
           _$ExternalControllerStatusEnumMap, json['external-controller']),
       unifiedDelay: json['unified-delay'] as bool,
+      authentication: (json['authentication'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
     );
 
 Map<String, dynamic> _$$UpdateParamsImplToJson(_$UpdateParamsImpl instance) =>
@@ -49,6 +52,7 @@ Map<String, dynamic> _$$UpdateParamsImplToJson(_$UpdateParamsImpl instance) =>
       'external-controller':
           _$ExternalControllerStatusEnumMap[instance.externalController]!,
       'unified-delay': instance.unifiedDelay,
+      'authentication': instance.authentication,
     };
 
 const _$FindProcessModeEnumMap = {

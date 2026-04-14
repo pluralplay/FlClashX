@@ -57,6 +57,34 @@ class _ClashContainerState extends ConsumerState<ClashManager>
         }
       },
     );
+
+    // Whenever the port-auth override settings change (or the override toggle
+    // flips on), mirror the resulting "user:pass" list into patchClashConfig
+    // so updateParamsProvider picks it up and pushes it to the core.
+    ref.listenManual(
+      appSettingProvider.select(
+        (s) => VM4<bool, bool, String, String>(
+          a: s.overrideNetworkSettings,
+          b: s.portAuthOverrideEnabled,
+          c: s.portAuthOverrideUsername,
+          d: s.portAuthOverridePassword,
+        ),
+      ),
+      (prev, next) {
+        if (!next.a) return; // override off — leave it to the profile sync
+        final desired = next.b && next.c.isNotEmpty
+            ? <String>['${next.c}:${next.d}']
+            : const <String>[];
+        final current = ref.read(patchClashConfigProvider).authentication;
+        if (current.length != desired.length ||
+            (desired.isNotEmpty && current.first != desired.first)) {
+          ref.read(patchClashConfigProvider.notifier).updateState(
+                (state) => state.copyWith(authentication: desired),
+              );
+        }
+      },
+      fireImmediately: true,
+    );
   }
 
   @override

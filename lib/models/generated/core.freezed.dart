@@ -262,6 +262,8 @@ mixin _$UpdateParams {
       throw _privateConstructorUsedError;
   @JsonKey(name: 'unified-delay')
   bool get unifiedDelay => throw _privateConstructorUsedError;
+  @JsonKey(name: 'authentication')
+  List<String> get authentication => throw _privateConstructorUsedError;
 
   /// Serializes this UpdateParams to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -290,7 +292,8 @@ abstract class $UpdateParamsCopyWith<$Res> {
       @JsonKey(name: 'tcp-concurrent') bool tcpConcurrent,
       @JsonKey(name: 'external-controller')
       ExternalControllerStatus externalController,
-      @JsonKey(name: 'unified-delay') bool unifiedDelay});
+      @JsonKey(name: 'unified-delay') bool unifiedDelay,
+      @JsonKey(name: 'authentication') List<String> authentication});
 
   $TunCopyWith<$Res> get tun;
 }
@@ -320,6 +323,7 @@ class _$UpdateParamsCopyWithImpl<$Res, $Val extends UpdateParams>
     Object? tcpConcurrent = null,
     Object? externalController = null,
     Object? unifiedDelay = null,
+    Object? authentication = null,
   }) {
     return _then(_value.copyWith(
       tun: null == tun
@@ -362,6 +366,10 @@ class _$UpdateParamsCopyWithImpl<$Res, $Val extends UpdateParams>
           ? _value.unifiedDelay
           : unifiedDelay // ignore: cast_nullable_to_non_nullable
               as bool,
+      authentication: null == authentication
+          ? _value.authentication
+          : authentication // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ) as $Val);
   }
 
@@ -395,7 +403,8 @@ abstract class _$$UpdateParamsImplCopyWith<$Res>
       @JsonKey(name: 'tcp-concurrent') bool tcpConcurrent,
       @JsonKey(name: 'external-controller')
       ExternalControllerStatus externalController,
-      @JsonKey(name: 'unified-delay') bool unifiedDelay});
+      @JsonKey(name: 'unified-delay') bool unifiedDelay,
+      @JsonKey(name: 'authentication') List<String> authentication});
 
   @override
   $TunCopyWith<$Res> get tun;
@@ -424,6 +433,7 @@ class __$$UpdateParamsImplCopyWithImpl<$Res>
     Object? tcpConcurrent = null,
     Object? externalController = null,
     Object? unifiedDelay = null,
+    Object? authentication = null,
   }) {
     return _then(_$UpdateParamsImpl(
       tun: null == tun
@@ -466,6 +476,10 @@ class __$$UpdateParamsImplCopyWithImpl<$Res>
           ? _value.unifiedDelay
           : unifiedDelay // ignore: cast_nullable_to_non_nullable
               as bool,
+      authentication: null == authentication
+          ? _value._authentication
+          : authentication // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ));
   }
 }
@@ -483,7 +497,10 @@ class _$UpdateParamsImpl implements _UpdateParams {
       required this.ipv6,
       @JsonKey(name: 'tcp-concurrent') required this.tcpConcurrent,
       @JsonKey(name: 'external-controller') required this.externalController,
-      @JsonKey(name: 'unified-delay') required this.unifiedDelay});
+      @JsonKey(name: 'unified-delay') required this.unifiedDelay,
+      @JsonKey(name: 'authentication')
+      required final List<String> authentication})
+      : _authentication = authentication;
 
   factory _$UpdateParamsImpl.fromJson(Map<String, dynamic> json) =>
       _$$UpdateParamsImplFromJson(json);
@@ -515,10 +532,18 @@ class _$UpdateParamsImpl implements _UpdateParams {
   @override
   @JsonKey(name: 'unified-delay')
   final bool unifiedDelay;
+  final List<String> _authentication;
+  @override
+  @JsonKey(name: 'authentication')
+  List<String> get authentication {
+    if (_authentication is EqualUnmodifiableListView) return _authentication;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_authentication);
+  }
 
   @override
   String toString() {
-    return 'UpdateParams(tun: $tun, mixedPort: $mixedPort, allowLan: $allowLan, findProcessMode: $findProcessMode, mode: $mode, logLevel: $logLevel, ipv6: $ipv6, tcpConcurrent: $tcpConcurrent, externalController: $externalController, unifiedDelay: $unifiedDelay)';
+    return 'UpdateParams(tun: $tun, mixedPort: $mixedPort, allowLan: $allowLan, findProcessMode: $findProcessMode, mode: $mode, logLevel: $logLevel, ipv6: $ipv6, tcpConcurrent: $tcpConcurrent, externalController: $externalController, unifiedDelay: $unifiedDelay, authentication: $authentication)';
   }
 
   @override
@@ -542,7 +567,9 @@ class _$UpdateParamsImpl implements _UpdateParams {
             (identical(other.externalController, externalController) ||
                 other.externalController == externalController) &&
             (identical(other.unifiedDelay, unifiedDelay) ||
-                other.unifiedDelay == unifiedDelay));
+                other.unifiedDelay == unifiedDelay) &&
+            const DeepCollectionEquality()
+                .equals(other._authentication, _authentication));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -558,7 +585,8 @@ class _$UpdateParamsImpl implements _UpdateParams {
       ipv6,
       tcpConcurrent,
       externalController,
-      unifiedDelay);
+      unifiedDelay,
+      const DeepCollectionEquality().hash(_authentication));
 
   /// Create a copy of UpdateParams
   /// with the given fields replaced by the non-null parameter values.
@@ -589,8 +617,9 @@ abstract class _UpdateParams implements UpdateParams {
           @JsonKey(name: 'tcp-concurrent') required final bool tcpConcurrent,
           @JsonKey(name: 'external-controller')
           required final ExternalControllerStatus externalController,
-          @JsonKey(name: 'unified-delay') required final bool unifiedDelay}) =
-      _$UpdateParamsImpl;
+          @JsonKey(name: 'unified-delay') required final bool unifiedDelay,
+          @JsonKey(name: 'authentication')
+          required final List<String> authentication}) = _$UpdateParamsImpl;
 
   factory _UpdateParams.fromJson(Map<String, dynamic> json) =
       _$UpdateParamsImpl.fromJson;
@@ -622,6 +651,9 @@ abstract class _UpdateParams implements UpdateParams {
   @override
   @JsonKey(name: 'unified-delay')
   bool get unifiedDelay;
+  @override
+  @JsonKey(name: 'authentication')
+  List<String> get authentication;
 
   /// Create a copy of UpdateParams
   /// with the given fields replaced by the non-null parameter values.

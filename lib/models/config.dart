@@ -82,6 +82,9 @@ class AppSettingProps with _$AppSettingProps {
     @Default(false) bool developerMode,
     @Default(false) bool overrideProviderSettings,
     @Default(false) bool overrideNetworkSettings,
+    @Default(true) bool portAuthOverrideEnabled,
+    @Default('') String portAuthOverrideUsername,
+    @Default('') String portAuthOverridePassword,
     @Default(RecoveryStrategy.compatible) RecoveryStrategy recoveryStrategy,
   }) = _AppSettingProps;
 

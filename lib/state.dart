@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' show Pointer;
+import 'dart:math' show Random;
 
 import 'package:animations/animations.dart';
 import 'package:dio/dio.dart';
@@ -95,11 +96,37 @@ class GlobalState {
         const Config(
           themeProps: defaultThemeProps,
         );
+    _ensurePortAuthDefaults();
     await globalState.migrateOldData(config);
     await AppLocalizations.load(
       utils.getLocaleForString(config.appSetting.locale) ??
           WidgetsBinding.instance.platformDispatcher.locale,
     );
+  }
+
+  // Populate port-auth creds with a stable random password on first launch
+  // after upgrade. Once set they're never regenerated — the user owns them.
+  void _ensurePortAuthDefaults() {
+    final s = config.appSetting;
+    if (s.portAuthOverrideUsername.isNotEmpty ||
+        s.portAuthOverridePassword.isNotEmpty) {
+      return;
+    }
+    config = config.copyWith(
+      appSetting: s.copyWith(
+        portAuthOverrideUsername: 'flclashx',
+        portAuthOverridePassword: randomPortAuthPassword(),
+      ),
+    );
+    preferences.saveConfig(config);
+  }
+
+  static String randomPortAuthPassword() {
+    const alphabet =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rng = Random.secure();
+    return List.generate(12, (_) => alphabet[rng.nextInt(alphabet.length)])
+        .join();
   }
 
   String get ua => config.patchClashConfig.globalUa ?? packageInfo.ua;
@@ -320,13 +347,13 @@ class GlobalState {
       final providerAllowLan = rawConfig['allow-lan'] as bool? ?? patchConfig.allowLan;
       final providerMixedPort = rawConfig['mixed-port'] as int? ?? patchConfig.mixedPort;
       final providerFindProcessModeStr = rawConfig['find-process-mode'] as String?;
-      final providerFindProcessMode = providerFindProcessModeStr != null 
+      final providerFindProcessMode = providerFindProcessModeStr != null
           ? FindProcessMode.values.firstWhere(
               (e) => e.name.toLowerCase() == providerFindProcessModeStr.toLowerCase(),
               orElse: () => patchConfig.findProcessMode,
             )
           : patchConfig.findProcessMode;
-      
+
       final providerTunStackStr = rawConfig['tun']?['stack'] as String?;
       final providerTunStack = providerTunStackStr != null
           ? TunStack.values.firstWhere(
@@ -335,11 +362,17 @@ class GlobalState {
             )
           : patchConfig.tun.stack;
 
+      final rawAuth = rawConfig['authentication'];
+      final providerAuth = rawAuth is List
+          ? rawAuth.whereType<String>().toList()
+          : patchConfig.authentication;
+
       return patchConfig.copyWith(
         ipv6: providerIpv6,
         allowLan: providerAllowLan,
         mixedPort: providerMixedPort,
         findProcessMode: providerFindProcessMode,
+        authentication: providerAuth,
       ).copyWith.tun(stack: providerTunStack);
     } catch (e) {
       commonPrint.log("Error syncing network settings from provider: $e");
@@ -388,6 +421,7 @@ class GlobalState {
       rawConfig["allow-lan"] = realPatchConfig.allowLan;
       rawConfig["ipv6"] = realPatchConfig.ipv6;
       rawConfig["mixed-port"] = realPatchConfig.mixedPort;
+      rawConfig["authentication"] = realPatchConfig.authentication;
     } else {
       // Use provider values - only set if not already in rawConfig, use patchConfig values (which are synced from provider)
       if (rawConfig["find-process-mode"] == null) {

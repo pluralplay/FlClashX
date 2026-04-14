@@ -984,6 +984,51 @@ class AppLocalizations {
     return Intl.message('Port', name: 'port', desc: '', args: []);
   }
 
+  /// `Port authentication`
+  String get portAuthentication {
+    return Intl.message(
+      'Port authentication',
+      name: 'portAuthentication',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enabled by provider`
+  String get portAuthEnabledByProvider {
+    return Intl.message(
+      'Enabled by provider',
+      name: 'portAuthEnabledByProvider',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not enabled by provider`
+  String get portAuthNotEnabledByProvider {
+    return Intl.message(
+      'Not enabled by provider',
+      name: 'portAuthNotEnabledByProvider',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Tap to change credentials`
+  String get portAuthTapToChange {
+    return Intl.message(
+      'Tap to change credentials',
+      name: 'portAuthTapToChange',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Username`
+  String get username {
+    return Intl.message('Username', name: 'username', desc: '', args: []);
+  }
+
   /// `LogLevel`
   String get logLevel {
     return Intl.message('LogLevel', name: 'logLevel', desc: '', args: []);

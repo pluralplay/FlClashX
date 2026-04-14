@@ -3486,6 +3486,8 @@ ClashConfig _$ClashConfigFromJson(Map<String, dynamic> json) {
 mixin _$ClashConfig {
   @JsonKey(name: "mixed-port")
   int get mixedPort => throw _privateConstructorUsedError;
+  @JsonKey(name: "authentication")
+  List<String> get authentication => throw _privateConstructorUsedError;
   @JsonKey(name: "socks-port")
   int get socksPort => throw _privateConstructorUsedError;
   @JsonKey(name: "port")
@@ -3544,6 +3546,7 @@ abstract class $ClashConfigCopyWith<$Res> {
   @useResult
   $Res call(
       {@JsonKey(name: "mixed-port") int mixedPort,
+      @JsonKey(name: "authentication") List<String> authentication,
       @JsonKey(name: "socks-port") int socksPort,
       @JsonKey(name: "port") int port,
       @JsonKey(name: "redir-port") int redirPort,
@@ -3591,6 +3594,7 @@ class _$ClashConfigCopyWithImpl<$Res, $Val extends ClashConfig>
   @override
   $Res call({
     Object? mixedPort = null,
+    Object? authentication = null,
     Object? socksPort = null,
     Object? port = null,
     Object? redirPort = null,
@@ -3618,6 +3622,10 @@ class _$ClashConfigCopyWithImpl<$Res, $Val extends ClashConfig>
           ? _value.mixedPort
           : mixedPort // ignore: cast_nullable_to_non_nullable
               as int,
+      authentication: null == authentication
+          ? _value.authentication
+          : authentication // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       socksPort: null == socksPort
           ? _value.socksPort
           : socksPort // ignore: cast_nullable_to_non_nullable
@@ -3746,6 +3754,7 @@ abstract class _$$ClashConfigImplCopyWith<$Res>
   @useResult
   $Res call(
       {@JsonKey(name: "mixed-port") int mixedPort,
+      @JsonKey(name: "authentication") List<String> authentication,
       @JsonKey(name: "socks-port") int socksPort,
       @JsonKey(name: "port") int port,
       @JsonKey(name: "redir-port") int redirPort,
@@ -3794,6 +3803,7 @@ class __$$ClashConfigImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? mixedPort = null,
+    Object? authentication = null,
     Object? socksPort = null,
     Object? port = null,
     Object? redirPort = null,
@@ -3821,6 +3831,10 @@ class __$$ClashConfigImplCopyWithImpl<$Res>
           ? _value.mixedPort
           : mixedPort // ignore: cast_nullable_to_non_nullable
               as int,
+      authentication: null == authentication
+          ? _value._authentication
+          : authentication // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       socksPort: null == socksPort
           ? _value.socksPort
           : socksPort // ignore: cast_nullable_to_non_nullable
@@ -3914,6 +3928,8 @@ class __$$ClashConfigImplCopyWithImpl<$Res>
 class _$ClashConfigImpl implements _ClashConfig {
   const _$ClashConfigImpl(
       {@JsonKey(name: "mixed-port") this.mixedPort = defaultMixedPort,
+      @JsonKey(name: "authentication")
+      final List<String> authentication = const [],
       @JsonKey(name: "socks-port") this.socksPort = 0,
       @JsonKey(name: "port") this.port = 0,
       @JsonKey(name: "redir-port") this.redirPort = 0,
@@ -3942,7 +3958,8 @@ class _$ClashConfigImpl implements _ClashConfig {
       @JsonKey(name: "external-controller")
       this.externalController = ExternalControllerStatus.close,
       final Map<String, String> hosts = const {}})
-      : _proxyGroups = proxyGroups,
+      : _authentication = authentication,
+        _proxyGroups = proxyGroups,
         _rule = rule,
         _hosts = hosts;
 
@@ -3952,6 +3969,15 @@ class _$ClashConfigImpl implements _ClashConfig {
   @override
   @JsonKey(name: "mixed-port")
   final int mixedPort;
+  final List<String> _authentication;
+  @override
+  @JsonKey(name: "authentication")
+  List<String> get authentication {
+    if (_authentication is EqualUnmodifiableListView) return _authentication;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_authentication);
+  }
+
   @override
   @JsonKey(name: "socks-port")
   final int socksPort;
@@ -4035,7 +4061,7 @@ class _$ClashConfigImpl implements _ClashConfig {
 
   @override
   String toString() {
-    return 'ClashConfig(mixedPort: $mixedPort, socksPort: $socksPort, port: $port, redirPort: $redirPort, tproxyPort: $tproxyPort, mode: $mode, allowLan: $allowLan, logLevel: $logLevel, ipv6: $ipv6, findProcessMode: $findProcessMode, keepAliveInterval: $keepAliveInterval, unifiedDelay: $unifiedDelay, tcpConcurrent: $tcpConcurrent, tun: $tun, dns: $dns, geoXUrl: $geoXUrl, geodataLoader: $geodataLoader, proxyGroups: $proxyGroups, rule: $rule, globalUa: $globalUa, externalController: $externalController, hosts: $hosts)';
+    return 'ClashConfig(mixedPort: $mixedPort, authentication: $authentication, socksPort: $socksPort, port: $port, redirPort: $redirPort, tproxyPort: $tproxyPort, mode: $mode, allowLan: $allowLan, logLevel: $logLevel, ipv6: $ipv6, findProcessMode: $findProcessMode, keepAliveInterval: $keepAliveInterval, unifiedDelay: $unifiedDelay, tcpConcurrent: $tcpConcurrent, tun: $tun, dns: $dns, geoXUrl: $geoXUrl, geodataLoader: $geodataLoader, proxyGroups: $proxyGroups, rule: $rule, globalUa: $globalUa, externalController: $externalController, hosts: $hosts)';
   }
 
   @override
@@ -4045,6 +4071,8 @@ class _$ClashConfigImpl implements _ClashConfig {
             other is _$ClashConfigImpl &&
             (identical(other.mixedPort, mixedPort) ||
                 other.mixedPort == mixedPort) &&
+            const DeepCollectionEquality()
+                .equals(other._authentication, _authentication) &&
             (identical(other.socksPort, socksPort) ||
                 other.socksPort == socksPort) &&
             (identical(other.port, port) || other.port == port) &&
@@ -4086,6 +4114,7 @@ class _$ClashConfigImpl implements _ClashConfig {
   int get hashCode => Object.hashAll([
         runtimeType,
         mixedPort,
+        const DeepCollectionEquality().hash(_authentication),
         socksPort,
         port,
         redirPort,
@@ -4128,6 +4157,7 @@ class _$ClashConfigImpl implements _ClashConfig {
 abstract class _ClashConfig implements ClashConfig {
   const factory _ClashConfig(
       {@JsonKey(name: "mixed-port") final int mixedPort,
+      @JsonKey(name: "authentication") final List<String> authentication,
       @JsonKey(name: "socks-port") final int socksPort,
       @JsonKey(name: "port") final int port,
       @JsonKey(name: "redir-port") final int redirPort,
@@ -4160,6 +4190,9 @@ abstract class _ClashConfig implements ClashConfig {
   @override
   @JsonKey(name: "mixed-port")
   int get mixedPort;
+  @override
+  @JsonKey(name: "authentication")
+  List<String> get authentication;
   @override
   @JsonKey(name: "socks-port")
   int get socksPort;

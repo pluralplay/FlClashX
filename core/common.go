@@ -8,11 +8,14 @@ import (
 	"os"
 	"sync"
 
+	"strings"
+
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/batch"
+	"github.com/metacubex/mihomo/component/auth"
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/config"
@@ -22,6 +25,7 @@ import (
 	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/route"
 	"github.com/metacubex/mihomo/listener"
+	authStore "github.com/metacubex/mihomo/listener/auth"
 	"github.com/metacubex/mihomo/log"
 	rp "github.com/metacubex/mihomo/rules/provider"
 	"github.com/metacubex/mihomo/tunnel"
@@ -103,6 +107,18 @@ func sideUpdateExternalProvider(p cp.Provider, bytes []byte) error {
 	default:
 		return errors.New("not external provider")
 	}
+}
+
+// Matches mihomo's config.parseAuthentication: each entry is "user:pass",
+// split on the first colon. Entries without a colon are skipped.
+func parseAuthenticationList(rawRecords []string) []auth.AuthUser {
+	users := []auth.AuthUser{}
+	for _, line := range rawRecords {
+		if parts := strings.SplitN(line, ":", 2); len(parts) == 2 {
+			users = append(users, auth.AuthUser{User: parts[0], Pass: parts[1]})
+		}
+	}
+	return users
 }
 
 func updateListeners() {
@@ -222,6 +238,12 @@ func updateConfig(params *UpdateParams) {
 		route.ReCreateServer(&route.Config{
 			Addr: currentConfig.Controller.ExternalController,
 		})
+	}
+
+	if params.Authentication != nil {
+		users := parseAuthenticationList(*params.Authentication)
+		general.Authentication = *params.Authentication
+		authStore.Default.SetAuthenticator(auth.NewAuthenticator(users))
 	}
 
 	if params.Tun != nil {

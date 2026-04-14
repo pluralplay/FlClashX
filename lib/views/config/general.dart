@@ -30,6 +30,12 @@ class OverrideNetworkSettingsItem extends ConsumerWidget {
                       overrideNetworkSettings: value,
                     ),
                   );
+              if (!value) {
+                // Turning override off — re-pull the provider YAML so cached
+                // override values (e.g. auth creds) don't leak into the
+                // "managed by provider" state.
+                globalState.appController.setupClashConfigDebounce();
+              }
             },
           ),
         ),
@@ -265,6 +271,66 @@ class PortItem extends ConsumerWidget {
           //   resetValue: "$defaultMixedPort",
           // ),
         ),
+      ),
+    );
+  }
+}
+
+class PortAuthenticationItem extends ConsumerWidget {
+  const PortAuthenticationItem({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final override = ref.watch(
+      appSettingProvider.select((s) => s.overrideNetworkSettings),
+    );
+
+    if (!override) {
+      // Provider-driven: not user-editable. Subtitle mirrors whether the
+      // profile brought its own creds; tap opens a read-only review dialog
+      // when there's anything to show.
+      final providerAuth = ref.watch(
+        patchClashConfigProvider.select((s) => s.authentication),
+      );
+      final hasCreds = providerAuth.isNotEmpty;
+      return Opacity(
+        opacity: 0.5,
+        child: ListItem(
+          leading: const Icon(Icons.lock_outline),
+          title: Text(appLocalizations.portAuthentication),
+          subtitle: Text(
+            hasCreds
+                ? appLocalizations.portAuthEnabledByProvider
+                : appLocalizations.portAuthNotEnabledByProvider,
+          ),
+          onTap: hasCreds
+              ? () => globalState.showCommonDialog(
+                    child: const _PortAuthDialog(readOnly: true),
+                  )
+              : null,
+        ),
+      );
+    }
+
+    // Override mode: trailing Switch toggles enabled/disabled (persistent
+    // app setting). Tapping elsewhere opens the edit dialog.
+    final enabled = ref.watch(
+      appSettingProvider.select((s) => s.portAuthOverrideEnabled),
+    );
+    return ListItem(
+      leading: const Icon(Icons.lock_outline),
+      title: Text(appLocalizations.portAuthentication),
+      subtitle: Text(appLocalizations.portAuthTapToChange),
+      trailing: Switch(
+        value: enabled,
+        onChanged: (value) {
+          ref.read(appSettingProvider.notifier).updateState(
+                (state) => state.copyWith(portAuthOverrideEnabled: value),
+              );
+        },
+      ),
+      onTap: () => globalState.showCommonDialog(
+        child: const _PortAuthDialog(readOnly: false),
       ),
     );
   }
@@ -589,6 +655,7 @@ final generalItems = <Widget>[
   if (system.isDesktop) const KeepAliveIntervalItem(),
   const TestUrlItem(),
   const PortItem(),
+  const PortAuthenticationItem(),
   const HostsItem(),
   const SendHeadersToggle(),
   const Ipv6Item(),
@@ -947,4 +1014,140 @@ class _PortDialogState extends ConsumerState<_PortDialog> {
         ),
       ),
     );
+}
+
+class _PortAuthDialog extends ConsumerStatefulWidget {
+  const _PortAuthDialog({this.readOnly = false});
+
+  final bool readOnly;
+
+  @override
+  ConsumerState<_PortAuthDialog> createState() => _PortAuthDialogState();
+}
+
+class _PortAuthDialogState extends ConsumerState<_PortAuthDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _userController;
+  late final TextEditingController _passController;
+  late final TextEditingController _reviewController;
+
+  @override
+  void initState() {
+    super.initState();
+    final appSetting = ref.read(appSettingProvider);
+    _userController = TextEditingController(
+      text: appSetting.portAuthOverrideUsername,
+    );
+    _passController = TextEditingController(
+      text: appSetting.portAuthOverridePassword,
+    );
+    final auth = ref.read(patchClashConfigProvider).authentication;
+    _reviewController = TextEditingController(text: auth.join('\n'));
+  }
+
+  @override
+  void dispose() {
+    _userController.dispose();
+    _passController.dispose();
+    _reviewController.dispose();
+    super.dispose();
+  }
+
+  void _handleRegenerate() {
+    _passController.text = GlobalState.randomPortAuthPassword();
+  }
+
+  void _handleUpdate() {
+    if (_formKey.currentState?.validate() == false) return;
+    final user = _userController.text;
+    final pass = _passController.text;
+    ref.read(appSettingProvider.notifier).updateState(
+          (state) => state.copyWith(
+            portAuthOverrideUsername: user,
+            portAuthOverridePassword: pass,
+          ),
+        );
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.readOnly) {
+      // Review mode: show all provider-supplied entries verbatim, one per line,
+      // so the user can copy-paste.
+      return CommonDialog(
+        title: appLocalizations.portAuthentication,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: TextField(
+            controller: _reviewController,
+            readOnly: true,
+            maxLines: null,
+            minLines: 3,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontFamilyFallback: ['RobotoMono', 'Courier'],
+            ),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Edit mode — single user/pass pair stored on AppSetting.
+    return CommonDialog(
+      title: appLocalizations.portAuthentication,
+      actions: [
+        TextButton(
+          onPressed: _handleRegenerate,
+          child: Text(appLocalizations.reset),
+        ),
+        const SizedBox(width: 4),
+        TextButton(
+          onPressed: _handleUpdate,
+          child: Text(appLocalizations.submit),
+        ),
+      ],
+      child: Form(
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            spacing: 24,
+            children: [
+              TextFormField(
+                controller: _userController,
+                maxLines: 1,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.account_circle_outlined),
+                  border: const OutlineInputBorder(),
+                  labelText: appLocalizations.username,
+                ),
+                validator: (value) {
+                  if (value != null && value.contains(':')) {
+                    return "':'";
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _passController,
+                maxLines: 1,
+                onFieldSubmitted: (_) => _handleUpdate(),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.key_outlined),
+                  border: const OutlineInputBorder(),
+                  labelText: appLocalizations.password,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

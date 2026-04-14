@@ -557,6 +557,18 @@ class MessageLookup extends MessageLookupByLibrary {
       "Пожалуйста, загрузите действительный QR-код",
     ),
     "port": MessageLookupByLibrary.simpleMessage("Порт"),
+    "portAuthentication": MessageLookupByLibrary.simpleMessage(
+      "Аутентификация порта",
+    ),
+    "portAuthEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "Включена провайдером",
+    ),
+    "portAuthNotEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "Не включена провайдером",
+    ),
+    "portAuthTapToChange": MessageLookupByLibrary.simpleMessage(
+      "Нажмите, чтобы изменить учётные данные",
+    ),
     "portConflictTip": MessageLookupByLibrary.simpleMessage(
       "Введите другой порт",
     ),
@@ -812,6 +824,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "urlDesc": MessageLookupByLibrary.simpleMessage("Загрузить профиль по URL"),
     "urlTip": m8,
     "useHosts": MessageLookupByLibrary.simpleMessage("Использовать hosts"),
+    "username": MessageLookupByLibrary.simpleMessage("Имя пользователя"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Использовать системные hosts",
     ),

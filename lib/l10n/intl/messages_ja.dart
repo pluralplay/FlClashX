@@ -398,6 +398,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "有効なQRコードをアップロードしてください",
     ),
     "port": MessageLookupByLibrary.simpleMessage("ポート"),
+    "portAuthentication": MessageLookupByLibrary.simpleMessage("ポート認証"),
+    "portAuthEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "プロバイダで有効",
+    ),
+    "portAuthNotEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "プロバイダで無効",
+    ),
+    "portAuthTapToChange": MessageLookupByLibrary.simpleMessage(
+      "タップして認証情報を変更",
+    ),
     "portConflictTip": MessageLookupByLibrary.simpleMessage("別のポートを入力してください"),
     "portTip": m6,
     "preferH3Desc": MessageLookupByLibrary.simpleMessage("DOHのHTTP/3を優先使用"),
@@ -571,6 +581,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "urlTip": m8,
     "useHosts": MessageLookupByLibrary.simpleMessage("ホストを使用"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("システムホストを使用"),
+    "username": MessageLookupByLibrary.simpleMessage("ユーザー名"),
     "value": MessageLookupByLibrary.simpleMessage("値"),
     "vibrantScheme": MessageLookupByLibrary.simpleMessage("ビブラント"),
     "view": MessageLookupByLibrary.simpleMessage("表示"),

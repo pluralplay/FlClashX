@@ -348,6 +348,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "请上传有效的二维码",
     ),
     "port": MessageLookupByLibrary.simpleMessage("端口"),
+    "portAuthentication": MessageLookupByLibrary.simpleMessage("端口认证"),
+    "portAuthEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "由提供方启用",
+    ),
+    "portAuthNotEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "提供方未启用",
+    ),
+    "portAuthTapToChange": MessageLookupByLibrary.simpleMessage(
+      "点击修改凭据",
+    ),
     "portConflictTip": MessageLookupByLibrary.simpleMessage("请输入不同的端口"),
     "portTip": m6,
     "preferH3Desc": MessageLookupByLibrary.simpleMessage("优先使用DOH的http/3"),
@@ -503,6 +513,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "urlTip": m8,
     "useHosts": MessageLookupByLibrary.simpleMessage("使用Hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("使用系统Hosts"),
+    "username": MessageLookupByLibrary.simpleMessage("用户名"),
     "value": MessageLookupByLibrary.simpleMessage("值"),
     "vibrantScheme": MessageLookupByLibrary.simpleMessage("活力"),
     "view": MessageLookupByLibrary.simpleMessage("查看"),

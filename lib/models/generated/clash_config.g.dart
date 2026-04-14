@@ -333,6 +333,10 @@ Map<String, dynamic> _$$ClashConfigSnippetImplToJson(
 _$ClashConfigImpl _$$ClashConfigImplFromJson(Map<String, dynamic> json) =>
     _$ClashConfigImpl(
       mixedPort: (json['mixed-port'] as num?)?.toInt() ?? defaultMixedPort,
+      authentication: (json['authentication'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
       socksPort: (json['socks-port'] as num?)?.toInt() ?? 0,
       port: (json['port'] as num?)?.toInt() ?? 0,
       redirPort: (json['redir-port'] as num?)?.toInt() ?? 0,
@@ -382,6 +386,7 @@ _$ClashConfigImpl _$$ClashConfigImplFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$$ClashConfigImplToJson(_$ClashConfigImpl instance) =>
     <String, dynamic>{
       'mixed-port': instance.mixedPort,
+      'authentication': instance.authentication,
       'socks-port': instance.socksPort,
       'port': instance.port,
       'redir-port': instance.redirPort,

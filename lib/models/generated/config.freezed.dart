@@ -40,6 +40,9 @@ mixin _$AppSettingProps {
   bool get developerMode => throw _privateConstructorUsedError;
   bool get overrideProviderSettings => throw _privateConstructorUsedError;
   bool get overrideNetworkSettings => throw _privateConstructorUsedError;
+  bool get portAuthOverrideEnabled => throw _privateConstructorUsedError;
+  String get portAuthOverrideUsername => throw _privateConstructorUsedError;
+  String get portAuthOverridePassword => throw _privateConstructorUsedError;
   RecoveryStrategy get recoveryStrategy => throw _privateConstructorUsedError;
 
   /// Serializes this AppSettingProps to a JSON map.
@@ -78,6 +81,9 @@ abstract class $AppSettingPropsCopyWith<$Res> {
       bool developerMode,
       bool overrideProviderSettings,
       bool overrideNetworkSettings,
+      bool portAuthOverrideEnabled,
+      String portAuthOverrideUsername,
+      String portAuthOverridePassword,
       RecoveryStrategy recoveryStrategy});
 }
 
@@ -114,6 +120,9 @@ class _$AppSettingPropsCopyWithImpl<$Res, $Val extends AppSettingProps>
     Object? developerMode = null,
     Object? overrideProviderSettings = null,
     Object? overrideNetworkSettings = null,
+    Object? portAuthOverrideEnabled = null,
+    Object? portAuthOverrideUsername = null,
+    Object? portAuthOverridePassword = null,
     Object? recoveryStrategy = null,
   }) {
     return _then(_value.copyWith(
@@ -189,6 +198,18 @@ class _$AppSettingPropsCopyWithImpl<$Res, $Val extends AppSettingProps>
           ? _value.overrideNetworkSettings
           : overrideNetworkSettings // ignore: cast_nullable_to_non_nullable
               as bool,
+      portAuthOverrideEnabled: null == portAuthOverrideEnabled
+          ? _value.portAuthOverrideEnabled
+          : portAuthOverrideEnabled // ignore: cast_nullable_to_non_nullable
+              as bool,
+      portAuthOverrideUsername: null == portAuthOverrideUsername
+          ? _value.portAuthOverrideUsername
+          : portAuthOverrideUsername // ignore: cast_nullable_to_non_nullable
+              as String,
+      portAuthOverridePassword: null == portAuthOverridePassword
+          ? _value.portAuthOverridePassword
+          : portAuthOverridePassword // ignore: cast_nullable_to_non_nullable
+              as String,
       recoveryStrategy: null == recoveryStrategy
           ? _value.recoveryStrategy
           : recoveryStrategy // ignore: cast_nullable_to_non_nullable
@@ -225,6 +246,9 @@ abstract class _$$AppSettingPropsImplCopyWith<$Res>
       bool developerMode,
       bool overrideProviderSettings,
       bool overrideNetworkSettings,
+      bool portAuthOverrideEnabled,
+      String portAuthOverrideUsername,
+      String portAuthOverridePassword,
       RecoveryStrategy recoveryStrategy});
 }
 
@@ -259,6 +283,9 @@ class __$$AppSettingPropsImplCopyWithImpl<$Res>
     Object? developerMode = null,
     Object? overrideProviderSettings = null,
     Object? overrideNetworkSettings = null,
+    Object? portAuthOverrideEnabled = null,
+    Object? portAuthOverrideUsername = null,
+    Object? portAuthOverridePassword = null,
     Object? recoveryStrategy = null,
   }) {
     return _then(_$AppSettingPropsImpl(
@@ -334,6 +361,18 @@ class __$$AppSettingPropsImplCopyWithImpl<$Res>
           ? _value.overrideNetworkSettings
           : overrideNetworkSettings // ignore: cast_nullable_to_non_nullable
               as bool,
+      portAuthOverrideEnabled: null == portAuthOverrideEnabled
+          ? _value.portAuthOverrideEnabled
+          : portAuthOverrideEnabled // ignore: cast_nullable_to_non_nullable
+              as bool,
+      portAuthOverrideUsername: null == portAuthOverrideUsername
+          ? _value.portAuthOverrideUsername
+          : portAuthOverrideUsername // ignore: cast_nullable_to_non_nullable
+              as String,
+      portAuthOverridePassword: null == portAuthOverridePassword
+          ? _value.portAuthOverridePassword
+          : portAuthOverridePassword // ignore: cast_nullable_to_non_nullable
+              as String,
       recoveryStrategy: null == recoveryStrategy
           ? _value.recoveryStrategy
           : recoveryStrategy // ignore: cast_nullable_to_non_nullable
@@ -365,6 +404,9 @@ class _$AppSettingPropsImpl implements _AppSettingProps {
       this.developerMode = false,
       this.overrideProviderSettings = false,
       this.overrideNetworkSettings = false,
+      this.portAuthOverrideEnabled = true,
+      this.portAuthOverrideUsername = '',
+      this.portAuthOverridePassword = '',
       this.recoveryStrategy = RecoveryStrategy.compatible})
       : _dashboardWidgets = dashboardWidgets;
 
@@ -433,11 +475,20 @@ class _$AppSettingPropsImpl implements _AppSettingProps {
   final bool overrideNetworkSettings;
   @override
   @JsonKey()
+  final bool portAuthOverrideEnabled;
+  @override
+  @JsonKey()
+  final String portAuthOverrideUsername;
+  @override
+  @JsonKey()
+  final String portAuthOverridePassword;
+  @override
+  @JsonKey()
   final RecoveryStrategy recoveryStrategy;
 
   @override
   String toString() {
-    return 'AppSettingProps(locale: $locale, dashboardWidgets: $dashboardWidgets, onlyStatisticsProxy: $onlyStatisticsProxy, autoLaunch: $autoLaunch, silentLaunch: $silentLaunch, autoRun: $autoRun, openLogs: $openLogs, closeConnections: $closeConnections, testUrl: $testUrl, isAnimateToPage: $isAnimateToPage, autoCheckUpdate: $autoCheckUpdate, showLabel: $showLabel, disclaimerAccepted: $disclaimerAccepted, minimizeOnExit: $minimizeOnExit, hidden: $hidden, developerMode: $developerMode, overrideProviderSettings: $overrideProviderSettings, overrideNetworkSettings: $overrideNetworkSettings, recoveryStrategy: $recoveryStrategy)';
+    return 'AppSettingProps(locale: $locale, dashboardWidgets: $dashboardWidgets, onlyStatisticsProxy: $onlyStatisticsProxy, autoLaunch: $autoLaunch, silentLaunch: $silentLaunch, autoRun: $autoRun, openLogs: $openLogs, closeConnections: $closeConnections, testUrl: $testUrl, isAnimateToPage: $isAnimateToPage, autoCheckUpdate: $autoCheckUpdate, showLabel: $showLabel, disclaimerAccepted: $disclaimerAccepted, minimizeOnExit: $minimizeOnExit, hidden: $hidden, developerMode: $developerMode, overrideProviderSettings: $overrideProviderSettings, overrideNetworkSettings: $overrideNetworkSettings, portAuthOverrideEnabled: $portAuthOverrideEnabled, portAuthOverrideUsername: $portAuthOverrideUsername, portAuthOverridePassword: $portAuthOverridePassword, recoveryStrategy: $recoveryStrategy)';
   }
 
   @override
@@ -479,6 +530,15 @@ class _$AppSettingPropsImpl implements _AppSettingProps {
             (identical(
                     other.overrideNetworkSettings, overrideNetworkSettings) ||
                 other.overrideNetworkSettings == overrideNetworkSettings) &&
+            (identical(
+                    other.portAuthOverrideEnabled, portAuthOverrideEnabled) ||
+                other.portAuthOverrideEnabled == portAuthOverrideEnabled) &&
+            (identical(
+                    other.portAuthOverrideUsername, portAuthOverrideUsername) ||
+                other.portAuthOverrideUsername == portAuthOverrideUsername) &&
+            (identical(
+                    other.portAuthOverridePassword, portAuthOverridePassword) ||
+                other.portAuthOverridePassword == portAuthOverridePassword) &&
             (identical(other.recoveryStrategy, recoveryStrategy) ||
                 other.recoveryStrategy == recoveryStrategy));
   }
@@ -505,6 +565,9 @@ class _$AppSettingPropsImpl implements _AppSettingProps {
         developerMode,
         overrideProviderSettings,
         overrideNetworkSettings,
+        portAuthOverrideEnabled,
+        portAuthOverrideUsername,
+        portAuthOverridePassword,
         recoveryStrategy
       ]);
 
@@ -546,6 +609,9 @@ abstract class _AppSettingProps implements AppSettingProps {
       final bool developerMode,
       final bool overrideProviderSettings,
       final bool overrideNetworkSettings,
+      final bool portAuthOverrideEnabled,
+      final String portAuthOverrideUsername,
+      final String portAuthOverridePassword,
       final RecoveryStrategy recoveryStrategy}) = _$AppSettingPropsImpl;
 
   factory _AppSettingProps.fromJson(Map<String, dynamic> json) =
@@ -588,6 +654,12 @@ abstract class _AppSettingProps implements AppSettingProps {
   bool get overrideProviderSettings;
   @override
   bool get overrideNetworkSettings;
+  @override
+  bool get portAuthOverrideEnabled;
+  @override
+  String get portAuthOverrideUsername;
+  @override
+  String get portAuthOverridePassword;
   @override
   RecoveryStrategy get recoveryStrategy;
 

@@ -31,6 +31,12 @@ _$AppSettingPropsImpl _$$AppSettingPropsImplFromJson(
           json['overrideProviderSettings'] as bool? ?? false,
       overrideNetworkSettings:
           json['overrideNetworkSettings'] as bool? ?? false,
+      portAuthOverrideEnabled:
+          json['portAuthOverrideEnabled'] as bool? ?? true,
+      portAuthOverrideUsername:
+          json['portAuthOverrideUsername'] as String? ?? '',
+      portAuthOverridePassword:
+          json['portAuthOverridePassword'] as String? ?? '',
       recoveryStrategy: $enumDecodeNullable(
               _$RecoveryStrategyEnumMap, json['recoveryStrategy']) ??
           RecoveryStrategy.compatible,
@@ -59,6 +65,9 @@ Map<String, dynamic> _$$AppSettingPropsImplToJson(
       'developerMode': instance.developerMode,
       'overrideProviderSettings': instance.overrideProviderSettings,
       'overrideNetworkSettings': instance.overrideNetworkSettings,
+      'portAuthOverrideEnabled': instance.portAuthOverrideEnabled,
+      'portAuthOverrideUsername': instance.portAuthOverrideUsername,
+      'portAuthOverridePassword': instance.portAuthOverridePassword,
       'recoveryStrategy': _$RecoveryStrategyEnumMap[instance.recoveryStrategy]!,
     };
 

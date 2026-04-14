@@ -59,6 +59,7 @@ class UpdateParams with _$UpdateParams {
     @JsonKey(name: 'external-controller')
     required ExternalControllerStatus externalController,
     @JsonKey(name: 'unified-delay') required bool unifiedDelay,
+    @JsonKey(name: 'authentication') required List<String> authentication,
   }) = _UpdateParams;
 
   factory UpdateParams.fromJson(Map<String, dynamic> json) =>

@@ -528,6 +528,18 @@ class MessageLookup extends MessageLookupByLibrary {
       "Please upload a valid QR code",
     ),
     "port": MessageLookupByLibrary.simpleMessage("Port"),
+    "portAuthentication": MessageLookupByLibrary.simpleMessage(
+      "Port authentication",
+    ),
+    "portAuthEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "Enabled by provider",
+    ),
+    "portAuthNotEnabledByProvider": MessageLookupByLibrary.simpleMessage(
+      "Not enabled by provider",
+    ),
+    "portAuthTapToChange": MessageLookupByLibrary.simpleMessage(
+      "Tap to change credentials",
+    ),
     "portConflictTip": MessageLookupByLibrary.simpleMessage(
       "Please enter a different port",
     ),
@@ -778,6 +790,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "urlTip": m8,
     "useHosts": MessageLookupByLibrary.simpleMessage("Use hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("Use system hosts"),
+    "username": MessageLookupByLibrary.simpleMessage("Username"),
     "value": MessageLookupByLibrary.simpleMessage("Value"),
     "vibrantScheme": MessageLookupByLibrary.simpleMessage("Vibrant"),
     "view": MessageLookupByLibrary.simpleMessage("View"),

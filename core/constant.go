@@ -36,6 +36,7 @@ type UpdateParams struct {
 	ExternalController *string            `json:"external-controller"`
 	Interface          *string            `json:"interface-name"`
 	UnifiedDelay       *bool              `json:"unified-delay"`
+	Authentication     *[]string          `json:"authentication"`
 }
 
 type tunSchema struct {

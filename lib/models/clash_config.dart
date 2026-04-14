@@ -466,6 +466,7 @@ class ClashConfigSnippet with _$ClashConfigSnippet {
 class ClashConfig with _$ClashConfig {
   const factory ClashConfig({
     @Default(defaultMixedPort) @JsonKey(name: "mixed-port") int mixedPort,
+    @Default([]) @JsonKey(name: "authentication") List<String> authentication,
     @Default(0) @JsonKey(name: "socks-port") int socksPort,
     @Default(0) @JsonKey(name: "port") int port,
     @Default(0) @JsonKey(name: "redir-port") int redirPort,
