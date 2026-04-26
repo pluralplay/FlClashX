@@ -353,7 +353,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
     final isTransparent = backgroundUrl != null;
     
     return PreferredSize(
-      preferredSize: const Size.fromHeight(kToolbarHeight),
+      preferredSize: Size.fromHeight(widget.appBar?.preferredSize.height ?? kToolbarHeight),
       child: Theme(
         data: Theme.of(context).copyWith(
           appBarTheme: AppBarTheme(
@@ -367,9 +367,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                   Theme.of(context).brightness == Brightness.dark
                       ? Brightness.light
                       : Brightness.dark,
-              systemNavigationBarColor: widget.bottomNavigationBar != null
-                  ? context.colorScheme.surfaceContainer
-                  : context.colorScheme.surface,
+              systemNavigationBarColor: Colors.transparent,
               systemNavigationBarDividerColor: Colors.transparent,
             ),
           ),
@@ -380,10 +378,18 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
             widget.appBar ??
                 ValueListenableBuilder<AppBarState>(
                   valueListenable: _appBarState,
-                  builder: (_, state, __) => _buildAppBarWrap(
+                  builder: (_, state, __) {
+                    final dark = Theme.of(context).brightness == Brightness.dark;
+                    return _buildAppBarWrap(
                       AppBar(
-                        backgroundColor: isTransparent ? Colors.transparent : null,
-                        elevation: isTransparent ? 0 : null,
+                        backgroundColor: isTransparent
+                            ? Colors.transparent
+                            : dark
+                                ? const Color(0xFF05050E)
+                                : null,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        surfaceTintColor: Colors.transparent,
                         centerTitle: widget.centerTitle ?? false,
                         automaticallyImplyLeading:
                             widget.automaticallyImplyLeading,
@@ -396,7 +402,8 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
                               : widget.actions ?? [],
                         ),
                       ),
-                    ),
+                    );
+                  },
                 ),
             ValueListenableBuilder(
               valueListenable: _loading,
@@ -491,11 +498,38 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
       ),
     );
     
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cosmicBg = isDark ? const Color(0xFF05050E) : null;
+
     final scaffold = Scaffold(
       appBar: _buildAppBar(),
-      body: body,
+      body: backgroundUrl == null && isDark
+          ? Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(0.8, -1.0),
+                        end: Alignment(-0.5, 1.0),
+                        colors: [
+                          Color(0xFF0D0520),
+                          Color(0xFF05050E),
+                          Color(0xFF07091D),
+                        ],
+                        stops: [0.0, 0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+                body,
+              ],
+            )
+          : body,
       resizeToAvoidBottomInset: true,
-      backgroundColor: backgroundUrl != null ? Colors.transparent : widget.backgroundColor,
+      backgroundColor: backgroundUrl != null
+          ? Colors.transparent
+          : widget.backgroundColor ?? cosmicBg,
       floatingActionButton: widget.floatingActionButton ??
           ValueListenableBuilder<Widget?>(
             valueListenable: _floatingActionButton,
@@ -508,6 +542,7 @@ class CommonScaffoldState extends ConsumerState<CommonScaffold> {
               ),
           ),
       bottomNavigationBar: widget.bottomNavigationBar,
+      extendBody: widget.bottomNavigationBar != null,
     );
     
     final scaffoldWithBackground = backgroundUrl != null

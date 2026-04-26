@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:math' show max, min;
 import 'dart:ui';
 
+import 'package:flutter/services.dart';
+
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
@@ -34,7 +36,7 @@ class DashboardView extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? _kBgDark : const Color(0xFFF5F5F7),
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           // Starfield background
@@ -63,7 +65,7 @@ class DashboardView extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                     children: [
                       // ── Top bar ──────────────────────────────────────────
                       _TopBar(isDark: isDark),
@@ -158,6 +160,14 @@ class _Orb extends StatelessWidget {
       );
 }
 
+Future<void> _clipboardImport() async {
+  final data = await Clipboard.getData(Clipboard.kTextPlain);
+  final url = data?.text?.trim();
+  if (url != null && url.isNotEmpty) {
+    globalState.appController.addProfileFormURL(url);
+  }
+}
+
 // ── Top bar ─────────────────────────────────────────────────────────────────────
 
 class _TopBar extends StatelessWidget {
@@ -167,19 +177,14 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          // Logo
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [_kAccent, Color(0xFF4F3FBD)],
-              ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              'assets/images/icon.png',
+              width: 34,
+              height: 34,
+              fit: BoxFit.cover,
             ),
-            child: const Icon(Icons.shield, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 10),
           Text(
@@ -193,10 +198,15 @@ class _TopBar extends StatelessWidget {
           ),
           const Spacer(),
           _IconBtn(
+            icon: Icons.content_paste_go_outlined,
+            isDark: isDark,
+            onTap: _clipboardImport,
+          ),
+          const SizedBox(width: 6),
+          _IconBtn(
             icon: Icons.settings_outlined,
             isDark: isDark,
-            onTap: () =>
-                globalState.appController.toPage(PageLabel.tools),
+            onTap: () => globalState.appController.toPage(PageLabel.tools),
           ),
         ],
       );
@@ -539,7 +549,7 @@ class _TrafficCard extends ConsumerWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -548,32 +558,33 @@ class _TrafficCard extends ConsumerWidget {
                     Text(
                       'Трафик сессии',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: isDark ? _kText2 : const Color(0x8C0A0A1A),
+                        letterSpacing: 0.2,
                       ),
                     ),
                     const Spacer(),
                     Text(
                       '↓ ${total.down.show}  ↑ ${total.up.show}',
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: _kText3,
                         fontFamily: 'JetBrainsMono',
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 SizedBox(
-                  height: 52,
+                  height: 36,
                   child: _TrafficBars(traffics: traffics),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     _Legend(color: _kAccent, label: 'Загрузка'),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     _Legend(
                         color: _kAccent.withValues(alpha: 0.35),
                         label: 'Отдача'),

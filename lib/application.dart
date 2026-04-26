@@ -39,11 +39,50 @@ class ApplicationState extends ConsumerState<Application> {
     },
   );
 
+  static const _cosmicDark = ColorScheme(
+    brightness: Brightness.dark,
+    primary: Color(0xFF8B63F0),
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFF3A1890),
+    onPrimaryContainer: Color(0xFFE8D8FF),
+    secondary: Color(0xFF4FECF7),
+    onSecondary: Color(0xFF003640),
+    secondaryContainer: Color(0xFF004D58),
+    onSecondaryContainer: Color(0xFFA4F0F8),
+    tertiary: Color(0xFF00FFB0),
+    onTertiary: Color(0xFF003828),
+    tertiaryContainer: Color(0xFF005140),
+    onTertiaryContainer: Color(0xFF7BFFCE),
+    error: Color(0xFFFF4D6A),
+    onError: Colors.white,
+    errorContainer: Color(0xFF7A0027),
+    onErrorContainer: Color(0xFFFFB3C1),
+    surface: Color(0xFF07071A),
+    onSurface: Color(0xFFDCE8FF),
+    onSurfaceVariant: Color(0xFF8CDCE8),
+    surfaceContainer: Color(0xFF0A0A22),
+    surfaceContainerHigh: Color(0xFF0D0D28),
+    surfaceContainerHighest: Color(0xFF141438),
+    surfaceContainerLow: Color(0xFF060615),
+    surfaceContainerLowest: Color(0xFF04040F),
+    surfaceDim: Color(0xFF05050E),
+    surfaceBright: Color(0xFF1A1A40),
+    outline: Color(0x406450FF),
+    outlineVariant: Color(0x206450FF),
+    shadow: Colors.black,
+    scrim: Colors.black,
+    inverseSurface: Color(0xFFDCE8FF),
+    onInverseSurface: Color(0xFF050510),
+    inversePrimary: Color(0xFF5428C8),
+  );
+
   ColorScheme _getAppColorScheme({
     required Brightness brightness,
     int? primaryColor,
-  }) =>
-      ref.read(genColorSchemeProvider(brightness));
+  }) {
+    if (brightness == Brightness.dark) return _cosmicDark;
+    return ref.read(genColorSchemeProvider(brightness));
+  }
 
   @override
   void initState() {

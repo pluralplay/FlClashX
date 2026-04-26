@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flclashx/common/common.dart';
 import 'package:flclashx/enum/enum.dart';
@@ -36,11 +37,18 @@ class HomePage extends StatelessWidget {
                 viewMode == ViewMode.mobile ? navigationBar : null;
             final sideNavigationBar =
                 viewMode != ViewMode.mobile ? navigationBar : null;
+            final isDashboard = pageLabel == PageLabel.dashboard;
             return CommonScaffold(
               key: globalState.homeScaffoldKey,
-              title: Intl.message(
-                pageLabel.name,
-              ),
+              appBar: isDashboard
+                  ? AppBar(
+                      toolbarHeight: 0,
+                      automaticallyImplyLeading: false,
+                      elevation: 0,
+                      backgroundColor: Colors.transparent,
+                    )
+                  : null,
+              title: isDashboard ? null : Intl.message(pageLabel.name),
               sideNavigationBar: sideNavigationBar,
               body: child!,
               bottomNavigationBar: bottomNavigationBar,
@@ -168,22 +176,9 @@ class CommonNavigationBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     if (viewMode == ViewMode.mobile) {
-      return NavigationBarTheme(
-        data: _NavigationBarDefaultsM3(context),
-        child: NavigationBar(
-          destinations: navigationItems
-              .map(
-                (e) => NavigationDestination(
-                  icon: e.icon,
-                  label: Intl.message(e.label.name),
-                ),
-              )
-              .toList(),
-          onDestinationSelected: (index) {
-            globalState.appController.toPage(navigationItems[index].label);
-          },
-          selectedIndex: currentIndex,
-        ),
+      return _FloatingIsland(
+        navigationItems: navigationItems,
+        currentIndex: currentIndex,
       );
     }
     final showLabel = ref.watch(appSettingProvider).showLabel;
@@ -288,6 +283,129 @@ class CommonNavigationBar extends ConsumerWidget {
             height: 16,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FloatingIsland extends StatelessWidget {
+  const _FloatingIsland({
+    required this.navigationItems,
+    required this.currentIndex,
+  });
+
+  final List<NavigationItem> navigationItems;
+  final int currentIndex;
+
+  static const _accent = Color(0xFF8B63F0);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
+
+    return SizedBox(
+      height: 72 + safeBottom,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(40),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 340),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(40),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.62)
+                      : Colors.white.withValues(alpha: 0.78),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.white.withValues(alpha: 0.6),
+                    width: 0.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _accent.withValues(alpha: isDark ? 0.20 : 0.12),
+                      blurRadius: 30,
+                      offset: const Offset(0, 6),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(navigationItems.length, (i) {
+                    final item = navigationItems[i];
+                    final selected = i == currentIndex;
+                    return GestureDetector(
+                      onTap: () =>
+                          globalState.appController.toPage(item.label),
+                      behavior: HitTestBehavior.opaque,
+                      child: SizedBox(
+                        width: 60,
+                        height: 58,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 220),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: selected
+                                    ? _accent.withValues(alpha: 0.22)
+                                    : Colors.transparent,
+                              ),
+                              child: IconTheme(
+                                data: IconThemeData(
+                                  color: selected
+                                      ? _accent
+                                      : isDark
+                                          ? Colors.white.withValues(alpha: 0.38)
+                                          : Colors.grey,
+                                  size: 20,
+                                ),
+                                child: item.icon,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              Intl.message(item.label.name),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                fontFamily: 'MS Gothic',
+                                color: selected
+                                    ? _accent
+                                    : isDark
+                                        ? Colors.white.withValues(alpha: 0.35)
+                                        : Colors.grey,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
