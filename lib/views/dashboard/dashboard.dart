@@ -242,7 +242,7 @@ class _ConnectionCard extends ConsumerWidget {
     final runTime = ref.watch(runTimeProvider);
     final localIp = ref.watch(localIpProvider);
     final latestTraffic = ref.watch(
-      trafficsProvider.select((list) => list.isNotEmpty ? list.last : null),
+      trafficsProvider.select((list) => list.length > 0 ? list[list.length - 1] : null),
     );
 
     final borderColor = isStart
@@ -595,10 +595,10 @@ class _TrafficBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const barCount = 20;
-    final list = traffics.toList();
+    final list = traffics.list;
     // pad on the left with empty bars if less than barCount
     final padded = <Traffic?>[
-      ...List.filled(max(0, barCount - list.length), null),
+      ...List.filled(math.max(0, barCount - list.length), null),
       ...list.take(barCount),
     ];
     final maxDown = list.isEmpty
