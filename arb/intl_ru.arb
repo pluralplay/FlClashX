@@ -6,6 +6,7 @@
   "proxies": "Прокси",
   "profile": "Профиль",
   "profiles": "Профили",
+  "bypass": "Bypass",
   "tools": "Настройки",
   "logs": "Логи",
   "logsDesc": "Записи журнала событий",

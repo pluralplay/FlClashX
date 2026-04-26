@@ -18,6 +18,7 @@ type ActionResult struct {
 	Method   Method         `json:"method"`
 	Data     interface{}    `json:"data"`
 	Code     int            `json:"code"`
+	Port     int64          `json:"-"`
 	Callback unsafe.Pointer `json:"-"`
 }
 

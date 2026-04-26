@@ -102,6 +102,16 @@ class Navigation {
         ),
         modes: [NavigationItemMode.desktop, NavigationItemMode.mobile],
       ),
+      const NavigationItem(
+        icon: Icon(Icons.shield_outlined),
+        label: PageLabel.bypass,
+        view: BypassView(
+          key: GlobalObjectKey(
+            PageLabel.bypass,
+          ),
+        ),
+        modes: [NavigationItemMode.mobile, NavigationItemMode.desktop],
+      ),
     ];
 }
 

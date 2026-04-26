@@ -6,6 +6,7 @@
   "proxies": "Proxies",
   "profile": "Profile",
   "profiles": "Profiles",
+  "bypass": "Bypass",
   "tools": "Settings",
   "logs": "Logs",
   "logsDesc": "Log capture records",

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="fl_clashx">FlClashX</string>
-    <string name="widget_description">FlClashX Mode &amp; Tunnel</string>
+    <string name="fl_clashx">FlowXray</string>
+    <string name="widget_description">FlowXray Mode &amp; Tunnel</string>
     <string name="widget_mode_rule">Rule</string>
     <string name="widget_mode_global">Global</string>
     <string name="widget_mode_direct">Direct</string>
     <string name="widget_toggle_desc">Toggle tunnel</string>
-    <string name="widget_on_off_description">FlClashX Tunnel On/Off</string>
+    <string name="widget_on_off_description">FlowXray Tunnel On/Off</string>
 </resources>

@@ -187,7 +187,7 @@ class ApplicationState extends ConsumerState<Application> {
                     brightness: Brightness.light,
                     primaryColor: themeProps.primaryColor,
                   ),
-                  // Reduce animation duration for snappier feel
+                  fontFamily: 'MS Gothic',
                   visualDensity: VisualDensity.adaptivePlatformDensity,
                 ),
                 darkTheme: ThemeData(
@@ -197,7 +197,7 @@ class ApplicationState extends ConsumerState<Application> {
                     brightness: Brightness.dark,
                     primaryColor: themeProps.primaryColor,
                   ).toPureBlack(themeProps.pureBlack),
-                  // Reduce animation duration for snappier feel
+                  fontFamily: 'MS Gothic',
                   visualDensity: VisualDensity.adaptivePlatformDensity,
                 ),
                 home: child,

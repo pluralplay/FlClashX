@@ -8,7 +8,7 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flutter/material.dart';
 
-const appName = "FlClashX";
+const appName = "FlowXray";
 const appHelperService = "FlClashHelperService";
 const coreName = "clashx.meta";
 const browserUa =
@@ -82,7 +82,7 @@ const viewModeColumnsMap = {
 // const toolsStoreKey = PageStorageKey<String>('tools');
 // const profilesStoreKey = PageStorageKey<String>('profiles');
 
-const defaultPrimaryColor = 0xFF03A9F4;
+const defaultPrimaryColor = 0xFF7C6EF7;
 
 double getWidgetHeight(num lines) => max(lines * 84 + (lines - 1) * 16, 0).ap;
 

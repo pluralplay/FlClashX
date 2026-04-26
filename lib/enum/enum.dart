@@ -463,6 +463,7 @@ enum PageLabel {
   requests,
   resources,
   connections,
+  bypass,
 }
 
 enum RuleAction {

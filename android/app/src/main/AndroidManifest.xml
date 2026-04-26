@@ -21,13 +21,15 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".FlClashXApplication"
         android:banner="@mipmap/ic_banner"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="FlClashX"
+        android:label="FlowXray"
         android:memtagMode="off">
         <activity
             android:name="com.follow.clashx.MainActivity"
@@ -118,7 +120,7 @@
             android:name=".services.FlClashXTileService"
             android:exported="true"
             android:icon="@drawable/ic"
-            android:label="FlClashX"
+            android:label="FlowXray"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             tools:targetApi="n">
             <intent-filter>
