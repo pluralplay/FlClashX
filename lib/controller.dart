@@ -328,6 +328,25 @@ class AppController {
             .toSet();
         applySubscriptionSettings(settings);
       }
+
+      // flclashx-closeconnections: explicit toggle for the
+      // "auto-close connections on server change" setting.
+      // Accepted values: "true" / "false" (case-insensitive).
+      final closeHeader = headers['flclashx-closeconnections'];
+      if (closeHeader != null) {
+        final raw = closeHeader.trim().toLowerCase();
+        if (raw == 'true' || raw == 'false') {
+          final value = raw == 'true';
+          _ref.read(appSettingProvider.notifier).updateState(
+                (state) => state.copyWith(closeConnections: value),
+              );
+          commonPrint.log(
+              "Applied flclashx-closeconnections: closeConnections=$value");
+        } else {
+          commonPrint.log(
+              "Invalid flclashx-closeconnections value: '$closeHeader' (expected 'true' or 'false')");
+        }
+      }
     } catch (e) {
       commonPrint.log("Failed to apply provider settings: $e");
     }
