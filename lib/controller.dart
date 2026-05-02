@@ -328,6 +328,25 @@ class AppController {
             .toSet();
         applySubscriptionSettings(settings);
       }
+
+      // flclashx-openlogs: explicit toggle for the application
+      // event logging setting (controls appSetting.openLogs).
+      // Accepted values: "true" / "false" (case-insensitive).
+      final openLogsHeader = headers['flclashx-openlogs'];
+      if (openLogsHeader != null) {
+        final raw = openLogsHeader.trim().toLowerCase();
+        if (raw == 'true' || raw == 'false') {
+          final value = raw == 'true';
+          _ref.read(appSettingProvider.notifier).updateState(
+                (state) => state.copyWith(openLogs: value),
+              );
+          commonPrint.log(
+              "Applied flclashx-openlogs: openLogs=$value");
+        } else {
+          commonPrint.log(
+              "Invalid flclashx-openlogs value: '$openLogsHeader' (expected 'true' or 'false')");
+        }
+      }
     } catch (e) {
       commonPrint.log("Failed to apply provider settings: $e");
     }
