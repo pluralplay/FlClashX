@@ -57,7 +57,7 @@ class Request {
         throw Exception('Redirect detected, but no location header was found.');
       }
 
-      print('↪️ Redirecting to: $newUrl');
+      commonPrint.log('Redirecting to: $newUrl');
       final finalResponse = await _dio.get<Uint8List>(
         newUrl,
         options: Options(
@@ -121,36 +121,52 @@ class Request {
   };
 
   Future<Result<IpInfo?>> checkIp({CancelToken? cancelToken}) async {
-    var failureCount = 0;
-    final futures = _ipInfoSources.entries.map((source) async {
-      final completer = Completer<Result<IpInfo?>>();
-      final future = Dio().get<Map<String, dynamic>>(
+    final futures = _ipInfoSources.entries.map(
+      (source) => _checkIpFromSource(source, cancelToken: cancelToken),
+    ).toList();
+    await for (final ipInfo in Stream.fromFutures(futures)) {
+      if (cancelToken?.isCancelled == true) {
+        return Result.error("cancelled");
+      }
+      if (ipInfo != null) {
+        cancelToken?.cancel();
+        return Result.success(ipInfo);
+      }
+    }
+    return Result.success(null);
+  }
+
+  Future<IpInfo?> _checkIpFromSource(
+    MapEntry<String, IpInfo Function(Map<String, dynamic>)> source, {
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+        ),
+      ).get<Map<String, dynamic>>(
         source.key,
         cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.json,
         ),
       );
-      future.then((res) {
-        if (res.statusCode == HttpStatus.ok && res.data != null) {
-          completer.complete(Result.success(source.value(res.data!)));
-        } else {
-          failureCount++;
-          if (failureCount == _ipInfoSources.length) {
-            completer.complete(Result.success(null));
-          }
-        }
-      }).catchError((e) {
-        failureCount++;
-        if (e == DioExceptionType.cancel) {
-          completer.complete(Result.error("cancelled"));
-        }
-      });
-      return completer.future;
-    });
-    final res = await Future.any(futures);
-    cancelToken?.cancel();
-    return res;
+      if (response.statusCode != HttpStatus.ok || response.data == null) {
+        return null;
+      }
+      return source.value(response.data!);
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        return null;
+      }
+      commonPrint.log('Failed to check IP from ${source.key}: $e');
+      return null;
+    } catch (e) {
+      commonPrint.log('Failed to parse IP info from ${source.key}: $e');
+      return null;
+    }
   }
 
   Future<bool> pingHelper() async {

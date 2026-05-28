@@ -18,43 +18,87 @@ class SendToTvPage extends ConsumerStatefulWidget {
 }
 
 class _SendToTvPageState extends ConsumerState<SendToTvPage> {
+  static const _syncType = 'flclashx_tv_sync';
+
   final MobileScannerController _scannerController = MobileScannerController();
   bool _isScanComplete = false;
 
   Future<void> _handleQrCode(BarcodeCapture capture) async {
     if (_isScanComplete) return;
-    setState(() {
-      _isScanComplete = true;
-    });
 
+    if (capture.barcodes.isEmpty) {
+      return;
+    }
     final rawValue = capture.barcodes.first.rawValue;
-    if (rawValue == null) return;
+    if (rawValue == null) {
+      return;
+    }
 
     try {
-      final data = jsonDecode(rawValue);
-      if (data['type'] == 'flclashx_tv_sync') {
-        final ip = data['ip'];
-        final port = data['port'];
-        final tvUrl = 'http://$ip:$port/add-profile';
-        final dio = Dio(BaseOptions(
-          connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
-        ));
-        await dio.post(
-          tvUrl,
-          data: {'url': widget.profileUrl},
-        );
-        _showResultDialog(appLocalizations.successTitle,
-            appLocalizations.sentSuccessfullyMessage);
+      final endpoint = _parseSyncEndpoint(rawValue);
+      if (endpoint == null) {
+        return;
       }
-    } catch (e) {
+      setState(() {
+        _isScanComplete = true;
+      });
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+      ));
+      await dio.post(
+        endpoint,
+        data: {'url': widget.profileUrl},
+      );
+      if (!mounted) return;
       _showResultDialog(
-          appLocalizations.errorTitle, appLocalizations.invalidQrMessage);
-      print('Error sending to TV: $e');
+        appLocalizations.successTitle,
+        appLocalizations.sentSuccessfullyMessage,
+      );
+    } catch (e) {
+      commonPrint.log('Error sending profile to TV: $e');
+      if (!mounted) return;
+      setState(() {
+        _isScanComplete = true;
+      });
+      _showResultDialog(
+        appLocalizations.errorTitle,
+        appLocalizations.invalidQrMessage,
+      );
     }
   }
 
+  String? _parseSyncEndpoint(String rawValue) {
+    final dynamic payload;
+    try {
+      payload = jsonDecode(rawValue);
+    } catch (_) {
+      return null;
+    }
+    if (payload is! Map<String, dynamic>) {
+      return null;
+    }
+    if (payload['type'] != _syncType) {
+      return null;
+    }
+    final ip = payload['ip'];
+    final port = payload['port'];
+    if (ip is! String || ip.isEmpty || port is! int) {
+      return null;
+    }
+    if (port < 1 || port > 65535) {
+      return null;
+    }
+    return Uri(
+      scheme: 'http',
+      host: ip,
+      port: port,
+      path: '/add-profile',
+    ).toString();
+  }
+
   void _showResultDialog(String title, String content) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(

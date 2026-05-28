@@ -17,6 +17,9 @@ class ReceiveProfileDialog extends StatefulWidget {
 }
 
 class _ReceiveProfileDialogState extends State<ReceiveProfileDialog> {
+  static const _syncType = 'flclashx_tv_sync';
+  static const _syncPort = 8899;
+
   HttpServer? _server;
   String? _qrData;
   bool _isLoading = true;
@@ -30,43 +33,64 @@ class _ReceiveProfileDialogState extends State<ReceiveProfileDialog> {
   Future<void> _startServerAndGenerateQr() async {
     try {
       final ip = await NetworkInfo().getWifiIP();
-      const port = 8899;
+      if (ip == null || ip.isEmpty) {
+        throw StateError('Could not get IP address');
+      }
 
       final router = shelf_router.Router();
       router.post('/add-profile', (shelf.Request request) async {
-        final body = await request.readAsString();
-        final json = jsonDecode(body);
-        final url = json['url'] as String?;
+        final url = await _readProfileUrl(request);
 
         if (url != null && url.isNotEmpty) {
-          print('Received subscription link: $url');
+          commonPrint.log('Received subscription link from TV sync');
           if (mounted) Navigator.of(context).pop(url);
           return shelf.Response.ok('Link received by TV');
         }
         return shelf.Response.badRequest(body: 'URL not found');
       });
 
-      _server = await shelf_io.serve(router.call, ip!, port);
-      print('Server started at http://${_server?.address.host}:${_server?.port}');
+      _server = await shelf_io.serve(router.call, ip, _syncPort);
+      commonPrint.log(
+        'TV sync server started at http://${_server?.address.host}:${_server?.port}',
+      );
 
+      if (!mounted) return;
       setState(() {
         _qrData = jsonEncode({
-          'type': 'flclashx_tv_sync',
+          'type': _syncType,
           'ip': _server?.address.host,
           'port': _server?.port,
         });
         _isLoading = false;
       });
     } catch (e) {
-      print('Error starting server: $e');
+      commonPrint.log('Error starting TV sync server: $e');
       if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  Future<String?> _readProfileUrl(shelf.Request request) async {
+    try {
+      final body = await request.readAsString();
+      final payload = jsonDecode(body);
+      if (payload is! Map<String, dynamic>) {
+        return null;
+      }
+      final url = payload['url'];
+      if (url is! String || url.trim().isEmpty) {
+        return null;
+      }
+      return url.trim();
+    } catch (e) {
+      commonPrint.log('Invalid TV sync request: $e');
+      return null;
     }
   }
 
   @override
   void dispose() {
     _server?.close(force: true);
-    print('Server stopped');
+    commonPrint.log('TV sync server stopped');
     super.dispose();
   }
 

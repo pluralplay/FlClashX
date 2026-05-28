@@ -233,12 +233,13 @@ extension ProfileExtension on Profile {
   }
 
   Future<Profile> saveFile(Uint8List bytes) async {
-    final message = await clashCore.validateConfig(utf8.decode(bytes));
+    final content = utf8.decode(bytes);
+    final message = await clashCore.validateConfig(content);
     if (message.isNotEmpty) {
       throw message;
     }
     final file = await getFile();
-    await file.writeAsBytes(bytes);
+    await _writeProfileFileAtomically(file, bytes);
     return copyWith(lastUpdateDate: DateTime.now());
   }
 
@@ -248,7 +249,22 @@ extension ProfileExtension on Profile {
       throw message;
     }
     final file = await getFile();
-    await file.writeAsString(value);
+    await _writeProfileFileAtomically(file, utf8.encode(value));
     return copyWith(lastUpdateDate: DateTime.now());
+  }
+
+  Future<void> _writeProfileFileAtomically(File file, List<int> bytes) async {
+    final tempFile = File(
+      '${file.path}.tmp.${DateTime.now().microsecondsSinceEpoch}',
+    );
+    try {
+      await tempFile.writeAsBytes(bytes, flush: true);
+      await tempFile.rename(file.path);
+    } catch (_) {
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+      rethrow;
+    }
   }
 }
