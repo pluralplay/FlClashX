@@ -474,7 +474,7 @@ jobs:
       - name: Push to AUR
         working-directory: /tmp/aur-pkg
         run: |
-          git config user.email "vayudanov@ya.ru"
+          git config user.email "github-actios[bot]@users.noreply.github.com"
           git config user.name "Github Actions (pluralplay)"
           git add PKGBUILD .SRCINFO
           if ! git diff --cached --quiet; then
