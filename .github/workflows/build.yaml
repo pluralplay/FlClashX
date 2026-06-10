@@ -379,3 +379,105 @@ jobs:
         run: |
           python3 -m pip install requests --quiet
           python3 .github/scripts/notify_telegram.py
+
+  aur-publish:
+    needs: [upload]
+    if: always() && needs.upload.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH for AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          SSHEOF
+
+      - name: Parse release tag
+        id: release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^([0-9.]+)-pre\.([0-9]+)$ ]]; then
+            echo "pkgver=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "pkgrel=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "aur_pkg=flclashx-git" >> "$GITHUB_OUTPUT"
+          else
+            echo "pkgver=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "pkgrel=1" >> "$GITHUB_OUTPUT"
+            echo "aur_pkg=flclashx-bin" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clone AUR repository
+        run: git clone ssh://aur@aur.archlinux.org/${{ steps.release.outputs.aur_pkg }}.git /tmp/aur-pkg
+
+      - name: Download release assets and compute checksums
+        id: checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/aur-assets
+
+          gh release download "$GITHUB_REF_NAME" \
+            -p "FlClashX-linux-amd64.deb" \
+            -D /tmp/aur-assets \
+            -R "$GITHUB_REPOSITORY"
+          echo "sha_x86=$(sha256sum /tmp/aur-assets/FlClashX-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+          if gh release download "$GITHUB_REF_NAME" \
+            -p "FlClashX-linux-arm64.deb" \
+            -D /tmp/aur-assets \
+            -R "$GITHUB_REPOSITORY" 2>/dev/null; then
+            echo "sha_arm=$(sha256sum /tmp/aur-assets/FlClashX-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            echo "has_arm=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_arm=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          rm -rf /tmp/aur-assets
+
+      - name: Update PKGBUILD
+        working-directory: /tmp/aur-pkg
+        env:
+          PKGVER: ${{ steps.release.outputs.pkgver }}
+          PKGREL: ${{ steps.release.outputs.pkgrel }}
+          SHA_X86: ${{ steps.checksums.outputs.sha_x86 }}
+          SHA_ARM: ${{ steps.checksums.outputs.sha_arm }}
+          HAS_ARM: ${{ steps.checksums.outputs.has_arm }}
+        run: |
+          sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=${PKGREL}/" PKGBUILD
+          sed -i "s/^sha256sums_x86_64=.*/sha256sums_x86_64=('${SHA_X86}')/" PKGBUILD
+
+          if [ "$HAS_ARM" == "true" ]; then
+            sed -i "s/^sha256sums_aarch64=.*/sha256sums_aarch64=('${SHA_ARM}')/" PKGBUILD
+          else
+            sed -i "/^[[:space:]]*'aarch64'/d" PKGBUILD
+            sed -i "/^source_aarch64=/d" PKGBUILD
+            sed -i "/^sha256sums_aarch64=/d" PKGBUILD
+          fi
+
+      - name: Generate .SRCINFO
+        working-directory: /tmp/aur-pkg
+        run: |
+          docker run --rm -v "$(pwd):/pkg" archlinux:base-devel bash -c \
+            "useradd -m -u $(id -u) builder && chown -R builder:builder /pkg && su builder -c 'cd /pkg && makepkg --printsrcinfo > .SRCINFO'"
+
+      - name: Push to AUR
+        working-directory: /tmp/aur-pkg
+        run: |
+          git config user.email "vayudanov@ya.ru"
+          git config user.name "Github Actions (pluralplay)"
+          git add PKGBUILD .SRCINFO
+          if ! git diff --cached --quiet; then
+            git commit -m "Update to $GITHUB_REF_NAME"
+            git push
+          fi
