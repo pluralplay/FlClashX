@@ -315,6 +315,38 @@ By default, the following configuration parameters received from the subscriptio
  sudo apt-get install libkeybinder-3.0-dev
 ```
 
+### ❄️ NixOS
+
+Add the repository to your flake's `inputs` and apply the overlay:
+
+`flake.nix`
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # New input
+    flclashx.url = "github:pluralplay/FlClashX";
+  };
+
+  outputs = { self, nixpkgs, flclashx, ... }: {
+    nixosConfigurations.myhostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        {
+          # Overlay
+          nixpkgs.overlays = [ flclashx.overlays.default ];
+
+          # Install the package
+          environment.systemPackages = [ pkgs.flclashx ];
+        }
+      ];
+    };
+  };
+}
+
+```
+
 ### Android
 
 The following actions are supported:
@@ -341,3 +373,8 @@ If you want to support with a small donation, you can <a href="https://t.me/trib
 </p>
 
 **TON USDT:** `UQDSfrJ_k1BdsknhdR_zj4T3Is3OdMylD8PnDJ9mxO35i-TE`
+<div>
+
+[**Russian**](README.md)
+
+</div>

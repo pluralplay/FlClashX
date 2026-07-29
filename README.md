@@ -398,6 +398,37 @@ proxy-groups:
  sudo apt-get install libkeybinder-3.0-dev
 ```
 
+### ❄️ NixOS
+
+Добавьте репозиторий в `inputs` флейка и подключите оверлей:
+
+`flake.nix`
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Новый инпут
+    flclashx.url = "github:pluralplay/FlClashX";
+  };
+
+  outputs = { self, nixpkgs, flclashx, ... }: {
+    nixosConfigurations.myhostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        {
+          # Оверлей
+          nixpkgs.overlays = [ flclashx.overlays.default ];
+          
+          # Установка пакета
+          environment.systemPackages = [ pkgs.flclashx ];
+        }
+      ];
+    };
+  };
+}
+```
+
+
 ### Android
 
 Поддерживаются следующие действия:
@@ -423,3 +454,4 @@ proxy-groups:
 Если хотите поддержать копеечкой, то можно <a href="https://t.me/tribute/app?startapp=dtyh">сделать это тут.</a></p>
 
 **TON USDT:** `UQDSfrJ_k1BdsknhdR_zj4T3Is3OdMylD8PnDJ9mxO35i-TE`
+
