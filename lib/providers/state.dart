@@ -488,8 +488,11 @@ bool globalModeEnabled(Ref ref) {
 /// board on/off through the normal header pipeline rather than overriding here.
 @riverpod
 bool newDashboardEnabled(Ref ref) {
-  return ref.watch(appSettingProvider.select((state) => state.newDashboard)) ??
-      false;
+  // vnxMATRIX поставляется только с новым видом: старая раскладка — наследие
+  // апстрима, у нас она недоступна. Возвращаем константу, а не хранимое
+  // значение, чтобы вид не откатился у тех, кто успел переключить тумблер до
+  // его удаления, и чтобы заголовок flclashx-newboard не мог его выключить.
+  return true;
 }
 
 @riverpod

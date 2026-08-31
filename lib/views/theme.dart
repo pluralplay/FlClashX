@@ -47,7 +47,6 @@ class ThemeView extends StatelessWidget {
           _ThemeModeItem(),
           _PrimaryColorItem(),
           _PrueBlackItem(),
-          _NewDashboardItem(),
           _TextScaleFactorItem(),
           SizedBox(
             height: 64,
@@ -464,36 +463,6 @@ class _PrueBlackItem extends ConsumerWidget {
                 (state) => state.copyWith(
                   pureBlack: value,
                 ),
-              );
-        },
-      ),
-    );
-  }
-}
-
-class _NewDashboardItem extends ConsumerWidget {
-  const _NewDashboardItem();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(newDashboardEnabledProvider);
-    return ListItem.switchItem(
-      leading: const Icon(Icons.dashboard_customize),
-      horizontalTitleGap: 12,
-      title: Text(
-        appLocalizations.newDashboard,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: context.colorScheme.onSurfaceVariant,
-            ),
-      ),
-      delegate: SwitchDelegate(
-        value: enabled,
-        // Always user-controllable. A `flclashx-newboard: true` header only sets
-        // the default (via newDashboardEnabledProvider) until the user toggles;
-        // toggling writes an explicit value that then wins over the header.
-        onChanged: (value) {
-          ref.read(appSettingProvider.notifier).updateState(
-                (state) => state.copyWith(newDashboard: value),
               );
         },
       ),

@@ -38,7 +38,7 @@
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
-        android:label="FlClashX"
+        android:label="vnxMATRIX"
         android:memtagMode="off"
         android:networkSecurityConfig="@xml/network_security_config">
 
@@ -81,6 +81,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="flclashx" android:host="install-config" />
+                <data android:scheme="vnxmatrix" android:host="install-config" />
             </intent-filter>
             <meta-data
                 android:name="android.app.shortcuts"
@@ -160,7 +161,7 @@
             android:name=".services.FlClashXTileService"
             android:exported="true"
             android:icon="@drawable/ic"
-            android:label="FlClashX"
+            android:label="vnxMATRIX"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             tools:targetApi="n">
             <intent-filter>

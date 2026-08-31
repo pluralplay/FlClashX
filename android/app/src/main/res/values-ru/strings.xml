@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">FlClashX режим и туннель</string>
+    <string name="widget_description">vnxMATRIX режим и туннель</string>
     <string name="widget_mode_rule">Правила</string>
     <string name="widget_mode_global">Глобал</string>
     <string name="widget_mode_direct">Прямой</string>
     <string name="widget_toggle_desc">Переключить туннель</string>
-    <string name="widget_on_off_description">FlClashX вкл/выкл туннель</string>
+    <string name="widget_on_off_description">vnxMATRIX вкл/выкл туннель</string>
     <string name="shortcut_start">Запустить</string>
     <string name="shortcut_stop">Остановить</string>
 </resources>

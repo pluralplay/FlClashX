@@ -8,12 +8,12 @@ import 'package:flclashx/enum/enum.dart';
 import 'package:flclashx/models/models.dart';
 import 'package:flutter/material.dart';
 
-const appName = "FlClashX";
+const appName = "vnxMATRIX";
 const appHelperService = "FlClashHelperService";
 const coreName = "clashx.meta";
 const browserUa =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const packageName = "com.follow.clashx";
+const packageName = "com.vnxmatrix.client";
 final unixSocketPath = "/tmp/FlClashXSocket_${pid}_${Random.secure().nextInt(1 << 30)}.sock";
 const helperPort = 47890;
 const maxTextScale = 1.4;
@@ -45,7 +45,7 @@ const localhost = "127.0.0.1";
 const clashConfigKey = "clash_config";
 const configKey = "config";
 const double dialogCommonWidth = 300;
-const repository = "pluralplay/FlClashX";
+const repository = "vnxAPPS/vnxmatrix-client";
 const defaultExternalController = "127.0.0.1:9090";
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
@@ -82,7 +82,7 @@ const viewModeColumnsMap = {
 // const toolsStoreKey = PageStorageKey<String>('tools');
 // const profilesStoreKey = PageStorageKey<String>('profiles');
 
-const defaultPrimaryColor = 0xFF03A9F4;
+const defaultPrimaryColor = 0xFF3BE08C;
 
 double getWidgetHeight(num lines) => max(lines * 84 + (lines - 1) * 16, 0).ap;
 
