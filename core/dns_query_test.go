@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/metacubex/mihomo/component/resolver"
-	"github.com/metacubex/mihomo/dns"
 	D "github.com/miekg/dns"
 )
 
@@ -33,10 +31,10 @@ func TestNewDnsQueryFlattensAnswers(t *testing.T) {
 	}
 	start := time.Now()
 
-	query := newDnsQuery(dns.QueryRecord{
+	query := newDnsQuery(dnsQueryRecord{
 		Question:  request.Question[0],
 		Msg:       resp,
-		Initiator: resolver.InitiatorApp,
+		Initiator: initiatorApp,
 		Upstream:  "tls://1.1.1.1:853",
 		Cached:    true,
 		Start:     start,
@@ -61,9 +59,9 @@ func TestNewDnsQueryFlattensAnswers(t *testing.T) {
 }
 
 func TestNewDnsQueryKeepsTheFailure(t *testing.T) {
-	query := newDnsQuery(dns.QueryRecord{
+	query := newDnsQuery(dnsQueryRecord{
 		Question:  dnsQuestion("missing.test", D.TypeAAAA),
-		Initiator: resolver.InitiatorDirect,
+		Initiator: initiatorDirect,
 		Start:     time.Now(),
 		Err:       errors.New("i/o timeout"),
 	})
@@ -96,7 +94,7 @@ func TestNewDnsQueryNamesUnknownTypes(t *testing.T) {
 	resp := new(D.Msg)
 	resp.Rcode = D.RcodeNameError
 
-	query := newDnsQuery(dns.QueryRecord{
+	query := newDnsQuery(dnsQueryRecord{
 		Question: dnsQuestion("example.com", 65280),
 		Msg:      resp,
 		Start:    time.Now(),

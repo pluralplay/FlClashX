@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod/misc.dart' show ProviderListenable;
 
 import 'input.dart';
+import 'managed_setting.dart';
 
 export 'package:riverpod/misc.dart' show ProviderListenable;
 
@@ -90,6 +91,7 @@ abstract class _ConfigItem<T> extends ConsumerWidget {
     required this.onChanged,
     this.subtitle,
     this.leading,
+    this.managedKey,
   });
 
   final ProviderListenable<T> selector;
@@ -97,6 +99,11 @@ abstract class _ConfigItem<T> extends ConsumerWidget {
   final ConfigLabel? subtitle;
   final ConfigWriter<T> onChanged;
   final Widget? leading;
+
+  /// The setting's key in the subscription, when a panel may speak for it.
+  final String? managedKey;
+
+  VoidCallback? takenOver(WidgetRef ref, T value) => null;
 
   Widget buildItem(
     BuildContext context,
@@ -108,7 +115,17 @@ abstract class _ConfigItem<T> extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
-    return buildItem(context, ref, appLocalizations, ref.watch(selector));
+    final value = ref.watch(selector);
+    final item = buildItem(context, ref, appLocalizations, value);
+    final managedKey = this.managedKey;
+    if (managedKey == null) {
+      return item;
+    }
+    return ManagedSetting(
+      settingKey: managedKey,
+      onTakenOver: takenOver(ref, value),
+      child: item,
+    );
   }
 
   Widget? buildSubtitle(AppLocalizations appLocalizations) {
@@ -124,7 +141,12 @@ class ConfigToggleItem extends _ConfigItem<bool> {
     required super.title,
     required super.onChanged,
     super.leading,
+    super.managedKey,
   });
+
+  @override
+  VoidCallback? takenOver(WidgetRef ref, bool value) =>
+      () => onChanged(ref, !value);
 
   @override
   Widget buildItem(
@@ -152,6 +174,7 @@ class ConfigOptionsItem<T> extends _ConfigItem<T> {
     required this.textBuilder,
     super.subtitle,
     super.leading,
+    super.managedKey,
   });
 
   final List<T> options;
@@ -188,6 +211,7 @@ class ConfigTextItem extends _ConfigItem<String> {
     this.normalize,
     this.allowEmpty = false,
     super.leading,
+    super.managedKey,
   });
 
   final int? maxLength;

@@ -2,10 +2,11 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
-import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'tracker_info_visuals.dart';
 
 String _ruleText(TrackerInfo trackerInfo) {
   final rule = trackerInfo.rule;
@@ -78,41 +79,21 @@ class TrackerInfoItem extends ConsumerWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final network = Text(
-      trackerInfo.metadata.network.toUpperCase(),
-      style: AppTextStyle.caption1
-          .of(context, emphasized: true)
-          .copyWith(color: context.colorScheme.onSurfaceVariant),
-    );
+    final network = NetworkLabel(trackerInfo.metadata.network);
     if (!isLive) {
       return RecordHeader(
         trailing: action,
         children: [RecordTimestamp(trackerInfo.start.showFull), network],
       );
     }
-    final color = context.colorScheme.onSurfaceVariant;
-    WidgetSpan arrow(Glyph glyph) => WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
-      child: GlyphIcon(glyph, size: 12, color: color),
-    );
     return RecordHeader(
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         spacing: 4,
         children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                arrow(AppGlyphs.arrowUp),
-                TextSpan(
-                  text: ' ${(trackerInfo.uploadSpeed ?? 0).traffic.show}/s   ',
-                ),
-                arrow(AppGlyphs.arrowDown),
-                TextSpan(
-                  text: ' ${(trackerInfo.downloadSpeed ?? 0).traffic.show}/s',
-                ),
-              ],
-            ),
+          SpeedText(
+            upload: trackerInfo.uploadSpeed ?? 0,
+            download: trackerInfo.downloadSpeed ?? 0,
           ),
           ?action,
         ],
@@ -154,15 +135,16 @@ class _TrackerInfoBody extends StatelessWidget {
       ),
     );
     final process = metadata.process;
-    if (!showIcon || process.isEmpty) {
-      return title;
-    }
+    final keyword = showIcon && process.isNotEmpty
+        ? process
+        : destinationCountryOf(trackerInfo)?.toUpperCase();
     return Row(
-      spacing: 8,
+      spacing: 10,
       children: [
-        GestureDetector(
-          onTap: () => onClickKeyword?.call(process),
-          child: PackageIcon(packageName: process, size: 24),
+        TrackerAvatar(
+          trackerInfo: trackerInfo,
+          packageIcon: showIcon,
+          onTap: keyword == null ? null : () => onClickKeyword?.call(keyword),
         ),
         Flexible(child: title),
       ],
@@ -171,14 +153,15 @@ class _TrackerInfoBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = context.colorScheme;
     final styles = RecordTextStyles.of(context);
     final metadata = trackerInfo.metadata;
-    final rule = _ruleText(trackerInfo);
+    final hasRule = trackerInfo.rule.isNotEmpty;
+    final chains = trackerInfo.chains.reversed.toList();
     final source = [
       trackerInfo.progressText,
       _endpointText(metadata.sourceIP, metadata.sourcePort),
     ].where((text) => text.isNotEmpty).join('  ·  ');
+    final asn = metadata.destinationIPASN;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 4,
@@ -189,18 +172,21 @@ class _TrackerInfoBody extends StatelessWidget {
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (rule.isNotEmpty) Text(rule, style: styles.secondary),
-            for (final (index, chain) in trackerInfo.chains.reversed.indexed)
+            if (hasRule)
+              RuleLabel(
+                trackerInfo,
+                onPressed: () => onClickKeyword?.call(trackerInfo.rule),
+              ),
+            for (final (index, chain) in chains.indexed)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 spacing: 6,
                 children: [
-                  if (index > 0 || rule.isNotEmpty) const RecordArrow(),
+                  if (index > 0 || hasRule) const RecordArrow(),
                   Flexible(
-                    child: TonalChip(
+                    child: OutboundChip(
                       label: chain,
-                      color: context.raisedSurfaceLevel.colorOf(colorScheme),
-                      foregroundColor: colorScheme.onSurfaceVariant,
+                      exit: index == chains.length - 1,
                       onPressed: () => onClickKeyword?.call(chain),
                     ),
                   ),
@@ -209,6 +195,13 @@ class _TrackerInfoBody extends StatelessWidget {
           ],
         ),
         if (source.isNotEmpty) Text(source, style: styles.secondary),
+        if (asn.isNotEmpty)
+          Text(
+            asn,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: styles.secondary,
+          ),
       ],
     );
   }

@@ -52,6 +52,7 @@ TrayState _trayState({
   Mode mode = Mode.rule,
   List<Group> groups = const [],
   Map<HotAction, HotKeyAction> hotKeys = const {},
+  bool globalModeAllowed = true,
 }) {
   return TrayState(
     mode: mode,
@@ -65,6 +66,7 @@ TrayState _trayState({
     showTrayTitle: showTrayTitle,
     safeMode: safeMode,
     hotKeys: hotKeys,
+    globalModeAllowed: globalModeAllowed,
   );
 }
 
@@ -167,8 +169,8 @@ void main() {
     final l10n = currentAppLocalizations;
     expect(labels, contains(l10n.show));
     expect(labels, contains(l10n.start));
-    expect(labels, contains(l10n.autoLaunch));
-    expect(labels, contains(l10n.copyEnvVar));
+    expect(labels, isNot(contains(l10n.autoLaunch)));
+    expect(labels, isNot(contains(l10n.copyEnvVar)));
     expect(labels, contains(l10n.exit));
     expect(labels, isNot(contains(l10n.tun)));
     expect(labels, isNot(contains(l10n.systemProxy)));
@@ -193,7 +195,6 @@ void main() {
       expect(labels, contains(l10n.stop));
       expect(labels, contains(l10n.tun));
       expect(labels, contains(l10n.systemProxy));
-      expect(labels, contains(l10n.copyEnvVar));
     });
 
     test('names the mode in the tooltip and ships the safe icon', () async {
@@ -221,6 +222,15 @@ void main() {
         .map((item) => item['label'])
         .toList();
     expect(checkedModes, contains(Intl.message(Mode.global.name)));
+  });
+
+  test('drops the mode choice when the panel forbids global mode', () async {
+    await update(_trayState(globalModeAllowed: false));
+
+    final labels = _labels(showCall());
+    for (final mode in Mode.values) {
+      expect(labels, isNot(contains(Intl.message(mode.name))));
+    }
   });
 
   test('sends icon, tooltip and menu in a single show call', () async {

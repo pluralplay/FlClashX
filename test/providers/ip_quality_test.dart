@@ -25,9 +25,10 @@ class _Adapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests++;
-    if (succeed && options.uri.host == 'iplocate.io') {
+    if (succeed && options.uri.host == 'ipinfo.io') {
       return ResponseBody.fromString(
         jsonEncode({
+          'ip': options.uri.pathSegments.first,
           'asn': {'asn': 'AS64500', 'type': 'isp'},
         }),
         200,

@@ -17,15 +17,18 @@ class _RecordingProfilesAction extends ProfilesAction {
   final batches = <List<String>>[];
   final singles = <String>[];
   final ageSecretKeys = <String>[];
+  final deviceHeaderChoices = <bool>[];
 
   @override
   Future<void> addProfileFromLink(
     String link, {
     String? label,
     String ageSecretKey = '',
+    bool sendDeviceHeaders = true,
   }) async {
     singles.add(link);
     ageSecretKeys.add(ageSecretKey);
+    deviceHeaderChoices.add(sendDeviceHeaders);
   }
 
   @override
@@ -201,6 +204,42 @@ void main() {
 
     expect(action.singles, ['https://example.com/sub']);
     expect(action.ageSecretKeys, ['AGE-SECRET-KEY-1A']);
+    expect(action.deviceHeaderChoices, [true]);
+    expect(tester.takeException(), null);
+  });
+
+  testWidgets('the link import lets the device id be kept back', (
+    tester,
+  ) async {
+    final action = _RecordingProfilesAction();
+    final container = _containerFor(tester, profilesAction: action);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: TestApp(
+          child: Scaffold(
+            body: Builder(
+              builder: (context) =>
+                  AddProfileView(context: context, origin: context),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = currentAppLocalizations;
+    await tester.tap(find.text(l10n.link));
+    await tester.pumpAndSettle();
+    await tester.enterText(_field(l10n.link), 'https://example.com/sub');
+    await tester.tap(find.widgetWithText(FormRow, l10n.sendDeviceHeaders));
+    await tester.pump();
+    await tester.tap(find.text(l10n.submit));
+    await tester.pumpAndSettle();
+
+    expect(action.singles, ['https://example.com/sub']);
+    expect(action.deviceHeaderChoices, [false]);
     expect(tester.takeException(), null);
   });
 

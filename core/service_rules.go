@@ -32,9 +32,6 @@ var (
 	geminiRegionMarker     = `,2,1,200,"`
 	claudeBlockedRegions   = []string{"AF", "BY", "CN", "CU", "HK", "IR", "KP", "MO", "RU", "SY"}
 	geminiBlockedRegions   = []string{"CHN", "RUS", "BLR", "CUB", "IRN", "PRK", "SYR", "HKG", "MAC"}
-
-	// A playable episode runs past the small body cap; only its leading code is read.
-	bilibiliCodePattern = regexp.MustCompile(`^\s*\{\s*"code"\s*:\s*(-?\d+)`)
 )
 
 func firstSubmatch(pattern *regexp.Regexp, body string) string {
@@ -223,42 +220,6 @@ func tikTokStatus(result *ProbeResult) string {
 // country is the one in the web app's context.
 func tikTokRegion(body string) string {
 	return normalizeRegion(firstSubmatch(tikTokRegionPattern, body))
-}
-
-func checkBilibili(env serviceEnv) ServiceCheckItem {
-	const mainland = "https://api.bilibili.com/pgc/player/web/playurl?avid=82846771&qn=0&type=&otype=json&ep_id=307247&fourk=1&fnver=0&fnval=16&module=bangumi"
-	const hongKongMacauTaiwan = "https://api.bilibili.com/pgc/player/web/playurl?avid=18281381&cid=29892777&qn=0&type=&otype=json&ep_id=183799&fourk=1&fnver=0&fnval=16&module=bangumi"
-	item := bilibiliEpisode(env, mainland)
-	switch item.Status {
-	case serviceAvailable:
-		item.Region = "CN"
-		return item
-	case serviceUnsupportedRegion:
-		return bilibiliEpisode(env, hongKongMacauTaiwan)
-	default:
-		return item
-	}
-}
-
-func bilibiliEpisode(env serviceEnv, url string) ServiceCheckItem {
-	result := env.get(url, serviceSmallMaxBody)
-	item := itemFrom(result)
-	if !answered(item, result) {
-		return item
-	}
-	item.Status = bilibiliStatus(result.Body)
-	return item
-}
-
-func bilibiliStatus(body string) string {
-	switch firstSubmatch(bilibiliCodePattern, body) {
-	case "0":
-		return serviceAvailable
-	case "-10403":
-		return serviceUnsupportedRegion
-	default:
-		return serviceFailed
-	}
 }
 
 func checkDiscord(env serviceEnv) ServiceCheckItem {

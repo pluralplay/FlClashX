@@ -16,6 +16,82 @@ Profile? currentProfile(Ref ref) {
 }
 
 @riverpod
+List<ProfileOffer> profileOffers(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select((profile) => visibleOffersOf(profile)),
+  );
+}
+
+@riverpod
+bool globalModeAllowed(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.globalModeAllowed ?? true,
+    ),
+  );
+}
+
+@riverpod
+bool androidSecure(Ref ref) {
+  return system.isAndroid &&
+      ref.watch(
+        currentProfileProvider.select(
+          (profile) => profile?.headers.androidSecure ?? false,
+        ),
+      );
+}
+
+@riverpod
+PanelBackground? panelBackground(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select((profile) => profile?.headers.background),
+  );
+}
+
+/// The backdrop picture from the disk cache, fetched once per url and
+/// served from there afterwards, offline included.
+@riverpod
+Future<ImageProvider?> panelBackdropImage(Ref ref) async {
+  final background = ref.watch(panelBackgroundProvider);
+  if (background == null) {
+    return null;
+  }
+  try {
+    final file = await DefaultCacheManager().getSingleFile(background.url);
+    return FileImage(file);
+  } catch (error) {
+    commonPrint.log('backdrop ${background.url} unavailable: $error');
+    return null;
+  }
+}
+
+@riverpod
+bool widgetEditingDenied(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.widgetEditingDenied ?? false,
+    ),
+  );
+}
+
+/// The outbound modes the current panel leaves on offer.
+@riverpod
+List<Mode> availableModes(Ref ref) {
+  final globalAllowed = ref.watch(globalModeAllowedProvider);
+  return [
+    for (final mode in Mode.values)
+      if (globalAllowed || mode != Mode.global) mode,
+  ];
+}
+
+@riverpod
+String? announcement(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select((profile) => profile?.announcement),
+  );
+}
+
+@riverpod
 Profile? profile(Ref ref, int? profileId) {
   return ref.watch(
     profilesProvider.select((state) => state.getProfile(profileId)),

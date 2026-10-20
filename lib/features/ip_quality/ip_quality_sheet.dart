@@ -220,10 +220,6 @@ class _IpQualityDetail extends ConsumerWidget {
         copyText: asn,
         value: valueOf(asn, width: 56),
       ),
-      DetailRow(
-        title: localizations.ipQualitySource,
-        value: valueOf(quality?.source.label, width: 72),
-      ),
     ];
   }
 }

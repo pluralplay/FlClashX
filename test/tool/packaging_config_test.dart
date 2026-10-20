@@ -20,7 +20,7 @@ void main() {
         expect(scripts.first, contains('exit 0'));
         expect(
           scripts,
-          contains('rm -f /etc/systemd/system/flclash-helper.service'),
+          contains('rm -f /etc/systemd/system/flclashx-helper.service'),
         );
         expect(
           scripts.any((script) => script.contains('systemctl daemon-reload')),

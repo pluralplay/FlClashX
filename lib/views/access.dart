@@ -135,32 +135,6 @@ class _AccessViewState extends ConsumerState<AccessView>
           );
   }
 
-  Future<void> _intelligentSelected() async {
-    final packageNames = ref.read(
-      packagesProvider.select((state) => state.map((item) => item.packageName)),
-    );
-    if (packageNames.isEmpty) {
-      return;
-    }
-    final selectedPackageNames =
-        (await globalState.loadingRun<List<String>>(() async {
-          return await app?.getChinaPackageNames() ?? [];
-        }, tag: LoadingTag.access))?.toSet() ??
-        {};
-    final acceptList = packageNames
-        .where((item) => !selectedPackageNames.contains(item))
-        .toList();
-    final rejectList = packageNames
-        .where((item) => selectedPackageNames.contains(item))
-        .toList();
-    ref
-        .read(accessControlStateProvider.notifier)
-        .update(
-          (state) =>
-              state.copyWith(acceptList: acceptList, rejectList: rejectList),
-        );
-  }
-
   Future<void> _handleToSetting() async {
     await showSheet<int>(
       context: context,
@@ -290,11 +264,6 @@ class _AccessViewState extends ConsumerState<AccessView>
         glyph: AppGlyphs.moreCircle,
         label: appLocalizations.action,
         subItems: [
-          CommonPopupMenuItem(
-            glyph: AppGlyphs.sparkle,
-            label: appLocalizations.intelligentSelected,
-            onPressed: _intelligentSelected,
-          ),
           CommonPopupMenuItem(
             glyph: AppGlyphs.copy,
             label: appLocalizations.clipboardExport,

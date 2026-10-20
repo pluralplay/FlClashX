@@ -111,7 +111,11 @@ class ProxyCard extends ConsumerWidget {
                 Flexible(
                   flex: 1,
                   child: TooltipText(
-                    text: Text(proxy.type, maxLines: 1, style: typeStyle),
+                    text: Text(
+                      proxy.description,
+                      maxLines: 1,
+                      style: typeStyle,
+                    ),
                   ),
                 ),
                 delayText,
@@ -189,7 +193,9 @@ class _ProxyDesc extends ConsumerWidget {
           )
         : proxy.name;
     return EmojiText(
-      nodeName == proxy.name ? proxy.type : '${proxy.type}($nodeName)',
+      nodeName == proxy.name
+          ? proxy.description
+          : '${proxy.description}($nodeName)',
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: style,

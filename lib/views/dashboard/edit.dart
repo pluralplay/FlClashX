@@ -141,8 +141,14 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
     _save();
   }
 
+  int get _pinnedCount => _cards.where((card) => card.pinned).length;
+
   void _reorder(int from, int to) {
-    setState(() => _cards = _cards.copyAndReorder(from, to));
+    final floor = _pinnedCount;
+    if (from < floor) {
+      return;
+    }
+    setState(() => _cards = _cards.copyAndReorder(from, math.max(to, floor)));
     _save();
   }
 
@@ -159,7 +165,9 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
     final shown = _shown;
     final addable = [
       for (final card in DashboardWidget.values)
-        if (card.platforms.contains(widget.platform) && !shown.contains(card))
+        if (!card.pinned &&
+            card.platforms.contains(widget.platform) &&
+            !shown.contains(card))
           card,
     ];
     final scale = DashboardDensityScope.scaleOf(context);
@@ -199,7 +207,7 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
                       cardKey: widget.cardKeyOf(card),
                       index: index,
                       dragsAtOnce: dragsAtOnce,
-                      sway: sway,
+                      sway: card.pinned ? null : sway,
                       onRemove: card.removable ? () => _remove(card) : null,
                     ),
                   ),
@@ -432,7 +440,9 @@ class _EditableCard extends StatelessWidget {
     final content = Stack(
       fit: StackFit.passthrough,
       children: [
-        if (dragsAtOnce)
+        if (item.pinned)
+          card
+        else if (dragsAtOnce)
           ReorderableDragStartListener(index: index, child: card)
         else
           ReorderableDelayedDragStartListener(index: index, child: card),

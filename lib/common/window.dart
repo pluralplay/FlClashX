@@ -13,13 +13,16 @@ import 'package:window/window.dart';
 class Window implements WindowPort {
   static Window? _instance;
   bool _supportsPosition = false;
+  bool _menuBarMode = false;
   WindowEffect? _blurEffect;
   late final WindowVisibilityController _visibility =
       WindowVisibilityController(
         showWindow: _showWindow,
         hideWindow: _hideWindow,
         isWindowVisible: _isWindowVisible,
-        setSkipTaskbar: (skip) => desktopWindow.setSkipTaskbar(skip),
+        // The menu bar app stays out of the Dock whatever its popover does.
+        setSkipTaskbar: (skip) =>
+            desktopWindow.setSkipTaskbar(skip || _menuBarMode),
         dockSettleDuration: system.isMacOS
             ? const Duration(seconds: 1)
             : Duration.zero,
@@ -32,7 +35,11 @@ class Window implements WindowPort {
     return _instance!;
   }
 
-  Future<void> init(int version, WindowProps props) async {
+  Future<void> init(
+    int version,
+    WindowProps props, {
+    bool menuBarMode = false,
+  }) async {
     if (!safeModeBuild) {
       if (system.isWindows) {
         for (final scheme in protocolSchemes) {
@@ -55,6 +62,21 @@ class Window implements WindowPort {
     await desktopWindow.setMinimumSize(const Size(380, 400));
     await _windowPosition(props);
     await desktopWindow.setPreventClose(true);
+    if (menuBarMode) {
+      await setMenuBarMode(true);
+    }
+  }
+
+  bool get isMenuBarMode => _menuBarMode;
+
+  /// macOS only: the window becomes a popover under the status item.
+  Future<void> setMenuBarMode(bool enabled) async {
+    if (!system.isMacOS || enabled == _menuBarMode) {
+      return;
+    }
+    _menuBarMode = enabled;
+    await desktopWindow.setMenuBarMode(enabled);
+    await desktopWindow.setSkipTaskbar(enabled);
   }
 
   Future<Size> _defaultSize() async {

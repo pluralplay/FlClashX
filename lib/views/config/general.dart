@@ -4,8 +4,8 @@ import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/config/on_demand.dart';
-import 'package:fl_clash/views/config/user_agents.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,29 +19,13 @@ class LogLevelItem extends ConsumerWidget {
   Widget build(BuildContext context, ref) {
     return ConfigOptionsItem<LogLevel>(
       title: (l) => l.logLevel,
+      managedKey: 'clash.log-level',
       options: LogLevel.values,
       textBuilder: (logLevel) => logLevel.name,
       selector: patchClashConfigProvider.select((state) => state.logLevel),
       onChanged: (ref, value) => ref
           .read(patchClashConfigProvider.notifier)
           .update((state) => state.copyWith(logLevel: value)),
-    );
-  }
-}
-
-class UaItem extends ConsumerWidget {
-  const UaItem({super.key});
-
-  @override
-  Widget build(BuildContext context, ref) {
-    final appLocalizations = context.appLocalizations;
-    final globalUa = ref.watch(
-      patchClashConfigProvider.select((state) => state.globalUa),
-    );
-    return ListItem.open(
-      title: Text(appLocalizations.userAgent),
-      subtitle: Text(globalUa ?? appLocalizations.defaultText),
-      widget: const UserAgentsView(),
     );
   }
 }
@@ -99,12 +83,15 @@ class PortItem extends ConsumerWidget {
     final mixedPort = ref.watch(
       patchClashConfigProvider.select((state) => state.mixedPort),
     );
-    return ListItem(
-      title: Text(appLocalizations.port),
-      subtitle: Text('$mixedPort'),
-      onTap: () {
-        handleShowPortForm(context);
-      },
+    return ManagedSetting(
+      settingKey: 'clash.mixed-port',
+      child: ListItem(
+        title: Text(appLocalizations.port),
+        subtitle: Text('$mixedPort'),
+        onTap: () {
+          handleShowPortForm(context);
+        },
+      ),
     );
   }
 }
@@ -214,12 +201,88 @@ class ExternalControllerSecretItem extends ConsumerWidget {
   Widget build(BuildContext context, ref) {
     return ConfigTextItem(
       title: (l) => l.externalControllerSecret,
+      managedKey: 'clash.secret',
       maxLength: TextInputLimits.password,
       selector: patchClashConfigProvider.select((state) => state.secret),
       normalize: (value) => value.trim(),
+      allowEmpty: true,
       onChanged: (ref, value) => ref
           .read(patchClashConfigProvider.notifier)
           .update((state) => state.copyWith(secret: value)),
+    );
+  }
+}
+
+class OpenLogsFolderItem extends StatelessWidget {
+  const OpenLogsFolderItem({super.key});
+
+  Future<void> _open() async {
+    await system.openDirectory(await fileLogger.directoryPath);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListItem(
+      leading: const GlyphIcon(AppGlyphs.openExternal),
+      title: Text(context.appLocalizations.openLogsFolder),
+      onTap: _open,
+    );
+  }
+}
+
+class ReturnToProviderItem extends ConsumerWidget {
+  const ReturnToProviderItem({super.key});
+
+  Future<void> _release(BuildContext context, WidgetRef ref) async {
+    final appLocalizations = context.appLocalizations;
+    final confirmed = await dialogs.showMessage(
+      title: appLocalizations.returnAllToProvider,
+      message: TextSpan(text: appLocalizations.returnAllToProviderTip),
+      confirmText: appLocalizations.confirm,
+    );
+    if (confirmed != true) {
+      return;
+    }
+    ref.read(managedSettingsActionProvider.notifier).releaseAll();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListItem(
+      leading: const GlyphIcon(AppGlyphs.lock),
+      title: Text(context.appLocalizations.returnAllToProvider),
+      onTap: () => _release(context, ref),
+    );
+  }
+}
+
+class ResetAppItem extends ConsumerWidget {
+  const ResetAppItem({super.key});
+
+  Future<void> _reset(BuildContext context, WidgetRef ref) async {
+    final appLocalizations = context.appLocalizations;
+    final confirmed = await dialogs.showMessage(
+      title: appLocalizations.resetApp,
+      message: TextSpan(text: appLocalizations.resetAppTip),
+      confirmText: appLocalizations.resetApp,
+      destructive: true,
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await ref.read(storeActionProvider.notifier).handleClear(everything: true);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final error = context.colorScheme.error;
+    return ListItem(
+      leading: GlyphIcon(AppGlyphs.delete, color: error),
+      title: Text(
+        context.appLocalizations.resetApp,
+        style: TextStyle(color: error),
+      ),
+      onTap: () => _reset(context, ref),
     );
   }
 }
@@ -228,9 +291,11 @@ ConfigToggleItem _clashToggle({
   required ConfigLabel title,
   required bool Function(PatchClashConfig state) select,
   required PatchClashConfig Function(PatchClashConfig state, bool value) update,
+  String? managedKey,
 }) {
   return ConfigToggleItem(
     title: title,
+    managedKey: managedKey,
     selector: patchClashConfigProvider.select(select),
     onChanged: (ref, value) => ref
         .read(patchClashConfigProvider.notifier)
@@ -242,9 +307,11 @@ ConfigToggleItem _appSettingToggle({
   required ConfigLabel title,
   required bool Function(AppSettingProps state) select,
   required AppSettingProps Function(AppSettingProps state, bool value) update,
+  String? managedKey,
 }) {
   return ConfigToggleItem(
     title: title,
+    managedKey: managedKey,
     selector: appSettingProvider.select(select),
     onChanged: (ref, value) => ref
         .read(appSettingProvider.notifier)
@@ -260,17 +327,26 @@ class GeneralView extends ConsumerWidget {
       if (system.isDesktop) ...[
         _appSettingToggle(
           title: (l) => l.autoLaunch,
+          managedKey: 'app.autoLaunch',
           select: (state) => state.autoLaunch,
           update: (state, value) => state.copyWith(autoLaunch: value),
         ),
         _appSettingToggle(
           title: (l) => l.silentLaunch,
+          managedKey: 'app.silentLaunch',
           select: (state) => state.silentLaunch,
           update: (state, value) => state.copyWith(silentLaunch: value),
         ),
       ],
+      if (system.isMacOS)
+        _appSettingToggle(
+          title: (l) => l.menuBarMode,
+          select: (state) => state.menuBarMode,
+          update: (state, value) => state.copyWith(menuBarMode: value),
+        ),
       _appSettingToggle(
         title: (l) => l.autoRun,
+        managedKey: 'app.autoRun',
         select: (state) => state.autoRun,
         update: (state, value) => state.copyWith(autoRun: value),
       ),
@@ -280,6 +356,7 @@ class GeneralView extends ConsumerWidget {
       ),
       _appSettingToggle(
         title: (l) => l.minimizeOnExit,
+        managedKey: 'app.minimizeOnExit',
         select: (state) => state.minimizeOnExit,
         update: (state, value) => state.copyWith(minimizeOnExit: value),
       ),
@@ -302,25 +379,23 @@ class GeneralView extends ConsumerWidget {
   List<Widget> _inboundItems({
     required bool authentication,
     required bool externalController,
+    required bool androidSecure,
   }) {
     return [
-      const PortItem(),
+      if (!androidSecure) const PortItem(),
       _clashToggle(
         title: (l) => l.allowLan,
+        managedKey: 'clash.allow-lan',
         select: (state) => state.allowLan,
         update: (state, value) => state.copyWith(allowLan: value),
       ),
       _clashToggle(
         title: (l) => l.externalController,
-        select: (state) =>
-            state.externalController == ExternalControllerStatus.open,
-        update: (state, value) => state
-            .copyWith(
-              externalController: value
-                  ? ExternalControllerStatus.open
-                  : ExternalControllerStatus.close,
-            )
-            .ensureControllerSecret(),
+        managedKey: 'clash.external-controller',
+        select: (state) => state.externalController.isNotEmpty,
+        update: (state, value) => state.copyWith(
+          externalController: value ? defaultExternalController : '',
+        ),
       ),
       if (externalController) const ExternalControllerSecretItem(),
       const AuthenticationItem(),
@@ -336,16 +411,19 @@ class GeneralView extends ConsumerWidget {
       const TestUrlItem(),
       _clashToggle(
         title: (l) => l.unifiedDelay,
+        managedKey: 'clash.unified-delay',
         select: (state) => state.unifiedDelay,
         update: (state, value) => state.copyWith(unifiedDelay: value),
       ),
       _clashToggle(
         title: (l) => l.tcpConcurrent,
+        managedKey: 'clash.tcp-concurrent',
         select: (state) => state.tcpConcurrent,
         update: (state, value) => state.copyWith(tcpConcurrent: value),
       ),
       _clashToggle(
         title: (l) => l.findProcessMode,
+        managedKey: 'clash.find-process-mode',
         select: (state) => state.findProcessMode == FindProcessMode.always,
         update: (state, value) => state.copyWith(
           findProcessMode: value ? FindProcessMode.always : FindProcessMode.off,
@@ -353,6 +431,7 @@ class GeneralView extends ConsumerWidget {
       ),
       _appSettingToggle(
         title: (l) => l.autoCloseConnections,
+        managedKey: 'app.closeConnections',
         select: (state) => state.closeConnections,
         update: (state, value) => state.copyWith(closeConnections: value),
       ),
@@ -366,7 +445,6 @@ class GeneralView extends ConsumerWidget {
 
   List<Widget> _requestItems() {
     return [
-      const UaItem(),
       _appSettingToggle(
         title: (l) => l.checkCertificate,
         select: (state) => state.checkCertificate,
@@ -374,6 +452,7 @@ class GeneralView extends ConsumerWidget {
       ),
       _appSettingToggle(
         title: (l) => l.autoCheckUpdate,
+        managedKey: 'app.autoCheckUpdate',
         select: (state) => state.autoCheckUpdate,
         update: (state, value) => state.copyWith(autoCheckUpdate: value),
       ),
@@ -384,6 +463,7 @@ class GeneralView extends ConsumerWidget {
     return [
       _clashToggle(
         title: (l) => 'IPv6',
+        managedKey: 'clash.ipv6',
         select: (state) => state.ipv6,
         update: (state, value) => state.copyWith(ipv6: value),
       ),
@@ -399,6 +479,7 @@ class GeneralView extends ConsumerWidget {
       ),
       _clashToggle(
         title: (l) => l.geodataLoader,
+        managedKey: 'clash.geodata-loader',
         select: (state) => state.geodataLoader == GeodataLoader.memconservative,
         update: (state, value) => state.copyWith(
           geodataLoader: value
@@ -414,9 +495,13 @@ class GeneralView extends ConsumerWidget {
       const LogLevelItem(),
       _appSettingToggle(
         title: (l) => l.logcat,
+        managedKey: 'app.openLogs',
         select: (state) => state.openLogs,
         update: (state, value) => state.copyWith(openLogs: value),
       ),
+      if (system.isDesktop) const OpenLogsFolderItem(),
+      const ReturnToProviderItem(),
+      const ResetAppItem(),
     ];
   }
 
@@ -426,11 +511,11 @@ class GeneralView extends ConsumerWidget {
     final authentication = ref.watch(
       networkSettingProvider.select((state) => state.authentication.enable),
     );
-    final externalController = ref.watch(
-      patchClashConfigProvider.select(
-        (state) => state.externalController == ExternalControllerStatus.open,
-      ),
+    final controllerAddress = ref.watch(
+      patchClashConfigProvider.select((state) => state.externalController),
     );
+    final externalController = controllerAddress.isNotEmpty;
+    final androidSecure = ref.watch(androidSecureProvider);
     return BaseScaffold(
       title: appLocalizations.general,
       body: ListView(
@@ -438,11 +523,13 @@ class GeneralView extends ConsumerWidget {
           horizontal: 16,
         ).copyWith(top: context.appBarInset, bottom: 16),
         children: [
+          const ManagedSettingsHint(keys: generalPageKeys),
           generateSection(
             title: appLocalizations.startupAndBackground,
             items: _startupItems(appLocalizations),
             footer: [
               if (system.isDesktop) appLocalizations.silentLaunchDesc,
+              if (system.isMacOS) appLocalizations.menuBarModeDesc,
               appLocalizations.autoRunDesc,
               appLocalizations.onDemandDesc,
             ].join('\n'),
@@ -457,9 +544,14 @@ class GeneralView extends ConsumerWidget {
             items: _inboundItems(
               authentication: authentication,
               externalController: externalController,
+              androidSecure: androidSecure,
             ),
             footer: [
-              appLocalizations.externalControllerDesc,
+              appLocalizations.externalControllerDesc(
+                externalController
+                    ? controllerAddress
+                    : defaultExternalController,
+              ),
               appLocalizations.authenticationDesc,
             ].join('\n'),
           ),

@@ -8,6 +8,7 @@ const _platformPackages = [
   'window',
   'launch_at_startup',
   'screen_retriever',
+  'flutter_local_notifications',
 ];
 
 const _platformModules = [
@@ -15,6 +16,7 @@ const _platformModules = [
   'lib/common/window.dart',
   'lib/common/launch.dart',
   'lib/common/system_dns.dart',
+  'lib/common/system_notification.dart',
 ];
 
 final _platformImport = RegExp(

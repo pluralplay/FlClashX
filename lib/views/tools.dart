@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
@@ -12,6 +14,7 @@ import 'package:fl_clash/views/hotkey.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'config/advanced.dart';
 import 'config/custom_resources.dart';
@@ -78,12 +81,23 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       Consumer(
         builder: (_, ref, _) {
           final state = ref.watch(moreToolsSelectorStateProvider);
+          final controller = ref.watch(
+            patchClashConfigProvider.select(
+              (state) => state.externalController,
+            ),
+          );
           if (state.navigationItems.isEmpty) {
             return Container();
           }
           return generateSection(
             title: context.appLocalizations.more,
-            items: state.navigationItems.map(_buildNavigationMenuItem),
+            items: [
+              for (final item in state.navigationItems) ...[
+                _buildNavigationMenuItem(item),
+                if (item.label == PageLabel.resources && controller.isNotEmpty)
+                  const _DashboardItem(),
+              ],
+            ],
           );
         },
       ),
@@ -105,6 +119,27 @@ class _ToolViewState extends ConsumerState<ToolsView> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DashboardItem extends ConsumerWidget {
+  const _DashboardItem();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (controller, secret) = ref.watch(
+      patchClashConfigProvider.select(
+        (state) => (state.externalController, state.secret),
+      ),
+    );
+    final url = zashboardUrl(controller, secret: secret);
+    return ListItem(
+      leading: const GlyphIcon(AppGlyphs.zashboard),
+      title: const Text('Zashboard'),
+      subtitle: Text(controller),
+      trailing: const GlyphIcon(AppGlyphs.link),
+      onTap: () => unawaited(launchUrl(Uri.parse(url))),
     );
   }
 }

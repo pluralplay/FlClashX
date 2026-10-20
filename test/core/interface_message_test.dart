@@ -47,7 +47,7 @@ const _updateParams = UpdateParams(
   logLevel: LogLevel.info,
   ipv6: false,
   tcpConcurrent: false,
-  externalController: ExternalControllerStatus.close,
+  externalController: '',
   unifiedDelay: false,
 );
 

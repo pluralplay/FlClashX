@@ -195,6 +195,7 @@ class _BlockConnectionButton extends StatelessWidget {
       child: Semantics(
         button: true,
         child: InkWell(
+          mouseCursor: clickableCursor,
           onTap: onPressed,
           customBorder: AppShape.circle,
           child: SizedBox.square(

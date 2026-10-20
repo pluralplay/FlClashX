@@ -36,7 +36,7 @@ class SubscriptionInfoView extends StatelessWidget {
     final useShow = use.traffic.show;
     final totalShow = total.traffic.show;
     final expireShow = info.expire != 0
-        ? DateTime.fromMillisecondsSinceEpoch(info.expire * 1000).show
+        ? DateTime.fromMillisecondsSinceEpoch(info.expire * 1000).showDate
         : context.appLocalizations.infiniteTime;
     final valueStyle = AppTextStyle.subheadline
         .of(context, emphasized: true)
@@ -106,7 +106,7 @@ class SubscriptionInfoDetailView extends StatelessWidget {
     final expire = subscriptionInfo.expire != 0
         ? DateTime.fromMillisecondsSinceEpoch(
             subscriptionInfo.expire * 1000,
-          ).show
+          ).showDate
         : appLocalizations.infiniteTime;
     return SelectionArea(
       child: Column(

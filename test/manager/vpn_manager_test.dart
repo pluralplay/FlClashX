@@ -113,6 +113,10 @@ void main() {
     tester,
   ) async {
     await pumpVpnManager(tester);
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+    await settle(tester);
     startService();
 
     container

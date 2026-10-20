@@ -15,6 +15,7 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/dashboard/layout.dart';
 import 'package:fl_clash/views/dashboard/widgets/card.dart';
 import 'package:fl_clash/views/dashboard/widgets/current_outbound.dart';
+import 'package:fl_clash/views/proxies/proxies.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -34,7 +35,7 @@ const _profile = Profile(id: 1, autoUpdateDuration: Duration.zero);
 
 const _residential = IpQuality(
   ip: _ip,
-  source: IpQualitySource.ipLocate,
+  source: IpQualitySource.ipInfo,
   type: IpType.residential,
   organization: 'Example Broadband',
   asn: 64500,
@@ -169,17 +170,22 @@ void main() {
   setUpAll(() => registerFallbackValue(const OutboundIpParams(timeout: 0)));
 
   group('the exit address', () {
-    testWidgets('shows with its country, type, quality and organization', (
+    testWidgets('shows beside its country flag, opening the details', (
       tester,
     ) async {
       await tester.pumpWidget(_app((_, _) async => _residential));
       await tester.pump();
 
       expect(find.text(_ip), findsOneWidget);
-      expect(find.text('GB'), findsOneWidget);
-      expect(find.text('Residential'), findsOneWidget);
-      expect(_chip(tester, 'Quality Good').tone, DashboardChipTone.ok);
-      expect(find.text('Example Broadband'), findsOneWidget);
+      expect(find.text('Outbound IP'), findsNothing);
+      expect(find.text('GB'), findsNothing);
+      expect(
+        tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode,
+        'GB',
+      );
+      expect(find.text('Residential'), findsNothing);
+      expect(find.text('Quality Good'), findsNothing);
+      expect(find.text('Example Broadband'), findsNothing);
       expect(find.text('Status'), findsOneWidget);
       expect(find.byGlyph(AppGlyphs.refresh), findsNothing);
     });
@@ -195,30 +201,16 @@ void main() {
       );
     });
 
-    testWidgets('a risky one shows its quality in the warning tone', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _app((_, _) async => _residential.copyWith(isTor: true)),
-      );
-      await tester.pump();
-
-      expect(_chip(tester, 'Quality Risky').tone, DashboardChipTone.warn);
-    });
-
-    testWidgets('says its type is unknown when no type was found', (
-      tester,
-    ) async {
+    testWidgets('shows no quality when no type was found', (tester) async {
       await tester.pumpWidget(
         _app((_, _) async => throw const IpQualityLookupException([])),
       );
       await tester.pump();
 
-      expect(find.text('GB'), findsOneWidget);
-      expect(find.text('Not running'), findsOneWidget);
-      expect(_chip(tester, 'Unknown type').tone, DashboardChipTone.idle);
-      expect(find.byType(DashboardChip), findsNWidgets(2));
-      expect(find.text('Example Broadband'), findsNothing);
+      expect(find.byType(CountryFlag), findsOneWidget);
+      expect(find.text('Not running'), findsNothing);
+      expect(find.byType(DashboardChip), findsNothing);
+      expect(find.text(_ip), findsOneWidget);
     });
 
     testWidgets('holds the place of its quality while it loads', (
@@ -239,8 +231,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(SkeletonPill), findsNWidgets(3));
-      expect(find.byType(SkeletonText), findsOneWidget);
+      expect(find.byType(SkeletonPill), findsNothing);
+      expect(find.byType(SkeletonText), findsNothing);
       expect(tester.widget<InkResponse>(_clover()).onTap, isNull);
       final turn = _cloverTurn(tester);
       await tester.pump(const Duration(milliseconds: 300));
@@ -249,8 +241,7 @@ void main() {
       quality.complete(_residential);
       await tester.pumpAndSettle();
 
-      expect(find.byType(SkeletonPill), findsNothing);
-      expect(find.text('Residential'), findsOneWidget);
+      expect(find.text('Quality Good'), findsNothing);
       expect(_cloverTurn(tester) % (math.pi / 2), closeTo(0, 1e-9));
       expect(tester.widget<InkResponse>(_clover()).onTap, isNotNull);
     });
@@ -272,24 +263,13 @@ void main() {
       );
       await tester.pump();
       await tester.pump(commonDuration);
-      expect(find.text('Unknown type'), findsOneWidget);
+      expect(find.text('Quality Good'), findsNothing);
 
       await tester.tap(find.byTooltip('Retry'));
       await tester.pumpAndSettle();
 
       expect(calls, 2);
       verify(() => core.outboundIp(any())).called(2);
-    });
-
-    testWidgets('names its network by ASN when the organization is unknown', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _app((_, _) async => _residential.copyWith(organization: null)),
-      );
-      await tester.pump();
-
-      expect(find.text('AS64500'), findsOneWidget);
     });
 
     testWidgets('fits a phone', (tester) async {
@@ -299,7 +279,7 @@ void main() {
       await tester.pump();
 
       expect(find.text(_ip), findsOneWidget);
-      expect(find.text('Residential'), findsOneWidget);
+      expect(find.text('Quality Good'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -310,27 +290,27 @@ void main() {
       await tester.pumpWidget(_app((_, _) async => _residential));
       await tester.pump();
 
-      await tester.tap(find.text('Example Broadband'));
+      await tester.tap(find.text('Status'));
       await tester.pumpAndSettle();
-      expect(find.text('iplocate.io'), findsNothing);
+      expect(find.text('Good'), findsNothing);
 
       await tester.tap(find.text(_ip));
       await tester.pumpAndSettle();
 
       expect(find.text('Good'), findsOneWidget);
-      expect(find.text('Residential'), findsNWidgets(2));
+      expect(find.text('Residential'), findsOneWidget);
       final organization = tester.widget<RichText>(
         find.descendant(
-          of: find.text('Example Broadband').last,
+          of: find.text('Example Broadband'),
           matching: find.byType(RichText),
         ),
       );
       expect(organization.textAlign, TextAlign.end);
       expect(find.text('AS64500'), findsOneWidget);
-      expect(find.text('iplocate.io'), findsOneWidget);
+      expect(find.text('Answered by'), findsNothing);
     });
 
-    testWidgets('lists every source when none found a type and checks again', (
+    testWidgets('says why the type was not found and checks again', (
       tester,
     ) async {
       _useTallView(tester);
@@ -340,11 +320,7 @@ void main() {
           calls++;
           throw const IpQualityLookupException([
             (
-              source: IpQualitySource.identMe,
-              status: IpQualitySourceStatus.ipMismatch,
-            ),
-            (
-              source: IpQualitySource.ipLocate,
+              source: IpQualitySource.ipInfo,
               status: IpQualitySourceStatus.rateLimited,
             ),
           ]);
@@ -356,8 +332,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("Couldn't determine the IP type"), findsOneWidget);
-      expect(find.text('Different outbound IP'), findsOneWidget);
+      expect(find.text('ipinfo.io'), findsOneWidget);
       expect(find.text('Rate limited'), findsOneWidget);
+      expect(find.text('Answered by'), findsNothing);
 
       await tester.tap(find.byTooltip('Check again'));
       await tester.pumpAndSettle();
@@ -402,6 +379,53 @@ void main() {
       tester,
     ).read(outboundIpProbeProvider).entryOf(routedOutbound).phase;
 
+    testWidgets('offers a server change once there are groups to pick from', (
+      tester,
+    ) async {
+      _useTallView(tester);
+      await tester.pumpWidget(_app((_, _) async => _residential));
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Change server'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(ProxiesView), findsNothing);
+
+      containerOf(tester).read(groupsProvider.notifier).value = const [
+        Group(
+          type: GroupType.Selector,
+          name: 'Auto',
+          hidden: false,
+          now: 'HK-01',
+          all: [
+            Proxy(name: 'HK-01', type: 'ss'),
+            Proxy(name: 'SG-01', type: 'ss'),
+          ],
+        ),
+      ];
+      await tester.pump();
+      await tester.tap(find.byTooltip('Change server'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProxiesView), findsOneWidget);
+    });
+
+    testWidgets('counts its run time in a chip only while running', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app((_, _) async => _residential));
+      await tester.pump();
+      expect(find.text('Run time'), findsNothing);
+      expect(find.text('Not running'), findsNothing);
+      expect(find.text(getTimeText(1)), findsNothing);
+
+      start(tester);
+      await tester.pump();
+
+      expect(_chip(tester, getTimeText(1)).tone, DashboardChipTone.idle);
+      expect(find.text('Running'), findsNothing);
+      expect(find.byType(DashboardChip), findsOneWidget);
+    });
+
     testWidgets('that fails as the proxy starts shows as checking', (
       tester,
     ) async {
@@ -423,7 +447,7 @@ void main() {
       await tester.pump(commonDuration);
       expect(phaseOf(tester), ProbePhase.failed);
       expect(find.text('Check failed'), findsNothing);
-      expect(find.byType(SkeletonText), findsNWidgets(2));
+      expect(find.byType(SkeletonText), findsOneWidget);
 
       epoch = 2;
       containerOf(tester)
@@ -550,7 +574,6 @@ void main() {
         find.byTooltip(context.appLocalizations.suspended),
         findsOneWidget,
       );
-      expect(find.text(context.appLocalizations.suspended), findsOneWidget);
       expect(find.byGlyph(AppGlyphs.wifiOff), findsOneWidget);
     });
 

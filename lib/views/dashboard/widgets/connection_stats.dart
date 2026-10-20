@@ -104,6 +104,7 @@ class _Stat extends StatelessWidget {
         child: FocusRing(
           shape: shape,
           child: InkWell(
+            mouseCursor: clickableCursor,
             customBorder: shape,
             hoverColor: DashboardColors.of(context).tone,
             onTap: () => openDashboardFeed(context, feed),

@@ -180,4 +180,22 @@ void main() {
       expect([oldSelected, newSelected], [0, 1]);
     },
   );
+
+  test('click activation is a macOS setting and a no-op elsewhere', () async {
+    await Tray.instance.setClickActivates(true);
+    expect(calls, isEmpty);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    await Tray.instance.setClickActivates(true);
+    await Tray.instance.setClickActivates(false);
+
+    expect(calls.map((call) => call.method), [
+      'setClickActivates',
+      'setClickActivates',
+    ]);
+    expect(calls.map((call) => call.arguments), [
+      {'value': true},
+      {'value': false},
+    ]);
+  });
 }

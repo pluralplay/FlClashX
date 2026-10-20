@@ -41,6 +41,12 @@ class Profiles extends Table {
   TextColumn get overrides =>
       text().map(const ProfileOverridesConverter()).nullable()();
 
+  TextColumn get providerHeaders =>
+      text().map(const StringMapConverter()).nullable()();
+
+  BoolColumn get sendDeviceHeaders =>
+      boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -172,6 +178,8 @@ extension RawProfilExt on RawProfile {
       matchTarget: matchTarget,
       order: order,
       overrides: overrides ?? const ProfileOverrides(),
+      providerHeaders: providerHeaders ?? const {},
+      sendDeviceHeaders: sendDeviceHeaders,
     );
   }
 }
@@ -196,6 +204,8 @@ extension ProfilesCompanionExt on Profile {
       matchTarget: Value(matchTarget),
       order: Value(order ?? this.order),
       overrides: Value(overrides),
+      providerHeaders: Value(providerHeaders.isEmpty ? null : providerHeaders),
+      sendDeviceHeaders: Value(sendDeviceHeaders),
     );
   }
 }

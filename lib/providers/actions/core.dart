@@ -20,6 +20,10 @@ class CoreAction extends _$CoreAction {
     } else {
       await ref.read(proxiesActionProvider.notifier).updateGroups();
     }
+    _core.setHostActive(ref.read(appVisibleProvider));
+    try {
+      globalState.coreVersion = await _core.getCoreVersion();
+    } catch (_) {}
   }
 
   Future<void> startCore() async {
@@ -91,9 +95,21 @@ class CoreAction extends _$CoreAction {
     return operation;
   }
 
+  /// An in-process core (Android) cannot be relaunched, so a restart stops
+  /// the tunnel, shuts mihomo down inside the process and initializes again.
+  @protected
+  bool get coreIsEmbedded => coreLib != null;
+
   Future<bool> _runRestartWorker() async {
+    final wasRunning = ref.read(isStartProvider);
     try {
       ref.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+      if (coreIsEmbedded) {
+        if (wasRunning) {
+          await ref.read(setupActionProvider.notifier).setRunning(false);
+        }
+        await _core.shutdown();
+      }
       final result = await restartLifecycle();
       if (!await _applyLifecycleResult(result, statusFirst: true)) {
         return false;
@@ -103,7 +119,7 @@ class CoreAction extends _$CoreAction {
       var applied = true;
       while (appliedRevision < _requestedRestartRevision) {
         final revision = _requestedRestartRevision;
-        if (ref.read(isStartProvider)) {
+        if (wasRunning || ref.read(isStartProvider)) {
           applied = await ref
               .read(setupActionProvider.notifier)
               .setRunning(true, initialize: true);

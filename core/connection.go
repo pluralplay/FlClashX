@@ -6,17 +6,25 @@ import (
 )
 
 func handleGetTraffic(onlyStatisticsProxy bool) Traffic {
-	up, down := statistic.DefaultManager.NowTraffic(onlyStatisticsProxy)
+	if onlyStatisticsProxy {
+		up, down := proxiedTrafficNow()
+		return Traffic{Up: up, Down: down}
+	}
+	up, down := statistic.DefaultManager.Now()
 	return Traffic{Up: up, Down: down}
 }
 
 func handleGetTotalTraffic(onlyStatisticsProxy bool) Traffic {
-	up, down := statistic.DefaultManager.TotalTraffic(onlyStatisticsProxy)
+	if onlyStatisticsProxy {
+		return Traffic{Up: proxiedTraffic.up.Load(), Down: proxiedTraffic.down.Load()}
+	}
+	up, down := statistic.DefaultManager.Total()
 	return Traffic{Up: up, Down: down}
 }
 
 func handleResetTraffic() {
 	statistic.DefaultManager.ResetStatistic()
+	resetProxiedTraffic()
 }
 
 func handleGetConnections() *statistic.Snapshot {

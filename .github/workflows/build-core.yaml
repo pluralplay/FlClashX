@@ -1,0 +1,85 @@
+name: build-core
+run-name: build-core ${{ github.event.inputs.version }}
+
+# A desktop core alone, for a mihomo release the app has not shipped with yet.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "mihomo release (e.g. v1.19.32)"
+        required: true
+
+env:
+  GO_VERSION: '1.27.1'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows, arch: amd64, goos: windows, goarch: amd64, ext: .exe, os: ubuntu-24.04 }
+          - { platform: windows, arch: arm64, goos: windows, goarch: arm64, ext: .exe, os: ubuntu-24.04 }
+          - { platform: linux, arch: amd64, goos: linux, goarch: amd64, ext: "", os: ubuntu-24.04 }
+          - { platform: linux, arch: arm64, goos: linux, goarch: arm64, ext: "", os: ubuntu-24.04 }
+          - { platform: macos, arch: amd64, goos: darwin, goarch: amd64, ext: "", os: macos-15 }
+          - { platform: macos, arch: arm64, goos: darwin, goarch: arm64, ext: "", os: macos-15 }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+
+      - name: Pin the mihomo release
+        working-directory: core
+        run: |
+          go get github.com/metacubex/mihomo@${{ github.event.inputs.version }}
+          go mod tidy
+
+      - name: Build core
+        working-directory: core
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          tags="$(sed -n 's/^tags: *//p' ../build_config.yaml)"
+          ldflags="$(sed -n 's/^go_ldflags: *//p' ../build_config.yaml | tr -d '"')"
+          go build \
+            -ldflags="$ldflags -X github.com/metacubex/mihomo/constant.Version=${{ github.event.inputs.version }}" \
+            -tags="$tags" \
+            -o "../FlClashCore-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}" \
+            ./cmd/core
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: core-${{ matrix.platform }}-${{ matrix.arch }}
+          path: FlClashCore-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "core-${{ github.event.inputs.version }}"
+          name: "Core ${{ github.event.inputs.version }}"
+          body: "Desktop core ${{ github.event.inputs.version }}"
+          prerelease: true
+          files: dist/*

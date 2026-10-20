@@ -1,5 +1,6 @@
 import 'package:fl_clash/ui/color.dart';
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/measure.dart';
 import 'package:fl_clash/ui/shape.dart';
@@ -41,6 +42,7 @@ class CommonChip extends StatelessWidget {
           ),
           if (onDeleted != null)
             InkWell(
+              mouseCursor: clickableCursor,
               onTap: onDeleted,
               customBorder: AppShape.circle,
               focusColor: colorScheme.primary.opacity30,
@@ -104,7 +106,11 @@ class TonalChip extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: onPressed == null
           ? content
-          : InkWell(onTap: onPressed, child: content),
+          : InkWell(
+              mouseCursor: clickableCursor,
+              onTap: onPressed,
+              child: content,
+            ),
     );
   }
 }

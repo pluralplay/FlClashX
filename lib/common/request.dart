@@ -40,30 +40,47 @@ class Request {
     );
   }
 
-  Future<Response<T>> _download<T>(String url, ResponseType responseType) {
+  Future<Response<T>> _download<T>(
+    String url,
+    ResponseType responseType, {
+    Duration timeout = downloadTimeoutDuration,
+    Map<String, String> headers = const {},
+  }) {
     final target = downloadTarget(url);
     final cancelToken = CancelToken();
     return _clashDio
         .getUri<T>(
           target.uri,
-          options: Options(responseType: responseType, headers: target.headers),
+          options: Options(
+            responseType: responseType,
+            headers: {...headers, ...target.headers},
+          ),
           cancelToken: cancelToken,
         )
         .timeout(
-          downloadTimeoutDuration,
+          timeout,
           onTimeout: () {
             cancelToken.cancel();
             throw DioException.receiveTimeout(
-              timeout: downloadTimeoutDuration,
+              timeout: timeout,
               requestOptions: RequestOptions(path: url),
             );
           },
         );
   }
 
-  Future<Response<Uint8List>> getFileResponseForUrl(String url) async {
+  Future<Response<Uint8List>> getFileResponseForUrl(
+    String url, {
+    Duration timeout = downloadTimeoutDuration,
+    Map<String, String> headers = const {},
+  }) async {
     try {
-      return await _download<Uint8List>(url, ResponseType.bytes);
+      return await _download<Uint8List>(
+        url,
+        ResponseType.bytes,
+        timeout: timeout,
+        headers: headers,
+      );
     } catch (e) {
       commonPrint.log(
         'getFileResponseForUrl error ${compactError(e)}',
@@ -128,6 +145,33 @@ class Request {
 }
 
 final request = Request();
+
+/// How a host let a download down: [soft] when it may be back in a moment,
+/// [hard] when the host itself is gone or no longer serves the resource.
+enum HostFailure { soft, hard }
+
+const _goneStatuses = {HttpStatus.notFound, HttpStatus.gone};
+
+/// Errno of a name that does not resolve or a port nobody listens on, on
+/// macOS and Linux (glibc), then Windows.
+const _hardSocketErrors = {8, -2, -3, -5, 61, 111, 11001, 11004, 10061};
+
+HostFailure hostFailureOf(Object error) {
+  final cause = error is DioException ? error.error ?? error : error;
+  final hard = switch (cause) {
+    MessageException() => true,
+    HandshakeException() || CertificateException() => true,
+    SocketException(:final osError, :final message) =>
+      _hardSocketErrors.contains(osError?.errorCode) ||
+          message.contains('Failed host lookup') ||
+          message.contains('Connection refused'),
+    DioException(type: DioExceptionType.badCertificate) => true,
+    DioException(type: DioExceptionType.badResponse, :final response) =>
+      _goneStatuses.contains(response?.statusCode),
+    _ => false,
+  };
+  return hard ? HostFailure.hard : HostFailure.soft;
+}
 
 /// Some subscription servers send a gzip or zlib body without saying so in
 /// Content-Encoding, which is the only signal dart:io decompresses on.

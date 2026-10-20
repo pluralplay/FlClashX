@@ -629,6 +629,7 @@ class _AlertAction extends StatelessWidget {
       data: TextButtonThemeData(
         style:
             TextButton.styleFrom(
+              enabledMouseCursor: SystemMouseCursors.click,
               foregroundColor: foreground,
               disabledForegroundColor: colorScheme.onSurface.withValues(
                 alpha: 0.38,

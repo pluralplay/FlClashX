@@ -1,7 +1,7 @@
 name: fl_clash
-description: A multi-platform proxy client based on ClashMeta, simple and easy to use, open-source and ad-free.
+description: FlClashX, a fork of FlClash - a multi-platform proxy client based on ClashMeta for Remnawave users.
 publish_to: 'none'
-version: 0.9.1+2026101702
+version: 0.5.0+2026101901
 environment:
   sdk: '>=3.10.0 <4.0.0'
 
@@ -75,6 +75,7 @@ dependencies:
     path: plugins/rust_api
   setup:
     path: plugins/setup
+  flutter_local_notifications: ^22.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -99,8 +100,9 @@ flutter:
     - assets/fonts/
     - assets/images/
     - assets/images/avatar/
+    - assets/images/flags/
     - assets/images/services/
-    - core/Clash.Meta/component/ca/ca-certificates.crt
+    - assets/ca/ca-certificates.crt
     - path: assets/images/tray/unix/
       platforms: [ linux ]
     - path: assets/images/tray/macos/

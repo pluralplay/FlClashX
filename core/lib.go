@@ -16,6 +16,7 @@ import (
 
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/process"
+	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/dns"
 	"github.com/metacubex/mihomo/listener/sing_tun"
@@ -54,7 +55,7 @@ func (th *TunHandler) start(fd int, stack, address, dns, options string) bool {
 	// on this very goroutine — an RLock taken while this one holds the write
 	// lock deadlocks the start outright. Nothing is lost by dropping it: both
 	// hooks return early until th.listener is set, which is below.
-	tunListener := t.Start(fd, stack, address, dns, options)
+	tunListener := t.Start(fd, stack, address, dns, options, trafficTunnel)
 
 	th.mu.Lock()
 	defer th.mu.Unlock()
@@ -233,7 +234,8 @@ func handleUpdateDns(value string) {
 		}
 		log.Infoln("[DNS] updateDns %s", value)
 		dns.UpdateSystemDNS(addr)
-		dns.FlushCacheWithDefaultResolver()
+		resolver.ClearCache()
+		resolver.ResetConnection()
 	})
 }
 

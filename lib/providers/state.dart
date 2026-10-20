@@ -10,6 +10,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -23,6 +24,7 @@ part 'state/proxies.dart';
 part 'state/navigation.dart';
 part 'state/system.dart';
 part 'state/theme.dart';
+part 'state/managed.dart';
 part 'state/profile.dart';
 part 'state/custom.dart';
 part 'state/custom_import.dart';

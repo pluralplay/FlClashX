@@ -17,7 +17,7 @@ is_checkable() {
     *) return 1 ;;
   esac
   case "$file" in
-    */build/* | */generated/* | */l10n/intl/* | */l10n/l10n.dart | */Clash.Meta/* | */.dart_tool/*) return 1 ;;
+    */build/* | */generated/* | */l10n/intl/* | */l10n/l10n.dart | */Clash.Meta/* | */third_party/* | */.dart_tool/*) return 1 ;;
     *.g.dart | *.freezed.dart | */frb_generated*.dart | */frb_generated.rs | */open_container.dart) return 1 ;;
   esac
   return 0

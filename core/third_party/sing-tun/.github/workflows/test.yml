@@ -1,0 +1,112 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/debug.yml'
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build:
+    name: Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Build
+        run: |
+          make test
+  build_go120:
+    name: Linux (Go 1.20)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.20
+        continue-on-error: true
+      - name: Build
+        run: |
+          make test
+  build_go121:
+    name: Linux (Go 1.21)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.21
+        continue-on-error: true
+      - name: Build
+        run: |
+          make test
+  build_go122:
+    name: Linux (Go 1.22)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.22
+        continue-on-error: true
+      - name: Build
+        run: |
+          make test
+  build_windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+        continue-on-error: true
+      - name: Build
+        run: |
+          make test
+  build_darwin:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+        continue-on-error: true
+      - name: Build
+        run: |
+          make test

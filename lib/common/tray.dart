@@ -150,24 +150,34 @@ class AppTray implements TrayPort {
       ),
       if (isMacOS)
         TrayMenuCheckbox(
+          label: appLocalizations.menuBarMode,
+          checked: trayState.menuBarMode,
+          onSelected: () => read(appSettingProvider.notifier).update(
+            (state) => state.copyWith(menuBarMode: !trayState.menuBarMode),
+          ),
+        ),
+      if (isMacOS)
+        TrayMenuCheckbox(
           label: appLocalizations.speedStatistics,
           checked: trayState.showTrayTitle,
           onSelected: commonAction.updateSpeedStatistics,
         ),
-      const TrayMenuSeparator(),
-      for (final mode in Mode.values)
-        TrayMenuCheckbox(
-          label: mode.label,
-          checked: mode == trayState.mode,
-          detail: shortcut(switch (mode) {
-            Mode.rule => HotAction.ruleMode,
-            Mode.global => HotAction.globalMode,
-            Mode.direct => HotAction.directMode,
-          }),
-          onSelected: () {
-            setupAction.changeMode(mode);
-          },
-        ),
+      if (trayState.globalModeAllowed) ...[
+        const TrayMenuSeparator(),
+        for (final mode in Mode.values)
+          TrayMenuCheckbox(
+            label: mode.label,
+            checked: mode == trayState.mode,
+            detail: shortcut(switch (mode) {
+              Mode.rule => HotAction.ruleMode,
+              Mode.global => HotAction.globalMode,
+              Mode.direct => HotAction.directMode,
+            }),
+            onSelected: () {
+              setupAction.changeMode(mode);
+            },
+          ),
+      ],
       const TrayMenuSeparator(),
       if (isMacOS) ..._buildGroupMenu(trayState: trayState, read: read),
       if (trayState.isStart) ...[
@@ -185,17 +195,6 @@ class AppTray implements TrayPort {
         ),
         const TrayMenuSeparator(),
       ],
-      TrayMenuCheckbox(
-        label: appLocalizations.autoLaunch,
-        checked: trayState.autoLaunch,
-        onSelected: systemAction.updateAutoLaunch,
-      ),
-      TrayMenuAction(
-        label: appLocalizations.copyEnvVar,
-        detail: shortcut(HotAction.copyEnv),
-        onSelected: systemAction.copyProxyEnv,
-      ),
-      const TrayMenuSeparator(),
       exitItem,
     ];
   }

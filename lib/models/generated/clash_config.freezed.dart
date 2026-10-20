@@ -405,7 +405,7 @@ as List<String>?,
 /// @nodoc
 mixin _$Proxy {
 
- String get name; String get type; String? get now;
+ String get name; String get type; String? get now; String? get serverDescription;
 /// Create a copy of Proxy
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -419,20 +419,20 @@ $ProxyCopyWith<Proxy> get copyWith => _$ProxyCopyWithImpl<Proxy>(this as Proxy, 
 @override
 bool operator ==(Object other) {
   final _this = this as Proxy;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Proxy&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.now, _this.now) || other.now == _this.now));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Proxy&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.now, _this.now) || other.now == _this.now)&&(identical(other.serverDescription, _this.serverDescription) || other.serverDescription == _this.serverDescription));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Proxy;
-  return Object.hash(runtimeType,_this.name,_this.type,_this.now);
+  return Object.hash(runtimeType,_this.name,_this.type,_this.now,_this.serverDescription);
 }
 
 @override
 String toString() {
   final _this = this as Proxy;
-  return 'Proxy(name: ${_this.name}, type: ${_this.type}, now: ${_this.now})';
+  return 'Proxy(name: ${_this.name}, type: ${_this.type}, now: ${_this.now}, serverDescription: ${_this.serverDescription})';
 }
 
 
@@ -443,7 +443,7 @@ abstract mixin class $ProxyCopyWith<$Res>  {
   factory $ProxyCopyWith(Proxy value, $Res Function(Proxy) _then) = _$ProxyCopyWithImpl;
 @useResult
 $Res call({
- String name, String type, String? now
+ String name, String type, String? now, String? serverDescription
 });
 
 
@@ -460,11 +460,12 @@ class _$ProxyCopyWithImpl<$Res>
 
 /// Create a copy of Proxy
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? type = null,Object? now = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? type = null,Object? now = freezed,Object? serverDescription = freezed,}) {
   return _then(Proxy(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,now: freezed == now ? _self.now : now // ignore: cast_nullable_to_non_nullable
+as String?,serverDescription: freezed == serverDescription ? _self.serverDescription : serverDescription // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -550,10 +551,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String type,  String? now)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String type,  String? now,  String? serverDescription)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Proxy() when $default != null:
-return $default(_that.name,_that.type,_that.now);case _:
+return $default(_that.name,_that.type,_that.now,_that.serverDescription);case _:
   return orElse();
 
 }
@@ -571,10 +572,10 @@ return $default(_that.name,_that.type,_that.now);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String type,  String? now)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String type,  String? now,  String? serverDescription)  $default,) {final _that = this;
 switch (_that) {
 case _Proxy():
-return $default(_that.name,_that.type,_that.now);case _:
+return $default(_that.name,_that.type,_that.now,_that.serverDescription);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -591,10 +592,10 @@ return $default(_that.name,_that.type,_that.now);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String type,  String? now)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String type,  String? now,  String? serverDescription)?  $default,) {final _that = this;
 switch (_that) {
 case _Proxy() when $default != null:
-return $default(_that.name,_that.type,_that.now);case _:
+return $default(_that.name,_that.type,_that.now,_that.serverDescription);case _:
   return null;
 
 }
@@ -606,12 +607,13 @@ return $default(_that.name,_that.type,_that.now);case _:
 @JsonSerializable()
 
 class _Proxy implements Proxy {
-  const _Proxy({required this.name, required this.type, this.now});
+  const _Proxy({required this.name, required this.type, this.now, this.serverDescription});
   factory _Proxy.fromJson(Map<String, dynamic> json) => _$ProxyFromJson(json);
 
 @override final  String name;
 @override final  String type;
 @override final  String? now;
+@override final  String? serverDescription;
 
 /// Create a copy of Proxy
 /// with the given fields replaced by the non-null parameter values.
@@ -626,18 +628,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Proxy&&(identical(other.name, name) || other.name == name)&&(identical(other.type, type) || other.type == type)&&(identical(other.now, now) || other.now == now));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Proxy&&(identical(other.name, name) || other.name == name)&&(identical(other.type, type) || other.type == type)&&(identical(other.now, now) || other.now == now)&&(identical(other.serverDescription, serverDescription) || other.serverDescription == serverDescription));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,name,type,now);
+    return Object.hash(runtimeType,name,type,now,serverDescription);
 }
 
 @override
 String toString() {
-    return 'Proxy(name: $name, type: $type, now: $now)';
+    return 'Proxy(name: $name, type: $type, now: $now, serverDescription: $serverDescription)';
 }
 
 
@@ -648,7 +650,7 @@ abstract mixin class _$ProxyCopyWith<$Res> implements $ProxyCopyWith<$Res> {
   factory _$ProxyCopyWith(_Proxy value, $Res Function(_Proxy) _then) = __$ProxyCopyWithImpl;
 @override @useResult
 $Res call({
- String name, String type, String? now
+ String name, String type, String? now, String? serverDescription
 });
 
 
@@ -665,11 +667,12 @@ class __$ProxyCopyWithImpl<$Res>
 
 /// Create a copy of Proxy
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? type = null,Object? now = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? type = null,Object? now = freezed,Object? serverDescription = freezed,}) {
   return _then(_Proxy(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,now: freezed == now ? _self.now : now // ignore: cast_nullable_to_non_nullable
+as String?,serverDescription: freezed == serverDescription ? _self.serverDescription : serverDescription // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -3959,7 +3962,7 @@ return $default(_that.enable,_that.device,_that.stack,_that.routeAddress,_that.m
 @JsonSerializable()
 
 class _Tun implements Tun {
-  const _Tun({this.enable = false, this.device = appName, this.stack = TunStack.mips, @JsonKey(name: 'route-address')  List<String> routeAddress = const [], @JsonKey(fromJson: _mtuFromJson) this.mtu = defaultTunMtu, @JsonKey(name: 'congestion-controller', fromJson: _congestionControllerFromJson) this.congestionController = defaultCongestionController, @JsonKey(name: 'route-exclude-address')  List<String> routeExcludeAddress = const []}): _routeAddress = routeAddress,_routeExcludeAddress = routeExcludeAddress;
+  const _Tun({this.enable = true, this.device = appName, this.stack = TunStack.mips, @JsonKey(name: 'route-address')  List<String> routeAddress = const [], @JsonKey(fromJson: _mtuFromJson) this.mtu = defaultTunMtu, @JsonKey(name: 'congestion-controller', fromJson: _congestionControllerFromJson) this.congestionController = defaultCongestionController, @JsonKey(name: 'route-exclude-address')  List<String> routeExcludeAddress = const []}): _routeAddress = routeAddress,_routeExcludeAddress = routeExcludeAddress;
   factory _Tun.fromJson(Map<String, dynamic> json) => _$TunFromJson(json);
 
 @override@JsonKey() final  bool enable;
@@ -4588,7 +4591,7 @@ return $default(_that.enable,_that.listen,_that.listenRoutingMark,_that.preferH3
 @JsonSerializable()
 
 class _Dns implements Dns {
-  const _Dns({this.enable = false, this.listen = '', @JsonKey(name: 'listen-routing-mark') this.listenRoutingMark = 0, @JsonKey(name: 'prefer-h3') this.preferH3 = false, @JsonKey(name: 'use-hosts') this.useHosts = true, @JsonKey(name: 'use-system-hosts') this.useSystemHosts = true, @JsonKey(name: 'respect-rules') this.respectRules = false, this.ipv6 = false, @JsonKey(name: 'ipv6-timeout') this.ipv6Timeout = 100, @JsonKey(name: 'cache-algorithm') this.cacheAlgorithm = DnsCacheAlgorithm.lru, @JsonKey(name: 'cache-max-size') this.cacheMaxSize = 4096, @JsonKey(name: 'default-nameserver')  List<String> defaultNameserver = const ['114.114.114.114', '223.5.5.5', '8.8.8.8', '1.0.0.1'], @JsonKey(name: 'enhanced-mode') this.enhancedMode = DnsMode.redirHost, @JsonKey(name: 'fake-ip-range') this.fakeIpRange = '198.18.0.1/16', @JsonKey(name: 'fake-ip-range6') this.fakeIpRange6 = '', @JsonKey(name: 'fake-ip-filter')  List<String> fakeIpFilter = const ['dns.msftnsci.com', 'www.msftnsci.com', 'www.msftconnecttest.com'], @JsonKey(name: 'fake-ip-filter-mode') this.fakeIpFilterMode = FakeIpFilterMode.blacklist, @JsonKey(name: 'fake-ip-ttl') this.fakeIpTtl = 1, @JsonKey(name: 'nameserver-policy')  Map<String, String> nameserverPolicy = const {},  List<String> nameserver = const ['https://doh.pub/dns-query', 'tls://223.5.5.5:853'],  List<String> fallback = const [], @JsonKey(name: 'fallback-lazy-query') this.fallbackLazyQuery = false, @JsonKey(name: 'proxy-server-nameserver')  List<String> proxyServerNameserver = const [], @JsonKey(name: 'proxy-server-nameserver-policy')  Map<String, String> proxyServerNameserverPolicy = const {}, @JsonKey(name: 'direct-nameserver')  List<String> directNameserver = const [], @JsonKey(name: 'direct-nameserver-follow-policy') this.directNameserverFollowPolicy = false, @JsonKey(name: 'fallback-filter') this.fallbackFilter = const FallbackFilter()}): _defaultNameserver = defaultNameserver,_fakeIpFilter = fakeIpFilter,_nameserverPolicy = nameserverPolicy,_nameserver = nameserver,_fallback = fallback,_proxyServerNameserver = proxyServerNameserver,_proxyServerNameserverPolicy = proxyServerNameserverPolicy,_directNameserver = directNameserver;
+  const _Dns({this.enable = false, this.listen = '', @JsonKey(name: 'listen-routing-mark') this.listenRoutingMark = 0, @JsonKey(name: 'prefer-h3') this.preferH3 = false, @JsonKey(name: 'use-hosts') this.useHosts = true, @JsonKey(name: 'use-system-hosts') this.useSystemHosts = true, @JsonKey(name: 'respect-rules') this.respectRules = false, this.ipv6 = false, @JsonKey(name: 'ipv6-timeout') this.ipv6Timeout = 100, @JsonKey(name: 'cache-algorithm') this.cacheAlgorithm = DnsCacheAlgorithm.lru, @JsonKey(name: 'cache-max-size') this.cacheMaxSize = 4096, @JsonKey(name: 'default-nameserver')  List<String> defaultNameserver = const ['8.8.8.8', '1.1.1.1'], @JsonKey(name: 'enhanced-mode') this.enhancedMode = DnsMode.redirHost, @JsonKey(name: 'fake-ip-range') this.fakeIpRange = '198.18.0.1/16', @JsonKey(name: 'fake-ip-range6') this.fakeIpRange6 = '', @JsonKey(name: 'fake-ip-filter')  List<String> fakeIpFilter = const ['dns.msftnsci.com', 'www.msftnsci.com', 'www.msftconnecttest.com'], @JsonKey(name: 'fake-ip-filter-mode') this.fakeIpFilterMode = FakeIpFilterMode.blacklist, @JsonKey(name: 'fake-ip-ttl') this.fakeIpTtl = 1, @JsonKey(name: 'nameserver-policy')  Map<String, String> nameserverPolicy = const {},  List<String> nameserver = const ['https://dns.google/dns-query', 'https://cloudflare-dns.com/dns-query'],  List<String> fallback = const [], @JsonKey(name: 'fallback-lazy-query') this.fallbackLazyQuery = false, @JsonKey(name: 'proxy-server-nameserver')  List<String> proxyServerNameserver = const [], @JsonKey(name: 'proxy-server-nameserver-policy')  Map<String, String> proxyServerNameserverPolicy = const {}, @JsonKey(name: 'direct-nameserver')  List<String> directNameserver = const [], @JsonKey(name: 'direct-nameserver-follow-policy') this.directNameserverFollowPolicy = false, @JsonKey(name: 'fallback-filter') this.fallbackFilter = const FallbackFilter()}): _defaultNameserver = defaultNameserver,_fakeIpFilter = fakeIpFilter,_nameserverPolicy = nameserverPolicy,_nameserver = nameserver,_fallback = fallback,_proxyServerNameserver = proxyServerNameserver,_proxyServerNameserverPolicy = proxyServerNameserverPolicy,_directNameserver = directNameserver;
   factory _Dns.fromJson(Map<String, dynamic> json) => _$DnsFromJson(json);
 
 @override@JsonKey() final  bool enable;
@@ -7329,7 +7332,7 @@ as List<String>,
 /// @nodoc
 mixin _$PatchClashConfig {
 
-@JsonKey(name: 'mixed-port') int get mixedPort;@JsonKey(name: 'socks-port') int get socksPort;@JsonKey(name: 'port') int get port;@JsonKey(name: 'redir-port') int get redirPort;@JsonKey(name: 'tproxy-port') int get tproxyPort; Mode get mode;@JsonKey(name: 'allow-lan') bool get allowLan;@JsonKey(name: 'log-level') LogLevel get logLevel; bool get ipv6;@JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) FindProcessMode get findProcessMode;@JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) InterfaceNameMode get interfaceNameMode;@JsonKey(name: 'interface-name') String get interfaceName;@JsonKey(name: 'keep-alive-interval') int get keepAliveInterval;@JsonKey(name: 'keep-alive-idle') int get keepAliveIdle;@JsonKey(name: 'disable-keep-alive') bool get disableKeepAlive;@JsonKey(name: 'routing-mark') int get routingMark;@JsonKey(name: 'unified-delay') bool get unifiedDelay;@JsonKey(name: 'tcp-concurrent') bool get tcpConcurrent;@JsonKey(fromJson: Tun.safeFormJson) Tun get tun;@JsonKey(fromJson: Dns.safeDnsFromJson) Dns get dns;@JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson) Set<DnsOverrideKey> get dnsOverrideKeys;@JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) ProfileTun get tunOverride;@JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson) Set<TunOverrideKey> get tunOverrideKeys;@JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson) Map<GeoResource, String> get geoXUrl;@JsonKey(name: 'geodata-loader') GeodataLoader get geodataLoader;@JsonKey(name: 'global-ua') String? get globalUa;@JsonKey(name: 'external-controller') ExternalControllerStatus get externalController; String get secret; Map<String, String> get hosts;@JsonKey(name: 'geo-auto-update') bool get geoAutoUpdate;@JsonKey(name: 'geo-update-interval') int get geoUpdateInterval;
+@JsonKey(name: 'mixed-port') int get mixedPort;@JsonKey(name: 'socks-port') int get socksPort;@JsonKey(name: 'port') int get port;@JsonKey(name: 'redir-port') int get redirPort;@JsonKey(name: 'tproxy-port') int get tproxyPort; Mode get mode;@JsonKey(name: 'allow-lan') bool get allowLan;@JsonKey(name: 'log-level') LogLevel get logLevel; bool get ipv6;@JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) FindProcessMode get findProcessMode;@JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) InterfaceNameMode get interfaceNameMode;@JsonKey(name: 'interface-name') String get interfaceName;@JsonKey(name: 'keep-alive-interval') int get keepAliveInterval;@JsonKey(name: 'keep-alive-idle') int get keepAliveIdle;@JsonKey(name: 'disable-keep-alive') bool get disableKeepAlive;@JsonKey(name: 'routing-mark') int get routingMark;@JsonKey(name: 'unified-delay') bool get unifiedDelay;@JsonKey(name: 'tcp-concurrent') bool get tcpConcurrent;@JsonKey(fromJson: Tun.safeFormJson) Tun get tun;@JsonKey(fromJson: Dns.safeDnsFromJson) Dns get dns;@JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson) Set<DnsOverrideKey> get dnsOverrideKeys;@JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) ProfileTun get tunOverride;@JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson) Set<TunOverrideKey> get tunOverrideKeys;@JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson) Map<GeoResource, String> get geoXUrl;@JsonKey(name: 'geodata-loader') GeodataLoader get geodataLoader;@JsonKey(name: 'global-ua') String? get globalUa;@JsonKey(name: 'external-controller') String get externalController; String get secret; Map<String, String> get hosts;@JsonKey(name: 'geo-auto-update') bool get geoAutoUpdate;@JsonKey(name: 'geo-update-interval') int get geoUpdateInterval;
 /// Create a copy of PatchClashConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -7367,7 +7370,7 @@ abstract mixin class $PatchClashConfigCopyWith<$Res>  {
   factory $PatchClashConfigCopyWith(PatchClashConfig value, $Res Function(PatchClashConfig) _then) = _$PatchClashConfigCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'mixed-port') int mixedPort,@JsonKey(name: 'socks-port') int socksPort,@JsonKey(name: 'port') int port,@JsonKey(name: 'redir-port') int redirPort,@JsonKey(name: 'tproxy-port') int tproxyPort, Mode mode,@JsonKey(name: 'allow-lan') bool allowLan,@JsonKey(name: 'log-level') LogLevel logLevel, bool ipv6,@JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) FindProcessMode findProcessMode,@JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) InterfaceNameMode interfaceNameMode,@JsonKey(name: 'interface-name') String interfaceName,@JsonKey(name: 'keep-alive-interval') int keepAliveInterval,@JsonKey(name: 'keep-alive-idle') int keepAliveIdle,@JsonKey(name: 'disable-keep-alive') bool disableKeepAlive,@JsonKey(name: 'routing-mark') int routingMark,@JsonKey(name: 'unified-delay') bool unifiedDelay,@JsonKey(name: 'tcp-concurrent') bool tcpConcurrent,@JsonKey(fromJson: Tun.safeFormJson) Tun tun,@JsonKey(fromJson: Dns.safeDnsFromJson) Dns dns,@JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson) Set<DnsOverrideKey> dnsOverrideKeys,@JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) ProfileTun tunOverride,@JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson) Set<TunOverrideKey> tunOverrideKeys,@JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson) Map<GeoResource, String> geoXUrl,@JsonKey(name: 'geodata-loader') GeodataLoader geodataLoader,@JsonKey(name: 'global-ua') String? globalUa,@JsonKey(name: 'external-controller') ExternalControllerStatus externalController, String secret, Map<String, String> hosts,@JsonKey(name: 'geo-auto-update') bool geoAutoUpdate,@JsonKey(name: 'geo-update-interval') int geoUpdateInterval
+@JsonKey(name: 'mixed-port') int mixedPort,@JsonKey(name: 'socks-port') int socksPort,@JsonKey(name: 'port') int port,@JsonKey(name: 'redir-port') int redirPort,@JsonKey(name: 'tproxy-port') int tproxyPort, Mode mode,@JsonKey(name: 'allow-lan') bool allowLan,@JsonKey(name: 'log-level') LogLevel logLevel, bool ipv6,@JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) FindProcessMode findProcessMode,@JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) InterfaceNameMode interfaceNameMode,@JsonKey(name: 'interface-name') String interfaceName,@JsonKey(name: 'keep-alive-interval') int keepAliveInterval,@JsonKey(name: 'keep-alive-idle') int keepAliveIdle,@JsonKey(name: 'disable-keep-alive') bool disableKeepAlive,@JsonKey(name: 'routing-mark') int routingMark,@JsonKey(name: 'unified-delay') bool unifiedDelay,@JsonKey(name: 'tcp-concurrent') bool tcpConcurrent,@JsonKey(fromJson: Tun.safeFormJson) Tun tun,@JsonKey(fromJson: Dns.safeDnsFromJson) Dns dns,@JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson) Set<DnsOverrideKey> dnsOverrideKeys,@JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) ProfileTun tunOverride,@JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson) Set<TunOverrideKey> tunOverrideKeys,@JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson) Map<GeoResource, String> geoXUrl,@JsonKey(name: 'geodata-loader') GeodataLoader geodataLoader,@JsonKey(name: 'global-ua') String? globalUa,@JsonKey(name: 'external-controller') String externalController, String secret, Map<String, String> hosts,@JsonKey(name: 'geo-auto-update') bool geoAutoUpdate,@JsonKey(name: 'geo-update-interval') int geoUpdateInterval
 });
 
 
@@ -7413,7 +7416,7 @@ as Set<TunOverrideKey>,geoXUrl: null == geoXUrl ? _self.geoXUrl : geoXUrl // ign
 as Map<GeoResource, String>,geodataLoader: null == geodataLoader ? _self.geodataLoader : geodataLoader // ignore: cast_nullable_to_non_nullable
 as GeodataLoader,globalUa: freezed == globalUa ? _self.globalUa : globalUa // ignore: cast_nullable_to_non_nullable
 as String?,externalController: null == externalController ? _self.externalController : externalController // ignore: cast_nullable_to_non_nullable
-as ExternalControllerStatus,secret: null == secret ? _self.secret : secret // ignore: cast_nullable_to_non_nullable
+as String,secret: null == secret ? _self.secret : secret // ignore: cast_nullable_to_non_nullable
 as String,hosts: null == hosts ? _self.hosts : hosts // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,geoAutoUpdate: null == geoAutoUpdate ? _self.geoAutoUpdate : geoAutoUpdate // ignore: cast_nullable_to_non_nullable
 as bool,geoUpdateInterval: null == geoUpdateInterval ? _self.geoUpdateInterval : geoUpdateInterval // ignore: cast_nullable_to_non_nullable
@@ -7529,7 +7532,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'mixed-port')  int mixedPort, @JsonKey(name: 'socks-port')  int socksPort, @JsonKey(name: 'port')  int port, @JsonKey(name: 'redir-port')  int redirPort, @JsonKey(name: 'tproxy-port')  int tproxyPort,  Mode mode, @JsonKey(name: 'allow-lan')  bool allowLan, @JsonKey(name: 'log-level')  LogLevel logLevel,  bool ipv6, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)  FindProcessMode findProcessMode, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear)  InterfaceNameMode interfaceNameMode, @JsonKey(name: 'interface-name')  String interfaceName, @JsonKey(name: 'keep-alive-interval')  int keepAliveInterval, @JsonKey(name: 'keep-alive-idle')  int keepAliveIdle, @JsonKey(name: 'disable-keep-alive')  bool disableKeepAlive, @JsonKey(name: 'routing-mark')  int routingMark, @JsonKey(name: 'unified-delay')  bool unifiedDelay, @JsonKey(name: 'tcp-concurrent')  bool tcpConcurrent, @JsonKey(fromJson: Tun.safeFormJson)  Tun tun, @JsonKey(fromJson: Dns.safeDnsFromJson)  Dns dns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson)  ProfileTun tunOverride, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl, @JsonKey(name: 'geodata-loader')  GeodataLoader geodataLoader, @JsonKey(name: 'global-ua')  String? globalUa, @JsonKey(name: 'external-controller')  ExternalControllerStatus externalController,  String secret,  Map<String, String> hosts, @JsonKey(name: 'geo-auto-update')  bool geoAutoUpdate, @JsonKey(name: 'geo-update-interval')  int geoUpdateInterval)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'mixed-port')  int mixedPort, @JsonKey(name: 'socks-port')  int socksPort, @JsonKey(name: 'port')  int port, @JsonKey(name: 'redir-port')  int redirPort, @JsonKey(name: 'tproxy-port')  int tproxyPort,  Mode mode, @JsonKey(name: 'allow-lan')  bool allowLan, @JsonKey(name: 'log-level')  LogLevel logLevel,  bool ipv6, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)  FindProcessMode findProcessMode, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear)  InterfaceNameMode interfaceNameMode, @JsonKey(name: 'interface-name')  String interfaceName, @JsonKey(name: 'keep-alive-interval')  int keepAliveInterval, @JsonKey(name: 'keep-alive-idle')  int keepAliveIdle, @JsonKey(name: 'disable-keep-alive')  bool disableKeepAlive, @JsonKey(name: 'routing-mark')  int routingMark, @JsonKey(name: 'unified-delay')  bool unifiedDelay, @JsonKey(name: 'tcp-concurrent')  bool tcpConcurrent, @JsonKey(fromJson: Tun.safeFormJson)  Tun tun, @JsonKey(fromJson: Dns.safeDnsFromJson)  Dns dns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson)  ProfileTun tunOverride, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl, @JsonKey(name: 'geodata-loader')  GeodataLoader geodataLoader, @JsonKey(name: 'global-ua')  String? globalUa, @JsonKey(name: 'external-controller')  String externalController,  String secret,  Map<String, String> hosts, @JsonKey(name: 'geo-auto-update')  bool geoAutoUpdate, @JsonKey(name: 'geo-update-interval')  int geoUpdateInterval)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PatchClashConfig() when $default != null:
 return $default(_that.mixedPort,_that.socksPort,_that.port,_that.redirPort,_that.tproxyPort,_that.mode,_that.allowLan,_that.logLevel,_that.ipv6,_that.findProcessMode,_that.interfaceNameMode,_that.interfaceName,_that.keepAliveInterval,_that.keepAliveIdle,_that.disableKeepAlive,_that.routingMark,_that.unifiedDelay,_that.tcpConcurrent,_that.tun,_that.dns,_that.dnsOverrideKeys,_that.tunOverride,_that.tunOverrideKeys,_that.geoXUrl,_that.geodataLoader,_that.globalUa,_that.externalController,_that.secret,_that.hosts,_that.geoAutoUpdate,_that.geoUpdateInterval);case _:
@@ -7550,7 +7553,7 @@ return $default(_that.mixedPort,_that.socksPort,_that.port,_that.redirPort,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'mixed-port')  int mixedPort, @JsonKey(name: 'socks-port')  int socksPort, @JsonKey(name: 'port')  int port, @JsonKey(name: 'redir-port')  int redirPort, @JsonKey(name: 'tproxy-port')  int tproxyPort,  Mode mode, @JsonKey(name: 'allow-lan')  bool allowLan, @JsonKey(name: 'log-level')  LogLevel logLevel,  bool ipv6, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)  FindProcessMode findProcessMode, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear)  InterfaceNameMode interfaceNameMode, @JsonKey(name: 'interface-name')  String interfaceName, @JsonKey(name: 'keep-alive-interval')  int keepAliveInterval, @JsonKey(name: 'keep-alive-idle')  int keepAliveIdle, @JsonKey(name: 'disable-keep-alive')  bool disableKeepAlive, @JsonKey(name: 'routing-mark')  int routingMark, @JsonKey(name: 'unified-delay')  bool unifiedDelay, @JsonKey(name: 'tcp-concurrent')  bool tcpConcurrent, @JsonKey(fromJson: Tun.safeFormJson)  Tun tun, @JsonKey(fromJson: Dns.safeDnsFromJson)  Dns dns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson)  ProfileTun tunOverride, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl, @JsonKey(name: 'geodata-loader')  GeodataLoader geodataLoader, @JsonKey(name: 'global-ua')  String? globalUa, @JsonKey(name: 'external-controller')  ExternalControllerStatus externalController,  String secret,  Map<String, String> hosts, @JsonKey(name: 'geo-auto-update')  bool geoAutoUpdate, @JsonKey(name: 'geo-update-interval')  int geoUpdateInterval)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'mixed-port')  int mixedPort, @JsonKey(name: 'socks-port')  int socksPort, @JsonKey(name: 'port')  int port, @JsonKey(name: 'redir-port')  int redirPort, @JsonKey(name: 'tproxy-port')  int tproxyPort,  Mode mode, @JsonKey(name: 'allow-lan')  bool allowLan, @JsonKey(name: 'log-level')  LogLevel logLevel,  bool ipv6, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)  FindProcessMode findProcessMode, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear)  InterfaceNameMode interfaceNameMode, @JsonKey(name: 'interface-name')  String interfaceName, @JsonKey(name: 'keep-alive-interval')  int keepAliveInterval, @JsonKey(name: 'keep-alive-idle')  int keepAliveIdle, @JsonKey(name: 'disable-keep-alive')  bool disableKeepAlive, @JsonKey(name: 'routing-mark')  int routingMark, @JsonKey(name: 'unified-delay')  bool unifiedDelay, @JsonKey(name: 'tcp-concurrent')  bool tcpConcurrent, @JsonKey(fromJson: Tun.safeFormJson)  Tun tun, @JsonKey(fromJson: Dns.safeDnsFromJson)  Dns dns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson)  ProfileTun tunOverride, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl, @JsonKey(name: 'geodata-loader')  GeodataLoader geodataLoader, @JsonKey(name: 'global-ua')  String? globalUa, @JsonKey(name: 'external-controller')  String externalController,  String secret,  Map<String, String> hosts, @JsonKey(name: 'geo-auto-update')  bool geoAutoUpdate, @JsonKey(name: 'geo-update-interval')  int geoUpdateInterval)  $default,) {final _that = this;
 switch (_that) {
 case _PatchClashConfig():
 return $default(_that.mixedPort,_that.socksPort,_that.port,_that.redirPort,_that.tproxyPort,_that.mode,_that.allowLan,_that.logLevel,_that.ipv6,_that.findProcessMode,_that.interfaceNameMode,_that.interfaceName,_that.keepAliveInterval,_that.keepAliveIdle,_that.disableKeepAlive,_that.routingMark,_that.unifiedDelay,_that.tcpConcurrent,_that.tun,_that.dns,_that.dnsOverrideKeys,_that.tunOverride,_that.tunOverrideKeys,_that.geoXUrl,_that.geodataLoader,_that.globalUa,_that.externalController,_that.secret,_that.hosts,_that.geoAutoUpdate,_that.geoUpdateInterval);case _:
@@ -7570,7 +7573,7 @@ return $default(_that.mixedPort,_that.socksPort,_that.port,_that.redirPort,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'mixed-port')  int mixedPort, @JsonKey(name: 'socks-port')  int socksPort, @JsonKey(name: 'port')  int port, @JsonKey(name: 'redir-port')  int redirPort, @JsonKey(name: 'tproxy-port')  int tproxyPort,  Mode mode, @JsonKey(name: 'allow-lan')  bool allowLan, @JsonKey(name: 'log-level')  LogLevel logLevel,  bool ipv6, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)  FindProcessMode findProcessMode, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear)  InterfaceNameMode interfaceNameMode, @JsonKey(name: 'interface-name')  String interfaceName, @JsonKey(name: 'keep-alive-interval')  int keepAliveInterval, @JsonKey(name: 'keep-alive-idle')  int keepAliveIdle, @JsonKey(name: 'disable-keep-alive')  bool disableKeepAlive, @JsonKey(name: 'routing-mark')  int routingMark, @JsonKey(name: 'unified-delay')  bool unifiedDelay, @JsonKey(name: 'tcp-concurrent')  bool tcpConcurrent, @JsonKey(fromJson: Tun.safeFormJson)  Tun tun, @JsonKey(fromJson: Dns.safeDnsFromJson)  Dns dns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson)  ProfileTun tunOverride, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl, @JsonKey(name: 'geodata-loader')  GeodataLoader geodataLoader, @JsonKey(name: 'global-ua')  String? globalUa, @JsonKey(name: 'external-controller')  ExternalControllerStatus externalController,  String secret,  Map<String, String> hosts, @JsonKey(name: 'geo-auto-update')  bool geoAutoUpdate, @JsonKey(name: 'geo-update-interval')  int geoUpdateInterval)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'mixed-port')  int mixedPort, @JsonKey(name: 'socks-port')  int socksPort, @JsonKey(name: 'port')  int port, @JsonKey(name: 'redir-port')  int redirPort, @JsonKey(name: 'tproxy-port')  int tproxyPort,  Mode mode, @JsonKey(name: 'allow-lan')  bool allowLan, @JsonKey(name: 'log-level')  LogLevel logLevel,  bool ipv6, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)  FindProcessMode findProcessMode, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear)  InterfaceNameMode interfaceNameMode, @JsonKey(name: 'interface-name')  String interfaceName, @JsonKey(name: 'keep-alive-interval')  int keepAliveInterval, @JsonKey(name: 'keep-alive-idle')  int keepAliveIdle, @JsonKey(name: 'disable-keep-alive')  bool disableKeepAlive, @JsonKey(name: 'routing-mark')  int routingMark, @JsonKey(name: 'unified-delay')  bool unifiedDelay, @JsonKey(name: 'tcp-concurrent')  bool tcpConcurrent, @JsonKey(fromJson: Tun.safeFormJson)  Tun tun, @JsonKey(fromJson: Dns.safeDnsFromJson)  Dns dns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson)  ProfileTun tunOverride, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl, @JsonKey(name: 'geodata-loader')  GeodataLoader geodataLoader, @JsonKey(name: 'global-ua')  String? globalUa, @JsonKey(name: 'external-controller')  String externalController,  String secret,  Map<String, String> hosts, @JsonKey(name: 'geo-auto-update')  bool geoAutoUpdate, @JsonKey(name: 'geo-update-interval')  int geoUpdateInterval)?  $default,) {final _that = this;
 switch (_that) {
 case _PatchClashConfig() when $default != null:
 return $default(_that.mixedPort,_that.socksPort,_that.port,_that.redirPort,_that.tproxyPort,_that.mode,_that.allowLan,_that.logLevel,_that.ipv6,_that.findProcessMode,_that.interfaceNameMode,_that.interfaceName,_that.keepAliveInterval,_that.keepAliveIdle,_that.disableKeepAlive,_that.routingMark,_that.unifiedDelay,_that.tcpConcurrent,_that.tun,_that.dns,_that.dnsOverrideKeys,_that.tunOverride,_that.tunOverrideKeys,_that.geoXUrl,_that.geodataLoader,_that.globalUa,_that.externalController,_that.secret,_that.hosts,_that.geoAutoUpdate,_that.geoUpdateInterval);case _:
@@ -7585,7 +7588,7 @@ return $default(_that.mixedPort,_that.socksPort,_that.port,_that.redirPort,_that
 @JsonSerializable()
 
 class _PatchClashConfig implements PatchClashConfig {
-  const _PatchClashConfig({@JsonKey(name: 'mixed-port') this.mixedPort = defaultMixedPort, @JsonKey(name: 'socks-port') this.socksPort = 0, @JsonKey(name: 'port') this.port = 0, @JsonKey(name: 'redir-port') this.redirPort = 0, @JsonKey(name: 'tproxy-port') this.tproxyPort = 0, this.mode = Mode.rule, @JsonKey(name: 'allow-lan') this.allowLan = false, @JsonKey(name: 'log-level') this.logLevel = LogLevel.error, this.ipv6 = false, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) this.findProcessMode = FindProcessMode.off, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) this.interfaceNameMode = InterfaceNameMode.clear, @JsonKey(name: 'interface-name') this.interfaceName = '', @JsonKey(name: 'keep-alive-interval') this.keepAliveInterval = defaultKeepAliveInterval, @JsonKey(name: 'keep-alive-idle') this.keepAliveIdle = 15, @JsonKey(name: 'disable-keep-alive') this.disableKeepAlive = false, @JsonKey(name: 'routing-mark') this.routingMark = 0, @JsonKey(name: 'unified-delay') this.unifiedDelay = true, @JsonKey(name: 'tcp-concurrent') this.tcpConcurrent = true, @JsonKey(fromJson: Tun.safeFormJson) this.tun = defaultTun, @JsonKey(fromJson: Dns.safeDnsFromJson) this.dns = defaultDns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys = const {}, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) this.tunOverride = defaultProfileTun, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys = const {}, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl = defaultGeoXUrl, @JsonKey(name: 'geodata-loader') this.geodataLoader = GeodataLoader.memconservative, @JsonKey(name: 'global-ua') this.globalUa, @JsonKey(name: 'external-controller') this.externalController = ExternalControllerStatus.close, this.secret = '',  Map<String, String> hosts = const {}, @JsonKey(name: 'geo-auto-update') this.geoAutoUpdate = false, @JsonKey(name: 'geo-update-interval') this.geoUpdateInterval = 24}): _dnsOverrideKeys = dnsOverrideKeys,_tunOverrideKeys = tunOverrideKeys,_geoXUrl = geoXUrl,_hosts = hosts;
+  const _PatchClashConfig({@JsonKey(name: 'mixed-port') this.mixedPort = defaultMixedPort, @JsonKey(name: 'socks-port') this.socksPort = 0, @JsonKey(name: 'port') this.port = 0, @JsonKey(name: 'redir-port') this.redirPort = 0, @JsonKey(name: 'tproxy-port') this.tproxyPort = 0, this.mode = Mode.rule, @JsonKey(name: 'allow-lan') this.allowLan = false, @JsonKey(name: 'log-level') this.logLevel = LogLevel.error, this.ipv6 = true, @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) this.findProcessMode = FindProcessMode.always, @JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) this.interfaceNameMode = InterfaceNameMode.clear, @JsonKey(name: 'interface-name') this.interfaceName = '', @JsonKey(name: 'keep-alive-interval') this.keepAliveInterval = defaultKeepAliveInterval, @JsonKey(name: 'keep-alive-idle') this.keepAliveIdle = 15, @JsonKey(name: 'disable-keep-alive') this.disableKeepAlive = false, @JsonKey(name: 'routing-mark') this.routingMark = 0, @JsonKey(name: 'unified-delay') this.unifiedDelay = true, @JsonKey(name: 'tcp-concurrent') this.tcpConcurrent = true, @JsonKey(fromJson: Tun.safeFormJson) this.tun = defaultTun, @JsonKey(fromJson: Dns.safeDnsFromJson) this.dns = defaultDns, @JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson)  Set<DnsOverrideKey> dnsOverrideKeys = const {}, @JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) this.tunOverride = defaultProfileTun, @JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson)  Set<TunOverrideKey> tunOverrideKeys = const {}, @JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson)  Map<GeoResource, String> geoXUrl = defaultGeoXUrl, @JsonKey(name: 'geodata-loader') this.geodataLoader = GeodataLoader.memconservative, @JsonKey(name: 'global-ua') this.globalUa, @JsonKey(name: 'external-controller') this.externalController = '', this.secret = '',  Map<String, String> hosts = const {}, @JsonKey(name: 'geo-auto-update') this.geoAutoUpdate = false, @JsonKey(name: 'geo-update-interval') this.geoUpdateInterval = 24}): _dnsOverrideKeys = dnsOverrideKeys,_tunOverrideKeys = tunOverrideKeys,_geoXUrl = geoXUrl,_hosts = hosts;
   factory _PatchClashConfig.fromJson(Map<String, dynamic> json) => _$PatchClashConfigFromJson(json);
 
 @override@JsonKey(name: 'mixed-port') final  int mixedPort;
@@ -7632,7 +7635,7 @@ class _PatchClashConfig implements PatchClashConfig {
 
 @override@JsonKey(name: 'geodata-loader') final  GeodataLoader geodataLoader;
 @override@JsonKey(name: 'global-ua') final  String? globalUa;
-@override@JsonKey(name: 'external-controller') final  ExternalControllerStatus externalController;
+@override@JsonKey(name: 'external-controller') final  String externalController;
 @override@JsonKey() final  String secret;
  final  Map<String, String> _hosts;
 @override@JsonKey() Map<String, String> get hosts {
@@ -7679,7 +7682,7 @@ abstract mixin class _$PatchClashConfigCopyWith<$Res> implements $PatchClashConf
   factory _$PatchClashConfigCopyWith(_PatchClashConfig value, $Res Function(_PatchClashConfig) _then) = __$PatchClashConfigCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'mixed-port') int mixedPort,@JsonKey(name: 'socks-port') int socksPort,@JsonKey(name: 'port') int port,@JsonKey(name: 'redir-port') int redirPort,@JsonKey(name: 'tproxy-port') int tproxyPort, Mode mode,@JsonKey(name: 'allow-lan') bool allowLan,@JsonKey(name: 'log-level') LogLevel logLevel, bool ipv6,@JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) FindProcessMode findProcessMode,@JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) InterfaceNameMode interfaceNameMode,@JsonKey(name: 'interface-name') String interfaceName,@JsonKey(name: 'keep-alive-interval') int keepAliveInterval,@JsonKey(name: 'keep-alive-idle') int keepAliveIdle,@JsonKey(name: 'disable-keep-alive') bool disableKeepAlive,@JsonKey(name: 'routing-mark') int routingMark,@JsonKey(name: 'unified-delay') bool unifiedDelay,@JsonKey(name: 'tcp-concurrent') bool tcpConcurrent,@JsonKey(fromJson: Tun.safeFormJson) Tun tun,@JsonKey(fromJson: Dns.safeDnsFromJson) Dns dns,@JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson) Set<DnsOverrideKey> dnsOverrideKeys,@JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) ProfileTun tunOverride,@JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson) Set<TunOverrideKey> tunOverrideKeys,@JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson) Map<GeoResource, String> geoXUrl,@JsonKey(name: 'geodata-loader') GeodataLoader geodataLoader,@JsonKey(name: 'global-ua') String? globalUa,@JsonKey(name: 'external-controller') ExternalControllerStatus externalController, String secret, Map<String, String> hosts,@JsonKey(name: 'geo-auto-update') bool geoAutoUpdate,@JsonKey(name: 'geo-update-interval') int geoUpdateInterval
+@JsonKey(name: 'mixed-port') int mixedPort,@JsonKey(name: 'socks-port') int socksPort,@JsonKey(name: 'port') int port,@JsonKey(name: 'redir-port') int redirPort,@JsonKey(name: 'tproxy-port') int tproxyPort, Mode mode,@JsonKey(name: 'allow-lan') bool allowLan,@JsonKey(name: 'log-level') LogLevel logLevel, bool ipv6,@JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off) FindProcessMode findProcessMode,@JsonKey(name: 'interface-name-mode', unknownEnumValue: InterfaceNameMode.clear) InterfaceNameMode interfaceNameMode,@JsonKey(name: 'interface-name') String interfaceName,@JsonKey(name: 'keep-alive-interval') int keepAliveInterval,@JsonKey(name: 'keep-alive-idle') int keepAliveIdle,@JsonKey(name: 'disable-keep-alive') bool disableKeepAlive,@JsonKey(name: 'routing-mark') int routingMark,@JsonKey(name: 'unified-delay') bool unifiedDelay,@JsonKey(name: 'tcp-concurrent') bool tcpConcurrent,@JsonKey(fromJson: Tun.safeFormJson) Tun tun,@JsonKey(fromJson: Dns.safeDnsFromJson) Dns dns,@JsonKey(name: _dnsOverrideKeysJsonKey, fromJson: _dnsOverrideKeysFromJson) Set<DnsOverrideKey> dnsOverrideKeys,@JsonKey(name: 'tun-override', fromJson: ProfileTun.safeFromJson) ProfileTun tunOverride,@JsonKey(name: _tunOverrideKeysJsonKey, fromJson: _tunOverrideKeysFromJson) Set<TunOverrideKey> tunOverrideKeys,@JsonKey(name: 'geox-url', fromJson: _geoXUrlFromJson, toJson: _geoXUrlToJson) Map<GeoResource, String> geoXUrl,@JsonKey(name: 'geodata-loader') GeodataLoader geodataLoader,@JsonKey(name: 'global-ua') String? globalUa,@JsonKey(name: 'external-controller') String externalController, String secret, Map<String, String> hosts,@JsonKey(name: 'geo-auto-update') bool geoAutoUpdate,@JsonKey(name: 'geo-update-interval') int geoUpdateInterval
 });
 
 
@@ -7725,7 +7728,7 @@ as Set<TunOverrideKey>,geoXUrl: null == geoXUrl ? _self._geoXUrl : geoXUrl // ig
 as Map<GeoResource, String>,geodataLoader: null == geodataLoader ? _self.geodataLoader : geodataLoader // ignore: cast_nullable_to_non_nullable
 as GeodataLoader,globalUa: freezed == globalUa ? _self.globalUa : globalUa // ignore: cast_nullable_to_non_nullable
 as String?,externalController: null == externalController ? _self.externalController : externalController // ignore: cast_nullable_to_non_nullable
-as ExternalControllerStatus,secret: null == secret ? _self.secret : secret // ignore: cast_nullable_to_non_nullable
+as String,secret: null == secret ? _self.secret : secret // ignore: cast_nullable_to_non_nullable
 as String,hosts: null == hosts ? _self._hosts : hosts // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,geoAutoUpdate: null == geoAutoUpdate ? _self.geoAutoUpdate : geoAutoUpdate // ignore: cast_nullable_to_non_nullable
 as bool,geoUpdateInterval: null == geoUpdateInterval ? _self.geoUpdateInterval : geoUpdateInterval // ignore: cast_nullable_to_non_nullable

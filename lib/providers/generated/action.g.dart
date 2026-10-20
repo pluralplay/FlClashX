@@ -40,9 +40,182 @@ final class CommonActionProvider extends $NotifierProvider<CommonAction, void> {
   }
 }
 
-String _$commonActionHash() => r'54ce5b04654db2574cc10d9e364eacb8c7137a36';
+String _$commonActionHash() => r'97a2c9bb7e1863984fae841bd0610c9da4614eae';
 
 abstract class _$CommonAction extends $Notifier<void> {
+  void build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<void, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<void, void>,
+              void,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(ManagedSettingsAction)
+final managedSettingsActionProvider = ManagedSettingsActionProvider._();
+
+final class ManagedSettingsActionProvider
+    extends $NotifierProvider<ManagedSettingsAction, void> {
+  ManagedSettingsActionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'managedSettingsActionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$managedSettingsActionHash();
+
+  @$internal
+  @override
+  ManagedSettingsAction create() => ManagedSettingsAction();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(void value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<void>(value),
+    );
+  }
+}
+
+String _$managedSettingsActionHash() =>
+    r'59705310194c3c0463500663b105280bf45f1d16';
+
+abstract class _$ManagedSettingsAction extends $Notifier<void> {
+  void build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<void, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<void, void>,
+              void,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(ProfileHeadersAction)
+final profileHeadersActionProvider = ProfileHeadersActionProvider._();
+
+final class ProfileHeadersActionProvider
+    extends $NotifierProvider<ProfileHeadersAction, void> {
+  ProfileHeadersActionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'profileHeadersActionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$profileHeadersActionHash();
+
+  @$internal
+  @override
+  ProfileHeadersAction create() => ProfileHeadersAction();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(void value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<void>(value),
+    );
+  }
+}
+
+String _$profileHeadersActionHash() =>
+    r'b0467bb23c8f75875e5ab9a43053be5591931452';
+
+abstract class _$ProfileHeadersAction extends $Notifier<void> {
+  void build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<void, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<void, void>,
+              void,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// The current subscription's or file's config keys become the app's
+/// settings on every update and switch (see [syncProfileSettings]); a custom
+/// profile has no file and a scripted one may rewrite the keys, so both skip.
+
+@ProviderFor(ProfileSettingsAction)
+final profileSettingsActionProvider = ProfileSettingsActionProvider._();
+
+/// The current subscription's or file's config keys become the app's
+/// settings on every update and switch (see [syncProfileSettings]); a custom
+/// profile has no file and a scripted one may rewrite the keys, so both skip.
+final class ProfileSettingsActionProvider
+    extends $NotifierProvider<ProfileSettingsAction, void> {
+  /// The current subscription's or file's config keys become the app's
+  /// settings on every update and switch (see [syncProfileSettings]); a custom
+  /// profile has no file and a scripted one may rewrite the keys, so both skip.
+  ProfileSettingsActionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'profileSettingsActionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$profileSettingsActionHash();
+
+  @$internal
+  @override
+  ProfileSettingsAction create() => ProfileSettingsAction();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(void value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<void>(value),
+    );
+  }
+}
+
+String _$profileSettingsActionHash() =>
+    r'0fb9a759976b1d512a1a0cea0c5fb2fd7b813ab1';
+
+/// The current subscription's or file's config keys become the app's
+/// settings on every update and switch (see [syncProfileSettings]); a custom
+/// profile has no file and a scripted one may rewrite the keys, so both skip.
+
+abstract class _$ProfileSettingsAction extends $Notifier<void> {
   void build();
   @$mustCallSuper
   @override
@@ -91,7 +264,7 @@ final class SetupActionProvider extends $NotifierProvider<SetupAction, void> {
   }
 }
 
-String _$setupActionHash() => r'25138994408b232d6a5501660da7a75d0515a9b9';
+String _$setupActionHash() => r'3c42ad1ea2414af565fb69dd62a305145e7af026';
 
 abstract class _$SetupAction extends $Notifier<void> {
   void build();
@@ -193,7 +366,7 @@ final class CoreActionProvider extends $NotifierProvider<CoreAction, void> {
   }
 }
 
-String _$coreActionHash() => r'8af16ddd3fd82648d49b6f91d7ec30198f10ddc5';
+String _$coreActionHash() => r'55c76306916079aa41b5885a9ab191efb925f041';
 
 abstract class _$CoreAction extends $Notifier<void> {
   void build();
@@ -244,7 +417,7 @@ final class SystemActionProvider extends $NotifierProvider<SystemAction, void> {
   }
 }
 
-String _$systemActionHash() => r'0415cd015950dbd6b21a3f14c0b1ced5c2333812';
+String _$systemActionHash() => r'5601a62857e9529a0b3005d2426f674f8d708819';
 
 abstract class _$SystemAction extends $Notifier<void> {
   void build();
@@ -295,7 +468,7 @@ final class StoreActionProvider extends $NotifierProvider<StoreAction, void> {
   }
 }
 
-String _$storeActionHash() => r'e675a4866699b0669c25603d1fb08275871c0f20';
+String _$storeActionHash() => r'a41384264ecb60ae26a4169e565c8623bcdf2767';
 
 abstract class _$StoreAction extends $Notifier<void> {
   void build();
@@ -398,7 +571,7 @@ final class ProxiesActionProvider
   }
 }
 
-String _$proxiesActionHash() => r'721af9e0ec9103345422caa33b5d73851d7d1517';
+String _$proxiesActionHash() => r'229af4a29045644025769720e3b57c796622f9ca';
 
 abstract class _$ProxiesAction extends $Notifier<void> {
   void build();
@@ -450,7 +623,7 @@ final class ProfilesActionProvider
   }
 }
 
-String _$profilesActionHash() => r'5489060d78e082015815ed1bcb8bfda159111acb';
+String _$profilesActionHash() => r'0c61ace3bd04b23485c4c73468b7c89c8adf3e5f';
 
 abstract class _$ProfilesAction extends $Notifier<void> {
   void build();

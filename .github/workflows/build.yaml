@@ -2,8 +2,6 @@ name: build
 
 on:
   push:
-    branches:
-      - '**'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -26,13 +24,12 @@ jobs:
     # A private copy pays for its Actions minutes, so it runs the checks only when
     # started by hand.
     if: &checks github.event_name == 'workflow_dispatch' || !github.event.repository.private
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          submodules: true
 
       - name: Test git hooks
         run: bash tool/hooks/test.sh
@@ -53,6 +50,18 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # The model tests read mihomo's structs out of the Go module cache.
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+          cache-dependency-path: core/go.sum
+
+      - name: Download the core's modules
+        working-directory: core
+        run: go mod download
 
       - name: Check format
         run: dart format --output=none --set-exit-if-changed lib test tool plugins setup.dart
@@ -77,10 +86,10 @@ jobs:
   plugins:
     name: Plugins
     if: *checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -108,19 +117,17 @@ jobs:
       matrix:
         include:
           - platform: linux
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - platform: windows
             os: windows-2022
           - platform: macos
-            os: macos-latest
+            os: macos-15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: |
@@ -170,15 +177,13 @@ jobs:
   go:
     name: Go core
     if: *checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
@@ -206,22 +211,20 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
-          tags="$(sed -n 's/^tags: *//p' ../build_config.yaml)"
-          test -n "$tags" || { echo 'Could not read tags from build_config.yaml' >&2; exit 1; }
+          tags="$(sed -n 's/^android_tags: *//p' ../build_config.yaml)"
+          test -n "$tags" || { echo 'Could not read android_tags from build_config.yaml' >&2; exit 1; }
           GOOS=android GOARCH=arm64 go vet "-tags=$tags" . ./mobile ./tun ./platform
 
   android:
     name: Android unit tests
     if: *checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
@@ -247,7 +250,7 @@ jobs:
           link-to-sdk: true
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -279,10 +282,10 @@ jobs:
   rust:
     name: Rust
     if: *checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
@@ -308,7 +311,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
@@ -324,15 +327,16 @@ jobs:
 
   build:
     # Releases publish where the release links point: the public repository.
-    if: github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.repository == 'pluralplay/FlClashX' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: android
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - platform: windows
-            os: Windows-2022
+            os: windows-2022
             arch: amd64
           - platform: linux
             os: ubuntu-22.04
@@ -341,7 +345,7 @@ jobs:
             os: macos-15-intel
             arch: amd64
           - platform: macos
-            os: macos-latest
+            os: macos-15
             arch: arm64
           - platform: windows
             os: windows-11-arm
@@ -363,11 +367,9 @@ jobs:
           Add-Content $env:GITHUB_PATH $cargoPath
 
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        uses: actions/checkout@v5
 
-      - name: Setup Android Signing
+      - name: Setup Android signing
         if: startsWith(matrix.platform,'android')
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/keystore.jks
@@ -378,7 +380,7 @@ jobs:
           } >> android/local.properties
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
@@ -391,6 +393,13 @@ jobs:
       - name: Enable git long paths (Windows)
         if: startsWith(matrix.os, 'windows')
         run: git config --global core.longpaths true
+
+      - name: Setup Inno Setup
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       # Stable publishes no Windows or Linux arm64 archive; master makes the action
       # clone the SDK at the pinned tag and let it fetch the host's own Dart SDK.
@@ -416,7 +425,7 @@ jobs:
           add-to-path: true
           link-to-sdk: true
 
-      - name: Get Flutter Dependency
+      - name: Get Flutter dependency
         run: |
           flutter --version
           flutter pub get
@@ -426,7 +435,7 @@ jobs:
         if: matrix.platform == 'macos' && matrix.arch == 'amd64'
         run: plutil -replace FLTEnableImpeller -bool NO macos/Runner/Info.plist
 
-      # The core embeds this bundle and FlClashHttpOverrides.trustCoreRoots loads it for Dart.
+      # FlClashHttpOverrides.trustCoreRoots trusts this bundle beside the system roots.
       # Pinned by hash, so a new bundle from https://curl.se/docs/caextract.html is a reviewed bump.
       - name: Fetch CA certificates
         shell: bash
@@ -434,7 +443,7 @@ jobs:
           CA_BUNDLE: cacert-2026-09-25.pem
           CA_BUNDLE_SHA256: a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505
         run: |
-          bundle=core/Clash.Meta/component/ca/ca-certificates.crt
+          bundle=assets/ca/ca-certificates.crt
           curl -fsSL --retry 3 -o "$bundle" "https://curl.se/ca/$CA_BUNDLE"
           echo "$CA_BUNDLE_SHA256  $bundle" | sha256sum -c -
 
@@ -444,7 +453,7 @@ jobs:
         run: dart setup.dart ${{ matrix.platform }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} -v
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./dist
@@ -454,23 +463,16 @@ jobs:
     permissions:
       contents: write
     needs: [ build, dart, plugins, go, android, rust, windows-helper-test ]
-    runs-on: ubuntu-latest
-    services:
-      telegram-bot-api:
-        image: aiogram/telegram-bot-api:latest
-        env:
-          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-        ports:
-          - 8081:8081
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Download
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: ./dist/
           pattern: artifact-*
@@ -503,83 +505,168 @@ jobs:
             dart run tool/changelog.dart build --unreleased
           fi
           dart run tool/changelog.dart render release "${target[@]}" --out release.md
-          dart run tool/changelog.dart render telegram "${target[@]}" --out telegram.md
-
-      - name: Push to telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TAG: ${{ github.ref_name }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-          python release_telegram.py
 
       - name: Patch release.md
         run: |
           version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
-          sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
+          if [ "${{ env.IS_STABLE }}" == "true" ]; then
+            sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
+          else
+            sed "s|VERSION|$version|g" ./.github/pre_release_template.md >> release.md
+          fi
 
       - name: Generate sha256
         if: ${{ env.IS_STABLE == 'true' }}
         run: |
           cd ./dist
-          sha256sum ./* > SHA256SUMS
+          for file in $(find . -type f -not -name "*.sha256"); do
+            sha256sum "$file" > "${file}.sha256"
+          done
 
       - name: Release
-        if: ${{ env.IS_STABLE == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           files: ./dist/*
           body_path: './release.md'
+          prerelease: ${{ env.IS_STABLE != 'true' }}
 
-      - name: Create Homebrew Cask Source Dir
-        if: ${{ env.IS_STABLE == 'true' }}
-        run: |
-          version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
-          arm_sha=$(sha256sum "./dist/FlClash-${version}-macos-arm64.dmg" | awk '{print $1}')
-          amd_sha=$(sha256sum "./dist/FlClash-${version}-macos-amd64.dmg" | awk '{print $1}')
-
-          mkdir -p ./brew/Casks
-          sed \
-            -e "s|VERSION|$version|g" \
-            -e "s|ARM_SHA256|$arm_sha|g" \
-            -e "s|AMD_SHA256|$amd_sha|g" \
-            ./.github/homebrew_cask_template.rb > ./brew/Casks/flclash.rb
-
-      - name: Push to Homebrew tap
-        if: ${{ env.IS_STABLE == 'true' }}
-        uses: cpina/github-action-push-to-another-repository@v1.7.2
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.HOMEBREW_SSH_DEPLOY_KEY }}
+      - name: Upload release notes for notification
+        uses: actions/upload-artifact@v5
         with:
-          source-directory: ./brew/
-          destination-github-username: chen08209
-          destination-repository-name: homebrew-tap
-          user-name: 'chen08029'
-          user-email: 'chen08209@gmail.com'
-          target-branch: main
-          commit-message: Update Homebrew cask from ${{ github.ref_name }}
-          target-directory: /
+          name: release-notes
+          path: release.md
+          retention-days: 1
 
-      - name: Create Fdroid Source Dir
-        if: ${{ env.IS_STABLE == 'true' }}
-        run: |
-          mkdir -p ./tmp
-          cp ./dist/*android-arm64-v8a* ./tmp/ || true
-          echo "Files copied successfully"
+  aur-publish:
+    needs: [ upload ]
+    if: always() && needs.upload.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      - name: Push to fdroid repo
-        if: ${{ env.IS_STABLE == 'true' }}
-        uses: cpina/github-action-push-to-another-repository@v1.7.2
+      - name: Setup SSH for AUR
         env:
-          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          SSHEOF
+
+      - name: Parse release tag
+        id: release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^([0-9.]+)-pre\.([0-9]+)$ ]]; then
+            echo "pkgver=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "pkgrel=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "aur_pkg=flclashx-git" >> "$GITHUB_OUTPUT"
+          else
+            echo "pkgver=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "pkgrel=1" >> "$GITHUB_OUTPUT"
+            echo "aur_pkg=flclashx-bin" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clone AUR repository
+        run: git clone ssh://aur@aur.archlinux.org/${{ steps.release.outputs.aur_pkg }}.git /tmp/aur-pkg
+
+      - name: Download release assets and compute checksums
+        id: checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/aur-assets
+          gh release download "$GITHUB_REF_NAME" -p "FlClashX-linux-amd64.deb" -D /tmp/aur-assets -R "$GITHUB_REPOSITORY"
+          echo "sha_x86=$(sha256sum /tmp/aur-assets/FlClashX-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          if gh release download "$GITHUB_REF_NAME" -p "FlClashX-linux-arm64.deb" -D /tmp/aur-assets -R "$GITHUB_REPOSITORY" 2>/dev/null; then
+            echo "sha_arm=$(sha256sum /tmp/aur-assets/FlClashX-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            echo "has_arm=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_arm=false" >> "$GITHUB_OUTPUT"
+          fi
+          rm -rf /tmp/aur-assets
+
+      - name: Update PKGBUILD
+        working-directory: /tmp/aur-pkg
+        env:
+          PKGVER: ${{ steps.release.outputs.pkgver }}
+          PKGREL: ${{ steps.release.outputs.pkgrel }}
+          SHA_X86: ${{ steps.checksums.outputs.sha_x86 }}
+          SHA_ARM: ${{ steps.checksums.outputs.sha_arm }}
+          HAS_ARM: ${{ steps.checksums.outputs.has_arm }}
+        run: |
+          sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=${PKGREL}/" PKGBUILD
+          sed -i "s/^sha256sums_x86_64=.*/sha256sums_x86_64=('${SHA_X86}')/" PKGBUILD
+          if [ "$HAS_ARM" == "true" ]; then
+            sed -i "s/^sha256sums_aarch64=.*/sha256sums_aarch64=('${SHA_ARM}')/" PKGBUILD
+          else
+            sed -i "/^[[:space:]]*'aarch64'/d" PKGBUILD
+            sed -i "/^source_aarch64=/d" PKGBUILD
+            sed -i "/^sha256sums_aarch64=/d" PKGBUILD
+          fi
+
+      - name: Generate .SRCINFO
+        working-directory: /tmp/aur-pkg
+        run: |
+          docker run --rm -v "$(pwd):/pkg" archlinux:base-devel bash -c \
+            "useradd -m -u $(id -u) builder && chown -R builder:builder /pkg && su builder -c 'cd /pkg && makepkg --printsrcinfo > .SRCINFO'"
+
+      - name: Push to AUR
+        working-directory: /tmp/aur-pkg
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "Github Actions (pluralplay)"
+          git add PKGBUILD .SRCINFO
+          if ! git diff --cached --quiet; then
+            git commit -m "Update to $GITHUB_REF_NAME"
+            git push
+          fi
+
+  notify:
+    needs: [ upload, aur-publish ]
+    # Posts as long as the GitHub release succeeded, whatever AUR did.
+    if: always() && needs.upload.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
         with:
-          source-directory: ./tmp/
-          destination-github-username: chen08209
-          destination-repository-name: FlClash-fdroid-repo
-          user-name: 'chen08029'
-          user-email: 'chen08209@gmail.com'
-          target-branch: main
-          commit-message: Update from ${{ github.ref_name }}
-          target-directory: /tmp/
+          fetch-depth: 0
+
+      - name: Download release notes
+        uses: actions/download-artifact@v6
+        with:
+          name: release-notes
+
+      - name: Prepare commit list for notification
+        id: prepare_commits
+        run: |
+          main_commit=$(git log -1 --pretty=format:"%s" ${{ github.ref_name }})
+          other_commits=$(head -n 20 release.md | grep "^- " | grep -v "^- ${main_commit}$" | head -n 9)
+          commits="• ${main_commit}"
+          if [ -n "$other_commits" ]; then
+            commits="${commits}"$'\n'"${other_commits}"
+          fi
+          commits_escaped=$(echo "$commits" | jq -Rs .)
+          echo "commits=$commits_escaped" >> $GITHUB_OUTPUT
+
+      - name: Send Telegram notifications
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID_1: ${{ secrets.TELEGRAM_CHANNEL_ID_1 }}
+          TELEGRAM_CHANNEL_ID_2: ${{ secrets.TELEGRAM_CHANNEL_ID_2 }}
+          TELEGRAM_CHANNEL_ID_3: ${{ secrets.TELEGRAM_CHANNEL_ID_3 }}
+          VERSION: ${{ github.ref_name }}
+          COMMITS: ${{ fromJSON(steps.prepare_commits.outputs.commits) }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+          IS_STABLE: ${{ env.IS_STABLE }}
+        run: |
+          python3 -m pip install requests --quiet
+          python3 .github/scripts/notify_telegram.py

@@ -5,8 +5,9 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/dashboard/layout.dart';
-import 'package:fl_clash/views/dashboard/style.dart';
+import 'package:fl_clash/views/dashboard/widgets/card.dart';
 import 'package:fl_clash/views/dashboard/widgets/profile_detail.dart';
 import 'package:fl_clash/views/dashboard/widgets/profiles.dart';
 import 'package:fl_clash/views/profiles/profiles.dart';
@@ -20,6 +21,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart' show Override;
 
 import '../../helpers/app_paths.dart';
+import '../../helpers/glyph_finders.dart';
 import '../../helpers/test_app.dart';
 import '../../helpers/test_profiles.dart';
 
@@ -62,6 +64,14 @@ Profile _profile(
   lastUpdateDate: DateTime.now().subtract(const Duration(minutes: 5)),
   subscriptionInfo: info,
 );
+
+class _QuietProfilesAction extends ProfilesAction {
+  @override
+  Future<void> updateProfile(
+    Profile profile, {
+    bool showLoading = false,
+  }) async {}
+}
 
 void main() {
   late ProviderContainer container;
@@ -153,9 +163,91 @@ void main() {
     expect(find.byTooltip('Switch profile'), findsNothing);
   });
 
-  testWidgets('shows the current profile, its usage and when it ends', (
+  testWidgets('a support page from the panel gets a button beside update', (
     tester,
   ) async {
+    setUpProfiles([
+      _profile(1, type: ProfileType.url).copyWith(
+        providerHeaders: const {'support-url': 'https://help.example.com'},
+      ),
+    ]);
+    await pumpCard(tester);
+    expect(find.byTooltip('Support'), findsOneWidget);
+    expect(find.byTooltip('Update'), findsOneWidget);
+
+    await pumpDesktopCard(tester);
+    expect(find.byTooltip('Support'), findsOneWidget);
+  });
+
+  testWidgets('a web page from the panel gets a globe beside support', (
+    tester,
+  ) async {
+    setUpProfiles([
+      _profile(1, type: ProfileType.url).copyWith(
+        providerHeaders: const {
+          'support-url': 'https://help.example.com',
+          'profile-web-page-url': 'https://my.example.com',
+        },
+      ),
+    ]);
+    await pumpCard(tester);
+
+    expect(find.byTooltip('Website'), findsOneWidget);
+    expect(find.byGlyph(AppGlyphs.globe), findsOneWidget);
+    expect(
+      tester.getCenter(find.byGlyph(AppGlyphs.globe)).dx,
+      lessThan(tester.getCenter(find.byGlyph(AppGlyphs.support)).dx),
+    );
+  });
+
+  testWidgets('the header keeps support and update, drawn larger, and no '
+      'link to the profiles page', (tester) async {
+    setUpProfiles([
+      _profile(1, type: ProfileType.url).copyWith(
+        providerHeaders: const {'support-url': 'https://help.example.com'},
+      ),
+    ]);
+    await pumpCard(tester);
+    expect(find.byTooltip('Profiles'), findsNothing);
+    for (final glyph in [AppGlyphs.support, AppGlyphs.sync]) {
+      final icon = tester.widget<GlyphIcon>(find.byGlyph(glyph));
+      expect(icon.size, greaterThan(DashboardIconButton.glyphSize));
+    }
+  });
+
+  testWidgets('a successful update shows a green check for a second', (
+    tester,
+  ) async {
+    setUpProfiles(
+      [_profile(1, type: ProfileType.url)],
+      overrides: [
+        profilesActionProvider.overrideWith(_QuietProfilesAction.new),
+      ],
+    );
+    await pumpCard(tester);
+    expect(find.byGlyph(AppGlyphs.sync), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Update'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.byGlyph(AppGlyphs.check), findsOneWidget);
+    expect(find.byGlyph(AppGlyphs.sync), findsNothing);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.byGlyph(AppGlyphs.check), findsNothing);
+    expect(find.byGlyph(AppGlyphs.sync), findsOneWidget);
+  });
+
+  testWidgets('without a support page there is no such button', (tester) async {
+    setUpProfiles([_profile(1, type: ProfileType.url)]);
+    await pumpCard(tester);
+    expect(find.byTooltip('Support'), findsNothing);
+    expect(find.byTooltip('Update'), findsOneWidget);
+  });
+
+  testWidgets('shows the current profile, what is left of its plan and when '
+      'it ends', (tester) async {
     final expiry = DateTime.now().add(const Duration(days: 30, hours: 1));
     setUpProfiles([
       _profile(
@@ -173,14 +265,73 @@ void main() {
 
     expect(label('P1'), findsOneWidget);
     expect(label('P2'), findsNothing);
-    expect(find.textContaining('42%', findRichText: true), findsOneWidget);
-    expect(find.text('42 GB / 100 GB'), findsOneWidget);
-    expect(find.textContaining('30 days left'), findsOneWidget);
+    expect(find.text('58 GB'), findsOneWidget);
+    expect(find.text('left of 100 GB'), findsOneWidget);
+    expect(find.text('30 days'), findsOneWidget);
+    String two(int value) => value.toString().padLeft(2, '0');
+    expect(
+      find.text('until ${two(expiry.day)}-${two(expiry.month)}-${expiry.year}'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('%', findRichText: true), findsNothing);
+    expect(find.text('Proxy group'), findsNothing);
   });
 
-  testWidgets('the desktop card puts the days left beside its update time', (
+  testWidgets('offers the panel links to renew and to buy traffic', (
     tester,
   ) async {
+    setUpProfiles([
+      _profile(1).copyWith(
+        providerHeaders: const {
+          'flclashx-buyplan': 'https://pay.example.com/plan',
+          'flclashx-buytraffic': 'https://pay.example.com/traffic,10',
+        },
+      ),
+    ]);
+    await pumpCard(tester);
+
+    expect(find.text('Renew subscription'), findsOneWidget);
+    expect(find.text('Buy traffic'), findsNothing);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).enabled,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+
+    // An update that no longer carries the header takes the button away.
+    container
+        .read(profilesProvider.notifier)
+        .updateProfile(1, (profile) => profile.copyWith(providerHeaders: {}));
+    await tester.pump();
+
+    expect(find.text('Renew subscription'), findsNothing);
+    expect(find.byType(FilledButton), findsNothing);
+  });
+
+  Profile endingIn(Duration left) => _profile(
+    1,
+    info: SubscriptionInfo(
+      total: 100 * _gib,
+      expire: DateTime.now().add(left).millisecondsSinceEpoch ~/ 1000,
+    ),
+  );
+
+  for (final (left, shown) in [
+    (const Duration(hours: 5, minutes: 30), '5 hours'),
+    (const Duration(minutes: 40, seconds: 30), '40 minutes'),
+    (const Duration(seconds: 20), '1 minute'),
+  ]) {
+    testWidgets('a plan ending in $left counts down as $shown', (tester) async {
+      setUpProfiles([endingIn(left)]);
+      await pumpCard(tester);
+
+      expect(find.text(shown), findsOneWidget);
+      expect(find.text('100 GB'), findsOneWidget);
+    });
+  }
+
+  testWidgets('the desktop card shows the plan figures without an update '
+      'time', (tester) async {
     final expiry = DateTime.now().add(const Duration(days: 30, hours: 1));
     setUpProfiles([
       _profile(
@@ -197,20 +348,23 @@ void main() {
     await pumpDesktopCard(tester);
 
     expect(label('P1'), findsOneWidget);
-    expect(find.text('30 days left'), findsOneWidget);
-    expect(find.textContaining('42%', findRichText: true), findsOneWidget);
-    expect(find.text('42 GB / 100 GB'), findsOneWidget);
+    expect(find.textContaining('Updated'), findsNothing);
+    expect(find.text('30 days'), findsOneWidget);
+    expect(find.text('58 GB'), findsOneWidget);
     expect(find.byTooltip('Update'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a desktop card without a quota names where the profile is '
-      'from', (tester) async {
+  testWidgets('a desktop card without a quota shows no plan figures', (
+    tester,
+  ) async {
     setUpProfiles([_profile(1)]);
     await pumpDesktopCard(tester);
 
-    expect(find.text('Local'), findsOneWidget);
-    expect(find.textContaining('%', findRichText: true), findsNothing);
+    expect(find.text('No expiry'), findsNothing);
+    expect(find.text('Unlimited'), findsNothing);
+    expect(find.text('Local'), findsNothing);
+    expect(find.text('Rules'), findsNothing);
     expect(find.byTooltip('Update'), findsNothing);
     expect(find.byTooltip('Switch profile'), findsNothing);
   });
@@ -288,65 +442,7 @@ void main() {
     );
   });
 
-  testWidgets('counts recorded at the last apply skip the config file', (
-    tester,
-  ) async {
-    final config = await writeAppliedConfig(tester);
-    await tester.runAsync(
-      () => config.writeAsBytes(List.filled((8 << 20) + 1, 0x20)),
-    );
-    setUpProfiles([_profile(1)]);
-    await pumpDesktopCard(tester);
-    expect(find.byType(SkeletonText), findsNothing);
-    expect(find.text('—'), findsNWidgets(3));
-
-    globalState.lastConfigCounts = (groups: 4, proxies: 2048, rules: 9);
-    addTearDown(() => globalState.lastConfigCounts = null);
-    container.read(groupsProvider.notifier).value = [
-      const Group(type: GroupType.Selector, name: 'G1'),
-    ];
-    await tester.pump();
-
-    expect(find.text(dashboardCount(2048)), findsOneWidget);
-    expect(find.text('9'), findsOneWidget);
-    expect(find.byType(SkeletonText), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('a card without a quota counts what its config holds', (
-    tester,
-  ) async {
-    await writeAppliedConfig(tester);
-    setUpProfiles(
-      [_profile(1)],
-      overrides: [
-        providersProvider.overrideWithBuild(
-          (_, _) => [_provider('nodes', 'Proxy', 5)],
-        ),
-      ],
-    );
-    await pumpDesktopCard(tester);
-    await settleCounts(tester, until: find.text('3'));
-
-    for (final (title, value) in [
-      ('Proxy group', '1'),
-      ('Proxies', '7'),
-      ('Rules', '3'),
-    ]) {
-      expect(
-        find.descendant(
-          of: find
-              .ancestor(of: find.text(title), matching: find.byType(Column))
-              .first,
-          matching: find.text(value),
-        ),
-        findsOneWidget,
-      );
-    }
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('a narrow card drops words before it cuts the time or traffic', (
+  testWidgets('a narrow card keeps its figures without an update time', (
     tester,
   ) async {
     final expiry = DateTime.now().add(const Duration(days: 30, hours: 1));
@@ -371,8 +467,8 @@ void main() {
       ),
       width: 600,
     );
-    expect(find.textContaining('Updated'), findsOneWidget);
-    expect(find.textContaining('used', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Updated'), findsNothing);
+    expect(find.text('58 GB'), findsOneWidget);
 
     await pumpCard(
       tester,
@@ -383,15 +479,14 @@ void main() {
       ),
       width: 240,
     );
-    expect(find.textContaining('Updated'), findsNothing);
-    expect(find.textContaining('minutes ago'), findsOneWidget);
-    expect(find.textContaining('used', findRichText: true), findsNothing);
-    expect(find.text('42 GB / 100 GB'), findsOneWidget);
+    expect(find.textContaining('minutes ago'), findsNothing);
+    expect(find.text('58 GB'), findsOneWidget);
+    expect(find.text('30 days'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a compact card puts the days left beside the name and leaves '
-      'the update time to the details', (tester) async {
+  testWidgets('a compact card keeps the plan figures and leaves the update '
+      'time to the details', (tester) async {
     final expiry = DateTime.now().add(const Duration(days: 30, hours: 1));
     setUpProfiles([
       _profile(
@@ -416,12 +511,10 @@ void main() {
       width: 220,
     );
 
-    final name = tester.getRect(label('P1'));
-    final daysLeft = tester.getRect(find.text('30 days left'));
-    expect(daysLeft.center.dy, moreOrLessEquals(name.center.dy, epsilon: 1));
+    expect(find.text('30 days'), findsOneWidget);
+    expect(find.text('58 GB'), findsOneWidget);
     expect(find.byTooltip('Switch profile'), findsOneWidget);
     expect(find.textContaining('minutes ago'), findsNothing);
-    expect(find.text('42 GB / 100 GB'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

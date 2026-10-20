@@ -13,6 +13,12 @@ abstract final class AppGlyphs {
     GlyphBox(13.5, 12.5, 20.5, 20.5, 2),
   ]);
 
+  static const zashboard = Glyph([
+    GlyphBox(3.5, 4.5, 10, 19.5, 2),
+    GlyphBox(12, 4.5, 20.5, 11, 2),
+    GlyphBox(12, 13, 20.5, 19.5, 2),
+  ]);
+
   static const proxies = Glyph([
     GlyphCircle(12, 12, 8.8),
     GlyphOval(8.2, 3.2, 15.8, 20.8, role: GlyphRole.detail),
@@ -167,6 +173,32 @@ abstract final class AppGlyphs {
       GlyphVertex(5.5, 15.25),
       GlyphVertex(12, 8.75, 0.4),
       GlyphVertex(18.5, 15.25),
+    ], role: GlyphRole.line),
+  ]);
+
+  static const unfoldAll = Glyph([
+    GlyphPolyline([
+      GlyphVertex(7.5, 8.5),
+      GlyphVertex(12, 4, 0.4),
+      GlyphVertex(16.5, 8.5),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(7.5, 15.5),
+      GlyphVertex(12, 20, 0.4),
+      GlyphVertex(16.5, 15.5),
+    ], role: GlyphRole.line),
+  ]);
+
+  static const foldAll = Glyph([
+    GlyphPolyline([
+      GlyphVertex(7.5, 4),
+      GlyphVertex(12, 8.5, 0.4),
+      GlyphVertex(16.5, 4),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(7.5, 20),
+      GlyphVertex(12, 15.5, 0.4),
+      GlyphVertex(16.5, 20),
     ], role: GlyphRole.line),
   ]);
 
@@ -453,6 +485,27 @@ abstract final class AppGlyphs {
       GlyphVertex(12, 11.8),
       GlyphVertex(12, 16.7),
     ], role: GlyphRole.detail),
+  ]);
+
+  static const stop = Glyph([GlyphBox(6, 6, 18, 18, 2.5)]);
+
+  /// A headset: the band, two cups and a mic boom.
+  static const globe = Glyph([
+    GlyphCircle(12, 12, 8.8),
+    GlyphOval(8.4, 3.2, 15.6, 20.8, role: GlyphRole.detail),
+    GlyphPolyline([
+      GlyphVertex(3.2, 12),
+      GlyphVertex(20.8, 12),
+    ], role: GlyphRole.detail),
+    GlyphPath('M4.6 7.6 Q12 10.2 19.4 7.6', role: GlyphRole.detail),
+    GlyphPath('M4.6 16.4 Q12 13.8 19.4 16.4', role: GlyphRole.detail),
+  ]);
+
+  static const support = Glyph([
+    GlyphPath('M4.2 13.2 A7.8 7.8 0 0 1 19.8 13.2', role: GlyphRole.line),
+    GlyphBox(3.2, 12.2, 7.4, 18.6, 1.8),
+    GlyphBox(16.6, 12.2, 20.8, 18.6, 1.8),
+    GlyphPath('M18.7 18.6 Q18.7 21.4 14.2 21.4', role: GlyphRole.line),
   ]);
 
   static const warning = Glyph([

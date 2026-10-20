@@ -5,9 +5,10 @@ final class TrayStatusItem {
 
     private let contentView: TrayContentView
 
-    init?(onMenuRequested: @escaping () -> Void) {
+    /// `onClick` says whether the primary button was used.
+    init?(onClick: @escaping (Bool) -> Void) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        contentView = TrayContentView(onMenuRequested: onMenuRequested)
+        contentView = TrayContentView(onClick: onClick)
 
         guard let button = statusItem.button else {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -56,7 +57,7 @@ final class TrayStatusItem {
 }
 
 private final class TrayContentView: NSView {
-    private let onMenuRequested: () -> Void
+    private let onClick: (Bool) -> Void
 
     private let imageView: NSImageView = {
         let view = NSImageView()
@@ -76,8 +77,8 @@ private final class TrayContentView: NSView {
         return stack
     }()
 
-    init(onMenuRequested: @escaping () -> Void) {
-        self.onMenuRequested = onMenuRequested
+    init(onClick: @escaping (Bool) -> Void) {
+        self.onClick = onClick
         super.init(frame: .zero)
 
         titleView.isHidden = true
@@ -137,10 +138,10 @@ private final class TrayContentView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        onMenuRequested()
+        onClick(true)
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        onMenuRequested()
+        onClick(false)
     }
 }

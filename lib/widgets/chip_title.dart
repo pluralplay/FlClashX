@@ -12,7 +12,7 @@ class ExpireChip extends StatelessWidget {
   static const _padding = EdgeInsets.symmetric(horizontal: 8, vertical: 2);
 
   static double widthOf(BuildContext context, DateTime expire) =>
-      chipLabelWidth(context, expire.show) + _padding.horizontal;
+      chipLabelWidth(context, expire.showDate) + _padding.horizontal;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +28,7 @@ class ExpireChip extends StatelessWidget {
         child: Padding(
           padding: _padding,
           child: Text(
-            expire.show,
+            expire.showDate,
             maxLines: 1,
             style: AppTextStyle.caption1
                 .of(context, emphasized: true)

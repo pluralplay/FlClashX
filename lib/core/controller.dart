@@ -327,12 +327,22 @@ class CoreController {
     return _interface.getMemoryStats();
   }
 
+  Future<String> getCoreVersion() async {
+    return _interface.getCoreVersion();
+  }
+
+  Future<bool> shutdown() => _interface.shutdown();
+
   void resetTraffic() {
     _interface.resetTraffic();
   }
 
   void startLog() {
     _interface.startLog();
+  }
+
+  void setHostActive(bool active) {
+    _interface.setHostActive(active);
   }
 
   void stopLog() {

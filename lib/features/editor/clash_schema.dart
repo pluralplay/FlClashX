@@ -181,7 +181,6 @@ const rulePayloadValues = {
     'spotify',
     'steam',
     'tiktok',
-    'bilibili',
   ],
   'GEOIP': [
     'CN',
@@ -226,15 +225,11 @@ const ruleOptions = ['no-resolve', 'src'];
 
 const _nameserver = YamlSchema.list(
   YamlSchema.scalar([
-    'https://dns.alidns.com/dns-query',
-    'https://doh.pub/dns-query',
     'https://dns.google/dns-query',
     'https://cloudflare-dns.com/dns-query',
-    'tls://dns.alidns.com',
+    'tls://dns.google',
     'tls://1.1.1.1',
     'quic://dns.adguard-dns.com',
-    '223.5.5.5',
-    '119.29.29.29',
     '8.8.8.8',
     '1.1.1.1',
     'system',

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/utils"
-	"github.com/metacubex/mihomo/constant"
 )
 
 const (
@@ -27,7 +26,6 @@ func setTestURL(url string) {
 	if url == "" {
 		return
 	}
-	constant.DefaultTestURL = url
 	testURL.Store(&url)
 }
 

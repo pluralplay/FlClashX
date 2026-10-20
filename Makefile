@@ -1,12 +1,8 @@
 SHELL := /bin/bash
 
-.PHONY: help submodules
+.PHONY: help
 
 help:
-	@echo 'make submodules  # update git submodules (Clash.Meta core sources)'
-	@echo ''
 	@echo 'The Go core and Rust helper build automatically through the setup build'
-	@echo 'hook during flutter build; see .agents/commands.md.'
-
-submodules:
-	git submodule update --init --recursive
+	@echo 'hook during flutter build; see .agents/commands.md. mihomo comes from'
+	@echo 'the Go module cache (core/go.mod), there is no submodule to update.'

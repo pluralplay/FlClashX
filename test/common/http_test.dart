@@ -6,6 +6,7 @@ import 'package:fl_clash/common/http.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -40,16 +41,21 @@ void main() {
     String? currentSsid,
     List<String> excludeSSIDs = const [],
     int mixedPort = 7890,
+    int httpPort = 0,
     bool checkCertificate = true,
+    bool androidSecure = false,
   }) {
     final container = ProviderContainer(
-      overrides: [excludeSSIDsProvider.overrideWithValue(excludeSSIDs)],
+      overrides: [
+        excludeSSIDsProvider.overrideWithValue(excludeSSIDs),
+        androidSecureProvider.overrideWithValue(androidSecure),
+      ],
     );
     addTearDown(container.dispose);
     container.read(runTimeProvider.notifier).value = running ? 1 : null;
     container.read(currentSSIDProvider.notifier).value = currentSsid;
     container.read(patchClashConfigProvider.notifier).value =
-        const PatchClashConfig().copyWith(mixedPort: mixedPort);
+        const PatchClashConfig().copyWith(mixedPort: mixedPort, port: httpPort);
     container.read(appSettingProvider.notifier).value = const AppSettingProps()
         .copyWith(checkCertificate: checkCertificate);
     return container;
@@ -104,6 +110,30 @@ void main() {
     expect(
       FlClashHttpOverrides.findProxyFor(container, remote),
       'PROXY localhost:7890',
+    );
+  });
+
+  test('falls back to the plain HTTP port without a mixed port', () {
+    expect(
+      FlClashHttpOverrides.findProxyFor(
+        buildContainer(mixedPort: 0, httpPort: 7892),
+        remote,
+      ),
+      'PROXY localhost:7892',
+    );
+  });
+
+  test('goes direct when the core listens on no local port', () {
+    expect(
+      FlClashHttpOverrides.findProxyFor(buildContainer(mixedPort: 0), remote),
+      'DIRECT',
+    );
+    expect(
+      FlClashHttpOverrides.findProxyFor(
+        buildContainer(androidSecure: true),
+        remote,
+      ),
+      'DIRECT',
     );
   });
 

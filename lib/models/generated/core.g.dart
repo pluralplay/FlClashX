@@ -42,6 +42,9 @@ _ProfileBase _$ProfileBaseFromJson(Map<String, dynamic> json) => _ProfileBase(
   proxies: (json['proxies'] as num?)?.toInt() ?? 0,
   proxyGroups: (json['proxy-groups'] as num?)?.toInt() ?? 0,
   rules: (json['rules'] as num?)?.toInt() ?? 0,
+  present:
+      (json['present'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$ProfileBaseToJson(_ProfileBase instance) =>
@@ -52,6 +55,7 @@ Map<String, dynamic> _$ProfileBaseToJson(_ProfileBase instance) =>
       'proxies': instance.proxies,
       'proxy-groups': instance.proxyGroups,
       'rules': instance.rules,
+      'present': instance.present,
     };
 
 _UpdateParams _$UpdateParamsFromJson(Map<String, dynamic> json) =>
@@ -67,10 +71,7 @@ _UpdateParams _$UpdateParamsFromJson(Map<String, dynamic> json) =>
       logLevel: $enumDecode(_$LogLevelEnumMap, json['log-level']),
       ipv6: json['ipv6'] as bool,
       tcpConcurrent: json['tcp-concurrent'] as bool,
-      externalController: $enumDecode(
-        _$ExternalControllerStatusEnumMap,
-        json['external-controller'],
-      ),
+      externalController: json['external-controller'] as String,
       secret: json['secret'] as String? ?? '',
       unifiedDelay: json['unified-delay'] as bool,
       authentication:
@@ -98,8 +99,7 @@ Map<String, dynamic> _$UpdateParamsToJson(_UpdateParams instance) =>
       'log-level': _$LogLevelEnumMap[instance.logLevel]!,
       'ipv6': instance.ipv6,
       'tcp-concurrent': instance.tcpConcurrent,
-      'external-controller':
-          _$ExternalControllerStatusEnumMap[instance.externalController]!,
+      'external-controller': instance.externalController,
       'secret': instance.secret,
       'unified-delay': instance.unifiedDelay,
       'authentication': instance.authentication,
@@ -126,11 +126,6 @@ const _$LogLevelEnumMap = {
   LogLevel.warning: 'warning',
   LogLevel.error: 'error',
   LogLevel.silent: 'silent',
-};
-
-const _$ExternalControllerStatusEnumMap = {
-  ExternalControllerStatus.close: '',
-  ExternalControllerStatus.open: '127.0.0.1:9090',
 };
 
 _VpnOptions _$VpnOptionsFromJson(Map<String, dynamic> json) => _VpnOptions(

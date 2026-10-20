@@ -53,6 +53,26 @@ void main() {
 
   ThemeProps readTheme() => container.read(themeSettingProvider);
 
+  group('theme style', () {
+    testWidgets('starts on the original page and switches to the hero', (
+      tester,
+    ) async {
+      await pumpThemeView(tester);
+
+      expect(readTheme().style, ThemeStyle.original);
+      expect(find.text('Theme mode'), findsOneWidget);
+      expect(find.text('Appearance'), findsOneWidget);
+
+      await tester.tap(find.text('Enhanced'));
+      await tester.pumpAndSettle();
+      expect(readTheme().style, ThemeStyle.enhanced);
+
+      await tester.tap(find.text('Original'));
+      await tester.pumpAndSettle();
+      expect(readTheme().style, ThemeStyle.original);
+    });
+  });
+
   group('theme mode', () {
     testWidgets('defaults to following the system', (tester) async {
       await pumpThemeView(tester);
@@ -89,7 +109,7 @@ void main() {
           .update((_) => defaultThemeProps);
       await pumpThemeView(tester);
 
-      expect(readTheme().primaryColor, 0xFF007AFF);
+      expect(readTheme().primaryColor, defaultPrimaryColor);
       for (final color in defaultPrimaryColors) {
         expect(swatch(color), findsOneWidget);
       }
@@ -232,6 +252,8 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Add'));
       await tester.pumpAndSettle();
 

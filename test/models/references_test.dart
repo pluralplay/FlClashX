@@ -4,7 +4,11 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:test/test.dart';
 
-final _source = File('core/Clash.Meta/config/config.go').readAsStringSync();
+import '../helpers/mihomo_source.dart';
+
+final _source = File(
+  '${mihomoSourceDir()}/config/config.go',
+).readAsStringSync();
 
 List<String> _firstArguments(String function) => [
   for (final match in RegExp(

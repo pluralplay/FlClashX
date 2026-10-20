@@ -142,21 +142,21 @@ void main() {
   test('checks through the direct outbound while the proxy is off', () async {
     final scope = container(proxied: false);
 
-    notifierOf(scope).watch(ServiceTarget.bilibili);
+    notifierOf(scope).watch(ServiceTarget.discord);
     await pumpEventQueue();
 
     expect(sweeps.single.proxyName, directOutbound);
-    expect(sweeps.single.names, ['bilibili']);
+    expect(sweeps.single.names, ['discord']);
   });
 
   test('does not ask the Core before the route has been read', () async {
     final scope = container(synced: false);
 
-    notifierOf(scope).watch(ServiceTarget.bilibili);
+    notifierOf(scope).watch(ServiceTarget.discord);
     await pumpEventQueue();
 
     verifyNever(() => core.serviceCheck(any()));
-    expect(stateOf(scope).isLoading(ServiceTarget.bilibili), isFalse);
+    expect(stateOf(scope).isLoading(ServiceTarget.discord), isFalse);
   });
 
   test('marks a target loading while its check is in flight', () async {
@@ -289,14 +289,14 @@ void main() {
       final scope = container();
       scope.read(appSettingProvider.notifier).value = const AppSettingProps(
         serviceOrder: ['claude', 'google'],
-        disabledServices: ['github', 'bilibili'],
+        disabledServices: ['github', 'discord'],
       );
 
       expect(scope.read(enabledServiceTargetsProvider).map((t) => t.id), [
         'claude',
         'google',
         for (final target in ServiceTarget.values)
-          if (!['claude', 'google', 'github', 'bilibili'].contains(target.id))
+          if (!['claude', 'google', 'github', 'discord'].contains(target.id))
             target.id,
       ]);
     },

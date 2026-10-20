@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/exception.dart';
 import 'package:fl_clash/common/request.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -118,6 +119,81 @@ void main() {
       });
 
       await expectLater(request.latestRelease(), throwsA(isA<DioException>()));
+    });
+  });
+
+  group('hostFailureOf', () {
+    final options = RequestOptions(path: 'https://x');
+    DioException response(int status) => DioException.badResponse(
+      statusCode: status,
+      requestOptions: options,
+      response: Response(requestOptions: options, statusCode: status),
+    );
+    DioException socket(SocketException cause) => DioException.connectionError(
+      requestOptions: options,
+      reason: cause.message,
+      error: cause,
+    );
+
+    test('calls a gone host or resource hard', () {
+      expect(hostFailureOf(response(404)), HostFailure.hard);
+      expect(hostFailureOf(response(410)), HostFailure.hard);
+      expect(
+        hostFailureOf(
+          socket(
+            const SocketException(
+              "Failed host lookup: 'x'",
+              osError: OSError('nodename nor servname', 8),
+            ),
+          ),
+        ),
+        HostFailure.hard,
+      );
+      expect(
+        hostFailureOf(
+          socket(
+            const SocketException(
+              'Connection refused',
+              osError: OSError('refused', 61),
+            ),
+          ),
+        ),
+        HostFailure.hard,
+      );
+      expect(
+        hostFailureOf(DioException.badCertificate(requestOptions: options)),
+        HostFailure.hard,
+      );
+      expect(
+        hostFailureOf(const MessageException('invalid config')),
+        HostFailure.hard,
+      );
+    });
+
+    test('calls an outage soft', () {
+      expect(hostFailureOf(response(503)), HostFailure.soft);
+      expect(hostFailureOf(response(429)), HostFailure.soft);
+      expect(
+        hostFailureOf(
+          DioException.receiveTimeout(
+            timeout: const Duration(seconds: 1),
+            requestOptions: options,
+          ),
+        ),
+        HostFailure.soft,
+      );
+      expect(
+        hostFailureOf(
+          socket(
+            const SocketException(
+              'Connection reset by peer',
+              osError: OSError('reset', 54),
+            ),
+          ),
+        ),
+        HostFailure.soft,
+      );
+      expect(hostFailureOf(StateError('odd')), HostFailure.soft);
     });
   });
 

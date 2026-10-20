@@ -1,0 +1,52 @@
+name: clean-actions
+
+# Weekly cleanup of old workflow runs to keep the Actions history (and its
+# storage) tidy. Deletes completed runs older than `days` (default 30). Also
+# runnable manually with a custom retention.
+on:
+  schedule:
+    - cron: "0 3 * * 0" # every Sunday 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Delete completed runs older than N days"
+        default: "30"
+        type: string
+
+permissions:
+  actions: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete old workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DAYS: ${{ inputs.days || '30' }}
+        run: |
+          cutoff=$(date -u -d "-${DAYS} days" +%s)
+          echo "Deleting completed runs created before $(date -u -d "@${cutoff}") (${DAYS} days)."
+
+          gh api --paginate "/repos/${REPO}/actions/runs?per_page=100" \
+            --jq '.workflow_runs[] | select(.status == "completed") | "\(.id) \(.created_at)"' \
+            > runs.txt
+
+          deleted=0
+          failed=0
+          while read -r id created; do
+            [ -z "$id" ] && continue
+            created_ts=$(date -u -d "$created" +%s)
+            if [ "$created_ts" -lt "$cutoff" ]; then
+              if gh api -X DELETE "/repos/${REPO}/actions/runs/${id}" >/dev/null 2>&1; then
+                echo "deleted run $id ($created)"
+                deleted=$((deleted + 1))
+              else
+                echo "failed to delete run $id ($created)"
+                failed=$((failed + 1))
+              fi
+            fi
+          done < runs.txt
+
+          echo "Deleted ${deleted} run(s), ${failed} failure(s)." | tee -a "$GITHUB_STEP_SUMMARY"

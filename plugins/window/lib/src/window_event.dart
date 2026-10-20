@@ -12,7 +12,8 @@ enum WindowEvent {
   enterFullScreen('enter-full-screen'),
   leaveFullScreen('leave-full-screen'),
   shouldTerminate('should-terminate'),
-  activate('activate');
+  activate('activate'),
+  zoom('zoom');
 
   const WindowEvent(this.wireName);
 

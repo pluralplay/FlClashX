@@ -36,7 +36,7 @@ class StoreAction extends _$StoreAction {
     });
   }
 
-  Future handleClear() async {
+  Future<void> handleClear({bool everything = false}) async {
     debouncer.cancel(FunctionTag.savePreferences);
     final profileIds = ref
         .read(profilesProvider)
@@ -64,7 +64,7 @@ class StoreAction extends _$StoreAction {
     for (final error in clearResults.where((error) => error.isNotEmpty)) {
       commonPrint.log(error, logLevel: LogLevel.warning);
     }
-    await clearAppData();
+    await (everything ? resetAppData() : clearAppData());
     unawaited(ref.read(systemActionProvider.notifier).handleExit(false));
   }
 }

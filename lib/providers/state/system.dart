@@ -54,8 +54,11 @@ TrayState trayState(Ref ref) {
   );
   final appSetting = ref.watch(
     appSettingProvider.select(
-      (state) =>
-          (autoLaunch: state.autoLaunch, showTrayTitle: state.showTrayTitle),
+      (state) => (
+        autoLaunch: state.autoLaunch,
+        showTrayTitle: state.showTrayTitle,
+        menuBarMode: state.menuBarMode,
+      ),
     ),
   );
   final groups = ref.watch(currentGroupsStateProvider).value;
@@ -75,8 +78,10 @@ TrayState trayState(Ref ref) {
     groups: groups,
     selectedMap: selectedMap,
     showTrayTitle: appSetting.showTrayTitle,
+    menuBarMode: appSetting.menuBarMode,
     safeMode: safeMode,
     hotKeys: hotKeys,
+    globalModeAllowed: ref.watch(globalModeAllowedProvider),
   );
 }
 
@@ -195,6 +200,7 @@ SharedState sharedState(Ref ref) {
     currentProfileName: currentProfileName,
     onlyStatisticsProxy: onlyStatisticsProxy,
     showStopAction: appSetting.showStopAction,
+    appVisible: ref.watch(appVisibleProvider),
     stopText: currentAppLocalizations.stop,
     stopTip: currentAppLocalizations.stopVpn,
     startTip: currentAppLocalizations.startVpn,
@@ -249,7 +255,10 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
     // VpnService.setHttpProxy cannot carry credentials, so an authenticated
     // mixed port is left to TUN instead of declared as the system proxy.
     systemProxy:
-        vpnSetting.systemProxy && !networkSetting.authenticated && !safeMode,
+        vpnSetting.systemProxy &&
+        !networkSetting.authenticated &&
+        !safeMode &&
+        !ref.watch(androidSecureProvider),
     port: clashConfig.mixedPort,
     ipv6: vpnSetting.ipv6,
     dnsHijacking: vpnSetting.dnsHijacking,

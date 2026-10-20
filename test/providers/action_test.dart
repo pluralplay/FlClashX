@@ -262,6 +262,33 @@ void main() {
   });
 
   group('CoreAction', () {
+    test('an embedded core is stopped, shut down and started again', () async {
+      final core = _MockCoreHandlerInterface();
+      when(() => core.shutdown()).thenAnswer((_) async => true);
+      final container = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+          coreActionProvider.overrideWith(
+            () => _TestCoreAction()..embedded = true,
+          ),
+          setupActionProvider.overrideWith(_TestSetupAction.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(runTimeProvider.notifier).value = 0;
+      final coreAction =
+          container.read(coreActionProvider.notifier) as _TestCoreAction;
+      final setupAction =
+          container.read(setupActionProvider.notifier) as _TestSetupAction;
+
+      await coreAction.restartCore();
+
+      verify(() => core.shutdown()).called(1);
+      expect(coreAction.lifecycleRestartCount, 1);
+      expect(setupAction.runningCalls, [(false, false), (true, true)]);
+      expect(setupAction.applyProfileCount, 0);
+    });
+
     test('applies the profile after restarting a stopped core', () async {
       final container = ProviderContainer(
         overrides: [
@@ -860,7 +887,11 @@ void main() {
 }
 
 class _TestCoreAction extends CoreAction {
+  bool embedded = false;
   int lifecycleRestartCount = 0;
+
+  @override
+  bool get coreIsEmbedded => embedded;
   int initCoreCount = 0;
   Completer<CoreLifecycleResult>? restartCompleter;
   Completer<CoreLifecycleResult>? startCompleter;
@@ -904,6 +935,7 @@ class _MemoryScripts extends Scripts {
 
 class _TestSetupAction extends SetupAction {
   int setRunningCount = 0;
+  final List<(bool, bool)> runningCalls = [];
   int applyProfileCount = 0;
   bool setRunningResult = true;
   Completer<void>? firstApplyStarted;
@@ -912,6 +944,10 @@ class _TestSetupAction extends SetupAction {
   @override
   Future<bool> setRunning(bool running, {bool initialize = false}) async {
     setRunningCount++;
+    runningCalls.add((running, initialize));
+    if (!running) {
+      ref.read(runTimeProvider.notifier).value = null;
+    }
     return setRunningResult;
   }
 

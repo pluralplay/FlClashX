@@ -27,7 +27,10 @@ const baselineDnsOverrideKeys = {
 const baselineDns = Dns(
   enable: true,
   enhancedMode: DnsMode.fakeIp,
-  nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
+  nameserver: [
+    'https://dns.google/dns-query',
+    'https://cloudflare-dns.com/dns-query',
+  ],
 );
 const defaultGeoXUrl = {
   GeoResource.MMDB:
@@ -41,6 +44,7 @@ const defaultGeoXUrl = {
 };
 
 const defaultMixedPort = 7890;
+const defaultExternalController = '127.0.0.1:9090';
 const defaultKeepAliveInterval = 30;
 const defaultTunMtu = 9000;
 const minTunMtu = 1280;
@@ -227,13 +231,17 @@ abstract class Proxy with _$Proxy {
     required String name,
     required String type,
     String? now,
+
+    String? serverDescription,
   }) = _Proxy;
 
   factory Proxy.fromJson(Map<String, Object?> json) => _$ProxyFromJson(json);
 }
 
 extension ProxyExt on Proxy {
-  List<String> get searchFields => [name, type];
+  List<String> get searchFields => [name, type, ?serverDescription];
+
+  String get description => serverDescription ?? type;
 }
 
 /// The `type` values `adapter.ParseProxy` accepts, in its own order.
@@ -996,7 +1004,7 @@ Map<Object?, Object?> _rawSniff(Map<String, dynamic> raw) {
 @freezed
 abstract class Tun with _$Tun {
   const factory Tun({
-    @Default(false) bool enable,
+    @Default(true) bool enable,
     @Default(appName) String device,
     @Default(TunStack.mips) TunStack stack,
     @JsonKey(name: 'route-address') @Default([]) List<String> routeAddress,
@@ -1083,7 +1091,7 @@ abstract class Dns with _$Dns {
     @JsonKey(name: 'cache-algorithm')
     DnsCacheAlgorithm cacheAlgorithm,
     @Default(4096) @JsonKey(name: 'cache-max-size') int cacheMaxSize,
-    @Default(['114.114.114.114', '223.5.5.5', '8.8.8.8', '1.0.0.1'])
+    @Default(['8.8.8.8', '1.1.1.1'])
     @JsonKey(name: 'default-nameserver')
     List<String> defaultNameserver,
     @Default(DnsMode.redirHost)
@@ -1107,7 +1115,10 @@ abstract class Dns with _$Dns {
     @Default({})
     @JsonKey(name: 'nameserver-policy')
     Map<String, String> nameserverPolicy,
-    @Default(['https://doh.pub/dns-query', 'tls://223.5.5.5:853'])
+    @Default([
+      'https://dns.google/dns-query',
+      'https://cloudflare-dns.com/dns-query',
+    ])
     List<String> nameserver,
     @Default([]) List<String> fallback,
     @Default(false)
@@ -1963,8 +1974,8 @@ abstract class PatchClashConfig with _$PatchClashConfig {
     @Default(Mode.rule) Mode mode,
     @Default(false) @JsonKey(name: 'allow-lan') bool allowLan,
     @Default(LogLevel.error) @JsonKey(name: 'log-level') LogLevel logLevel,
-    @Default(false) bool ipv6,
-    @Default(FindProcessMode.off)
+    @Default(true) bool ipv6,
+    @Default(FindProcessMode.always)
     @JsonKey(name: 'find-process-mode', unknownEnumValue: FindProcessMode.off)
     FindProcessMode findProcessMode,
     @Default(InterfaceNameMode.clear)
@@ -2004,9 +2015,9 @@ abstract class PatchClashConfig with _$PatchClashConfig {
     @JsonKey(name: 'geodata-loader')
     GeodataLoader geodataLoader,
     @JsonKey(name: 'global-ua') String? globalUa,
-    @Default(ExternalControllerStatus.close)
+    @Default('')
     @JsonKey(name: 'external-controller')
-    ExternalControllerStatus externalController,
+    String externalController,
     @Default('') String secret,
     @Default({}) Map<String, String> hosts,
     @Default(false) @JsonKey(name: 'geo-auto-update') bool geoAutoUpdate,
@@ -2069,11 +2080,4 @@ extension PatchClashConfigExt on PatchClashConfig {
     geoUpdateInterval: defaultClashConfig.geoUpdateInterval,
     geoXUrl: defaultClashConfig.geoXUrl,
   );
-
-  PatchClashConfig ensureControllerSecret() {
-    if (externalController == ExternalControllerStatus.close) {
-      return secret.isEmpty ? this : copyWith(secret: '');
-    }
-    return secret.isEmpty ? copyWith(secret: generateRandomSecret(32)) : this;
-  }
 }

@@ -130,11 +130,10 @@ void main() {
       expect(restored.openLogs, false);
       expect(restored.closeConnections, true);
       expect(restored.tabAnimation, TabAnimation.slide);
-      expect(restored.autoCheckUpdate, true);
+      expect(restored.autoCheckUpdate, false);
       expect(restored.sidebarExpanded, true);
-      expect(restored.minimizeOnExit, true);
+      expect(restored.minimizeOnExit, false);
       expect(restored.restoreStrategy, RestoreStrategy.compatible);
-      expect(restored.userAgents, defaultUserAgents);
       expect(restored.filters, defaultFilters);
       expect(restored.testUrl, defaultTestUrl);
     });
@@ -259,7 +258,6 @@ void main() {
         autoLaunch: true,
         closeConnections: false,
         testUrl: 'https://custom.test',
-        userAgents: ['CustomUA/1.0'],
         filters: [Filter(label: 'Asia', regex: 'hk`jp')],
       );
       final restored = roundTrip(
@@ -271,28 +269,7 @@ void main() {
       expect(restored.autoLaunch, true);
       expect(restored.closeConnections, false);
       expect(restored.testUrl, 'https://custom.test');
-      expect(restored.userAgents, ['CustomUA/1.0']);
       expect(restored.filters, [const Filter(label: 'Asia', regex: 'hk`jp')]);
-    });
-
-    test('a legacy custom user agent joins the presets', () {
-      expect(
-        AppSettingProps.fromJson({
-          'customUserAgent': ' CustomUA/1.0 ',
-        }).userAgents,
-        [...defaultUserAgents, 'CustomUA/1.0'],
-      );
-      expect(
-        AppSettingProps.fromJson({'customUserAgent': ''}).userAgents,
-        defaultUserAgents,
-      );
-      expect(
-        AppSettingProps.fromJson({
-          'customUserAgent': 'CustomUA/1.0',
-          'userAgents': <String>[],
-        }).userAgents,
-        isEmpty,
-      );
     });
 
     test('a legacy isAnimateToPage sets the tab animation', () {
@@ -380,9 +357,9 @@ void main() {
     test('default values', () {
       const props = VpnProps();
       expect(props.enable, true);
-      expect(props.systemProxy, true);
-      expect(props.ipv6, false);
-      expect(props.allowBypass, true);
+      expect(props.systemProxy, false);
+      expect(props.ipv6, true);
+      expect(props.allowBypass, false);
       expect(props.dnsHijacking, false);
       expect(props.accessControlProps.enable, false);
     });
@@ -413,7 +390,7 @@ void main() {
   group('NetworkProps JSON round-trip', () {
     test('default values', () {
       const props = NetworkProps();
-      expect(props.systemProxy, true);
+      expect(props.systemProxy, false);
       expect(props.bypassDomain, defaultBypassDomain);
       expect(props.bypassPrivateRoute, true);
       expect(props.autoSetSystemDns, true);
@@ -440,7 +417,7 @@ void main() {
       expect(config.mixedPort, defaultMixedPort);
       expect(config.allowLan, false);
       expect(config.mode, Mode.rule);
-      expect(config.externalController, ExternalControllerStatus.close);
+      expect(config.externalController, '');
       expect(config.geodataLoader, GeodataLoader.memconservative);
       expect(config.interfaceNameMode, InterfaceNameMode.clear);
       expect(config.interfaceName, '');
@@ -452,7 +429,7 @@ void main() {
         allowLan: true,
         mode: Mode.rule,
         logLevel: LogLevel.debug,
-        externalController: ExternalControllerStatus.open,
+        externalController: defaultExternalController,
         geodataLoader: GeodataLoader.memconservative,
         interfaceNameMode: InterfaceNameMode.custom,
         interfaceName: 'eth0',
@@ -467,7 +444,7 @@ void main() {
       expect(restored.allowLan, true);
       expect(restored.mode, Mode.rule);
       expect(restored.logLevel, LogLevel.debug);
-      expect(restored.externalController, ExternalControllerStatus.open);
+      expect(restored.externalController, defaultExternalController);
       expect(restored.geodataLoader, GeodataLoader.memconservative);
       expect(restored.interfaceNameMode, InterfaceNameMode.custom);
       expect(restored.interfaceName, 'eth0');
@@ -493,58 +470,14 @@ void main() {
     });
   });
 
-  group('PatchClashConfig.ensureControllerSecret', () {
-    const open = PatchClashConfig(
-      externalController: ExternalControllerStatus.open,
-    );
+  test('the controller address and secret reach the Core as given', () {
+    final params = const PatchClashConfig(
+      externalController: '0.0.0.0:9091',
+      secret: 'abc',
+    ).toUpdateParams(authentication: const [], skipCertVerify: false);
 
-    test('leaves a closed controller without a secret as it is', () {
-      const closed = PatchClashConfig();
-
-      expect(identical(closed.ensureControllerSecret(), closed), isTrue);
-    });
-
-    test('gives an open controller a secret of its own', () {
-      final ensured = open.ensureControllerSecret();
-
-      expect(ensured.secret, matches(RegExp(r'^[A-Za-z0-9]{32}$')));
-      expect(ensured.externalController, ExternalControllerStatus.open);
-    });
-
-    test('is idempotent, so a secret the user chose or was shown stays', () {
-      final ensured = open.ensureControllerSecret();
-
-      expect(ensured.ensureControllerSecret().secret, ensured.secret);
-      expect(
-        open.copyWith(secret: 'mine').ensureControllerSecret().secret,
-        'mine',
-      );
-    });
-
-    test(
-      'drops the secret with the controller, and opening again rotates it',
-      () {
-        final first = open.ensureControllerSecret();
-        final closed = first
-            .copyWith(externalController: ExternalControllerStatus.close)
-            .ensureControllerSecret();
-        final second = closed
-            .copyWith(externalController: ExternalControllerStatus.open)
-            .ensureControllerSecret();
-
-        expect(closed.secret, isEmpty);
-        expect(second.secret, isNot(first.secret));
-      },
-    );
-
-    test('reaches the Core through the update params', () {
-      final params = open
-          .copyWith(secret: 'abc')
-          .toUpdateParams(authentication: const [], skipCertVerify: false);
-
-      expect(params.secret, 'abc');
-      expect(params.toJson()['secret'], 'abc');
-    });
+    expect(params.toJson()['external-controller'], '0.0.0.0:9091');
+    expect(params.toJson()['secret'], 'abc');
   });
 
   group('PatchClashConfig.setupOnly', () {
@@ -553,15 +486,15 @@ void main() {
 
     test('drops every field the update params patch live', () {
       final live = defaultClashConfig.copyWith(
-        tun: const Tun(enable: true, stack: TunStack.gvisor, mtu: 1500),
+        tun: const Tun(enable: false, stack: TunStack.gvisor, mtu: 1500),
         mixedPort: 8899,
         allowLan: true,
-        findProcessMode: FindProcessMode.always,
+        findProcessMode: FindProcessMode.off,
         mode: Mode.global,
         logLevel: LogLevel.debug,
-        ipv6: true,
+        ipv6: false,
         tcpConcurrent: false,
-        externalController: ExternalControllerStatus.open,
+        externalController: defaultExternalController,
         secret: 'secret',
         unifiedDelay: false,
         geoAutoUpdate: true,
@@ -694,6 +627,7 @@ void main() {
       expect(props.primaryColor, null);
       expect(props.primaryColors, defaultPrimaryColors);
       expect(props.themeMode, ThemeMode.system);
+      expect(props.style, ThemeStyle.original);
       expect(props.pureBlack, false);
       expect(props.textScale.scale, 1.0);
     });
@@ -707,12 +641,14 @@ void main() {
       const props = ThemeProps(
         primaryColor: 0xFF123456,
         themeMode: ThemeMode.light,
+        style: ThemeStyle.enhanced,
         pureBlack: true,
         textScale: TextScale(enable: true, scale: 1.5),
       );
       final restored = roundTrip(() => props.toJson(), ThemeProps.fromJson);
       expect(restored.primaryColor, 0xFF123456);
       expect(restored.themeMode, ThemeMode.light);
+      expect(restored.style, ThemeStyle.enhanced);
       expect(restored.pureBlack, true);
       expect(restored.textScale.scale, 1.5);
     });
@@ -823,7 +759,7 @@ void main() {
       const config = Config(themeProps: ThemeProps());
       final restored = roundTrip(() => config.toJson(), Config.fromJson);
       expect(restored.currentProfileId, null);
-      expect(restored.networkProps.systemProxy, true);
+      expect(restored.networkProps.systemProxy, false);
       expect(restored.vpnProps.enable, true);
       expect(restored.hotKeyActions, isEmpty);
     });
@@ -937,7 +873,7 @@ void main() {
       expect(config.currentProfileId, isNull);
       expect(config.appSettingProps.locale, isNull);
       expect(config.appSettingProps.acceptedDisclaimerVersion, 3);
-      expect(config.vpnProps.ipv6, false);
+      expect(config.vpnProps.ipv6, true);
       expect(config.vpnProps.accessControlProps.enable, true);
       expect(
         config.vpnProps.accessControlProps.mode,

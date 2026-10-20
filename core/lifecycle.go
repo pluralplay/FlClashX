@@ -9,15 +9,15 @@ import (
 
 	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/component/resolver"
-	"github.com/metacubex/mihomo/component/updater"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/listener"
-	"github.com/metacubex/mihomo/tunnel"
+	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 )
+
+const isAndroid = runtime.GOOS == "android"
 
 var (
 	isInit     atomic.Bool
@@ -40,6 +40,11 @@ func handleGetIsInit() bool {
 	return isInit.Load()
 }
 
+// The mihomo release this core was linked with, set by the build's ldflags.
+func handleGetCoreVersion() string {
+	return constant.Version
+}
+
 func handleStartListener() bool {
 	configMu.Lock()
 	defer configMu.Unlock()
@@ -54,17 +59,21 @@ func handleStopListener() bool {
 	configMu.Lock()
 	defer configMu.Unlock()
 	isRunning.Store(false)
-	listener.StopListener()
+	stopListeners()
 	resolver.ResetConnection()
 	return true
 }
 
+// The listeners are the core's own, handed [trafficTunnel]. mihomo's apply
+// opens none while the core is stopped (see mihomoConfig) and, while it
+// runs, re-creates only what changed; those it created are re-created here
+// onto the accounting tunnel, which an unchanged listener keeps.
 func updateListeners(cfg *config.Config) {
 	if cfg == nil || !isRunning.Load() {
 		return
 	}
 	general := cfg.General
-	listener.PatchInboundListeners(cfg.Listeners, tunnel.Tunnel, true)
+	listener.PatchInboundListeners(cfg.Listeners, trafficTunnel, true)
 
 	listener.SetAllowLan(general.AllowLan)
 	inbound.SetSkipAuthPrefixes(general.SkipAuthPrefixes)
@@ -72,16 +81,32 @@ func updateListeners(cfg *config.Config) {
 	inbound.SetDisAllowedIPs(general.LanDisAllowedIPs)
 
 	listener.SetBindAddress(general.BindAddress)
-	listener.ReCreateHTTP(general.Port, tunnel.Tunnel)
-	listener.ReCreateSocks(general.SocksPort, tunnel.Tunnel)
-	listener.ReCreateRedir(general.RedirPort, tunnel.Tunnel)
-	listener.ReCreateTProxy(general.TProxyPort, tunnel.Tunnel)
-	listener.ReCreateMixed(general.MixedPort, tunnel.Tunnel)
-	listener.ReCreateShadowSocks(general.ShadowSocksConfig, tunnel.Tunnel)
-	listener.ReCreateVmess(general.VmessConfig, tunnel.Tunnel)
-	listener.ReCreateTuic(general.TuicServer, tunnel.Tunnel)
-	if !features.Android {
-		listener.ReCreateTun(general.Tun, tunnel.Tunnel)
+	listener.ReCreateHTTP(general.Port, trafficTunnel)
+	listener.ReCreateSocks(general.SocksPort, trafficTunnel)
+	listener.ReCreateRedir(general.RedirPort, trafficTunnel)
+	listener.ReCreateTProxy(general.TProxyPort, trafficTunnel)
+	listener.ReCreateMixed(general.MixedPort, trafficTunnel)
+	listener.ReCreateShadowSocks(general.ShadowSocksConfig, trafficTunnel)
+	listener.ReCreateVmess(general.VmessConfig, trafficTunnel)
+	listener.ReCreateTuic(general.TuicServer, trafficTunnel)
+	if !isAndroid {
+		listener.ReCreateTun(general.Tun, trafficTunnel)
+	}
+}
+
+// mihomo closes a listener re-created with nothing to listen on.
+func stopListeners() {
+	listener.PatchInboundListeners(nil, trafficTunnel, true)
+	listener.ReCreateHTTP(0, trafficTunnel)
+	listener.ReCreateSocks(0, trafficTunnel)
+	listener.ReCreateRedir(0, trafficTunnel)
+	listener.ReCreateTProxy(0, trafficTunnel)
+	listener.ReCreateMixed(0, trafficTunnel)
+	listener.ReCreateShadowSocks("", trafficTunnel)
+	listener.ReCreateVmess("", trafficTunnel)
+	listener.ReCreateTuic(LC.TuicServer{}, trafficTunnel)
+	if !isAndroid {
+		listener.ReCreateTun(LC.Tun{}, trafficTunnel)
 	}
 }
 
@@ -91,8 +116,9 @@ func handleShutdown() bool {
 
 	configMu.Lock()
 	isRunning.Store(false)
-	listener.StopListener()
-	updater.StopGeoUpdater()
+	stopListeners()
+	stopGeoUpdater()
+	stopDelayWatch()
 	executor.Shutdown()
 	currentConfig = nil
 	isInit.Store(false)
@@ -103,7 +129,7 @@ func handleShutdown() bool {
 }
 
 func handleForceGC() {
-	tunnel.InvalidateAllProxies()
+	invalidateAllProxies()
 	debug.FreeOSMemory()
 }
 

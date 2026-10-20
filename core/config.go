@@ -18,7 +18,6 @@ import (
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub"
-	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/hub/route"
 	authStore "github.com/metacubex/mihomo/listener/auth"
 	LC "github.com/metacubex/mihomo/listener/config"
@@ -97,7 +96,12 @@ func loadConfig(path string) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := executor.ParseWithBytes(buf)
+	raw, err := config.UnmarshalRawConfig(buf)
+	if err != nil {
+		return nil, err
+	}
+	captureProfileExtras(raw)
+	cfg, err := config.ParseRawConfig(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +130,6 @@ func applyConfig(params *SetupParams) error {
 	defer configMu.Unlock()
 
 	setTestURL(params.TestURL)
-	skipCertVerify.Store(params.SkipCertVerify)
 	cfg, err := loadSetupConfig(params)
 	if err != nil {
 		// The fallback is what keeps the listeners serving while the host
@@ -146,13 +149,53 @@ func applyConfig(params *SetupParams) error {
 	}
 
 	currentConfig = cfg
-	hub.ApplyConfig(cfg)
+	hub.ApplyConfig(mihomoConfig(cfg))
+	afterApply(cfg)
 	patchSelectGroup(params.SelectedMap)
 	bumpRouteEpoch()
 	updateListeners(cfg)
 	reconcileGeoUpdater()
 	scheduleLoadMemoryRelease()
 	return err
+}
+
+// mihomo's apply opens the listeners and the TUN its config names, with
+// its own tunnel. Stopped, the core hands it a config that names none, so
+// nothing opens until the core starts them itself; running, the real one,
+// which re-creates only a listener whose address changed.
+func mihomoConfig(cfg *config.Config) *config.Config {
+	general := *cfg.General
+	if !isRunning.Load() {
+		general.Port, general.SocksPort, general.RedirPort = 0, 0, 0
+		general.TProxyPort, general.MixedPort = 0, 0
+		general.ShadowSocksConfig, general.VmessConfig = "", ""
+		general.TuicServer = LC.TuicServer{}
+	}
+	if !isRunning.Load() || isAndroid {
+		general.Tun = LC.Tun{}
+	}
+	shadow := *cfg
+	shadow.General = &general
+	if !isRunning.Load() {
+		shadow.Listeners = nil
+	}
+	return &shadow
+}
+
+// mihomo loads the providers inside its apply and installs fresh
+// resolvers; the host hears of the loads, and the resolvers are watched.
+func afterApply(cfg *config.Config) {
+	invalidateAllProxies()
+	watchResolvers()
+	for name := range cfg.Providers {
+		sendMessage(LoadedMessage, name)
+	}
+	for name := range cfg.RuleProviders {
+		sendMessage(LoadedMessage, name)
+	}
+	touchProviders()
+	startDelayWatch()
+	scheduleReclaimOwnership()
 }
 
 func updateConfig(params *UpdateParams) error {
@@ -204,10 +247,6 @@ func updateConfig(params *UpdateParams) error {
 	if params.Authentication != nil {
 		applyAuthentication(currentConfig, *params.Authentication)
 	}
-	if params.SkipCertVerify != nil {
-		skipCertVerify.Store(*params.SkipCertVerify)
-	}
-
 	updateListeners(currentConfig)
 	for geoType, link := range params.GeoXUrl {
 		setGeoResourceUrl(geoType, link)

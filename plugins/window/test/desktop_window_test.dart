@@ -204,4 +204,33 @@ void main() {
     expect(await desktopWindow.isEffectSupported(WindowEffect.mica), isFalse);
     expect(calls.last.arguments, {'effect': 'mica'});
   });
+
+  test('the zoom event reaches onWindowZoom', () async {
+    final listener = _RecordingListener();
+    desktopWindow.addListener(listener);
+    addTearDown(() => desktopWindow.removeListener(listener));
+
+    await emit('zoom');
+
+    expect(listener.log, ['event:zoom']);
+  });
+
+  test(
+    'menu bar mode calls pass their value and the popover toggle is bare',
+    () async {
+      responder = (call) => call.method == 'isMenuBarMode';
+
+      await desktopWindow.setMenuBarMode(true);
+      expect(await desktopWindow.isMenuBarMode(), isTrue);
+      await desktopWindow.togglePopover();
+
+      expect(calls.map((call) => call.method), [
+        'setMenuBarMode',
+        'isMenuBarMode',
+        'togglePopover',
+      ]);
+      expect(calls[0].arguments, {'value': true});
+      expect(calls[2].arguments, isNull);
+    },
+  );
 }

@@ -256,6 +256,17 @@ void main() {
     });
   });
 
+  group('StringExtension flags', () {
+    test('reads the country off a leading flag and strips it', () {
+      expect('🇳🇱 Amsterdam'.flagCountryCode, 'NL');
+      expect('🇳🇱 Amsterdam'.withoutLeadingFlag, 'Amsterdam');
+      expect('Berlin 🇩🇪'.flagCountryCode, 'DE');
+      expect('Berlin 🇩🇪'.withoutLeadingFlag, 'Berlin 🇩🇪');
+      expect('Plain'.flagCountryCode, isNull);
+      expect('Plain'.withoutLeadingFlag, 'Plain');
+    });
+  });
+
   group('StringExtension.decodeJson', () {
     test('decodes small json on main thread', () async {
       final result = await '{"key": "value"}'

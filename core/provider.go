@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -22,19 +23,18 @@ import (
 	"github.com/metacubex/mihomo/constant"
 	cp "github.com/metacubex/mihomo/constant/provider"
 	rp "github.com/metacubex/mihomo/rules/provider"
-	"github.com/metacubex/mihomo/tunnel"
 )
 
 var errNotExternalProvider = errors.New("not external provider")
 
 func externalProviders() map[string]cp.Provider {
 	eps := make(map[string]cp.Provider)
-	for n, p := range tunnel.ProvidersSnapshot() {
+	for n, p := range providersSnapshot() {
 		if p.VehicleType() != cp.Compatible {
 			eps[n] = p
 		}
 	}
-	for n, p := range tunnel.RuleProvidersSnapshot() {
+	for n, p := range ruleProvidersSnapshot() {
 		if p.VehicleType() != cp.Compatible {
 			eps[n] = p
 		}
@@ -43,13 +43,29 @@ func externalProviders() map[string]cp.Provider {
 }
 
 func lookupExternalProvider(name string) (cp.Provider, bool) {
-	if p, exist := tunnel.RuleProvidersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
+	if p, exist := ruleProvidersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
 		return p, true
 	}
-	if p, exist := tunnel.ProvidersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
+	if p, exist := providersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
 		return p, true
 	}
 	return nil, false
+}
+
+// mihomo keeps a provider's subscription info to itself and only writes it
+// out as JSON.
+func subscriptionInfoOf(p *provider.ProxySetProvider) *provider.SubscriptionInfo {
+	data, err := p.MarshalJSON()
+	if err != nil {
+		return nil
+	}
+	var view struct {
+		SubscriptionInfo *provider.SubscriptionInfo `json:"subscriptionInfo"`
+	}
+	if err := json.Unmarshal(data, &view); err != nil {
+		return nil
+	}
+	return view.SubscriptionInfo
 }
 
 func toExternalProvider(p cp.Provider) (*ExternalProvider, error) {
@@ -62,7 +78,7 @@ func toExternalProvider(p cp.Provider) (*ExternalProvider, error) {
 			Count:            typed.Count(),
 			UpdateAt:         typed.UpdatedAt(),
 			Path:             typed.Vehicle().Path(),
-			SubscriptionInfo: typed.GetSubscriptionInfo(),
+			SubscriptionInfo: subscriptionInfoOf(typed),
 		}, nil
 	case *rp.RuleSetProvider:
 		return &ExternalProvider{

@@ -36,6 +36,9 @@ abstract class ProfileBase with _$ProfileBase {
     @Default(0) int proxies,
     @Default(0) @JsonKey(name: 'proxy-groups') int proxyGroups,
     @Default(0) int rules,
+
+    /// The keys the file names itself, top level and `tun.*`.
+    @Default([]) List<String> present,
   }) = _ProfileBase;
 
   factory ProfileBase.fromJson(Map<String, dynamic> json) =>
@@ -54,8 +57,7 @@ abstract class UpdateParams with _$UpdateParams {
     @JsonKey(name: 'log-level') required LogLevel logLevel,
     required bool ipv6,
     @JsonKey(name: 'tcp-concurrent') required bool tcpConcurrent,
-    @JsonKey(name: 'external-controller')
-    required ExternalControllerStatus externalController,
+    @JsonKey(name: 'external-controller') required String externalController,
     @Default('') String secret,
     @JsonKey(name: 'unified-delay') required bool unifiedDelay,
     @Default([]) List<String> authentication,

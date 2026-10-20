@@ -16,6 +16,7 @@ const String _methodShow = 'show';
 const String _methodHide = 'hide';
 const String _methodSetTitle = 'setTitle';
 const String _methodOpenMenu = 'openMenu';
+const String _methodSetClickActivates = 'setClickActivates';
 
 const String _eventIconActivated = 'onIconActivated';
 const String _eventMenuRequested = 'onMenuRequested';
@@ -58,6 +59,12 @@ final class Tray {
 
   Future<void> hide() {
     return _serialize(_hide);
+  }
+
+  /// macOS: a primary click then raises [TrayIconActivated] instead of
+  /// asking for the menu, which a secondary click still opens.
+  Future<void> setClickActivates(bool value) {
+    return _serialize(() => _setClickActivates(value));
   }
 
   Future<void> openMenu() {
@@ -135,6 +142,15 @@ final class Tray {
     }
     _isVisible = false;
     await _channel.invokeMethod(_methodHide);
+  }
+
+  Future<void> _setClickActivates(bool value) async {
+    if (defaultTargetPlatform != TargetPlatform.macOS) {
+      return;
+    }
+    await _channel.invokeMethod(_methodSetClickActivates, <String, Object?>{
+      'value': value,
+    });
   }
 
   Future<void> _openMenu() async {

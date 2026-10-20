@@ -28,30 +28,34 @@ func TestProxyOnlyTrafficLeavesOutADirectProxyOfAnyName(t *testing.T) {
 		{direct, 0},
 		{reject, 5},
 	} {
-		statistic.DefaultManager.ResetStatistic()
+		handleResetTraffic()
 		local, remote := net.Pipe()
 		go func() { _, _ = io.Copy(io.Discard, remote) }()
+		metadata := &constant.Metadata{}
 		tracker := statistic.NewTCPTracker(
 			outbound.NewConn(local, test.outbound),
 			statistic.DefaultManager,
-			&constant.Metadata{},
+			metadata,
 			nil,
 			0,
 			0,
 			true,
 		)
+		// The accounting tunnel wraps the inbound side; here the tracker
+		// stands in for it, so the bytes count as sent back to the client.
+		inbound := &accountedConn{Conn: tracker, metadata: metadata}
 
-		if _, err := tracker.Write([]byte("hello")); err != nil {
+		if _, err := inbound.Write([]byte("hello")); err != nil {
 			t.Fatalf("write through %s: %v", test.outbound.Name(), err)
 		}
 		_ = tracker.Close()
 		_ = remote.Close()
 
-		all, _ := statistic.DefaultManager.TotalTraffic(false)
-		proxied, _ := statistic.DefaultManager.TotalTraffic(true)
-		if all != 5 || proxied != test.proxied {
-			t.Errorf("%s: total %d, proxied %d; want 5 and %d", test.outbound.Name(), all, proxied, test.proxied)
+		all := handleGetTotalTraffic(false)
+		proxied := handleGetTotalTraffic(true)
+		if all.Up != 5 || proxied.Down != test.proxied {
+			t.Errorf("%s: total %d, proxied %d; want 5 and %d", test.outbound.Name(), all.Up, proxied.Down, test.proxied)
 		}
 	}
-	statistic.DefaultManager.ResetStatistic()
+	handleResetTraffic()
 }

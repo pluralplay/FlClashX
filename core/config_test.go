@@ -509,21 +509,79 @@ func TestHandleUpdateGeoDataRejectsAnUnknownResource(t *testing.T) {
 
 func TestSetTestURLIgnoresAnEmptyValue(t *testing.T) {
 	const configured = "https://example.test/generate_204"
-	previousDefault := constant.DefaultTestURL
 	previousStored := testURL.Load()
-	t.Cleanup(func() {
-		constant.DefaultTestURL = previousDefault
-		testURL.Store(previousStored)
-	})
+	t.Cleanup(func() { testURL.Store(previousStored) })
 
 	setTestURL(configured)
 	setTestURL("")
 
-	if constant.DefaultTestURL != configured {
-		t.Errorf("DefaultTestURL = %q, an empty setup param cleared mihomo's own default", constant.DefaultTestURL)
-	}
 	if got := currentTestURL(); got != configured {
 		t.Errorf("currentTestURL() = %q, want %q", got, configured)
+	}
+}
+
+// mihomo reads a group's test URL off the config, so the host's choice goes
+// onto every group and health check that names none.
+func TestInjectTestURLFillsOnlyTheBlanks(t *testing.T) {
+	const configured = "https://example.test/generate_204"
+	previousStored := testURL.Load()
+	t.Cleanup(func() { testURL.Store(previousStored) })
+	setTestURL(configured)
+
+	raw := config.DefaultRawConfig()
+	raw.ProxyGroup = []map[string]any{
+		{"name": "Auto", "type": "url-test"},
+		{"name": "Pinned", "type": "url-test", "url": "https://pinned.test"},
+	}
+	raw.ProxyProvider = map[string]map[string]any{
+		"sub": {"health-check": map[string]any{"enable": true}},
+	}
+	injectTestURL(raw)
+
+	if got := raw.ProxyGroup[0]["url"]; got != "https://pinned.test" {
+		t.Errorf("Auto url = %v, want the URL the profile already checks with", got)
+	}
+	if got := raw.ProxyGroup[1]["url"]; got != "https://pinned.test" {
+		t.Errorf("Pinned url = %v, the group's own URL was overwritten", got)
+	}
+	check := raw.ProxyProvider["sub"]["health-check"].(map[string]any)
+	if got := check["url"]; got != "https://pinned.test" {
+		t.Errorf("provider health-check url = %v, want the profile's URL", got)
+	}
+
+	bare := config.DefaultRawConfig()
+	bare.ProxyGroup = []map[string]any{{"name": "Auto", "type": "url-test"}}
+	injectTestURL(bare)
+	if got := bare.ProxyGroup[0]["url"]; got != configured {
+		t.Errorf("url without any in the profile = %v, want the host's", got)
+	}
+
+	split := config.DefaultRawConfig()
+	split.ProxyGroup = []map[string]any{
+		{"name": "A", "type": "url-test", "url": "https://one.test"},
+		{"name": "B", "type": "url-test", "url": "https://two.test"},
+		{"name": "C", "type": "url-test", "url": "https://two.test"},
+		{"name": "D", "type": "url-test"},
+	}
+	injectTestURL(split)
+	if got := split.ProxyGroup[3]["url"]; got != "https://two.test" {
+		t.Errorf("url among several = %v, want the most used one", got)
+	}
+}
+
+func TestDialerLoopsOfFindsACycleThroughAGroup(t *testing.T) {
+	raw := config.DefaultRawConfig()
+	raw.Proxy = []map[string]any{
+		{"name": "a", "dialer-proxy": "Group"},
+		{"name": "b", "dialer-proxy": "c"},
+		{"name": "c"},
+	}
+	raw.ProxyGroup = []map[string]any{
+		{"name": "Group", "type": "select", "proxies": []any{"a", "b"}},
+	}
+
+	if got := dialerLoopsOf(raw); len(got) != 1 || got[0] != "a" {
+		t.Errorf("loops = %v, want only a, whose dialer group contains it", got)
 	}
 }
 
@@ -630,7 +688,7 @@ func TestGeoUpdateHookBlocksAManualUpdateOfTheSameResource(t *testing.T) {
 		},
 	})
 
-	updater.GeoUpdateHook(resource, true, false, nil)
+	onGeoUpdate(resource, true, false, nil)
 
 	if err := handleUpdateGeoData(resource); err == nil {
 		t.Fatal("handleUpdateGeoData reported no error while the hook already claimed this resource")
@@ -641,7 +699,7 @@ func TestGeoUpdateHookBlocksAManualUpdateOfTheSameResource(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	updater.GeoUpdateHook(resource, false, false, nil)
+	onGeoUpdate(resource, false, false, nil)
 
 	if !claimGeoUpdate(resource) {
 		t.Fatal("the hook never cleared the claim, so the resource stays blocked for the rest of the process")
@@ -677,8 +735,8 @@ func TestGeoUpdateHookDoesNotReleaseAManualClaim(t *testing.T) {
 		t.Fatal("the manual update never started")
 	}
 
-	updater.GeoUpdateHook(resource, true, false, nil)
-	updater.GeoUpdateHook(resource, false, false, nil)
+	onGeoUpdate(resource, true, false, nil)
+	onGeoUpdate(resource, false, false, nil)
 
 	if err := handleUpdateGeoData(resource); err == nil {
 		t.Fatal("the duplicate request reported no error while the manual claim was still held")

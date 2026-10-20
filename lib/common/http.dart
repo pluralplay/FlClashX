@@ -13,10 +13,11 @@ class FlClashHttpOverrides extends HttpOverrides {
 
   FlClashHttpOverrides(this._container);
 
-  static const _coreRootsAsset =
-      'core/Clash.Meta/component/ca/ca-certificates.crt';
+  static const _coreRootsAsset = 'assets/ca/ca-certificates.crt';
 
-  /// The bundle the core embeds; only release CI fills it.
+  /// The curated root bundle release CI fetches; empty in a local build,
+  /// where the system roots stand alone. mihomo ships an empty bundle of
+  /// its own and falls back to the system roots the same way.
   static Future<void> trustCoreRoots() async {
     try {
       final data = await rootBundle.load(_coreRootsAsset);
@@ -43,15 +44,19 @@ class FlClashHttpOverrides extends HttpOverrides {
     final isStart = read(isStartProvider);
     final suspend = read(suspendProvider);
     if (!isStart || suspend) return 'DIRECT';
-    final mixedPort = read(
-      patchClashConfigProvider.select((state) => state.mixedPort),
+    if (read(androidSecureProvider)) return 'DIRECT';
+    final localPort = read(
+      patchClashConfigProvider.select(
+        (state) => state.mixedPort != 0 ? state.mixedPort : state.port,
+      ),
     );
+    if (localPort == 0) return 'DIRECT';
     final authentication = read(
       networkSettingProvider.select((state) => state.authentication),
     );
     final credentials = authentication.credentials;
     final userInfo = credentials.isNotEmpty ? '${credentials.first}@' : '';
-    return 'PROXY ${userInfo}localhost:$mixedPort';
+    return 'PROXY ${userInfo}localhost:$localPort';
   }
 
   static bool allowBadCertificate(

@@ -1,9 +1,71 @@
+import 'dart:convert';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:test/test.dart';
 
+Profile _announcing(String? announce) => Profile(
+  id: 1,
+  autoUpdateDuration: Duration.zero,
+  providerHeaders: {'announce': ?announce},
+);
+
 void main() {
+  group('providerHeadersOf', () {
+    test('keeps the panel headers, lower-cased, first value only', () {
+      expect(
+        providerHeadersOf({
+          'Announce': ['Hi', 'ignored'],
+          'FlClashX-Hex': ['FF5733'],
+          'support-url': ['https://help.example.com'],
+          'content-type': ['text/yaml'],
+          'flclashx-empty': [],
+        }),
+        {
+          'announce': 'Hi',
+          'flclashx-hex': 'FF5733',
+          'support-url': 'https://help.example.com',
+        },
+      );
+    });
+  });
+
+  group('Profile.announcement', () {
+    test('is absent without the header or when it is blank', () {
+      expect(_announcing(null).announcement, isNull);
+      expect(_announcing('   ').announcement, isNull);
+    });
+
+    test('reads plain text as it is', () {
+      expect(
+        _announcing(' Welcome! https://example.com ').announcement,
+        'Welcome! https://example.com',
+      );
+    });
+
+    test('decodes base64, with or without its prefix', () {
+      final encoded = base64.encode(utf8.encode('Привет 👋'));
+      expect(_announcing(encoded).announcement, 'Привет 👋');
+      expect(_announcing('base64:$encoded').announcement, 'Привет 👋');
+    });
+
+    test('treats an unparsable prefixed value as nothing', () {
+      expect(_announcing('base64:***').announcement, isNull);
+    });
+
+    test('cuts at 200 characters with an ellipsis', () {
+      final long = List.filled(250, 'я').join();
+      final shown = _announcing(long).announcement!;
+      expect(shown.runes.length, 201);
+      expect(shown.endsWith('\u2026'), isTrue);
+      expect(
+        _announcing(List.filled(200, 'я').join()).announcement!.runes,
+        hasLength(200),
+      );
+    });
+  });
+
   group('SubscriptionInfo', () {
     test('parses subscription-userinfo header values', () {
       final info = SubscriptionInfo.formHString(

@@ -65,6 +65,28 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     );
   }
 
+  IconButtonData _buildFoldAllAction() {
+    final allUnfolded = ref.watch(
+      proxiesListStateProvider.select(
+        (state) =>
+            state.groups.isNotEmpty &&
+            state.groups.every(
+              (group) => state.currentUnfoldSet.contains(group.name),
+            ),
+      ),
+    );
+    final appLocalizations = context.appLocalizations;
+    return IconButtonData(
+      glyph: allUnfolded ? AppGlyphs.foldAll : AppGlyphs.unfoldAll,
+      tooltip: allUnfolded
+          ? appLocalizations.foldAllGroups
+          : appLocalizations.unfoldAllGroups,
+      onPressed: () => ref
+          .read(proxiesActionProvider.notifier)
+          .setShownGroupsUnfolded(!allUnfolded),
+    );
+  }
+
   void _onSearch(String value) {
     ref.read(queryProvider(QueryTag.proxies).notifier).value = value;
   }
@@ -95,12 +117,47 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     final isLoading = ref.watch(loadingProvider(LoadingTag.proxies));
     final picker = widget.picker;
     final primaryAction = _buildPrimaryAction();
+    final mode = ref.watch(
+      patchClashConfigProvider.select((state) => state.mode),
+    );
+    final isTestingAll = ref.watch(
+      delayTestingGroupsProvider.select((state) => state.isNotEmpty),
+    );
+    final appLocalizations = context.appLocalizations;
+    final barActions = [
+      if (!picker) ...[
+        if (ref.watch(globalModeAllowedProvider))
+          IconButtonData(
+            glyph: mode == Mode.global ? AppGlyphs.proxies : AppGlyphs.rules,
+            tooltip:
+                '${appLocalizations.outboundMode}: '
+                '${mode == Mode.global ? appLocalizations.global : appLocalizations.rule}',
+            onPressed: () => ref
+                .read(setupActionProvider.notifier)
+                .changeMode(mode == Mode.global ? Mode.rule : Mode.global),
+          ),
+        IconButtonData(
+          glyph: AppGlyphs.bolt,
+          tooltip: appLocalizations.delayTestAll,
+          isLoading: isTestingAll,
+          onPressed: isTestingAll
+              ? null
+              : () => ref
+                    .read(proxiesActionProvider.notifier)
+                    .delayTestAllGroups(),
+        ),
+      ],
+      ?primaryAction,
+    ];
     return CommonScaffold(
       isLoading: isLoading,
       resizeToAvoidBottomInset: false,
-      primaryAction: primaryAction,
+      // The picker sheet keeps the bar it had, close last.
+      primaryAction: picker ? primaryAction : null,
+      groupActions: !picker,
       searchActions: [?primaryAction],
       iconActions: [
+        if (!picker) ...barActions,
         if (_isTab && !picker)
           IconButtonData(
             glyph: AppGlyphs.locate,
@@ -109,6 +166,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
             },
             tooltip: context.appLocalizations.scrollToSelected,
           ),
+        if (!_isTab && !picker) _buildFoldAllAction(),
       ],
       menuItems: picker ? const [] : _buildMenuItems(context),
       title: context.appLocalizations.proxies,

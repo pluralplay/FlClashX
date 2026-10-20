@@ -2,14 +2,18 @@ module core
 
 go 1.27.0
 
-replace github.com/metacubex/mihomo => ./Clash.Meta
+// The browser fingerprints mihomo names (Firefox 148, Safari 26.3 and up)
+// live on utls' `v1.9.0-mod-meta` branch, which has no tag.
+replace github.com/metacubex/utls => github.com/metacubex/utls v0.0.0-20261013160100-8853e107ae26
+
+// v0.4.27 plus the darwin dscacheutil reap, see third_party/README.md.
+replace github.com/metacubex/sing-tun => ./third_party/sing-tun
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/metacubex/http v0.1.8
-	github.com/metacubex/mihomo v0.0.0-00010101000000-000000000000
-	github.com/metacubex/tls v0.1.8
+	github.com/metacubex/mihomo v1.19.32
 	github.com/miekg/dns v1.1.63
 	go.yaml.in/yaml/v3 v3.0.5
 )
@@ -96,6 +100,7 @@ require (
 	github.com/metacubex/tailscale v0.0.0-20260821153257-ff0ecd818181 // indirect
 	github.com/metacubex/tailscale-wireguard-go v0.0.0-20260725073821-e61ab99cede2 // indirect
 	github.com/metacubex/tfo-go v0.0.0-20260623020846-376a77860b8c // indirect
+	github.com/metacubex/tls v0.1.8 // indirect
 	github.com/metacubex/utls v1.8.8 // indirect
 	github.com/metacubex/wazero v0.0.0-20260628025728-9ae6bdcf2a7d // indirect
 	github.com/metacubex/wireguard-go v0.0.0-20250820062549-a6cecdd7f57f // indirect

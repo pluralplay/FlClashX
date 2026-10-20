@@ -500,6 +500,7 @@ abstract class Group with _$Group {
     String? testUrl,
     @Default('') String icon,
     required String name,
+    String? serverDescription,
   }) = _Group;
 
   factory Group.fromJson(Map<String, Object?> json) => _$GroupFromJson(json);

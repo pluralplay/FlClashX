@@ -5,9 +5,16 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'common.dart';
 
 extension PackageInfoExtension on PackageInfo {
-  String get ua => [
-    '$appName/v$version',
-    'clash-verge',
+  String get displayVersion =>
+      appVersionDefine.isNotEmpty ? appVersionDefine : version;
+
+  String get ua => uaWith(coreVersionDefine);
+
+  /// `FlClashX/v<app> core/<mihomo> Platform/<os>`; the core token is left
+  /// out until a version is known.
+  String uaWith(String coreVersion) => [
+    '$appName/v$displayVersion',
+    if (coreVersion.isNotEmpty) 'core/$coreVersion',
     'Platform/${Platform.operatingSystem}',
   ].join(' ');
 }

@@ -49,6 +49,7 @@ class SystemAction extends _$SystemAction {
     }
     await Future.wait([
       ?saveOperation,
+      fileLogger.dispose(),
       bootGuard.markClosed(),
       if (systemDnsCoordinator != null) systemDnsCoordinator!.shutdown(),
       ?systemProxyQueue?.close(),

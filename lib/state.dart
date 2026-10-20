@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:fl_clash/providers/app.dart';
-import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -41,9 +40,12 @@ class GlobalState {
     return _instance!;
   }
 
-  String get ua => container
-      .read(patchClashConfigProvider.select((state) => state.globalUa))
-      .takeFirstValid([packageInfo.ua]);
+  /// The running core's version once asked, else the one the build was made with.
+  String coreVersion = '';
+
+  String get ua => packageInfo.uaWith(
+    coreVersion.isNotEmpty ? coreVersion : coreVersionDefine,
+  );
 
   Future<T?> loadingRun<T>(
     FutureOr<T> Function() futureFunction, {

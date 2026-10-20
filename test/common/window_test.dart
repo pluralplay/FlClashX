@@ -289,7 +289,7 @@ void main() {
 
     test('leaves a margin of a small work area', () {
       final size = fittedWindowSize(const Size(1366, 728));
-      expect(size.width, closeTo(1366 * 0.9, 0.001));
+      expect(size.width, defaultWindowSize.width);
       expect(size.height, closeTo(728 * 0.9, 0.001));
     });
   });

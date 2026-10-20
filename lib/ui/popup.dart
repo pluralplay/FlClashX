@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:fl_clash/ui/color.dart';
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/metrics.dart';
 import 'package:fl_clash/ui/motion.dart';
@@ -2041,6 +2042,7 @@ class _CommonPopupMenuState extends State<CommonPopupMenu>
     // A press is the menu's to follow across the rows, so the row's own ink
     // only shows hover and focus.
     final child = InkWell(
+      mouseCursor: clickableCursor,
       customBorder: AppShape.all(_itemRadius),
       onTap: onTap,
       splashFactory: NoSplash.splashFactory,

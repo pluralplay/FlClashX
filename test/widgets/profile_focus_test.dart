@@ -184,9 +184,9 @@ void main() {
     );
 
     for (final (label, source) in [
-      ('url', l.remote),
-      ('file', l.local),
-      ('mine', l.custom),
+      ('url', l.profileTypeSubscription),
+      ('file', l.profileTypeFile),
+      ('mine', l.profileTypeCustom),
     ]) {
       expect(
         find.descendant(

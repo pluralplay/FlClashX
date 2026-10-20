@@ -67,7 +67,7 @@ void main() {
   setUpAll(() {
     globalState.packageInfo = PackageInfo(
       appName: 'FlClash',
-      packageName: 'com.follow.clash',
+      packageName: 'com.follow.clashx',
       version: _runningVersion,
       buildNumber: '1',
     );
@@ -144,6 +144,9 @@ void main() {
     tester,
   ) async {
     final container = await pumpApp(tester);
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(autoCheckUpdate: true));
 
     final shown = container
         .read(commonActionProvider.notifier)

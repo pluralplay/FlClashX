@@ -1,0 +1,170 @@
+name: publish
+
+# Manual re-run of the post-build release steps (AUR publish + Telegram
+# announcement) for an existing tag — no rebuild, no signing. Reuses the
+# already-published GitHub release (its assets and notes). Toggle either step
+# with the inputs.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.4.2)"
+        required: true
+        type: string
+      aur:
+        description: "Publish to AUR"
+        type: boolean
+        default: true
+      telegram:
+        description: "Send Telegram announcement"
+        type: boolean
+        default: true
+
+jobs:
+  aur-publish:
+    if: ${{ inputs.aur }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup SSH for AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          SSHEOF
+
+      - name: Parse release tag
+        id: release
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" =~ ^([0-9.]+)-pre\.([0-9]+)$ ]]; then
+            echo "pkgver=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "pkgrel=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "aur_pkg=flclashx-git" >> "$GITHUB_OUTPUT"
+          else
+            echo "pkgver=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "pkgrel=1" >> "$GITHUB_OUTPUT"
+            echo "aur_pkg=flclashx-bin" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clone AUR repository
+        run: git clone ssh://aur@aur.archlinux.org/${{ steps.release.outputs.aur_pkg }}.git /tmp/aur-pkg
+
+      - name: Download release assets and compute checksums
+        id: checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p /tmp/aur-assets
+
+          gh release download "$TAG" \
+            -p "FlClashX-linux-amd64.deb" \
+            -D /tmp/aur-assets \
+            -R "$GITHUB_REPOSITORY"
+          echo "sha_x86=$(sha256sum /tmp/aur-assets/FlClashX-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+          if gh release download "$TAG" \
+            -p "FlClashX-linux-arm64.deb" \
+            -D /tmp/aur-assets \
+            -R "$GITHUB_REPOSITORY" 2>/dev/null; then
+            echo "sha_arm=$(sha256sum /tmp/aur-assets/FlClashX-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            echo "has_arm=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_arm=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          rm -rf /tmp/aur-assets
+
+      - name: Update PKGBUILD
+        working-directory: /tmp/aur-pkg
+        env:
+          PKGVER: ${{ steps.release.outputs.pkgver }}
+          PKGREL: ${{ steps.release.outputs.pkgrel }}
+          SHA_X86: ${{ steps.checksums.outputs.sha_x86 }}
+          SHA_ARM: ${{ steps.checksums.outputs.sha_arm }}
+          HAS_ARM: ${{ steps.checksums.outputs.has_arm }}
+        run: |
+          sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=${PKGREL}/" PKGBUILD
+          sed -i "s/^sha256sums_x86_64=.*/sha256sums_x86_64=('${SHA_X86}')/" PKGBUILD
+
+          if [ "$HAS_ARM" == "true" ]; then
+            sed -i "s/^sha256sums_aarch64=.*/sha256sums_aarch64=('${SHA_ARM}')/" PKGBUILD
+          else
+            sed -i "/^[[:space:]]*'aarch64'/d" PKGBUILD
+            sed -i "/^source_aarch64=/d" PKGBUILD
+            sed -i "/^sha256sums_aarch64=/d" PKGBUILD
+          fi
+
+      - name: Generate .SRCINFO
+        working-directory: /tmp/aur-pkg
+        run: |
+          docker run --rm -v "$(pwd):/pkg" archlinux:base-devel bash -c \
+            "useradd -m -u $(id -u) builder && chown -R builder:builder /pkg && su builder -c 'cd /pkg && makepkg --printsrcinfo > .SRCINFO'"
+
+      - name: Push to AUR
+        working-directory: /tmp/aur-pkg
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "Github Actions (pluralplay)"
+          git add PKGBUILD .SRCINFO
+          if ! git diff --cached --quiet; then
+            git commit -m "Update to $TAG"
+            git push
+          fi
+
+  notify:
+    needs: [aur-publish]
+    # Runs even if AUR was skipped/failed, as long as Telegram is requested.
+    if: ${{ always() && inputs.telegram }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare commit list
+        id: prepare_commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          # Reuse the already-published release notes (same content release.md had).
+          gh release view "$TAG" --json body -q .body > release.md
+          main_commit=$(git log -1 --pretty=format:"%s" "$TAG")
+          other_commits=$(head -n 20 release.md | grep "^- " | grep -v "^- ${main_commit}$" | head -n 9)
+          commits="• ${main_commit}"
+          if [ -n "$other_commits" ]; then
+            commits="${commits}"$'\n'"${other_commits}"
+          fi
+          commits_escaped=$(echo "$commits" | jq -Rs .)
+          echo "commits=$commits_escaped" >> $GITHUB_OUTPUT
+
+      - name: Send Telegram notifications
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID_1: ${{ secrets.TELEGRAM_CHANNEL_ID_1 }}
+          TELEGRAM_CHANNEL_ID_2: ${{ secrets.TELEGRAM_CHANNEL_ID_2 }}
+          TELEGRAM_CHANNEL_ID_3: ${{ secrets.TELEGRAM_CHANNEL_ID_3 }}
+          VERSION: ${{ inputs.tag }}
+          COMMITS: ${{ fromJSON(steps.prepare_commits.outputs.commits) }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag }}
+          IS_STABLE: ${{ !contains(inputs.tag, '-') }}
+        run: |
+          python3 -m pip install requests --quiet
+          python3 .github/scripts/notify_telegram.py

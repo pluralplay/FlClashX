@@ -32,6 +32,7 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
   }
 
   void add(Log value) {
+    fileLogger.write(value);
     if (!ref.mounted) {
       return;
     }

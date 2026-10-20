@@ -45,11 +45,13 @@ const (
 	getExternalProvidersMethod     CoreMethod = "getExternalProviders"
 	getExternalProviderMethod      CoreMethod = "getExternalProvider"
 	getMemoryStatsMethod           CoreMethod = "getMemoryStats"
+	getCoreVersionMethod           CoreMethod = "getCoreVersion"
 	updateGeoDataMethod            CoreMethod = "updateGeoData"
 	updateExternalProviderMethod   CoreMethod = "updateExternalProvider"
 	sideLoadExternalProviderMethod CoreMethod = "sideLoadExternalProvider"
 	startLogMethod                 CoreMethod = "startLog"
 	stopLogMethod                  CoreMethod = "stopLog"
+	setHostActiveMethod            CoreMethod = "setHostActive"
 	startListenerMethod            CoreMethod = "startListener"
 	stopListenerMethod             CoreMethod = "stopListener"
 	updateDnsMethod                CoreMethod = "updateDns"
@@ -114,6 +116,10 @@ type ProfileBase struct {
 	Proxies     int               `json:"proxies"`
 	ProxyGroups int               `json:"proxy-groups"`
 	Rules       int               `json:"rules"`
+	// The keys the file itself names, top level and `tun.*`: the decoded
+	// config fills every other one with a default the host must not take
+	// for the profile's word.
+	Present []string `json:"present"`
 }
 
 type ProfileOutbounds struct {
@@ -252,8 +258,9 @@ type ProxiesData struct {
 }
 
 type nodeView struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	ServerDescription string `json:"serverDescription,omitempty"`
 }
 
 type GeoUpdateStatus struct {

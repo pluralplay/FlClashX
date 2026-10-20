@@ -85,7 +85,7 @@ ThemeData watchAppTheme(WidgetRef ref, Brightness brightness) {
           plainDark ?? colorScheme.elevated,
         ),
     ],
-  ).withAppShapes.withAppSurfaces.withAppTypography;
+  ).withAppShapes.withAppSurfaces.withAppTypography.withPointerCursor;
   _appThemes[brightness] = (inputs: inputs, theme: theme);
   return theme;
 }
@@ -149,12 +149,29 @@ class ThemeManager extends ConsumerWidget {
                     .updateViewSize(
                       Size(constraints.maxWidth, constraints.maxHeight),
                     );
-                return _buildSystemUi(child);
+                return _PanelBackdrop(child: _buildSystemUi(child));
               },
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PanelBackdrop extends ConsumerWidget {
+  const _PanelBackdrop({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final background = ref.watch(panelBackgroundProvider);
+    final image = ref.watch(panelBackdropImageProvider).value;
+    return PageBackdropScope(
+      image: background == null ? null : image,
+      visibility: background?.visibility ?? defaultBackdropVisibility,
+      child: child,
     );
   }
 }

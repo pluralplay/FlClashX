@@ -48,7 +48,7 @@ const CORE_PIPE_PREFIX: &str = r"\\.\pipe\FlClashCore_";
 const CORE_SOCKET_PREFIX: &str = "/tmp/FlClashSocket_";
 #[cfg(target_os = "linux")]
 const CORE_SOCKET_SUFFIX: &str = ".sock";
-const PROTOCOL_VERSION_HEADER: &str = "x-flclash-helper-protocol";
+const PROTOCOL_VERSION_HEADER: &str = "x-flclashx-helper-protocol";
 #[cfg(windows)]
 const PROTOCOL_VERSION: &str = "8";
 #[cfg(not(windows))]
@@ -771,7 +771,7 @@ pub(super) fn routes() -> impl Filter<Extract = (impl Reply,), Error = Infallibl
             let local_host = host.is_none_or(|host| {
                 host.parse::<warp::http::uri::Authority>()
                     .is_ok_and(|authority| {
-                        ["127.0.0.1", "localhost", "FlClashHelperService"]
+                        ["127.0.0.1", "localhost", "FlClashXHelperService"]
                             .iter()
                             .any(|host| authority.host().eq_ignore_ascii_case(host))
                     })
@@ -944,7 +944,7 @@ mod tests {
 
     #[tokio::test]
     async fn ping_returns_running_helper_path_for_verified_core() {
-        let response = ping_response(Ok(PathBuf::from("FlClashHelperService.exe")));
+        let response = ping_response(Ok(PathBuf::from("FlClashXHelperService.exe")));
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
@@ -955,7 +955,7 @@ mod tests {
             warp::hyper::body::to_bytes(response.into_body())
                 .await
                 .unwrap(),
-            "FlClashHelperService.exe"
+            "FlClashXHelperService.exe"
         );
     }
 
@@ -1337,8 +1337,10 @@ mod tests {
 
     #[test]
     fn verifies_core_sha256_in_all_build_modes() {
-        let path =
-            std::env::temp_dir().join(format!("flclash-helper-core-sha256-{}", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "flclashx-helper-core-sha256-{}",
+            std::process::id()
+        ));
         let mut file = File::create(&path).unwrap();
         file.write_all(b"test").unwrap();
         drop(file);
@@ -1440,7 +1442,11 @@ mod tests {
                     .is_none());
             }
         }
-        for host in ["127.0.0.1:47890", "localhost:47890", "FlClashHelperService"] {
+        for host in [
+            "127.0.0.1:47890",
+            "localhost:47890",
+            "FlClashXHelperService",
+        ] {
             let response = warp::test::request()
                 .path("/logs")
                 .header("host", host)

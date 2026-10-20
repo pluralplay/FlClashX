@@ -280,7 +280,7 @@ void main() {
     await pumpDnsQueries(tester);
     expect(find.text('alpha.test'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(RecordLabel, 'AAAA'));
+    await tester.tap(find.widgetWithText(TonalChip, 'AAAA'));
     await tester.pumpAndSettle();
 
     expect(find.text('alpha.test'), findsNothing);

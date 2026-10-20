@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'clash_config.dart';
+import 'provider_headers.dart';
 
 part 'generated/profile.freezed.dart';
 part 'generated/profile.g.dart';
@@ -82,12 +84,22 @@ abstract class Profile with _$Profile {
     @Default(ProfileOverrides())
     @JsonKey(fromJson: ProfileOverrides.safeFromJson)
     ProfileOverrides overrides,
+
+    /// The subscription's response headers, lower-cased, see [providerHeaderNames].
+    @Default({}) Map<String, String> providerHeaders,
+
+    /// Whether downloads carry the device id headers a panel binds by.
+    @Default(true) bool sendDeviceHeaders,
   }) = _Profile;
 
   factory Profile.fromJson(Map<String, Object?> json) =>
       _$ProfileFromJson(json);
 
-  factory Profile.normal({String? label, String url = ''}) {
+  factory Profile.normal({
+    String? label,
+    String url = '',
+    bool sendDeviceHeaders = true,
+  }) {
     final id = snowflake.id;
     return Profile(
       type: url.isEmpty ? ProfileType.file : ProfileType.url,
@@ -95,6 +107,7 @@ abstract class Profile with _$Profile {
       url: url,
       id: id,
       autoUpdateDuration: defaultUpdateDuration,
+      sendDeviceHeaders: sendDeviceHeaders,
     );
   }
 
@@ -182,16 +195,87 @@ extension ProfileExtension on Profile {
     return _getFile();
   }
 
-  Future<Profile> update({required ValidateConfig validate}) async {
-    final response = await request.getFileResponseForUrl(url);
+  /// Downloads from [url], then from the panel's fallback hosts in order; a
+  /// hard failure of [url] moves the profile onto the host that answered.
+  Future<Profile> update({
+    required ValidateConfig validate,
+    SubscriptionFetch? fetch,
+    DeviceHeaders? deviceHeaders,
+  }) async {
+    fetch ??= request.getFileResponseForUrl;
+    final sent = sendDeviceHeaders
+        ? await (deviceHeaders ?? deviceIdentity.headers)()
+        : const <String, String>{};
+    final Object firstError;
+    final StackTrace firstTrace;
+    try {
+      return await _updateFrom(
+        url,
+        validate,
+        fetch,
+        sent,
+        downloadTimeoutDuration,
+      );
+    } catch (error, trace) {
+      firstError = error;
+      firstTrace = trace;
+    }
+    final fallbacks = headers.fallbackUrlsOf(Uri.tryParse(url) ?? Uri());
+    if (fallbacks.isEmpty) {
+      Error.throwWithStackTrace(firstError, firstTrace);
+    }
+    final failure = hostFailureOf(firstError);
+    commonPrint.log(
+      'subscription host failed (${failure.name}): ${compactError(firstError)}',
+      logLevel: LogLevel.warning,
+    );
+    for (final fallback in fallbacks) {
+      try {
+        final updated = await _updateFrom(
+          fallback.toString(),
+          validate,
+          fetch,
+          sent,
+          fallbackTimeoutDuration,
+        );
+        commonPrint.log(
+          'subscription served by ${fallback.host}'
+          '${failure == HostFailure.hard ? ', profile moved there' : ''}',
+        );
+        return failure == HostFailure.hard
+            ? updated.copyWith(url: fallback.toString())
+            : updated;
+      } catch (error) {
+        commonPrint.log(
+          'fallback ${fallback.host} failed: ${compactError(error)}',
+          logLevel: LogLevel.warning,
+        );
+      }
+    }
+    Error.throwWithStackTrace(firstError, firstTrace);
+  }
+
+  Future<Profile> _updateFrom(
+    String url,
+    ValidateConfig validate,
+    SubscriptionFetch fetch,
+    Map<String, String> headers,
+    Duration timeout,
+  ) async {
+    final response = await fetch(url, timeout: timeout, headers: headers);
     final disposition = response.headers.value('content-disposition');
     final userinfo = response.headers.value('subscription-userinfo');
+    final providerHeaders = providerHeadersOf(response.headers.map);
     return copyWith(
       label: label.takeFirstValid([
+        ProviderHeaders(providerHeaders).title,
         getFileNameForDisposition(disposition),
         defaultLabel,
       ]),
       subscriptionInfo: SubscriptionInfo.formHString(userinfo),
+      providerHeaders: providerHeaders,
+      autoUpdateDuration:
+          ProviderHeaders(providerHeaders).updateInterval ?? autoUpdateDuration,
     ).saveFile(
       decompressUnlabeled(response.data ?? Uint8List(0)),
       validate: validate,
@@ -214,4 +298,38 @@ extension ProfileExtension on Profile {
     await tempFile.safeDelete();
     return copyWith(lastUpdateDate: DateTime.now());
   }
+}
+
+typedef SubscriptionFetch =
+    Future<Response<Uint8List>> Function(
+      String url, {
+      Duration timeout,
+      Map<String, String> headers,
+    });
+
+typedef DeviceHeaders = Future<Map<String, String>> Function();
+
+const fallbackTimeoutDuration = Duration(seconds: 10);
+
+const providerHeaderNames = {
+  'announce',
+  'support-url',
+  'profile-title',
+  'profile-web-page-url',
+  'profile-update-interval',
+  'x-hwid-max-devices-reached',
+  'x-hwid-not-supported',
+};
+
+const providerHeaderPrefix = 'flclashx-';
+
+/// The subscription's own headers, keys lower-cased, first value kept.
+Map<String, String> providerHeadersOf(Map<String, List<String>> headers) {
+  return {
+    for (final MapEntry(:key, :value) in headers.entries)
+      if (value.isNotEmpty)
+        if (providerHeaderNames.contains(key.toLowerCase()) ||
+            key.toLowerCase().startsWith(providerHeaderPrefix))
+          key.toLowerCase(): value.first,
+  };
 }

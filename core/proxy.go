@@ -12,10 +12,8 @@ import (
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/convert"
-	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
-	"github.com/metacubex/mihomo/tunnel"
 )
 
 const globalProxyName = "GLOBAL"
@@ -36,7 +34,7 @@ type pickableGroup interface {
 }
 
 func lookupProxy(name string) constant.Proxy {
-	return tunnel.AllProxies()[name]
+	return allProxies()[name]
 }
 
 func adapterAs[T any](proxy constant.Proxy) (group T, ok bool) {
@@ -83,9 +81,9 @@ func proxyGroupNames(
 }
 
 func handleGetProxies() ProxiesData {
-	proxies := tunnel.AllProxies()
+	proxies := allProxies()
 
-	names := proxyGroupNames(config.GetProxyNameList(), func(name string) (constant.AdapterType, bool) {
+	names := proxyGroupNames(profileProxyNames(), func(name string) (constant.AdapterType, bool) {
 		p, ok := proxies[name]
 		if !ok || p == nil {
 			return 0, false
@@ -102,7 +100,11 @@ func handleGetProxies() ProxiesData {
 
 // Proxy.MarshalJSON encodes each node twice, with history the host never reads.
 func proxyView(proxy constant.Proxy) any {
-	node := nodeView{Name: proxy.Name(), Type: proxy.Type().String()}
+	node := nodeView{
+		Name:              proxy.Name(),
+		Type:              proxy.Type().String(),
+		ServerDescription: descriptionOf(proxy.Name()),
+	}
 	if !isProxyGroupType(proxy.Type()) {
 		return node
 	}
@@ -116,6 +118,9 @@ func proxyView(proxy constant.Proxy) any {
 		return node
 	}
 	view["name"] = node.Name
+	if node.ServerDescription != "" {
+		view["serverDescription"] = node.ServerDescription
+	}
 	if isBuiltInGlobal(proxy) {
 		view["hidden"] = true
 	}
@@ -175,7 +180,7 @@ func handleChangeProxy(params *ChangeProxyParams) *ChangeProxyResult {
 func patchSelectGroup(mapping map[string]string) {
 	selectMu.Lock()
 	defer selectMu.Unlock()
-	proxies := tunnel.AllProxies()
+	proxies := allProxies()
 	for name, selected := range mapping {
 		if selector, ok := adapterAs[outboundgroup.SelectAble](proxies[name]); ok {
 			selector.ForceSet(selected)

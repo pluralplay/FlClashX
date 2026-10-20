@@ -193,7 +193,7 @@ void main() {
     );
 
     await tester.enterText(interval, '');
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(Switch).first);
     await tester.pump();
     await tester.tap(find.byTooltip('Save'));
     await tester.pump();

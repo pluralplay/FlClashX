@@ -917,6 +917,9 @@ void main() {
   test('local authentication withholds the VPN system proxy', () async {
     await AppLocalizations.load(const Locale('en'));
     container.listen(sharedStateProvider, (_, _) {});
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
     await container.read(vpnOptionsProvider.future);
     expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, true);
 
@@ -945,6 +948,24 @@ void main() {
     await container.read(vpnOptionsProvider.future);
     expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, true);
     expect(container.read(updateParamsProvider).authentication, isEmpty);
+  });
+
+  test('androidsecure withholds the VPN system proxy', () async {
+    final scoped = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(TestProfiles.new),
+        androidSecureProvider.overrideWithValue(true),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    scoped.listen(sharedStateProvider, (_, _) {});
+    scoped
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+
+    await scoped.read(vpnOptionsProvider.future);
+
+    expect(scoped.read(sharedStateProvider).vpnOptions?.systemProxy, false);
   });
 
   test('the setup patch changes only with what a re-apply carries', () {

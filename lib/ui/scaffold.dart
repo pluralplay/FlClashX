@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:fl_clash/common/input_limits.dart';
 import 'package:fl_clash/common/iterable.dart';
+import 'package:fl_clash/ui/backdrop.dart';
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/keyboard.dart';
 import 'package:fl_clash/ui/l10n.dart';
@@ -60,6 +62,9 @@ class CommonScaffold extends StatefulWidget {
   /// Folds [primaryAction] ahead of [iconActions], so a bar without search
   /// keeps the first of them in sight instead.
   final bool foldPrimaryAction;
+
+  /// One group for every bar button, search and menu included; nothing folds.
+  final bool groupActions;
   final AppBarSearchState? searchState;
   final List<IconButtonData> searchActions;
 
@@ -91,6 +96,7 @@ class CommonScaffold extends StatefulWidget {
     this.menuItems = const [],
     this.confirmationAction,
     this.foldPrimaryAction = false,
+    this.groupActions = false,
     this.onKeywordsUpdate,
     this.resizeToAvoidBottomInset,
     this.canSort = false,
@@ -521,6 +527,7 @@ class CommonScaffoldState extends State<CommonScaffold> {
           )
         : _foldBarActions(
             hasLead: lead != null,
+            maxButtons: widget.groupActions ? null : _maxBarButtons,
             primary: pairedPrimary == null ? primaryAction : null,
             foldPrimary: widget.foldPrimaryAction,
             icons: [
@@ -540,12 +547,21 @@ class CommonScaffoldState extends State<CommonScaffold> {
             menuItems: widget.menuItems,
           );
     final shown = [?lead, ...fold.shown];
-    final grouped = shown.length > 1 ? shown.take(_maxGroupedActions) : null;
+    final groupAll = widget.groupActions && !_isSearch;
+    final grouped = groupAll
+        ? shown
+        : shown.length > 1
+        ? shown.take(_maxGroupedActions)
+        : null;
+    final overflow = fold.overflow.isNotEmpty
+        ? _OverflowMenuButton(items: fold.overflow)
+        : null;
     return genActions([
-      if (grouped != null)
+      if (grouped != null && (grouped.isNotEmpty || overflow != null))
         TonalButtonGroup(
           children: [
             for (final data in grouped) AppBarActionButton(data: data),
+            if (groupAll && overflow != null) overflow,
           ],
         ),
       for (final data in shown.skip(grouped?.length ?? 0))
@@ -565,8 +581,7 @@ class CommonScaffoldState extends State<CommonScaffold> {
           child: AppBarActionButton(data: data),
         ),
       for (final action in widgets) ElasticPress(child: action),
-      if (fold.overflow.isNotEmpty)
-        ElasticPress(child: _OverflowMenuButton(items: fold.overflow)),
+      if (overflow != null && !groupAll) ElasticPress(child: overflow),
       if (pairedPrimary != null)
         TonalButtonGroup(
           children: [
@@ -615,12 +630,14 @@ class CommonScaffoldState extends State<CommonScaffold> {
     return appBar;
   }
 
+  Color get _pageColor =>
+      widget.backgroundColor ?? SurfaceLevel.page.colorOf(context.colorScheme);
+
   Widget _buildFloatingHeader(Widget appBar) {
     final top = MediaQuery.paddingOf(context).top;
+    final backdrop = PageBackdropScope.of(context);
     return FloatingHeader(
-      backgroundColor:
-          widget.backgroundColor ??
-          SurfaceLevel.page.colorOf(context.colorScheme),
+      backgroundColor: backdrop?.scrimOf(_pageColor) ?? _pageColor,
       fadeStart: top / (top + pageToolbarHeight),
       overhang: _headerOverhang,
       child: appBar,
@@ -810,14 +827,25 @@ class CommonScaffoldState extends State<CommonScaffold> {
           )
         : body;
     if (!isCompact) {
+      final backdrop = PageBackdropScope.of(context);
+      final scaffold = Scaffold(
+        appBar: appBar,
+        extendBodyBehindAppBar: barFloats,
+        body: _BodyScope(child: content),
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+        backgroundColor: backdrop == null
+            ? widget.backgroundColor
+            : Colors.transparent,
+      );
       return AppBarInsetScope(
-        child: Scaffold(
-          appBar: appBar,
-          extendBodyBehindAppBar: barFloats,
-          body: _BodyScope(child: content),
-          resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-          backgroundColor: widget.backgroundColor,
-        ),
+        child: backdrop == null
+            ? scaffold
+            : Stack(
+                children: [
+                  PageBackdrop(scope: backdrop, page: _pageColor),
+                  scaffold,
+                ],
+              ),
       );
     }
     final sheetBody = FloatingHeaderBody(
@@ -1001,6 +1029,7 @@ const _maxGroupedActions = 2;
 ({List<IconButtonData> shown, List<CommonPopupMenuItem> overflow})
 _foldBarActions({
   required bool hasLead,
+  int? maxButtons = _maxBarButtons,
   IconButtonData? primary,
   bool foldPrimary = false,
   List<IconButtonData> icons = const [],
@@ -1011,10 +1040,11 @@ _foldBarActions({
   final foldable = [?primary, ...icons];
   final fixed =
       (hasLead ? 1 : 0) + widgetCount + (confirmation == null ? 0 : 1);
-  if (fixed + foldable.length + (menuItems.isEmpty ? 0 : 1) <= _maxBarButtons) {
+  if (maxButtons == null ||
+      fixed + foldable.length + (menuItems.isEmpty ? 0 : 1) <= maxButtons) {
     return (shown: [...foldable, ?confirmation], overflow: menuItems);
   }
-  final slots = _maxBarButtons - 1 - fixed;
+  final slots = maxButtons - 1 - fixed;
   final kept = (foldPrimary ? [...icons, ?primary] : foldable)
       .take(slots < 0 ? 0 : slots)
       .toList();
@@ -1274,6 +1304,7 @@ class _TitleMenuButton extends StatelessWidget {
     // No ink: the padding it needs would move the title off its place in the
     // bar, and a press turns the title into its menu at once.
     return InkWell(
+      mouseCursor: clickableCursor,
       onTap: onPressed,
       customBorder: AppShape.sm,
       hoverColor: Colors.transparent,

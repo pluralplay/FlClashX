@@ -155,6 +155,20 @@ void main() {
       expect(profilesDir.existsSync(), isFalse);
     });
 
+    test('everything also removes the rest of the home directory', () async {
+      final homePath = await appPath.homeDirPath;
+      final config = File(join(homePath, 'config.yaml'))
+        ..writeAsStringSync('mixed-port: 7890');
+      final container = buildContainer();
+
+      await container
+          .read(storeActionProvider.notifier)
+          .handleClear(everything: true);
+
+      expect(config.existsSync(), isFalse);
+      expect(_RecordingSystemAction.exits, [false]);
+    });
+
     test('exits without asking for a save', () async {
       final container = buildContainer();
 

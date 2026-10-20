@@ -60,9 +60,10 @@ class ChangelogBuilder {
     final versions = <ChangelogVersion>[];
     final commitIdsByTag = <String, Set<String>>{};
 
+    final boundaryRef = _boundaryRef(boundaryTag);
     if (pending != null && !git.tagExists(pending.tag)) {
       final commits = git.commits(
-        from: stable.isEmpty ? boundaryTag?.name : stable.first.name,
+        from: stable.isEmpty ? boundaryRef : stable.first.name,
         to: 'HEAD',
       );
       commitIdsByTag[pending.tag] = _idsOf(commits);
@@ -81,7 +82,7 @@ class ChangelogBuilder {
       final tag = stable[index];
       final previous = index + 1 < stable.length
           ? stable[index + 1].name
-          : boundaryTag?.name;
+          : boundaryRef;
       final commits = git.commits(from: previous, to: tag.name);
       commitIdsByTag[tag.name] = _idsOf(commits);
       versions.add(
@@ -99,6 +100,12 @@ class ChangelogBuilder {
       warnings: parser.warnings,
       commitIdsByTag: commitIdsByTag,
     );
+  }
+
+  String? _boundaryRef(VersionTag? tag) {
+    if (tag == null) return null;
+    if (git.tagExists(tag.name)) return tag.name;
+    return git.latestReleaseCommit();
   }
 
   Set<String> _idsOf(List<RawCommit> commits) =>

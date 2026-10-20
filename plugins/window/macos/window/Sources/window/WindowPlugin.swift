@@ -51,6 +51,9 @@ public class WindowPlugin: NSObject, FlutterPlugin {
                 plugin, selector: #selector(applicationActivityChanged), name: name, object: nil
             )
         }
+        NotificationCenter.default.addObserver(
+            plugin, selector: #selector(statusButtonChanged), name: Self.statusButtonNotification, object: nil
+        )
         WindowPlugin.instance = plugin
         registrar.addMethodCallDelegate(plugin, channel: channel)
     }
@@ -80,6 +83,17 @@ public class WindowPlugin: NSObject, FlutterPlugin {
         } catch {
             result(FlutterError(code: "unsupported", message: "\(error)", details: nil))
         }
+    }
+
+    /// The tray plugin posts this with its status item's button, which the
+    /// menu bar popover hangs from; the two packages cannot see each other.
+    static let statusButtonNotification = Notification.Name("tray.statusButton")
+
+    private weak var statusButton: NSView?
+
+    @objc private func statusButtonChanged(_ notification: Notification) {
+        statusButton = notification.object as? NSView
+        controller.popoverAnchor = { [weak self] in self?.statusButton }
     }
 
     /// Forwarded from `applicationShouldTerminate` so Dart can run shutdown work first.
@@ -178,7 +192,10 @@ public class WindowPlugin: NSObject, FlutterPlugin {
                 try controller.setEffect(effect, tint: tint.map { NSColor(argb: $0) }, appearance: appearance)
                 return nil
             },
-            "startDragging": { _ in try controller.startDragging(); return nil }
+            "startDragging": { _ in try controller.startDragging(); return nil },
+            "setMenuBarMode": { args in try controller.setMenuBarMode(args.bool("value")); return nil },
+            "isMenuBarMode": { _ in controller.isMenuBarMode },
+            "togglePopover": { _ in try controller.togglePopover(); return nil }
         ]
 
         handlers["ensureInitialized"] = { [weak self] _ in

@@ -59,6 +59,107 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
+  /// The current subscription is read again shortly after start so its
+  /// counters and panel headers are fresh; [autoUpdateProfiles] already took
+  /// the ones that were due, and a profile with auto update off is left alone.
+  Future<void> refreshCurrentProfileAfterStart() async {
+    final profile = ref.read(currentProfileProvider);
+    if (profile == null ||
+        !profile.autoUpdate ||
+        profile.type != ProfileType.url) {
+      return;
+    }
+    final due = profile.lastUpdateDate
+        ?.add(profile.autoUpdateDuration)
+        .isBeforeNow;
+    if (due != false) {
+      return;
+    }
+    try {
+      await updateProfile(profile);
+    } catch (e) {
+      commonPrint.log(compactError(e), logLevel: LogLevel.warning);
+    }
+  }
+
+  static const expiryNoticeDays = [3, 2, 1, 0];
+
+  /// 3, 2, 1 and 0 days before the end and once it has passed, each said once
+  /// per expiry date, in a dialog that can lead to renewal.
+  Future<void> noticeSubscriptionExpiry(Profile profile) async {
+    final expire = profile.subscriptionInfo?.expire ?? 0;
+    if (expire == 0) {
+      return;
+    }
+    final expiresAt = DateTime.fromMillisecondsSinceEpoch(expire * 1000);
+    final left = expiresAt.difference(DateTime.now());
+    final threshold = left.isNegative ? -1 : left.inDays;
+    if (threshold > expiryNoticeDays.first) {
+      return;
+    }
+    final key = '${profile.id}:$threshold';
+    final notices = ref.read(appSettingProvider).subscriptionNotices;
+    if (notices[key] == expire) {
+      return;
+    }
+    ref
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            subscriptionNotices: {
+              for (final entry in state.subscriptionNotices.entries)
+                if (entry.key.startsWith('${profile.id}:') &&
+                    entry.value == expire)
+                  entry.key: entry.value,
+              key: expire,
+            },
+          ),
+        );
+    await _showExpiry(profile, threshold);
+  }
+
+  Future<void> noticeSubscriptionExpiries() async {
+    for (final profile in ref.read(profilesProvider)) {
+      await noticeSubscriptionExpiry(profile);
+    }
+  }
+
+  Future<void> _showExpiry(Profile profile, int threshold) async {
+    final appLocalizations = currentAppLocalizations;
+    final headers = profile.headers;
+    final renewUrl = headers.buyPlan?.url ?? headers.supportUrl;
+    final message = threshold < 0
+        ? appLocalizations.subscriptionExpired
+        : threshold == 0
+        ? appLocalizations.subscriptionExpiresToday
+        : appLocalizations.subscriptionExpiresInDays(threshold);
+    final label = headers.serviceName ?? profile.label;
+    final title = label.isEmpty
+        ? appLocalizations.subscriptionExpiresSoon
+        : label;
+    final shown = await notificationPort?.show(
+      title: title,
+      body: message,
+      channelName: appLocalizations.subscriptionExpiresSoon,
+      url: renewUrl,
+    );
+    if (shown == true) {
+      return;
+    }
+    final renew = await dialogs.showMessage(
+      title: title,
+      message: TextSpan(text: message),
+      cancelable: renewUrl != null,
+      cancelText: appLocalizations.confirm,
+      confirmText: renewUrl != null
+          ? appLocalizations.renew
+          : appLocalizations.confirm,
+    );
+    if (renew == true && renewUrl != null) {
+      await dialogs.openUrl(renewUrl);
+    }
+  }
+
   void putProfile(Profile profile) {
     ref.read(profilesProvider.notifier).put(profile);
     if (ref.read(currentProfileIdProvider) != null) return;
@@ -155,10 +256,16 @@ class ProfilesAction extends _$ProfilesAction {
       }
       final newProfile = latest.copyWith(
         label: latest.label.takeFirstValid([updated.label]),
+        url: latest.url == profile.url ? updated.url : latest.url,
         subscriptionInfo: updated.subscriptionInfo,
         lastUpdateDate: updated.lastUpdateDate,
+        providerHeaders: updated.providerHeaders,
+        autoUpdateDuration:
+            updated.headers.updateInterval ?? latest.autoUpdateDuration,
       );
       ref.read(profilesProvider.notifier).put(newProfile);
+      noticeDeviceHeaders(newProfile, before: latest, manual: showLoading);
+      unawaited(noticeSubscriptionExpiry(newProfile));
       if (profile.id == ref.read(currentProfileIdProvider)) {
         ref
             .read(setupActionProvider.notifier)
@@ -353,6 +460,7 @@ class ProfilesAction extends _$ProfilesAction {
     String link, {
     String? label,
     String ageSecretKey = '',
+    bool sendDeviceHeaders = true,
   }) async {
     _showProfiles();
     final profile = await globalState.loadingRun(
@@ -363,6 +471,7 @@ class ProfilesAction extends _$ProfilesAction {
               Profile.normal(
                 label: label,
                 url: link,
+                sendDeviceHeaders: sendDeviceHeaders,
               ).copyWith(ageSecretKey: ageSecretKey),
               _download,
             ),
@@ -370,6 +479,64 @@ class ProfilesAction extends _$ProfilesAction {
     );
     if (profile != null) {
       putProfile(profile);
+      noticeDeviceHeaders(profile, manual: true);
+    }
+  }
+
+  /// A refusal the panel put in its headers: told on a manual download,
+  /// otherwise only once, when an answer first carries it.
+  void noticeDeviceHeaders(
+    Profile profile, {
+    Profile? before,
+    required bool manual,
+  }) {
+    final headers = profile.headers;
+    final earlier = before?.headers;
+    final appLocalizations = currentAppLocalizations;
+    if (headers.deviceLimitReached &&
+        (manual || earlier?.deviceLimitReached != true)) {
+      unawaited(
+        _showPanelRefusal(
+          headers,
+          title: appLocalizations.deviceLimitReached,
+          message:
+              headers.fullAnnouncement ?? appLocalizations.deviceLimitReached,
+        ),
+      );
+      return;
+    }
+    if (headers.deviceIdUnsupported &&
+        (manual || earlier?.deviceIdUnsupported != true)) {
+      unawaited(
+        _showPanelRefusal(
+          headers,
+          title: appLocalizations.deviceIdUnsupportedTitle,
+          message: profile.sendDeviceHeaders
+              ? appLocalizations.deviceIdUnsupported
+              : appLocalizations.deviceIdNotSent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showPanelRefusal(
+    ProviderHeaders headers, {
+    required String title,
+    required String message,
+  }) async {
+    final appLocalizations = currentAppLocalizations;
+    final supportUrl = headers.supportUrl;
+    final toSupport = await dialogs.showMessage(
+      title: title,
+      message: TextSpan(text: message),
+      cancelable: supportUrl != null,
+      cancelText: appLocalizations.confirm,
+      confirmText: supportUrl != null
+          ? appLocalizations.support
+          : appLocalizations.confirm,
+    );
+    if (toSupport == true && supportUrl != null) {
+      await dialogs.openUrl(supportUrl);
     }
   }
 

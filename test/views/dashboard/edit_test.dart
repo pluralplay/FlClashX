@@ -1,4 +1,5 @@
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/dashboard/dashboard.dart';
@@ -91,6 +92,37 @@ void main() {
 
   ScrollPosition positionOf(WidgetTester tester) =>
       tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+
+  testWidgets('a panel that denies editing takes the edit button away', (
+    tester,
+  ) async {
+    const profile = Profile(
+      id: 1,
+      autoUpdateDuration: Duration.zero,
+      providerHeaders: {
+        'flclashx-special': 'denywidgets',
+        'flclashx-widgets': 'memoryInfo,proxyGroups',
+      },
+    );
+    container.listen(profileHeadersActionProvider, (_, _) {});
+    container.read(profilesProvider.notifier).put(profile);
+    container.read(currentProfileIdProvider.notifier).value = profile.id;
+    await pumpDashboard(tester);
+    await tester.pump();
+
+    expect(find.byTooltip('Edit dashboard'), findsNothing);
+    expect(find.byType(CurrentOutboundCard), findsOneWidget);
+    expect(find.byType(MemoryInfo), findsOneWidget);
+    expect(find.byType(ProxyGroupsCard), findsOneWidget);
+    expect(find.byType(ProfilesCard), findsNothing);
+    expect(
+      top(tester, find.byType(MemoryInfo)),
+      lessThan(top(tester, find.byType(ProxyGroupsCard))),
+    );
+    expect(tester.takeException(), isNull);
+
+    await teardown(tester);
+  });
 
   testWidgets('edits the cards themselves, in order, above the ones to add', (
     tester,

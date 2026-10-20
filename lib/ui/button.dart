@@ -239,6 +239,7 @@ class TonalButtonTheme extends StatelessWidget {
       data: IconButtonThemeData(
         style: feedback(foreground, iconPane, standsOff: paned).merge(
           IconButton.styleFrom(
+            enabledMouseCursor: SystemMouseCursors.click,
             backgroundColor: fill,
             foregroundColor: foreground,
             disabledBackgroundColor: fill,
@@ -256,6 +257,7 @@ class TonalButtonTheme extends StatelessWidget {
         data: FilledButtonThemeData(
           style: filledFeedback.merge(
             FilledButton.styleFrom(
+              enabledMouseCursor: SystemMouseCursors.click,
               backgroundColor: grouped ? fill : null,
               foregroundColor: grouped
                   ? foreground

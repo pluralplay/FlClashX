@@ -402,7 +402,7 @@ void main() {
 
   const quality = IpQuality(
     ip: '203.0.113.7',
-    source: IpQualitySource.ipApiIs,
+    source: IpQualitySource.ipInfo,
     type: IpType.residential,
     organization: 'Example Broadband',
     asn: 64500,

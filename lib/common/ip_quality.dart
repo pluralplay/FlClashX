@@ -25,13 +25,10 @@ class _SourceFailure implements Exception {
 
 typedef _Answer = ({IpQuality quality, bool inferred});
 
-/// A later wave only starts while the earlier ones are still unanswered, so
-/// the sources with the tightest free quotas are asked last and rarely.
+/// Kept as waves so a second source can be hedged in again without
+/// touching the lookup; ipinfo.io answers alone today.
 const _waves = [
-  [IpQualitySource.identMe, IpQualitySource.ipApiCom, IpQualitySource.ipQuery],
-  [IpQualitySource.ipLocate],
-  [IpQualitySource.ipApiIs],
-  [IpQualitySource.proxyCheck],
+  [IpQualitySource.ipInfo],
 ];
 
 Future<IpQuality> lookupIpQuality(
@@ -183,150 +180,79 @@ IpQualitySourceStatus _statusOf(Object error) {
 
 String _urlOf(IpQualitySource source, String ip) {
   return switch (source) {
-    IpQualitySource.identMe => 'https://ident.me/json',
-    // ip-api.com serves HTTPS only on its paid plan.
-    IpQualitySource.ipApiCom =>
-      'http://ip-api.com/json/$ip?fields=status,isp,org,as,mobile,proxy,hosting',
-    IpQualitySource.ipQuery => 'https://api.ipquery.io/$ip?format=json',
-    IpQualitySource.ipLocate => 'https://iplocate.io/api/lookup/$ip',
-    IpQualitySource.proxyCheck => 'https://proxycheck.io/v3/$ip',
-    IpQualitySource.ipApiIs => 'https://api.ipapi.is/?q=$ip',
+    IpQualitySource.ipInfo => 'https://ipinfo.io/$ip/json',
   };
 }
 
 _Answer? _parse(IpQualitySource source, String ip, Map<String, dynamic> json) {
   return switch (source) {
-    IpQualitySource.identMe => _fromIdentMe(ip, json),
-    IpQualitySource.ipApiCom => _fromIpApiCom(ip, json),
-    IpQualitySource.ipQuery => _fromIpQuery(ip, json),
-    IpQualitySource.ipLocate => _fromIpLocate(ip, json),
-    IpQualitySource.proxyCheck => _fromProxyCheck(ip, json),
-    IpQualitySource.ipApiIs => _fromIpApiIs(ip, json),
+    IpQualitySource.ipInfo => _fromIpInfo(ip, json),
   };
 }
 
-_Answer? _fromIdentMe(String ip, Map<String, dynamic> json) {
+/// The free plan answers with `org` as "AS64500 Name" and nothing about the
+/// network's kind; a token adds `asn`, `company` and `privacy`, which win
+/// when present. Without them the kind is read off the names, and silence
+/// counts as residential.
+_Answer? _fromIpInfo(String ip, Map<String, dynamic> json) {
+  if (_flag(json['bogon'])) {
+    throw const _SourceFailure(IpQualitySourceStatus.failed);
+  }
   if (json['ip'] != ip) {
     throw const _SourceFailure(IpQualitySourceStatus.ipMismatch);
   }
-  return _quality(
-    ip,
-    IpQualitySource.identMe,
-    _declaredType(json['type']),
-    organization: _text(json['aso']),
-    asn: _asn(json['asn']),
-  );
-}
-
-_Answer? _fromIpApiCom(String ip, Map<String, dynamic> json) {
-  if (json['status'] != 'success') {
-    throw const _SourceFailure(IpQualitySourceStatus.failed);
-  }
-  final type = _pickType(
-    hosting: _flag(json['hosting']),
-    mobile: _flag(json['mobile']),
-  );
-  return _quality(
-    ip,
-    IpQualitySource.ipApiCom,
-    type ?? IpType.residential,
-    inferred: type == null,
-    organization: _text(json['org']) ?? _text(json['isp']),
-    asn: _asn(json['as']),
-    isProxy: _flag(json['proxy']),
-  );
-}
-
-_Answer? _fromIpQuery(String ip, Map<String, dynamic> json) {
-  final risk = _object(json['risk']);
-  final isp = _object(json['isp']);
-  final type = _pickType(
-    hosting: _flag(risk['is_datacenter']),
-    mobile: _flag(risk['is_mobile']),
-  );
-  return _quality(
-    ip,
-    IpQualitySource.ipQuery,
-    type ?? IpType.residential,
-    inferred: type == null,
-    organization: _text(isp['org']) ?? _text(isp['isp']),
-    asn: _asn(isp['asn']),
-    isProxy: _flag(risk['is_proxy']),
-    isVpn: _flag(risk['is_vpn']),
-    isTor: _flag(risk['is_tor']),
-  );
-}
-
-_Answer? _fromIpLocate(String ip, Map<String, dynamic> json) {
   final privacy = _object(json['privacy']);
   final company = _object(json['company']);
   final asn = _object(json['asn']);
+  final org = _text(json['org']);
+  final organization =
+      _text(company['name']) ??
+      _text(asn['name']) ??
+      org?.replaceFirst(RegExp(r'^AS\d+\s+'), '');
+  final declared =
+      _pickType(
+        hosting: _flag(privacy['hosting']),
+        declared: _declaredType(company['type']) ?? _declaredType(asn['type']),
+      ) ??
+      _typeFromNames(organization, _text(json['hostname']));
   return _quality(
     ip,
-    IpQualitySource.ipLocate,
-    _pickType(
-      hosting: _flag(privacy['is_hosting']),
-      declared: _declaredType(company['type']) ?? _declaredType(asn['type']),
-    ),
-    organization: _text(company['name']) ?? _text(asn['name']),
-    asn: _asn(asn['asn']),
-    isProxy: _flag(privacy['is_proxy']),
-    isVpn: _flag(privacy['is_vpn']),
-    isTor: _flag(privacy['is_tor']),
-    isAbuser: _flag(privacy['is_abuser']),
+    IpQualitySource.ipInfo,
+    declared ?? IpType.residential,
+    inferred: declared == null,
+    organization: organization,
+    asn: _asn(asn['asn']) ?? _asn(org),
+    isProxy: _flag(privacy['proxy']),
+    isVpn: _flag(privacy['vpn']) || _flag(privacy['relay']),
+    isTor: _flag(privacy['tor']),
   );
 }
 
-_Answer? _fromProxyCheck(String ip, Map<String, dynamic> json) {
-  final status = json['status'];
-  if (status == 'denied') {
-    throw const _SourceFailure(IpQualitySourceStatus.rateLimited);
-  }
-  if (status != 'ok' && status != 'warning') {
-    throw const _SourceFailure(IpQualitySourceStatus.failed);
-  }
-  final result = _object(json[ip]);
-  final network = _object(result['network']);
-  final detections = _object(result['detections']);
-  final networkType = network['type'];
-  return _quality(
-    ip,
-    IpQualitySource.proxyCheck,
-    _pickType(
-      hosting: _flag(detections['hosting']) || networkType == 'Hosting',
-      mobile: networkType == 'Wireless',
-      declared: switch (networkType) {
-        'Residential' => IpType.residential,
-        'Business' => IpType.business,
-        _ => null,
-      },
-    ),
-    organization: _text(network['organisation']),
-    asn: _asn(network['asn']),
-    isProxy: _flag(detections['proxy']),
-    isVpn: _flag(detections['vpn']),
-    isTor: _flag(detections['tor']),
-  );
-}
+final _hostingNames = RegExp(
+  r'host|cloud|server|data ?cent|vps|colo|cdn|amazon|aws|azure|microsoft|google'
+  r'|digitalocean|linode|akamai|vultr|hetzner|ovh|contabo|scaleway|selectel'
+  r'|timeweb|leaseweb|oracle|alibaba|tencent|netcup|ionos|hostinger|cloudflare',
+  caseSensitive: false,
+);
 
-_Answer? _fromIpApiIs(String ip, Map<String, dynamic> json) {
-  final company = _object(json['company']);
-  final asn = _object(json['asn']);
-  return _quality(
-    ip,
-    IpQualitySource.ipApiIs,
-    _pickType(
-      hosting: _flag(json['is_datacenter']),
-      mobile: _flag(json['is_mobile']),
-      declared: _declaredType(company['type']) ?? _declaredType(asn['type']),
-    ),
-    organization: _text(company['name']) ?? _text(asn['org']),
-    asn: _asn(asn['asn']),
-    isProxy: _flag(json['is_proxy']),
-    isVpn: _flag(json['is_vpn']),
-    isTor: _flag(json['is_tor']),
-    isAbuser: _flag(json['is_abuser']),
-  );
+final _mobileNames = RegExp(
+  r'mobile|cellular|wireless|\bmts\b|megafon|beeline|tele2|vodafone|t-mobile'
+  r'|telefonica|yota|kyivstar|lifecell|\blte\b|\b[345]g\b',
+  caseSensitive: false,
+);
+
+IpType? _typeFromNames(String? organization, String? hostname) {
+  final names = [?organization, ?hostname].join(' ');
+  if (names.isEmpty) {
+    return null;
+  }
+  if (_hostingNames.hasMatch(names)) {
+    return IpType.hosting;
+  }
+  if (_mobileNames.hasMatch(names)) {
+    return IpType.mobile;
+  }
+  return null;
 }
 
 /// An inferred type is the source's silence about hosting and mobile taken

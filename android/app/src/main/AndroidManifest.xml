@@ -69,6 +69,8 @@
                 <data android:scheme="clash" />
                 <data android:scheme="clashmeta" />
                 <data android:scheme="flclash" />
+                <data android:scheme="flclashx" />
+                <data android:scheme="clashx" />
 
                 <data android:host="install-config" />
             </intent-filter>

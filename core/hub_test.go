@@ -629,7 +629,7 @@ func TestProxyTableReadsAreSerialisedAgainstAnApply(t *testing.T) {
 					return
 				default:
 				}
-				tunnel.AllProxies()
+				allProxies()
 				externalProviders()
 				lookupExternalProvider("subscription-0")
 			}
@@ -874,9 +874,9 @@ func TestAllProxiesServesRepeatedCallsFromCache(t *testing.T) {
 	provider := newCachingProvider("subscription", "node-a", "node-b")
 	withTunnelProviders(t, map[string]cp.ProxyProvider{"subscription": provider}, nil)
 
-	first := tunnel.AllProxies()
+	first := allProxies()
 	reads := provider.readCount()
-	second := tunnel.AllProxies()
+	second := allProxies()
 
 	if provider.readCount() != reads {
 		t.Errorf("the provider list was walked again for an unchanged tunnel (%d -> %d reads)",
@@ -900,14 +900,14 @@ func TestAllProxiesPicksUpAProviderThatLoadsAfterTheApply(t *testing.T) {
 	tunnel.UpdateProxies(base, map[string]cp.ProxyProvider{"subscription": loading})
 	t.Cleanup(func() { tunnel.UpdateProxies(nil, nil) })
 
-	during := proxyNamesOf(tunnel.AllProxies())
+	during := proxyNamesOf(allProxies())
 	if !slices.Equal(during, []string{"DIRECT"}) {
 		t.Fatalf("mid-apply AllProxies = %v, want only the base proxies", during)
 	}
 
 	loading.setProxies("node-a", "node-b")
 
-	after := proxyNamesOf(tunnel.AllProxies())
+	after := proxyNamesOf(allProxies())
 	want := []string{"DIRECT", "node-a", "node-b"}
 	if !slices.Equal(after, want) {
 		t.Errorf("AllProxies = %v, want %v; a provider that loaded after the apply did not reach the tunnel", after, want)
@@ -921,16 +921,16 @@ func TestForceGCReleasesTheProxyCache(t *testing.T) {
 	provider := newCachingProvider("subscription", "node-a", "node-b")
 	withTunnelProviders(t, map[string]cp.ProxyProvider{"subscription": provider}, nil)
 
-	tunnel.AllProxies()
+	allProxies()
 	warm := provider.readCount()
-	tunnel.AllProxies()
+	allProxies()
 	if provider.readCount() != warm {
 		t.Fatal("the cache was not warm, so this proves nothing about releasing it")
 	}
 
 	handleForceGC()
 
-	tunnel.AllProxies()
+	allProxies()
 	if provider.readCount() == warm {
 		t.Error("AllProxies still answered from cache after a forced GC, so the replaced proxies stay pinned")
 	}
@@ -997,10 +997,10 @@ func TestAllProxiesFollowsAProviderUpdate(t *testing.T) {
 	provider := newCachingProvider("subscription", "node-a")
 	withTunnelProviders(t, map[string]cp.ProxyProvider{"subscription": provider}, nil)
 
-	tunnel.AllProxies()
+	allProxies()
 	provider.setProxies("node-b", "node-c")
 
-	got := proxyNamesOf(tunnel.AllProxies())
+	got := proxyNamesOf(allProxies())
 	if want := []string{"node-b", "node-c"}; !slices.Equal(got, want) {
 		t.Errorf("proxies = %v, want %v; a subscription refresh did not reach the tunnel", got, want)
 	}
@@ -1015,7 +1015,7 @@ func TestAllProxiesFollowsAConfigApplyThatKeepsEveryVersion(t *testing.T) {
 	tunnel.UpdateProxies(nil, map[string]cp.ProxyProvider{"subscription": before})
 	t.Cleanup(func() { tunnel.UpdateProxies(nil, nil) })
 
-	tunnel.AllProxies()
+	allProxies()
 
 	after := newCachingProvider("subscription", "new-node")
 	if after.Version() != before.Version() {
@@ -1024,7 +1024,7 @@ func TestAllProxiesFollowsAConfigApplyThatKeepsEveryVersion(t *testing.T) {
 	}
 	tunnel.UpdateProxies(nil, map[string]cp.ProxyProvider{"subscription": after})
 
-	got := proxyNamesOf(tunnel.AllProxies())
+	got := proxyNamesOf(allProxies())
 	if want := []string{"new-node"}; !slices.Equal(got, want) {
 		t.Errorf("proxies = %v, want %v; the previous profile's nodes survived the apply", got, want)
 	}
@@ -1046,6 +1046,55 @@ func TestHandleGetProxiesSeesAProviderUpdate(t *testing.T) {
 	}
 	if _, exist := data.Proxies["node-a"]; exist {
 		t.Error("a proxy the refresh removed is still reported")
+	}
+}
+
+func TestProxyViewCarriesTheProfileDescription(t *testing.T) {
+	raw := config.DefaultRawConfig()
+	raw.Proxy = []map[string]any{
+		{"name": "node-a", "serverDescription": " 🇳🇱 Amsterdam "},
+		{"name": "node-b", "server-description": "Berlin"},
+		{"name": "node-c", "serverDescription": "   "},
+		{"serverDescription": "nameless"},
+	}
+	raw.ProxyGroup = []map[string]any{
+		{"name": "Auto", "description": "Fastest"},
+		{"name": "Europe", "groupDescription": "Closest"},
+	}
+	captureDescriptions(raw)
+	t.Cleanup(func() { captureDescriptions(config.DefaultRawConfig()) })
+
+	encode := func(proxy constant.Proxy) map[string]any {
+		t.Helper()
+		data, err := json.Marshal(proxyView(proxy))
+		if err != nil {
+			t.Fatalf("marshal %s: %v", proxy.Name(), err)
+		}
+		view := map[string]any{}
+		if err := json.Unmarshal(data, &view); err != nil {
+			t.Fatalf("unmarshal %s: %v", proxy.Name(), err)
+		}
+		return view
+	}
+	if got := encode(namedProxy("node-a"))["serverDescription"]; got != "🇳🇱 Amsterdam" {
+		t.Errorf("node-a description = %v, want the trimmed camelCase key", got)
+	}
+	if got := encode(namedProxy("node-b"))["serverDescription"]; got != "Berlin" {
+		t.Errorf("node-b description = %v, want the kebab-case key", got)
+	}
+	if _, has := encode(namedProxy("node-c"))["serverDescription"]; has {
+		t.Error("a blank description is still reported")
+	}
+	if got := descriptionOf("Auto"); got != "" {
+		t.Errorf("group description = %q, want only groupDescription to count", got)
+	}
+	if got := descriptionOf("Europe"); got != "Closest" {
+		t.Errorf("group description = %q, want the groupDescription key", got)
+	}
+
+	captureDescriptions(config.DefaultRawConfig())
+	if _, has := encode(namedProxy("node-a"))["serverDescription"]; has {
+		t.Error("a description outlived the config that carried it")
 	}
 }
 

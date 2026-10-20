@@ -107,6 +107,19 @@ class Git {
   bool tagExists(String name) =>
       _run(['tag', '--list', name]).trim().isNotEmpty;
 
+  /// The newest upstream release commit, for a fork that carries the history
+  /// but not the tags.
+  String? latestReleaseCommit({String revision = 'HEAD'}) {
+    final hash = _run([
+      'log',
+      '-1',
+      '--format=%H',
+      '--grep=^chore(release): v',
+      revision,
+    ]).trim();
+    return hash.isEmpty ? null : hash;
+  }
+
   /// Whether [name] is one of the tags [versionTags] would return.
   ///
   /// [tagExists] answers a different question — a tag on another branch exists

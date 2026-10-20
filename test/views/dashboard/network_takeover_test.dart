@@ -37,13 +37,13 @@ final _rowCases = <_RowCase>[
     const NetworkTakeoverCard(),
     'System proxy',
     (container) => container.read(networkSettingProvider).systemProxy,
-    initial: true,
   ),
   _RowCase(
     'TUN',
     const NetworkTakeoverCard(),
     'TUN',
     (container) => container.read(patchClashConfigProvider).tun.enable,
+    initial: true,
   ),
   _RowCase(
     'VPN',
@@ -145,19 +145,19 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(container.read(patchClashConfigProvider).tun.enable, isTrue);
+    expect(container.read(patchClashConfigProvider).tun.enable, isFalse);
   });
 
   testWidgets('a row says what it is set to', (tester) async {
     await pumpCard(tester, const NetworkTakeoverCard());
 
-    expect(find.text('Port 7890'), findsOneWidget);
     expect(find.text(currentAppLocalizations.disabled), findsOneWidget);
+    expect(find.text(currentAppLocalizations.enabled), findsOneWidget);
 
-    await tester.tap(switchOf(_rowCases[1]));
+    await tester.tap(switchOf(_rowCases[0]));
     await tester.pumpAndSettle();
 
-    expect(find.text(currentAppLocalizations.enabled), findsOneWidget);
+    expect(find.text('Port 7890'), findsOneWidget);
   });
 
   testWidgets('narrow tiles drop their icons together before a title is cut '

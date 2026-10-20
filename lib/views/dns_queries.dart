@@ -1,5 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/features.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -214,7 +215,10 @@ List<RecordColumn<DnsQuery>> _dnsQueryColumns(
     ),
     RecordColumn(
       TableColumn('type', appLocalizations.ipType, width: 72),
-      cell: (_, query) => _DnsKeyword(query.type),
+      cell: (_, query) => Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: _DnsTypeChip(query.type),
+      ),
       sortKey: (query) => query.type,
     ),
     RecordColumn(
@@ -238,11 +242,64 @@ List<RecordColumn<DnsQuery>> _dnsQueryColumns(
       ),
     RecordColumn(
       TableColumn('elapsed', appLocalizations.elapsed, width: 76, end: true),
-      cell: (_, query) => RecordCellText('${query.delay} ms', muted: true),
+      cell: (_, query) => _DnsDelay(query),
       sortKey: (query) => query.delay,
       descendingFirst: true,
     ),
   ];
+}
+
+class _DnsTypeChip extends StatelessWidget {
+  final String type;
+
+  const _DnsTypeChip(this.type);
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    final (color, foreground) = switch (type.toUpperCase()) {
+      'A' => (colorScheme.secondaryContainer, colorScheme.onSecondaryContainer),
+      'AAAA' => (
+        colorScheme.tertiaryContainer,
+        colorScheme.onTertiaryContainer,
+      ),
+      'HTTPS' ||
+      'SVCB' => (colorScheme.primaryContainer, colorScheme.onPrimaryContainer),
+      _ => (
+        context.raisedSurfaceLevel.colorOf(colorScheme),
+        colorScheme.onSurfaceVariant,
+      ),
+    };
+    return TonalChip(
+      label: type,
+      color: color,
+      foregroundColor: foreground,
+      onPressed: () => context.commonScaffoldState?.addKeyword(type),
+    );
+  }
+}
+
+/// Answered fast reads green, slow amber, failed or crawling red.
+class _DnsDelay extends StatelessWidget {
+  final DnsQuery dnsQuery;
+
+  const _DnsDelay(this.dnsQuery);
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    final delay = dnsQuery.delay;
+    final color = dnsQuery.isFailed || delay >= 500
+        ? colorScheme.error
+        : delay < 150
+        ? colorScheme.success
+        : colorScheme.warning;
+    return Text(
+      '$delay ms',
+      textAlign: TextAlign.end,
+      style: TextStyle(color: color),
+    );
+  }
 }
 
 class _DnsKeyword extends StatelessWidget {
@@ -327,20 +384,23 @@ class DnsQueryItem extends StatelessWidget {
     return RecordListItem(
       onTap: () => _showDnsQueryDetail(context, dnsQuery),
       header: RecordHeader(
-        trailing: Text('${dnsQuery.delay} ms'),
+        trailing: _DnsDelay(dnsQuery),
         children: [
           RecordTimestamp(dnsQuery.time.showFull),
-          RecordLabel(
-            label: dnsQuery.type,
-            onPressed: () => onClickKeyword?.call(dnsQuery.type),
-          ),
+          _DnsTypeChip(dnsQuery.type),
         ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 4,
         children: [
-          Text(dnsQuery.domain, style: styles.title),
+          Row(
+            spacing: 10,
+            children: [
+              LetterAvatar(dnsQuery.domain),
+              Flexible(child: Text(dnsQuery.domain, style: styles.title)),
+            ],
+          ),
           if (summary.isNotEmpty)
             Text(
               summary,

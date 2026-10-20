@@ -262,6 +262,101 @@ void main() {
       );
     });
 
+    test('carries a FlClashX 0.4 profile with its headers and rules', () async {
+      writeFile(
+        join(source.path, 'profiles', '1720000000000.yaml'),
+        'proxies: []',
+      );
+
+      final data = await migrateLegacyConfig(
+        configMap: legacyConfig(
+          profiles: [
+            {
+              'id': '1720000000000',
+              'label': 'Remna',
+              'url': 'https://sub.example.com/abc',
+              'autoUpdateDuration': 86400000000,
+              'autoUpdate': true,
+              'selectedMap': {'Auto': 'NL'},
+              'unfoldSet': ['Auto'],
+              'subscriptionInfo': {
+                'upload': 1,
+                'download': 2,
+                'total': 3,
+                'expire': 4,
+              },
+              'providerHeaders': {
+                'announce': 'Hi',
+                'flclashx-newboard': 'true',
+              },
+              'overrideData': {
+                'enable': true,
+                'rule': {
+                  'type': 'added',
+                  'overrideRules': [
+                    {'id': 'o1', 'value': 'DOMAIN,ignored.com,DIRECT'},
+                  ],
+                  'addedRules': [
+                    {'id': 'a1', 'value': 'DOMAIN,example.com,DIRECT'},
+                  ],
+                },
+              },
+            },
+            {
+              'id': '1720000000001',
+              'autoUpdateDuration': 0,
+              'overrideData': {
+                'enable': false,
+                'rule': {
+                  'type': 'added',
+                  'addedRules': [
+                    {'id': 'a2', 'value': 'DOMAIN,off.com,DIRECT'},
+                  ],
+                },
+              },
+            },
+          ],
+          extra: {
+            'currentProfileId': '1720000000000',
+            'appSetting': {
+              'newDashboard': true,
+              'dashboardWidgets': ['announce', 'metainfo', 'zashboardButton'],
+            },
+          },
+        ),
+        sourcePath: source.path,
+        targetPath: target.path,
+      );
+
+      final profile = data.profiles.first;
+      expect(profile.type, ProfileType.url);
+      expect(profile.label, 'Remna');
+      expect(profile.providerHeaders, {
+        'announce': 'Hi',
+        'flclashx-newboard': 'true',
+      });
+      expect(profile.selectedMap, {'Auto': 'NL'});
+      expect(profile.subscriptionInfo?.total, 3);
+      expect(profile.autoUpdateDuration, const Duration(days: 1));
+      expect(data.rules.map((rule) => rule.content), ['example.com']);
+      expect(data.rules.single.profileId, profile.id);
+      expect(data.configMap?['currentProfileId'], profile.id);
+      expect(
+        File(
+          join(target.path, 'profiles', '${profile.id}.yaml'),
+        ).readAsStringSync(),
+        'proxies: []',
+      );
+
+      final config = Config.realFromJson(data.configMap);
+      expect(config.themeProps.style, ThemeStyle.enhanced);
+      expect(config.appSettingProps.dashboardWidgets, [
+        DashboardWidget.currentOutbound,
+        DashboardWidget.announcement,
+        DashboardWidget.profiles,
+      ]);
+    });
+
     test('links added rules to the profile that declared them', () async {
       writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
 

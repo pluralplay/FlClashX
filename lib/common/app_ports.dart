@@ -34,6 +34,16 @@ abstract interface class TrayPort {
   });
 }
 
+abstract interface class NotificationPort {
+  /// False when the system will not show it, so the caller says it another way.
+  Future<bool> show({
+    required String title,
+    required String body,
+    required String channelName,
+    String? url,
+  });
+}
+
 abstract interface class NavigationPort {
   List<NavigationItem> getItems({bool openLogs, bool hasProxies});
 }
@@ -41,3 +51,4 @@ abstract interface class NavigationPort {
 WindowPort? windowPort;
 TrayPort? trayPort;
 NavigationPort? navigationPort;
+NotificationPort? notificationPort;

@@ -337,6 +337,7 @@ class SetupAction extends _$SetupAction {
   }
 
   void changeMode(Mode mode) {
+    if (!ref.read(availableModesProvider).contains(mode)) return;
     ref
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith(mode: mode));
@@ -438,7 +439,7 @@ class SetupAction extends _$SetupAction {
     if (profileId == null) {
       return (yaml: '', md5: '', counts: configCountsOf(const {}), base: null);
     }
-    final defaultUA = globalState.packageInfo.ua;
+    final defaultUA = globalState.ua;
     final networkSetting = ref.read(
       networkSettingProvider.select(
         (state) => (
@@ -591,19 +592,22 @@ class SetupAction extends _$SetupAction {
     if (ref.read(safeModeProvider)) {
       return patchConfig.copyWith(
         tun: patchConfig.tun.copyWith(enable: false),
-        externalController: ExternalControllerStatus.close,
+        externalController: '',
       );
     }
     final authorized =
         ref.read(authorizedTunEnableProvider) ==
         TunAuthorizationState.authorized;
+    final secure = ref.read(androidSecureProvider);
     return patchConfig.copyWith(
       tun: patchConfig.tun.copyWith(
         enable: patchConfig.tun.enable && authorized,
       ),
-      externalController: patchConfig.secret.isEmpty
-          ? ExternalControllerStatus.close
-          : patchConfig.externalController,
+      mixedPort: secure ? 0 : patchConfig.mixedPort,
+      port: secure ? 0 : patchConfig.port,
+      socksPort: secure ? 0 : patchConfig.socksPort,
+      redirPort: secure ? 0 : patchConfig.redirPort,
+      tproxyPort: secure ? 0 : patchConfig.tproxyPort,
     );
   }
 
@@ -612,9 +616,14 @@ class SetupAction extends _$SetupAction {
     return system.authorizeCore();
   }
 
+  /// Android drives its TUN through the VPN service; the core is never
+  /// elevated there, so nothing is asked and the core's own tun stays off.
+  @protected
+  bool get coreNeedsAuthorization => !system.isAndroid;
+
   @visibleForTesting
   Future<bool> requestAdmin(bool enableTun) async {
-    if (!enableTun || ref.read(safeModeProvider)) {
+    if (!enableTun || !coreNeedsAuthorization || ref.read(safeModeProvider)) {
       return true;
     }
     final authorizationState = ref.read(authorizedTunEnableProvider);

@@ -77,7 +77,7 @@ func (d *probeDialer) dial(ctx context.Context, _ string, address string) (net.C
 	local, remote := N.Pipe()
 	routed := &routedConn{Conn: local, metadata: metadata}
 	pendingProbeRoutes.Store(metadata, routed)
-	go tunnel.Tunnel.HandleTCPConn(remote, metadata)
+	go trafficTunnel.HandleTCPConn(remote, metadata)
 	d.remember(routed)
 	return routed, nil
 }
@@ -123,11 +123,25 @@ type routedConn struct {
 }
 
 func (c *routedConn) Close() error {
+	c.resolve()
 	pendingProbeRoutes.CompareAndDelete(c.metadata, c)
 	return c.Conn.Close()
 }
 
+// A probe that got its answer before the accounting tunnel looked its
+// tracker up still finds it here, as long as the connection is open.
 func (c *routedConn) resolve() *probeRoute {
+	c.mu.Lock()
+	route := c.route
+	c.mu.Unlock()
+	if route != nil || c.metadata == nil {
+		return route
+	}
+	if tracker := findTracker(func(info *statistic.TrackerInfo) bool {
+		return info.Metadata == c.metadata
+	}); tracker != nil {
+		notifyProbeRoute(tracker)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.route

@@ -169,6 +169,17 @@ class ProxiesAction extends _$ProxiesAction {
         .put(currentProfile.copyWith(unfoldSet: value));
   }
 
+  void setShownGroupsUnfolded(bool unfold) {
+    final shown = ref
+        .read(proxiesListStateProvider)
+        .groups
+        .map((group) => group.name);
+    final current = ref.read(unfoldSetProvider);
+    updateCurrentUnfoldSet(
+      unfold ? {...current, ...shown} : current.difference(shown.toSet()),
+    );
+  }
+
   void setDelay(Delay delay) {
     _bufferedDelays.add(delay);
     _scheduleDelayFlush();
@@ -323,6 +334,25 @@ class ProxiesAction extends _$ProxiesAction {
       );
     } finally {
       testing.stop(groupName);
+    }
+  }
+
+  /// A node in several groups is tested once: targets are keyed by node and URL.
+  Future<void> delayTestAllGroups() async {
+    final testing = ref.read(delayTestingGroupsProvider.notifier);
+    final groups = [
+      for (final group in ref.read(visibleGroupsStateProvider).value)
+        if (testing.start(group.name)) group,
+    ];
+    if (groups.isEmpty) {
+      return;
+    }
+    try {
+      await delayTestGroups(groups);
+    } finally {
+      for (final group in groups) {
+        testing.stop(group.name);
+      }
     }
   }
 

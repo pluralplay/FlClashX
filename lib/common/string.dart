@@ -7,6 +7,15 @@ import 'package:fl_clash/enum/enum.dart';
 
 import 'dart:math';
 
+const _regionalIndicatorA = 0x1F1E6;
+
+final _flagEmoji = RegExp(
+  '[\\u{1F1E6}-\\u{1F1FF}][\\u{1F1E6}-\\u{1F1FF}]',
+  unicode: true,
+);
+
+final _leadingFlag = RegExp('^(?:${_flagEmoji.pattern})\\s*', unicode: true);
+
 extension StringExtension on String {
   bool get isUrl => webUri != null;
 
@@ -40,6 +49,22 @@ extension StringExtension on String {
   int compareToLower(String other) {
     return toLowerCase().compareTo(other.toLowerCase());
   }
+
+  /// The country of the first flag emoji in this text, upper-cased.
+  String? get flagCountryCode {
+    final match = _flagEmoji.firstMatch(this);
+    if (match == null) {
+      return null;
+    }
+    final runes = match.group(0)!.runes.toList();
+    return String.fromCharCodes([
+      runes[0] - _regionalIndicatorA + 0x41,
+      runes[1] - _regionalIndicatorA + 0x41,
+    ]);
+  }
+
+  /// This text without a flag emoji that opens it.
+  String get withoutLeadingFlag => replaceFirst(_leadingFlag, '');
 
   String get countryFlagEmoji {
     final code = toUpperCase();

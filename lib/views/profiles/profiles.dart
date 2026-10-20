@@ -328,9 +328,9 @@ class ProfileItem extends ConsumerWidget {
     }
     final appLocalizations = context.appLocalizations;
     return switch (profile.type) {
-      ProfileType.url => appLocalizations.remote,
-      ProfileType.file => appLocalizations.local,
-      ProfileType.custom => appLocalizations.custom,
+      ProfileType.url => appLocalizations.profileTypeSubscription,
+      ProfileType.file => appLocalizations.profileTypeFile,
+      ProfileType.custom => appLocalizations.profileTypeCustom,
     };
   }
 

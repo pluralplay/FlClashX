@@ -26,17 +26,35 @@ class ThemeView extends StatelessWidget {
         children: const [
           ThemeLivePreview(),
           SizedBox(height: 16),
+          ManagedSettingsHint(keys: themePageKeys),
+          ManagedSetting(
+            settingKey: 'view.app.board',
+            child: _ThemeStyleItem(),
+          ),
+          SizedBox(height: 16),
           _ThemeModeItem(),
           SizedBox(height: 16),
-          _PureBlackItem(),
+          ManagedSetting(settingKey: 'view.app.black', child: _PureBlackItem()),
           SizedBox(height: 16),
-          _PrimaryColorItem(),
+          ManagedSetting(
+            settingKey: 'view.app.color',
+            child: _PrimaryColorItem(),
+          ),
           SizedBox(height: 16),
-          _NavigationBarItem(),
+          ManagedSetting(
+            settingKey: 'view.app.navbar',
+            child: _NavigationBarItem(),
+          ),
           SizedBox(height: 16),
-          _TabAnimationItem(),
+          ManagedSetting(
+            settingKey: 'view.app.tabs',
+            child: _TabAnimationItem(),
+          ),
           SizedBox(height: 16),
-          _LiquidGlassItem(),
+          ManagedSetting(
+            settingKey: 'view.app.glass',
+            child: _LiquidGlassItem(),
+          ),
           SizedBox(height: 16),
           _SidebarBlurItem(),
           _FontFamilyItem(),
@@ -46,6 +64,109 @@ class ThemeView extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ThemeStyleItem extends ConsumerWidget {
+  const _ThemeStyleItem();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appLocalizations = context.appLocalizations;
+    final style = ref.watch(
+      themeSettingProvider.select((state) => state.style),
+    );
+    final colorScheme = context.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PreviewChoiceGroup<ThemeStyle>(
+          info: Info(
+            label: appLocalizations.themeStyle,
+            glyph: AppGlyphs.dashboard,
+          ),
+          value: style,
+          choices: [
+            PreviewChoice(
+              value: ThemeStyle.original,
+              label: appLocalizations.themeStyleOriginal,
+              pictogram: MiniScreenThumb(
+                screen: MiniScreen(
+                  colorScheme: colorScheme,
+                  floatingBar: ref.watch(_floatingBarProvider),
+                  liquidGlass: ref.watch(_liquidGlassProvider),
+                ),
+              ),
+            ),
+            PreviewChoice(
+              value: ThemeStyle.enhanced,
+              label: appLocalizations.themeStyleEnhanced,
+              pictogram: MiniScreenThumb(
+                screen: CustomPaint(painter: _HeroSketch(colorScheme)),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            ref
+                .read(themeSettingProvider.notifier)
+                .update((state) => state.copyWith(style: value));
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 8, 32, 0),
+          child: Text(
+            appLocalizations.themeStyleDesc,
+            style: AppTextStyle.footnote
+                .of(context)
+                .copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The hero page in miniature: logo, name, plan card, server row and the
+/// connect pill.
+class _HeroSketch extends CustomPainter {
+  const _HeroSketch(this.colorScheme);
+
+  final ColorScheme colorScheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.width / 20;
+    final card = SurfaceLevel.card.colorOf(colorScheme);
+    final text = colorScheme.onSurface.withValues(alpha: 0.72);
+    final faint = colorScheme.onSurfaceVariant.withValues(alpha: 0.16);
+    Rect at(double x, double y, double w, double h) =>
+        Rect.fromLTWH(x * unit, y * unit, w * unit, h * unit);
+    void fill(Rect rect, Color color, ShapeBorder shape) {
+      canvas.drawPath(shape.getOuterPath(rect), Paint()..color = color);
+    }
+
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = SurfaceLevel.page.colorOf(colorScheme),
+    );
+    fill(at(7, 4, 6, 6), colorScheme.primary, AppShape.lg);
+    fill(at(5.5, 11.5, 9, 1.2), text, AppShape.full);
+    fill(at(1.5, 14.5, 17, 6.5), card, AppShape.md);
+    fill(at(3, 16, 6, 1), text, AppShape.full);
+    fill(at(3, 18.5, 14, 1), faint, AppShape.full);
+    fill(at(3, 18.5, 8, 1), colorScheme.primary, AppShape.full);
+    fill(at(1.5, 22.5, 17, 4.5), card, AppShape.md);
+    fill(
+      at(3, 23.5, 2.5, 2.5),
+      colorScheme.primary.withValues(alpha: 0.6),
+      AppShape.circle,
+    );
+    fill(at(6.5, 24, 6, 1), text, AppShape.full);
+    fill(at(1.5, 29, 17, 3.2), colorScheme.primary, AppShape.full);
+  }
+
+  @override
+  bool shouldRepaint(_HeroSketch oldDelegate) =>
+      oldDelegate.colorScheme != colorScheme;
 }
 
 class _ThemeModeItem extends ConsumerWidget {
@@ -429,6 +550,7 @@ class _ColorSwatchState extends State<_ColorSwatch> {
           shape: AppShape.circle,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
+            mouseCursor: clickableCursor,
             customBorder: AppShape.circle,
             onTap: widget.onPressed,
             onFocusChange: (value) => setState(() => _focused = value),
@@ -544,6 +666,7 @@ class _AddColorButton extends StatelessWidget {
             shape: AppShape.circle,
             clipBehavior: Clip.antiAlias,
             child: InkWell(
+              mouseCursor: clickableCursor,
               customBorder: AppShape.circle,
               onTap: onPressed,
               child: Center(
@@ -846,7 +969,12 @@ class _FontFamilyItem extends ConsumerWidget {
       color: cardColor,
       shape: AppShape.lg,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(customBorder: AppShape.lg, onTap: onTap, child: preview),
+      child: InkWell(
+        mouseCursor: clickableCursor,
+        customBorder: AppShape.lg,
+        onTap: onTap,
+        child: preview,
+      ),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

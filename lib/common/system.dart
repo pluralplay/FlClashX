@@ -254,6 +254,15 @@ class System {
     return AuthorizeCode.error;
   }
 
+  Future<void> openDirectory(String path) async {
+    final command = isWindows
+        ? 'explorer'
+        : isMacOS
+        ? 'open'
+        : 'xdg-open';
+    await runProcess(command, [path]);
+  }
+
   Future<void> back() async {
     await app?.moveTaskToBack();
   }

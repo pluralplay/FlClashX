@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/metacubex/mihomo/dns"
 	D "github.com/miekg/dns"
 )
 
@@ -21,7 +20,7 @@ type DnsQuery struct {
 	Time      time.Time `json:"time"`
 }
 
-func newDnsQuery(record dns.QueryRecord) DnsQuery {
+func newDnsQuery(record dnsQueryRecord) DnsQuery {
 	query := DnsQuery{
 		Domain:    strings.TrimSuffix(record.Question.Name, "."),
 		Type:      D.Type(record.Question.Qtype).String(),

@@ -2,10 +2,14 @@ import 'dart:math';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'tracker_info_item.dart';
+import 'tracker_info_visuals.dart';
 
 const _fullLiveTableWidth = 1200.0;
 
@@ -31,12 +35,12 @@ List<RecordColumn<TrackerInfo>> trackerInfoColumns(
       ),
     RecordColumn(
       TableColumn('process', appLocalizations.process, width: wide ? 160 : 140),
-      cell: (_, info) => RecordCellText(info.progressText),
+      cell: (_, info) => _ProcessCell(info),
       sortKey: (info) => info.progressText.toLowerCase(),
     ),
     RecordColumn(
       TableColumn('target', appLocalizations.target, flex: wide ? 1.4 : 1.3),
-      cell: (_, info) => TrackerTargetText(info),
+      cell: (_, info) => _TargetCell(info),
       sortKey: (info) => info.title.toLowerCase(),
     ),
     if (detailed)
@@ -46,14 +50,22 @@ List<RecordColumn<TrackerInfo>> trackerInfoColumns(
           appLocalizations.protocol,
           width: max(56, recordHeaderWidth(context, appLocalizations.protocol)),
         ),
-        cell: (_, info) =>
-            RecordCellText(info.metadata.network.toUpperCase(), muted: true),
+        cell: (_, info) => Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: NetworkLabel(info.metadata.network),
+        ),
         sortKey: (info) => info.metadata.network.toLowerCase(),
       ),
     if (wide || !isLive)
       RecordColumn(
         TableColumn('rule', appLocalizations.rule, flex: 1),
-        cell: (_, info) => TrackerRuleText(info),
+        cell: (_, info) => info.rule.isEmpty
+            ? const RecordCellText('')
+            : RuleLabel(
+                info,
+                onPressed: () =>
+                    context.commonScaffoldState?.addKeyword(info.rule),
+              ),
         sortKey: (info) => '${info.rule} ${info.rulePayload}'.toLowerCase(),
       ),
     RecordColumn(
@@ -67,12 +79,14 @@ List<RecordColumn<TrackerInfo>> trackerInfoColumns(
         appLocalizations.download,
         (info) => info.downloadSpeed ?? 0,
         perSecond: true,
+        activeColor: (colorScheme) => colorScheme.primary,
       ),
       _amountColumn(
         'uploadSpeed',
         appLocalizations.upload,
         (info) => info.uploadSpeed ?? 0,
         perSecond: true,
+        activeColor: (colorScheme) => colorScheme.tertiary,
       ),
     ],
     if (isLive && wide) ...[
@@ -131,19 +145,77 @@ RecordColumn<TrackerInfo> _amountColumn(
   int Function(TrackerInfo info) amountOf, {
   double width = 100,
   bool perSecond = false,
+  Color Function(ColorScheme colorScheme)? activeColor,
 }) {
   return RecordColumn(
     TableColumn(id, label, width: width, end: true),
-    cell: (_, info) {
+    cell: (context, info) {
       final amount = amountOf(info);
-      return RecordCellText(
-        perSecond ? '${amount.traffic.show}/s' : amount.traffic.show,
-        muted: perSecond && amount == 0,
-      );
+      final text = perSecond ? '${amount.traffic.show}/s' : amount.traffic.show;
+      if (activeColor != null && amount > 0) {
+        return Text(
+          text,
+          style: TextStyle(color: activeColor(context.colorScheme)),
+        );
+      }
+      return RecordCellText(text, muted: perSecond && amount == 0);
     },
     sortKey: amountOf,
     descendingFirst: true,
   );
+}
+
+class _ProcessCell extends ConsumerWidget {
+  final TrackerInfo info;
+
+  const _ProcessCell(this.info);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final process = info.metadata.process;
+    final showIcon =
+        system.isAndroid &&
+        process.isNotEmpty &&
+        ref.watch(
+          patchClashConfigProvider.select(
+            (state) => state.findProcessMode == FindProcessMode.always,
+          ),
+        );
+    if (!showIcon) {
+      return RecordCellText(info.progressText);
+    }
+    return Row(
+      spacing: 6,
+      children: [
+        ClipRSuperellipse(
+          borderRadius: AppRadius.all(4),
+          child: PackageIcon(packageName: process, size: 18),
+        ),
+        Flexible(child: RecordCellText(info.progressText)),
+      ],
+    );
+  }
+}
+
+class _TargetCell extends StatelessWidget {
+  final TrackerInfo info;
+
+  const _TargetCell(this.info);
+
+  @override
+  Widget build(BuildContext context) {
+    final country = destinationCountryOf(info);
+    if (country == null) {
+      return TrackerTargetText(info);
+    }
+    return Row(
+      spacing: 6,
+      children: [
+        CountryMark(countryCode: country, size: 14),
+        Flexible(child: TrackerTargetText(info)),
+      ],
+    );
+  }
 }
 
 String trackerDurationText(Duration duration) {
@@ -193,12 +265,12 @@ class _ExitChip extends StatelessWidget {
     if (exit.isEmpty) {
       return const RecordCellText('');
     }
-    final colorScheme = context.colorScheme;
-    return TonalChip(
-      label: exit,
-      color: context.raisedSurfaceLevel.colorOf(colorScheme),
-      foregroundColor: colorScheme.onSurfaceVariant,
-      onPressed: () => context.commonScaffoldState?.addKeyword(exit),
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: OutboundChip(
+        label: exit,
+        onPressed: () => context.commonScaffoldState?.addKeyword(exit),
+      ),
     );
   }
 }
