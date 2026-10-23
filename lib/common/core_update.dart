@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flclashx/common/common.dart';
+import 'package:flclashx/common/linux_core_update.dart';
 import 'package:flclashx/enum/enum.dart';
+import 'package:flclashx/widgets/input.dart';
 
 class CoreUpdater {
   factory CoreUpdater() {
@@ -44,12 +46,16 @@ class CoreUpdater {
   /// process is spawned: a running exe can't be deleted on Windows, and on
   /// macOS/Linux a swap after spawn leaves the whole session on the old core.
   Future<void> applyPending() async {
-    final pending = File(appPath.corePendingPath);
+    final pending = File(await appPath.corePendingPath);
     if (!await pending.exists()) {
       return;
     }
     commonPrint.log("Applying pending core update...");
     try {
+      if (Platform.isLinux) {
+        await _applyLinuxPending(pending);
+        return;
+      }
       // Windows service mode: the core lives under Program Files, which the
       // unelevated app can't overwrite (rename -> access-denied). The SYSTEM
       // helper does the swap (stop + move + refresh allow-list hash) for us.
@@ -57,7 +63,7 @@ class CoreUpdater {
         final status = await windows?.checkService();
         if (status == WindowsHelperServiceStatus.running) {
           final ok = await request.replaceCoreByHelper(
-            appPath.corePendingPath,
+            pending.path,
             appPath.corePath,
           );
           if (ok) {
@@ -99,6 +105,47 @@ class CoreUpdater {
     } catch (e) {
       commonPrint.log("Failed to apply pending core update: $e");
     }
+  }
+
+  Future<void> _applyLinuxPending(File pending) async {
+    final authorized = await system.checkIsAdmin();
+    final digest = (await sha256.bind(pending.openRead()).first).toString();
+    Future<ProcessResult> install({bool elevated = false, String? password}) =>
+        installLinuxCore(
+          source: pending.path,
+          target: appPath.corePath,
+          sha256: digest,
+          preserveAuthorization: authorized,
+          elevated: elevated,
+          password: password,
+        );
+
+    // A portable, unprivileged core can be replaced without a password. A
+    // setuid core must always be installed as root to keep TUN authorization.
+    var result = authorized
+        ? await install(elevated: true)
+        : await install();
+    if (result.exitCode != 0) {
+      final password = await globalState.showCommonDialog<String>(
+        child: InputDialog(
+          title: appLocalizations.pleaseInputAdminPassword,
+          value: '',
+        ),
+      );
+      if (password == null) {
+        commonPrint.log('Core update cancelled; keeping the current core');
+        return;
+      }
+      result = await install(elevated: true, password: password);
+    }
+    if (result.exitCode != 0) {
+      throw FileSystemException(
+        'Core installation failed: ${result.stderr}',
+        appPath.corePath,
+      );
+    }
+    await pending.delete();
+    commonPrint.log('Pending core update applied successfully');
   }
 
   /// The helper service only launches a core whose SHA-256 matches its

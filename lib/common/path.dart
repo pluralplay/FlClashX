@@ -53,7 +53,14 @@ class AppPath {
     return join(executableDirPath, "FlClashCore$executableExtension");
   }
 
-  String get corePendingPath => '$corePath.pending';
+  Future<String> get corePendingPath async {
+    if (Platform.isLinux) {
+      // RPM/deb installs (and mounted AppImages) are not user-writable.
+      final directory = await dataDir.future;
+      return join(directory.path, 'FlClashCore.pending');
+    }
+    return '$corePath.pending';
+  }
 
   /// Allow-list consumed by the Windows helper service; lives next to the
   /// helper exe so per-machine installs keep it admin-writable only.
