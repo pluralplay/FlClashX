@@ -453,7 +453,7 @@ jobs:
         run: dart setup.dart ${{ matrix.platform }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} -v
 
       - name: Upload
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./dist
@@ -472,7 +472,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: ./dist/
           pattern: artifact-*
@@ -524,14 +524,14 @@ jobs:
           done
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ./dist/*
           body_path: './release.md'
           prerelease: ${{ env.IS_STABLE != 'true' }}
 
       - name: Upload release notes for notification
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: release-notes
           path: release.md
@@ -641,7 +641,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download release notes
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: release-notes
 
