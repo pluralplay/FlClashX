@@ -311,14 +311,20 @@ class ListItem<T> extends StatelessWidget {
             },
           );
         }
+        final badge = TitleBadge.of(context);
         return OpenContainer<dynamic>(
           clipBehavior: Clip.none,
           closedBuilder: (context, action) {
-            return _buildListTile(
-              context,
-              position: position,
-              trailing: _pageTrailing,
-              onTap: action,
+            return TitleBadge(
+              badge: badge,
+              child: Builder(
+                builder: (context) => _buildListTile(
+                  context,
+                  position: position,
+                  trailing: _pageTrailing,
+                  onTap: action,
+                ),
+              ),
             );
           },
           onClosed: onChanged,
