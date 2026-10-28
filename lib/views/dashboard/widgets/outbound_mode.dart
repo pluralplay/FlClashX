@@ -40,6 +40,7 @@ class OutboundModeCard extends ConsumerWidget {
     return ManagedSetting(
       settingKey: 'clash.mode',
       dimsWhenLocked: false,
+      marksOwner: false,
       child: DashboardCard(
         semanticLabel: context.appLocalizations.outboundMode,
         child: Column(
@@ -113,6 +114,7 @@ class OutboundModeBar extends ConsumerWidget {
     return ManagedSetting(
       settingKey: 'clash.mode',
       dimsWhenLocked: false,
+      marksOwner: false,
       child: DashboardCard(
         semanticLabel: appLocalizations.outboundMode,
         padding: EdgeInsetsDirectional.fromSTEB(

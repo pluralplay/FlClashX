@@ -1180,8 +1180,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "managedByProviderTip": MessageLookupByLibrary.simpleMessage(
       "Este valor viene de tu suscripción. Si lo cambias tú, las actualizaciones de la suscripción dejarán de tocarlo. Clic derecho o pulsación larga en la fila para devolverlo al proveedor.",
     ),
+    "managedByYou": MessageLookupByLibrary.simpleMessage("Gestionado por ti"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
       "Los ajustes atenuados los define tu suscripción. Toca uno para cambiarlo tú.",
+    ),
+    "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
+      "Un punto marca los ajustes que has tomado; haz clic derecho o mantén pulsado uno para devolverlo al proveedor.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage(
       "Coincidir mayúsculas y minúsculas",

@@ -70,6 +70,8 @@
   "returnAllToProvider": "Rendre les réglages au fournisseur",
   "returnAllToProviderTip": "Tous les réglages que vous avez changés vous-même suivront de nouveau l’abonnement.",
   "managedSettingsHint": "Les réglages grisés sont définis par votre abonnement. Touchez-en un pour le modifier vous-même.",
+  "managedSettingsOwnedHint": "Un point marque les réglages que vous avez repris ; faites un clic droit ou un appui long sur l’un d’eux pour le rendre au fournisseur.",
+  "managedByYou": "Géré par vous",
   "logcat": "Logcat",
   "logcatDesc": "Désactiver Logcat masque l’entrée Journaux.",
   "autoCheckUpdate": "Rechercher les mises à jour automatiquement",

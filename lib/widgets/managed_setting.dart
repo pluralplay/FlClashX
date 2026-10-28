@@ -14,12 +14,14 @@ class ManagedSettingsHint extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final managed = ref.watch(
-      managedSettingsProvider.select((managed) => managed.any(keys.contains)),
-    );
-    if (!managed) {
+    final managed = ref.watch(managedSettingsProvider).where(keys.contains);
+    if (managed.isEmpty) {
       return const SizedBox.shrink();
     }
+    final owned = ref.watch(
+      appSettingProvider.select((state) => state.ownedSettings),
+    );
+    final appLocalizations = context.appLocalizations;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
@@ -33,7 +35,10 @@ class ManagedSettingsHint extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              context.appLocalizations.managedSettingsHint,
+              managed.any(owned.contains)
+                  ? '${appLocalizations.managedSettingsHint} '
+                        '${appLocalizations.managedSettingsOwnedHint}'
+                  : appLocalizations.managedSettingsHint,
               style: context.listCaptionStyle,
             ),
           ),
@@ -52,6 +57,7 @@ class ManagedSetting extends ConsumerWidget {
     required this.child,
     this.onTakenOver,
     this.dimsWhenLocked = true,
+    this.marksOwner = true,
   });
 
   final String settingKey;
@@ -61,6 +67,9 @@ class ManagedSetting extends ConsumerWidget {
   /// False for a control that asks before its own change, so a tap both
   /// takes the setting over and makes the change.
   final bool dimsWhenLocked;
+
+  /// False for a dashboard card, which has no row edge to carry the mark.
+  final bool marksOwner;
 
   Future<void> _takeOver(WidgetRef ref) async {
     final taken = await ref
@@ -101,7 +110,43 @@ class ManagedSetting extends ConsumerWidget {
               .release(settingKey),
         ),
       ],
-      child: child,
+      child: marksOwner
+          ? Semantics(
+              hint: context.appLocalizations.managedByYou,
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  child,
+                  const PositionedDirectional(
+                    start: 6,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(child: OwnedSettingMark()),
+                  ),
+                ],
+              ),
+            )
+          : child,
+    );
+  }
+}
+
+/// The dot in the leading gutter of a row the user took over.
+class OwnedSettingMark extends StatelessWidget {
+  const OwnedSettingMark({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.square(
+        dimension: 6,
+        child: DecoratedBox(
+          decoration: ShapeDecoration(
+            color: context.colorScheme.primary,
+            shape: AppShape.circle,
+          ),
+        ),
+      ),
     );
   }
 }

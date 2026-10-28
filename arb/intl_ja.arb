@@ -70,6 +70,8 @@
   "returnAllToProvider": "設定をプロバイダーに戻す",
   "returnAllToProviderTip": "自分で変更したすべての設定が再びサブスクリプションに従います。",
   "managedSettingsHint": "薄く表示されている設定はサブスクリプションが指定しています。タップすると自分で変更できます。",
+  "managedSettingsOwnedHint": "左に点が付いた設定は自分で管理しています。右クリックまたは長押しでプロバイダーに戻せます。",
+  "managedByYou": "自分で管理",
   "logcat": "ログキャプチャ",
   "logcatDesc": "ログキャプチャを無効にすると、ログの入り口が非表示になります。",
   "autoCheckUpdate": "更新の自動チェック",

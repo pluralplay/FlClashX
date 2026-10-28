@@ -2,6 +2,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/context_menu.dart';
 import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/views/proxies/setting.dart';
 import 'package:fl_clash/views/theme.dart';
@@ -208,5 +209,72 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ManagedSettingsHint), findsOneWidget);
     expect(find.textContaining('Dimmed settings'), findsNothing);
+  });
+
+  testWidgets('a taken-over row carries the owner mark and the hint names it', (
+    tester,
+  ) async {
+    await pumpGeneral(tester);
+    expect(find.byType(OwnedSettingMark), findsNothing);
+    expect(find.textContaining('A dot marks'), findsNothing);
+
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            ownedSettings: {'app.minimizeOnExit', 'clash.allow-lan'},
+          ),
+        );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OwnedSettingMark), findsOneWidget);
+    final marked = tester.widget<ManagedSetting>(
+      find.ancestor(
+        of: find.byType(OwnedSettingMark),
+        matching: find.byType(ManagedSetting),
+      ),
+    );
+    expect(marked.settingKey, 'app.minimizeOnExit');
+    expect(find.textContaining('A dot marks'), findsOneWidget);
+  });
+
+  testWidgets('a card that opts out keeps its menu but shows no mark', (
+    tester,
+  ) async {
+    container = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+      ],
+    );
+    addTearDown(container.dispose);
+    globalState.container = container;
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(ownedSettings: {'app.minimizeOnExit'}),
+        );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(
+          child: ManagedSetting(
+            settingKey: 'app.minimizeOnExit',
+            marksOwner: false,
+            child: Text('Card'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OwnedSettingMark), findsNothing);
+    expect(
+      find.ancestor(
+        of: find.text('Card'),
+        matching: find.byType(ContextMenuRegion),
+      ),
+      findsOneWidget,
+    );
   });
 }

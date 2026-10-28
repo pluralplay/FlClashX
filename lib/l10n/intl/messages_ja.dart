@@ -943,8 +943,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "managedByProviderTip": MessageLookupByLibrary.simpleMessage(
       "この値はサブスクリプションから来ています。自分で変更すると、以後の更新ではこの項目に触れません。右クリックまたは長押しでプロバイダーに戻せます。",
     ),
+    "managedByYou": MessageLookupByLibrary.simpleMessage("自分で管理"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
       "薄く表示されている設定はサブスクリプションが指定しています。タップすると自分で変更できます。",
+    ),
+    "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
+      "左に点が付いた設定は自分で管理しています。右クリックまたは長押しでプロバイダーに戻せます。",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("大文字と小文字を区別"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("送信元IPにマッチ"),

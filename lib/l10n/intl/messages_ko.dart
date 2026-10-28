@@ -923,8 +923,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "managedByProviderTip": MessageLookupByLibrary.simpleMessage(
       "이 값은 구독에서 옵니다. 직접 변경하면 구독 업데이트가 더 이상 건드리지 않습니다. 행을 우클릭하거나 길게 눌러 제공자에게 돌려줄 수 있습니다.",
     ),
+    "managedByYou": MessageLookupByLibrary.simpleMessage("직접 관리"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
       "흐리게 표시된 설정은 구독이 지정합니다. 직접 바꾸려면 항목을 누르세요.",
+    ),
+    "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
+      "왼쪽에 점이 있는 설정은 직접 관리하는 항목입니다. 오른쪽 클릭하거나 길게 눌러 제공자에게 돌려줄 수 있습니다.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("대/소문자 구분"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("출발지 IP 일치"),

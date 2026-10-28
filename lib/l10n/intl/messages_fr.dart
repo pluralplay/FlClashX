@@ -1181,8 +1181,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "managedByProviderTip": MessageLookupByLibrary.simpleMessage(
       "Cette valeur vient de votre abonnement. Si vous la changez vous-même, les mises à jour de l’abonnement ne la toucheront plus. Clic droit ou appui long sur la ligne pour la rendre au fournisseur.",
     ),
+    "managedByYou": MessageLookupByLibrary.simpleMessage("Géré par vous"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
       "Les réglages grisés sont définis par votre abonnement. Touchez-en un pour le modifier vous-même.",
+    ),
+    "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
+      "Un point marque les réglages que vous avez repris ; faites un clic droit ou un appui long sur l’un d’eux pour le rendre au fournisseur.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("Respecter la casse"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage(

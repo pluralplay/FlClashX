@@ -590,6 +590,26 @@ class AppLocalizations {
     );
   }
 
+  /// `A dot marks the settings you took over; right-click or long-press one to hand it back.`
+  String get managedSettingsOwnedHint {
+    return Intl.message(
+      'A dot marks the settings you took over; right-click or long-press one to hand it back.',
+      name: 'managedSettingsOwnedHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Managed by you`
+  String get managedByYou {
+    return Intl.message(
+      'Managed by you',
+      name: 'managedByYou',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Logcat`
   String get logcat {
     return Intl.message('Logcat', name: 'logcat', desc: '', args: []);

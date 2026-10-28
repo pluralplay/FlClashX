@@ -70,6 +70,8 @@
   "returnAllToProvider": "Devolver los ajustes al proveedor",
   "returnAllToProviderTip": "Todos los ajustes que cambiaste tú volverán a seguir la suscripción.",
   "managedSettingsHint": "Los ajustes atenuados los define tu suscripción. Toca uno para cambiarlo tú.",
+  "managedSettingsOwnedHint": "Un punto marca los ajustes que has tomado; haz clic derecho o mantén pulsado uno para devolverlo al proveedor.",
+  "managedByYou": "Gestionado por ti",
   "logcat": "Logcat",
   "logcatDesc": "Si desactivas Logcat, se oculta la entrada de registros.",
   "autoCheckUpdate": "Buscar actualizaciones automáticamente",

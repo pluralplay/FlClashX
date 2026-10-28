@@ -1101,8 +1101,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "managedByProviderTip": MessageLookupByLibrary.simpleMessage(
       "This value comes from your subscription. If you change it yourself, subscription updates will leave it alone. Right-click or long-press the row to hand it back to the provider.",
     ),
+    "managedByYou": MessageLookupByLibrary.simpleMessage("Managed by you"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
       "Dimmed settings are set by your subscription. Tap one to change it yourself.",
+    ),
+    "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
+      "A dot marks the settings you took over; right-click or long-press one to hand it back.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("Match case"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("Match source IP"),
