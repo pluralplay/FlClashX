@@ -1183,10 +1183,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "managedByYou": MessageLookupByLibrary.simpleMessage("Géré par vous"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
-      "Les réglages grisés sont définis par votre abonnement. Touchez-en un pour le modifier vous-même.",
+      "Les réglages grisés avec un cadenas fermé sont définis par votre abonnement. Touchez-en un pour le modifier vous-même.",
     ),
     "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
-      "Un point marque les réglages que vous avez repris ; faites un clic droit ou un appui long sur l’un d’eux pour le rendre au fournisseur.",
+      "Un cadenas ouvert marque les réglages que vous avez repris ; faites un clic droit ou un appui long sur l’un d’eux pour le rendre au fournisseur.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("Respecter la casse"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage(

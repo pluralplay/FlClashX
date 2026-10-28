@@ -580,20 +580,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Dimmed settings are set by your subscription. Tap one to change it yourself.`
+  /// `Dimmed settings with a closed lock are set by your subscription. Tap one to change it yourself.`
   String get managedSettingsHint {
     return Intl.message(
-      'Dimmed settings are set by your subscription. Tap one to change it yourself.',
+      'Dimmed settings with a closed lock are set by your subscription. Tap one to change it yourself.',
       name: 'managedSettingsHint',
       desc: '',
       args: [],
     );
   }
 
-  /// `A dot marks the settings you took over; right-click or long-press one to hand it back.`
+  /// `An open lock marks the settings you took over; right-click or long-press one to hand it back.`
   String get managedSettingsOwnedHint {
     return Intl.message(
-      'A dot marks the settings you took over; right-click or long-press one to hand it back.',
+      'An open lock marks the settings you took over; right-click or long-press one to hand it back.',
       name: 'managedSettingsOwnedHint',
       desc: '',
       args: [],

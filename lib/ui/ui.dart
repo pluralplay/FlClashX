@@ -73,6 +73,7 @@ export 'surface.dart';
 export 'switch.dart';
 export 'table_layout.dart';
 export 'text_loupe.dart';
+export 'title_badge.dart';
 export 'text_style.dart';
 export 'text.dart';
 export 'theme_cross_fade.dart';

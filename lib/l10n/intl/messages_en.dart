@@ -1103,10 +1103,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "managedByYou": MessageLookupByLibrary.simpleMessage("Managed by you"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
-      "Dimmed settings are set by your subscription. Tap one to change it yourself.",
+      "Dimmed settings with a closed lock are set by your subscription. Tap one to change it yourself.",
     ),
     "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
-      "A dot marks the settings you took over; right-click or long-press one to hand it back.",
+      "An open lock marks the settings you took over; right-click or long-press one to hand it back.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("Match case"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("Match source IP"),

@@ -15,6 +15,7 @@ import 'package:fl_clash/ui/metrics.dart';
 import 'package:fl_clash/ui/models.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:fl_clash/ui/switch.dart';
+import 'package:fl_clash/ui/title_badge.dart';
 import 'package:fl_clash/ui/typography.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -251,6 +252,7 @@ class ListItem<T> extends StatelessWidget {
     Widget? trailing,
     Widget? leading,
   }) {
+    final title = TitleBadge.wrap(context, this.title);
     if (position != null) {
       // OpenContainer reparents the closed tile out of the section's provider.
       return ItemPositionProvider(

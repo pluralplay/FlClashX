@@ -57,7 +57,7 @@ class ManagedSetting extends ConsumerWidget {
     required this.child,
     this.onTakenOver,
     this.dimsWhenLocked = true,
-    this.marksOwner = true,
+    this.showsLock = true,
   });
 
   final String settingKey;
@@ -68,8 +68,8 @@ class ManagedSetting extends ConsumerWidget {
   /// takes the setting over and makes the change.
   final bool dimsWhenLocked;
 
-  /// False for a dashboard card, which has no row edge to carry the mark.
-  final bool marksOwner;
+  /// False for a dashboard card, which has no title to carry the lock.
+  final bool showsLock;
 
   Future<void> _takeOver(WidgetRef ref) async {
     final taken = await ref
@@ -78,6 +78,16 @@ class ManagedSetting extends ConsumerWidget {
     if (taken) {
       onTakenOver?.call();
     }
+  }
+
+  Widget _withLock(Widget child, {required bool locked}) {
+    if (!showsLock) {
+      return child;
+    }
+    return TitleBadge(
+      badge: SettingLock(locked: locked),
+      child: child,
+    );
   }
 
   @override
@@ -93,7 +103,10 @@ class ManagedSetting extends ConsumerWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _takeOver(ref),
-          child: Opacity(opacity: 0.5, child: IgnorePointer(child: child)),
+          child: Opacity(
+            opacity: 0.5,
+            child: IgnorePointer(child: _withLock(child, locked: true)),
+          ),
         ),
       );
     }
@@ -110,42 +123,29 @@ class ManagedSetting extends ConsumerWidget {
               .release(settingKey),
         ),
       ],
-      child: marksOwner
-          ? Semantics(
-              hint: context.appLocalizations.managedByYou,
-              child: Stack(
-                fit: StackFit.passthrough,
-                children: [
-                  child,
-                  const PositionedDirectional(
-                    start: 6,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(child: OwnedSettingMark()),
-                  ),
-                ],
-              ),
-            )
-          : child,
+      child: Semantics(
+        hint: context.appLocalizations.managedByYou,
+        child: _withLock(child, locked: false),
+      ),
     );
   }
 }
 
-/// The dot in the leading gutter of a row the user took over.
-class OwnedSettingMark extends StatelessWidget {
-  const OwnedSettingMark({super.key});
+/// Closed while the subscription speaks for a setting, open once it is the
+/// user's.
+class SettingLock extends StatelessWidget {
+  const SettingLock({super.key, required this.locked});
+
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: SizedBox.square(
-        dimension: 6,
-        child: DecoratedBox(
-          decoration: ShapeDecoration(
-            color: context.colorScheme.primary,
-            shape: AppShape.circle,
-          ),
-        ),
+    final colorScheme = context.colorScheme;
+    return ExcludeSemantics(
+      child: GlyphIcon(
+        locked ? AppGlyphs.lock : AppGlyphs.lockOpen,
+        size: 16,
+        color: locked ? colorScheme.onSurfaceVariant : colorScheme.primary,
       ),
     );
   }

@@ -862,10 +862,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "managedByYou": MessageLookupByLibrary.simpleMessage("由你管理"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
-      "灰显的设置由订阅指定。点按即可自行修改。",
+      "带关闭锁形图标的灰显设置由订阅指定。点按即可自行修改。",
     ),
     "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
-      "左侧带圆点的设置由你自行管理；右键点按或长按即可交还给提供商。",
+      "带打开锁形图标的设置由你自行管理；右键点按或长按即可交还给提供商。",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("区分大小写"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("匹配来源IP"),

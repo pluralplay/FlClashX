@@ -1182,10 +1182,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "managedByYou": MessageLookupByLibrary.simpleMessage("Gestionado por ti"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
-      "Los ajustes atenuados los define tu suscripción. Toca uno para cambiarlo tú.",
+      "Los ajustes atenuados con un candado cerrado los define tu suscripción. Toca uno para cambiarlo tú.",
     ),
     "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
-      "Un punto marca los ajustes que has tomado; haz clic derecho o mantén pulsado uno para devolverlo al proveedor.",
+      "Un candado abierto marca los ajustes que has tomado; haz clic derecho o mantén pulsado uno para devolverlo al proveedor.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage(
       "Coincidir mayúsculas y minúsculas",

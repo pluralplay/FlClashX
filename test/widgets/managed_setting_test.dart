@@ -194,7 +194,7 @@ void main() {
     await pumpGeneral(tester);
     expect(
       find.text(
-        'Dimmed settings are set by your subscription. '
+        'Dimmed settings with a closed lock are set by your subscription. '
         'Tap one to change it yourself.',
       ),
       findsOneWidget,
@@ -211,34 +211,80 @@ void main() {
     expect(find.textContaining('Dimmed settings'), findsNothing);
   });
 
-  testWidgets('a taken-over row carries the owner mark and the hint names it', (
+  Finder lock({required bool locked}) => find.byWidgetPredicate(
+    (widget) => widget is SettingLock && widget.locked == locked,
+  );
+
+  testWidgets(
+    'a provider row shows a closed lock, a taken-over one an open lock',
+    (tester) async {
+      await pumpGeneral(tester);
+      expect(
+        find.descendant(of: row(), matching: lock(locked: true)),
+        findsOneWidget,
+      );
+      expect(lock(locked: false), findsNothing);
+      expect(find.textContaining('An open lock marks'), findsNothing);
+
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              ownedSettings: {'app.minimizeOnExit', 'clash.allow-lan'},
+            ),
+          );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(of: row(), matching: lock(locked: true)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: row(), matching: lock(locked: false)),
+        findsOneWidget,
+      );
+      expect(lock(locked: false), findsOneWidget);
+      expect(find.textContaining('An open lock marks'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a locked theme block shows its lock once, not on nested rows', (
     tester,
   ) async {
-    await pumpGeneral(tester);
-    expect(find.byType(OwnedSettingMark), findsNothing);
-    expect(find.textContaining('A dot marks'), findsNothing);
-
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const colored = Profile(
+      id: 3,
+      label: 'Plan',
+      type: ProfileType.url,
+      autoUpdateDuration: Duration.zero,
+      providerHeaders: {'flclashx-view': 'app.color:#FF5733'},
+    );
+    container = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(() => TestProfiles([colored])),
+        currentProfileIdProvider.overrideWithBuild((_, _) => colored.id),
+      ],
+    );
+    addTearDown(container.dispose);
+    globalState.container = container;
     container
-        .read(appSettingProvider.notifier)
-        .update(
-          (state) => state.copyWith(
-            ownedSettings: {'app.minimizeOnExit', 'clash.allow-lan'},
-          ),
-        );
-    await tester.pumpAndSettle();
-
-    expect(find.byType(OwnedSettingMark), findsOneWidget);
-    final marked = tester.widget<ManagedSetting>(
-      find.ancestor(
-        of: find.byType(OwnedSettingMark),
-        matching: find.byType(ManagedSetting),
+        .read(viewSizeProvider.notifier)
+        .update((_) => const Size(1000, 3000));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(child: ThemeView()),
       ),
     );
-    expect(marked.settingKey, 'app.minimizeOnExit');
-    expect(find.textContaining('A dot marks'), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingLock), findsOneWidget);
   });
 
-  testWidgets('a card that opts out keeps its menu but shows no mark', (
+  testWidgets('a card that opts out keeps its menu but shows no lock', (
     tester,
   ) async {
     container = ProviderContainer(
@@ -260,7 +306,7 @@ void main() {
         child: const TestApp(
           child: ManagedSetting(
             settingKey: 'app.minimizeOnExit',
-            marksOwner: false,
+            showsLock: false,
             child: Text('Card'),
           ),
         ),
@@ -268,7 +314,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(OwnedSettingMark), findsNothing);
+    expect(find.byType(SettingLock), findsNothing);
     expect(
       find.ancestor(
         of: find.text('Card'),

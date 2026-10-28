@@ -398,19 +398,22 @@ class _PrimaryColorItem extends ConsumerWidget {
                 onDelete: (color) => _handleDelete(context, ref, color),
                 onAdd: () => _handleAdd(context, ref),
               ),
-              generateSection(
-                items: [
-                  ListItem<ColorStyle>.options(
-                    title: Text(appLocalizations.colorStyle),
-                    options: ColorStyle.values,
-                    value: themeColors.colorStyle,
-                    textBuilder: (style) => style.label,
-                    onChanged: (style) => _update(
-                      ref,
-                      (state) => state.copyWith(colorStyle: style),
+              TitleBadge(
+                badge: null,
+                child: generateSection(
+                  items: [
+                    ListItem<ColorStyle>.options(
+                      title: Text(appLocalizations.colorStyle),
+                      options: ColorStyle.values,
+                      value: themeColors.colorStyle,
+                      textBuilder: (style) => style.label,
+                      onChanged: (style) => _update(
+                        ref,
+                        (state) => state.copyWith(colorStyle: style),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

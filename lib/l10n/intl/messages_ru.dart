@@ -1146,10 +1146,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "managedByYou": MessageLookupByLibrary.simpleMessage("Управляете вы"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
-      "Приглушённые параметры задаёт подписка. Нажмите на параметр, чтобы изменить его самому.",
+      "Приглушённые параметры с закрытым замком задаёт подписка. Нажмите на параметр, чтобы изменить его самому.",
     ),
     "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
-      "Точкой слева отмечены параметры, которые вы забрали себе; вернуть параметр провайдеру можно правой кнопкой или долгим нажатием.",
+      "Открытым замком отмечены параметры, которые вы забрали себе; вернуть параметр провайдеру можно правой кнопкой или долгим нажатием.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("Учитывать регистр"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage(
