@@ -214,11 +214,13 @@ void main() {
       expect(config['sniffer']['sniff']['HTTP']['ports'], ['80', '443']);
       expect(
         config['proxy-providers']['remote']['path'],
-        startsWith('/profiles/providers/7/proxies/'),
+        startsWith(
+          '${join('/profiles', 'providers', '7', 'proxies')}$separator',
+        ),
       );
       expect(
         config['rule-providers']['remote']['path'],
-        startsWith('/profiles/providers/7/rules/'),
+        startsWith('${join('/profiles', 'providers', '7', 'rules')}$separator'),
       );
       expect(config['rules'], [
         'DOMAIN-SUFFIX,added.example,Original',
@@ -388,6 +390,43 @@ void main() {
       expect(dropped['external-ui-url'], defaultExternalUiUrl, reason: path);
       expect(dropped['external-ui-name'], '', reason: path);
     }
+  });
+
+  test('the bundled dashboard does not reuse an older UI directory', () async {
+    final home = Directory.systemTemp.createTempSync('dashboard_migration');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final legacyUi = Directory(join(home.path, 'ui'))..createSync();
+    final legacyIndex = File(join(legacyUi.path, 'index.html'))
+      ..writeAsStringSync('<html>MetaCubeXD</html>');
+
+    final result = await makeRealProfileTask(
+      MakeRealProfileState(
+        profilesPath: join(home.path, 'profiles'),
+        profileId: 15,
+        rawConfig: const {},
+        realPatchConfig: const PatchClashConfig(
+          externalController: defaultExternalController,
+        ),
+        appendSystemDns: false,
+        proxyGroups: const [],
+        rules: const [],
+        addedRules: const [],
+        defaultUA: 'FlClash-Test',
+      ),
+    );
+    final config = loadYaml(result.yaml) as YamlMap;
+    final bundledUi = Directory(
+      join(
+        home.path,
+        config['external-ui'] as String,
+        config['external-ui-name'] as String,
+      ),
+    );
+
+    // mihomo skips the download when this directory already holds a UI.
+    expect(bundledUi.existsSync(), isFalse);
+    expect(config['external-ui-url'], defaultExternalUiUrl);
+    expect(legacyIndex.readAsStringSync(), '<html>MetaCubeXD</html>');
   });
 
   test('makeRealProfileTask ships zashboard with an open controller', () async {

@@ -129,7 +129,8 @@ const repository = 'pluralplay/FlClashX';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
 const defaultTestUrl = 'https://www.gstatic.com/generate_204';
-const defaultExternalUi = 'ui';
+// Keep the bundled panel separate from older or profile-provided UIs in ui/.
+const defaultExternalUi = 'ui/zashboard';
 const defaultExternalUiUrl =
     'https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip';
 
