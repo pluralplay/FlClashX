@@ -114,7 +114,7 @@
   "dark": "深色",
   "importFromLink": "从链接导入",
   "sendFromPhone": "从手机发送",
-  "sendFromPhoneTip": "用手机相机扫描二维码，在打开的页面里粘贴链接。两台设备需要连在同一个网络。",
+  "sendFromPhoneTip": "用手机相机扫描二维码，在打开的页面里粘贴链接。两台设备需要连在同一个网络。如果在 Android 17 及以上版本无法打开页面，请给手机浏览器开启「附近的设备」权限。",
   "sendFromPhoneNoNetwork": "这台设备没有连接局域网",
   "sendFromPhonePermissionDenied": "从手机接收链接需要「附近的设备」权限，FlClashX 才能访问局域网。请在应用设置中开启。",
   "sendFromPhonePageTitle": "把链接发送到 FlClashX",

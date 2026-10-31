@@ -114,7 +114,7 @@
   "dark": "Dark",
   "importFromLink": "Import from link",
   "sendFromPhone": "Send from phone",
-  "sendFromPhoneTip": "Scan the code with your phone's camera and paste the link on the page that opens. Both devices need to be on the same network.",
+  "sendFromPhoneTip": "Scan the code with your phone's camera and paste the link on the page that opens. Both devices need to be on the same network. If the page does not open on Android 17 or later, give the phone's browser the Nearby devices permission.",
   "sendFromPhoneNoNetwork": "This device is not connected to a local network",
   "sendFromPhonePermissionDenied": "Receiving a link from your phone needs the Nearby devices permission, which lets FlClashX reach the local network. Turn it on in the app's settings.",
   "sendFromPhonePageTitle": "Send a link to FlClashX",

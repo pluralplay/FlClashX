@@ -1304,7 +1304,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "从手机接收链接需要「附近的设备」权限，FlClashX 才能访问局域网。请在应用设置中开启。",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
-      "用手机相机扫描二维码，在打开的页面里粘贴链接。两台设备需要连在同一个网络。",
+      "用手机相机扫描二维码，在打开的页面里粘贴链接。两台设备需要连在同一个网络。如果在 Android 17 及以上版本无法打开页面，请给手机浏览器开启「附近的设备」权限。",
     ),
     "server": MessageLookupByLibrary.simpleMessage("服务器"),
     "serviceAbnormalCount": m79,

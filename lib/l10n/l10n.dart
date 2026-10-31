@@ -910,10 +910,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Scan the code with your phone's camera and paste the link on the page that opens. Both devices need to be on the same network.`
+  /// `Scan the code with your phone's camera and paste the link on the page that opens. Both devices need to be on the same network. If the page does not open on Android 17 or later, give the phone's browser the Nearby devices permission.`
   String get sendFromPhoneTip {
     return Intl.message(
-      'Scan the code with your phone\'s camera and paste the link on the page that opens. Both devices need to be on the same network.',
+      'Scan the code with your phone\'s camera and paste the link on the page that opens. Both devices need to be on the same network. If the page does not open on Android 17 or later, give the phone\'s browser the Nearby devices permission.',
       name: 'sendFromPhoneTip',
       desc: '',
       args: [],

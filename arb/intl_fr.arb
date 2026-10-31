@@ -114,7 +114,7 @@
   "dark": "Sombre",
   "importFromLink": "Importer depuis un lien",
   "sendFromPhone": "Envoyer depuis le téléphone",
-  "sendFromPhoneTip": "Scannez le code avec l'appareil photo du téléphone, puis collez le lien dans la page qui s'ouvre. Les deux appareils doivent être sur le même réseau.",
+  "sendFromPhoneTip": "Scannez le code avec l'appareil photo du téléphone, puis collez le lien dans la page qui s'ouvre. Les deux appareils doivent être sur le même réseau. Si la page ne s'ouvre pas sous Android 17 ou plus récent, accordez au navigateur du téléphone l'autorisation Appareils à proximité.",
   "sendFromPhoneNoNetwork": "Cet appareil n'est connecté à aucun réseau local",
   "sendFromPhonePermissionDenied": "Pour recevoir un lien depuis le téléphone, FlClashX a besoin de l'autorisation Appareils à proximité, qui lui donne accès au réseau local. Activez-la dans les paramètres de l'application.",
   "sendFromPhonePageTitle": "Envoyer un lien à FlClashX",

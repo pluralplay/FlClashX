@@ -1399,7 +1399,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "휴대폰에서 링크를 받으려면 FlClashX가 로컬 네트워크에 접근할 수 있도록 \'근처 기기\' 권한이 필요합니다. 앱 설정에서 켜 주세요.",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
-      "휴대폰 카메라로 코드를 스캔한 뒤 열린 페이지에 링크를 붙여 넣으세요. 두 기기가 같은 네트워크에 연결되어 있어야 합니다.",
+      "휴대폰 카메라로 코드를 스캔한 뒤 열린 페이지에 링크를 붙여 넣으세요. 두 기기가 같은 네트워크에 연결되어 있어야 합니다. Android 17 이상에서 페이지가 열리지 않으면 휴대폰 브라우저에 \'근처 기기\' 권한을 허용하세요.",
     ),
     "server": MessageLookupByLibrary.simpleMessage("서버"),
     "serviceAbnormalCount": m79,

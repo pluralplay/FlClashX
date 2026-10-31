@@ -1433,7 +1433,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "スマートフォンからリンクを受け取るには、FlClashX がローカルネットワークにアクセスするための「付近のデバイス」権限が必要です。アプリの設定でオンにしてください。",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
-      "スマートフォンのカメラでコードをスキャンし、開いたページにリンクを貼り付けてください。両方のデバイスを同じネットワークに接続する必要があります。",
+      "スマートフォンのカメラでコードをスキャンし、開いたページにリンクを貼り付けてください。両方のデバイスを同じネットワークに接続する必要があります。Android 17 以降でページが開かない場合は、スマートフォンのブラウザに「付近のデバイス」権限を許可してください。",
     ),
     "server": MessageLookupByLibrary.simpleMessage("サーバー"),
     "serviceAbnormalCount": m79,

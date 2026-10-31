@@ -1671,7 +1671,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Receiving a link from your phone needs the Nearby devices permission, which lets FlClashX reach the local network. Turn it on in the app\'s settings.",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
-      "Scan the code with your phone\'s camera and paste the link on the page that opens. Both devices need to be on the same network.",
+      "Scan the code with your phone\'s camera and paste the link on the page that opens. Both devices need to be on the same network. If the page does not open on Android 17 or later, give the phone\'s browser the Nearby devices permission.",
     ),
     "server": MessageLookupByLibrary.simpleMessage("Server"),
     "serviceAbnormalCount": m79,
