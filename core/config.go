@@ -280,10 +280,14 @@ func applyConfig(params *SetupParams) error {
 		cfg = fallback
 	}
 
+	// Pinned before mihomo installs the groups, so no read sees one without
+	// its pick, and again after, as ForceSet also drops what URLTest cached
+	// while its providers were still empty.
+	patchSelectGroup(cfg.Proxies, params.SelectedMap)
 	currentConfig = cfg
 	hub.ApplyConfig(mihomoConfig(cfg))
 	afterApply(cfg)
-	patchSelectGroup(params.SelectedMap)
+	patchSelectGroup(cfg.Proxies, params.SelectedMap)
 	bumpRouteEpoch()
 	updateListeners(cfg)
 	reconcileGeoUpdater()

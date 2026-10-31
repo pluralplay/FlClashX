@@ -1274,6 +1274,40 @@ void main() {
     );
 
     test(
+      'a push moves pushes as it starts and once the Core answers',
+      () async {
+        final profile = Profile.normal(label: 'p');
+        final core = _MockCoreHandlerInterface();
+        final started = Completer<void>();
+        final answer = Completer<String>();
+        when(() => core.setupConfig(any())).thenAnswer((_) {
+          started.complete();
+          return answer.future;
+        });
+        final scoped = ProviderContainer(
+          overrides: [
+            profilesProvider.overrideWith(() => TestProfiles([profile])),
+            currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+            setupStateProvider.overrideWith((_, _) => nullProfileSetupState),
+            coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+            patchClashConfigProvider.overrideWithBuild((_, _) => _tunOff),
+            setupActionProvider.overrideWith(SetupAction.new),
+          ],
+        );
+        addTearDown(scoped.dispose);
+        final setup = scoped.read(setupActionProvider.notifier);
+
+        final applying = setup.applyProfile(force: true);
+        await started.future;
+        expect(setup.pushes, 1);
+        answer.complete('');
+        await applying;
+
+        expect(setup.pushes, 2);
+      },
+    );
+
+    test(
       'a profile that fails to build still pushes the empty config to core',
       () async {
         final profile = Profile.normal(label: 'p');

@@ -178,10 +178,9 @@ func handleChangeProxy(params *ChangeProxyParams) *ChangeProxyResult {
 	return &ChangeProxyResult{Changed: changed}
 }
 
-func patchSelectGroup(mapping map[string]string) {
+func patchSelectGroup(proxies map[string]constant.Proxy, mapping map[string]string) {
 	selectMu.Lock()
 	defer selectMu.Unlock()
-	proxies := allProxies()
 	for name, selected := range mapping {
 		if selector, ok := adapterAs[outboundgroup.SelectAble](proxies[name]); ok {
 			selector.ForceSet(selected)

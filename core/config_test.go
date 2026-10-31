@@ -1059,3 +1059,39 @@ func TestTestDelayStopsQueueingOnceTheTimeoutIsSpent(t *testing.T) {
 		t.Fatal("handleTestDelay outlived the timeout it was given, waiting for a slot")
 	}
 }
+
+// applyConfig relies on this to hand mihomo groups that are pinned already.
+func TestPatchSelectGroupPinsGroupsBeforeTheyAreInstalled(t *testing.T) {
+	cfg, err := config.Parse([]byte(`
+proxies:
+  - {name: a, type: direct}
+  - {name: b, type: direct}
+proxy-groups:
+  - {name: auto, type: url-test, proxies: [a, b], url: "http://127.0.0.1:9", lazy: true}
+  - {name: backup, type: fallback, proxies: [a, b], url: "http://127.0.0.1:9", lazy: true}
+rules:
+  - MATCH,auto
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	patchSelectGroup(cfg.Proxies, map[string]string{"auto": "b", "backup": "b"})
+
+	for _, name := range []string{"auto", "backup"} {
+		raw, err := cfg.Proxies[name].MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var view struct {
+			Fixed string `json:"fixed"`
+			Now   string `json:"now"`
+		}
+		if err := json.Unmarshal(raw, &view); err != nil {
+			t.Fatal(err)
+		}
+		if view.Fixed != "b" || view.Now != "b" {
+			t.Errorf("%s: fixed %q now %q, want the pin b", name, view.Fixed, view.Now)
+		}
+	}
+}

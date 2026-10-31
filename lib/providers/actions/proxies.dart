@@ -41,6 +41,10 @@ class ProxiesAction extends _$ProxiesAction {
 
   final Map<String, String> _pendingSelectedRollback = {};
 
+  final Map<String, int> _changingGroups = {};
+
+  var _settledChanges = 0;
+
   @override
   void build() {
     ref.onDispose(() => _delayFlushTimer?.cancel());
@@ -113,8 +117,12 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   Future<void> updateGroups() async {
+    var asked = const <String, String>{};
+    var settled = _settledChanges;
+    final profileId = ref.read(currentProfileIdProvider);
+    final pushes = ref.read(setupActionProvider.notifier).pushes;
     try {
-      ref.read(groupsProvider.notifier).value = await retry(
+      final groups = await retry<List<Group>>(
         task: () async {
           final sortType = ref.read(
             proxiesStyleSettingProvider.select((state) => state.sortType),
@@ -126,6 +134,8 @@ class ProxiesAction extends _$ProxiesAction {
           final selectedMap = ref.read(
             currentProfileProvider.select((state) => state?.selectedMap ?? {}),
           );
+          asked = selectedMap;
+          settled = _settledChanges;
           try {
             return await _core.getProxiesGroups(
               selectedMap: selectedMap,
@@ -143,6 +153,14 @@ class ProxiesAction extends _$ProxiesAction {
         },
         retryIf: (res) => res.isEmpty,
       );
+      ref.read(groupsProvider.notifier).value = groups;
+      await _dropLostPins(
+        groups,
+        asked,
+        settled: settled,
+        profileId: profileId,
+        pushes: pushes,
+      );
     } catch (e) {
       // The Core failure path already runs inside the retry task above; a
       // throw here only means ref.read hit a disposed container or the
@@ -151,6 +169,37 @@ class ProxiesAction extends _$ProxiesAction {
         'updateGroups failed: $e',
         logLevel: coreFailureLogLevel(e),
       );
+    }
+  }
+
+  /// mihomo forgets a Fallback pin once its node fails a check. A read that
+  /// overlapped a push, a profile switch or a pick of the user's proves nothing.
+  Future<void> _dropLostPins(
+    List<Group> groups,
+    Map<String, String> asked, {
+    required int settled,
+    required int? profileId,
+    required int pushes,
+  }) async {
+    final setup = ref.read(setupActionProvider.notifier);
+    if (!await setup.inputsApplied() ||
+        pushes != setup.pushes ||
+        settled != _settledChanges ||
+        profileId != ref.read(currentProfileIdProvider)) {
+      return;
+    }
+    final profilesAction = ref.read(profilesActionProvider.notifier);
+    for (final group in groups) {
+      final pin = asked[group.name] ?? '';
+      if (!group.type.isComputedSelected ||
+          group.fixed != '' ||
+          pin.isEmpty ||
+          _pendingSelectedRollback.containsKey(group.name) ||
+          _changingGroups.containsKey(group.name) ||
+          _currentSelectedName(group.name) != pin) {
+        continue;
+      }
+      profilesAction.updateCurrentSelectedMap(group.name, '');
     }
   }
 
@@ -196,6 +245,7 @@ class ProxiesAction extends _$ProxiesAction {
         _currentSelectedName(groupName);
     profilesAction.updateCurrentSelectedMap(groupName, proxyName);
     final ChangeProxyResult result;
+    _changingGroups.update(groupName, (count) => count + 1, ifAbsent: () => 1);
     try {
       result = await _core.changeProxy(
         ChangeProxyParams(groupName: groupName, proxyName: proxyName),
@@ -214,6 +264,11 @@ class ProxiesAction extends _$ProxiesAction {
         level: MessageLevel.error,
       );
       return;
+    } finally {
+      if (_changingGroups.update(groupName, (count) => count - 1) == 0) {
+        _changingGroups.remove(groupName);
+      }
+      _settledChanges++;
     }
     if (!result.changed) {
       return;

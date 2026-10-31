@@ -44,6 +44,10 @@ class SetupAction extends _$SetupAction {
   _SetupInputs? _appliedInputs;
   var _lastPushDuration = Duration.zero;
   var _pendingForceApply = false;
+  var _pushes = 0;
+
+  /// Moves as each config push starts and again once the Core answers it.
+  int get pushes => _pushes;
 
   bool get _isRunning => _startTime != null && _startTime!.isBeforeNow;
 
@@ -842,6 +846,7 @@ class SetupAction extends _$SetupAction {
     // Go answers a config it rejects by running its built-in default, which
     // has no proxies, so until this push succeeds no applied config is known.
     _appliedInputs = null;
+    _pushes++;
     globalState.lastConfigMd5 = null;
     globalState.lastConfigCounts = null;
     if (system.isAndroid) {
@@ -863,10 +868,15 @@ class SetupAction extends _$SetupAction {
           if (profileId != null) {
             await appPath.ensureProviderDirs(profileId);
           }
-          final message = await _core.setupConfig(
-            params: setupParams,
-            preloadInvoke: preloadInvoke,
-          );
+          final String message;
+          try {
+            message = await _core.setupConfig(
+              params: setupParams,
+              preloadInvoke: preloadInvoke,
+            );
+          } finally {
+            _pushes++;
+          }
           if (message.isNotEmpty) {
             globalState.lastConfigCounts = configCountsOf(const {});
             await globalState.safeRun(() => onUpdated?.call());

@@ -24,6 +24,17 @@ import '../helpers/test_profiles.dart';
 
 class MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
 
+class _AppliedSetupAction extends SetupAction {
+  static var applied = true;
+  static var pushCount = 0;
+
+  @override
+  Future<bool> inputsApplied() async => applied;
+
+  @override
+  int get pushes => pushCount;
+}
+
 const _testUrl = 'http://delay.test';
 
 Group _group(String name, List<Proxy> all) =>
@@ -47,6 +58,33 @@ ProviderContainer _delayContainer(ProviderContainer Function() build) {
   return container;
 }
 
+ProxiesData _fallbackData({required String fixed}) => ProxiesData(
+  all: const ['Auto', 'Proxy'],
+  proxies: Map<String, dynamic>.from({
+    'Auto': Map<String, dynamic>.from({
+      'name': 'Auto',
+      'type': 'Fallback',
+      'now': 'HK-01',
+      'fixed': fixed,
+      'all': ['HK-01', 'HK-02'],
+    }),
+    'Proxy': Map<String, dynamic>.from({
+      'name': 'Proxy',
+      'type': 'Selector',
+      'now': 'HK-01',
+      'all': ['HK-01', 'HK-02'],
+    }),
+    'HK-01': Map<String, dynamic>.from({'name': 'HK-01', 'type': 'ss'}),
+    'HK-02': Map<String, dynamic>.from({'name': 'HK-02', 'type': 'ss'}),
+  }),
+);
+
+const _pinnedProfile = Profile(
+  id: 1,
+  autoUpdateDuration: Duration.zero,
+  selectedMap: {'Auto': 'HK-02', 'Proxy': 'HK-02'},
+);
+
 ExternalProvider _provider(String name, {int count = 1}) => ExternalProvider(
   name: name,
   type: 'Proxy',
@@ -69,14 +107,24 @@ void main() {
     await AppLocalizations.load(const Locale('en'));
   });
 
-  setUp(() => reset(core));
+  setUp(() {
+    reset(core);
+    _AppliedSetupAction.applied = true;
+    _AppliedSetupAction.pushCount = 0;
+  });
 
-  ProviderContainer buildContainer({Profile? profile}) {
+  ProviderContainer buildContainer({
+    Profile? profile,
+    List<Profile> others = const [],
+  }) {
     final container = ProviderContainer(
       overrides: [
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
-        profilesProvider.overrideWith(() => TestProfiles([?profile])),
+        profilesProvider.overrideWith(
+          () => TestProfiles([?profile, ...others]),
+        ),
         currentProfileIdProvider.overrideWithBuild((_, _) => profile?.id),
+        setupActionProvider.overrideWith(_AppliedSetupAction.new),
       ],
     );
     addTearDown(container.dispose);
@@ -176,6 +224,151 @@ void main() {
         verify(core.getProxies).called(3);
       },
     );
+
+    test('drops a pin the Core no longer holds', () async {
+      when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+      final container = buildContainer(profile: _pinnedProfile);
+
+      await actionOf(container).updateGroups();
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Auto': '',
+        'Proxy': 'HK-02',
+      });
+    });
+
+    test('keeps a pin the Core still holds', () async {
+      when(
+        core.getProxies,
+      ).thenAnswer((_) async => _fallbackData(fixed: 'HK-02'));
+      final container = buildContainer(profile: _pinnedProfile);
+
+      await actionOf(container).updateGroups();
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        _pinnedProfile.selectedMap,
+      );
+    });
+
+    test('never takes a pin back from the Core', () async {
+      when(
+        core.getProxies,
+      ).thenAnswer((_) async => _fallbackData(fixed: 'HK-02'));
+      final container = buildContainer(
+        profile: _pinnedProfile.copyWith(selectedMap: const {'Auto': ''}),
+      );
+
+      await actionOf(container).updateGroups();
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {'Auto': ''});
+    });
+
+    test('a read that overlapped a config push changes no pins', () async {
+      final data = Completer<ProxiesData>();
+      when(core.getProxies).thenAnswer((_) => data.future);
+      final container = buildContainer(profile: _pinnedProfile);
+
+      final reading = actionOf(container).updateGroups();
+      _AppliedSetupAction.pushCount++;
+      data.complete(_fallbackData(fixed: ''));
+      await reading;
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        _pinnedProfile.selectedMap,
+      );
+    });
+
+    test('leaves the pins alone until the Core runs this profile', () async {
+      _AppliedSetupAction.applied = false;
+      when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+      final container = buildContainer(profile: _pinnedProfile);
+
+      await actionOf(container).updateGroups();
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        _pinnedProfile.selectedMap,
+      );
+    });
+
+    test('a read that outlives a profile switch changes no pins', () async {
+      final data = Completer<ProxiesData>();
+      when(core.getProxies).thenAnswer((_) => data.future);
+      final other = _pinnedProfile.copyWith(id: 2);
+      final container = buildContainer(
+        profile: _pinnedProfile,
+        others: [other],
+      );
+
+      container.listen(currentProfileIdProvider, (_, _) {});
+      final reading = actionOf(container).updateGroups();
+      container.read(currentProfileIdProvider.notifier).value = 2;
+      data.complete(_fallbackData(fixed: ''));
+      await reading;
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        other.selectedMap,
+      );
+    });
+
+    test(
+      'a change still out keeps its pin when an earlier one settles',
+      () async {
+        final answers = [
+          Completer<ChangeProxyResult>(),
+          Completer<ChangeProxyResult>(),
+        ];
+        var call = 0;
+        when(
+          () => core.changeProxy(any()),
+        ).thenAnswer((_) => answers[call++].future);
+        when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+        final container = buildContainer(
+          profile: _pinnedProfile.copyWith(selectedMap: const {}),
+        );
+        final action = actionOf(container);
+
+        final first = action.changeProxy(groupName: 'Auto', proxyName: 'HK-01');
+        final second = action.changeProxy(
+          groupName: 'Auto',
+          proxyName: 'HK-02',
+        );
+        answers[0].complete(const ChangeProxyResult());
+        await first;
+        await action.updateGroups();
+        answers[1].complete(const ChangeProxyResult());
+        await second;
+
+        expect(container.read(currentProfileProvider)?.selectedMap, {
+          'Auto': 'HK-02',
+        });
+      },
+    );
+
+    test('keeps a pin the Core has not taken yet', () async {
+      final answer = Completer<ChangeProxyResult>();
+      when(() => core.changeProxy(any())).thenAnswer((_) => answer.future);
+      when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+      final container = buildContainer(
+        profile: _pinnedProfile.copyWith(selectedMap: const {}),
+      );
+      final action = actionOf(container);
+
+      final switching = action.changeProxy(
+        groupName: 'Auto',
+        proxyName: 'HK-02',
+      );
+      final reading = action.updateGroups();
+      answer.complete(const ChangeProxyResult());
+      await (switching, reading).wait;
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Auto': 'HK-02',
+      });
+    });
 
     test('a core status change alone does not clear the groups', () {
       final container = buildContainer();

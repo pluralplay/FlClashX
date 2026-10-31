@@ -92,15 +92,14 @@ func groupNow(t *testing.T, proxy constant.Proxy) string {
 // break the group.
 func TestPatchSelectGroupRestoresASelectionWithoutValidatingIt(t *testing.T) {
 	group := selectorGroup(t, "group", "node-a", "node-b")
-	tunnel.UpdateProxies(map[string]constant.Proxy{"group": group}, nil)
-	t.Cleanup(func() { tunnel.UpdateProxies(nil, nil) })
+	proxies := map[string]constant.Proxy{"group": group}
 
-	patchSelectGroup(map[string]string{"group": "node-b"})
+	patchSelectGroup(proxies, map[string]string{"group": "node-b"})
 	if got := groupNow(t, group); got != "node-b" {
 		t.Fatalf("group resolved to %q, want the selection that was restored", got)
 	}
 
-	patchSelectGroup(map[string]string{"group": "a name the provider dropped"})
+	patchSelectGroup(proxies, map[string]string{"group": "a name the provider dropped"})
 	if got := groupNow(t, group); got != "node-a" {
 		t.Errorf("group resolved to %q after a stale selection, want it to fall through to the first member", got)
 	}
@@ -555,7 +554,7 @@ func TestPatchSelectGroupSerialisesWithProxyChanges(t *testing.T) {
 
 	patched := make(chan struct{})
 	go func() {
-		patchSelectGroup(map[string]string{"group": "node"})
+		patchSelectGroup(nil, map[string]string{"group": "node"})
 		close(patched)
 	}()
 
