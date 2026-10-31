@@ -1142,14 +1142,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "Управляет провайдер",
     ),
     "managedByProviderTip": MessageLookupByLibrary.simpleMessage(
-      "Это значение приходит из подписки. Если изменить его самому, обновления подписки перестанут его трогать. Вернуть управление провайдеру можно правой кнопкой или долгим нажатием по строке.",
+      "Это значение приходит из подписки. Если изменить его самому, обновления подписки перестанут его трогать. Вернуть настройку провайдера можно правой кнопкой или долгим нажатием по строке.",
     ),
     "managedByYou": MessageLookupByLibrary.simpleMessage("Управляете вы"),
     "managedSettingsHint": MessageLookupByLibrary.simpleMessage(
       "Приглушённые параметры с закрытым замком задаёт подписка. Нажмите на параметр, чтобы изменить его самому.",
     ),
     "managedSettingsOwnedHint": MessageLookupByLibrary.simpleMessage(
-      "Открытым замком отмечены параметры, которые вы забрали себе; вернуть параметр провайдеру можно правой кнопкой или долгим нажатием.",
+      "Открытым замком отмечены параметры, которые вы забрали себе; вернуть настройку провайдера можно правой кнопкой или долгим нажатием.",
     ),
     "matchCase": MessageLookupByLibrary.simpleMessage("Учитывать регистр"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage(
@@ -1531,13 +1531,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "result": MessageLookupByLibrary.simpleMessage("Результат"),
     "retry": MessageLookupByLibrary.simpleMessage("Повторить"),
     "returnAllToProvider": MessageLookupByLibrary.simpleMessage(
-      "Вернуть настройки провайдеру",
+      "Вернуть настройки провайдера",
     ),
     "returnAllToProviderTip": MessageLookupByLibrary.simpleMessage(
       "Все параметры, которые вы меняли сами, снова будут браться из подписки.",
     ),
     "returnToProvider": MessageLookupByLibrary.simpleMessage(
-      "Вернуть провайдеру",
+      "Вернуть настройку провайдера",
     ),
     "routeAddress": MessageLookupByLibrary.simpleMessage("Адреса маршрутов"),
     "routeExcludeAddress": MessageLookupByLibrary.simpleMessage(
