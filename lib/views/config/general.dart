@@ -153,6 +153,7 @@ class AuthenticationItem extends ConsumerWidget {
   Widget build(BuildContext context, ref) {
     return ConfigToggleItem(
       title: (l) => l.authentication,
+      managedKey: 'clash.authentication',
       selector: networkSettingProvider.select(
         (state) => state.authentication.enable,
       ),
@@ -179,6 +180,7 @@ class AuthenticationAccountItem extends ConsumerWidget {
     return ConfigTextItem(
       title: (l) => l.account,
       maxLength: TextInputLimits.userName,
+      managedKey: 'clash.authentication',
       selector: networkSettingProvider.select(
         (state) => state.authentication.username,
       ),
@@ -200,6 +202,7 @@ class AuthenticationPasswordItem extends ConsumerWidget {
     return ConfigTextItem(
       title: (l) => l.password,
       maxLength: TextInputLimits.password,
+      managedKey: 'clash.authentication',
       selector: networkSettingProvider.select(
         (state) => state.authentication.password,
       ),

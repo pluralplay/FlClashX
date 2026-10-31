@@ -86,5 +86,14 @@ class ProfileSettingsAction extends _$ProfileSettingsAction {
             kept,
           ),
         );
+    if (!kept.contains(clashSettingKey('authentication'))) {
+      ref
+          .read(networkSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              authentication: authenticationFrom(base.config['authentication']),
+            ),
+          );
+    }
   }
 }

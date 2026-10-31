@@ -279,4 +279,52 @@ void main() {
 
     expect(settings().mixedPort, 1080);
   });
+
+  test(
+    'the authentication a file names fills the account until taken',
+    () async {
+      container.listen(appSettingProvider, (_, _) {});
+      container.listen(networkSettingProvider, (_, _) {});
+      AuthenticationProps auth() =>
+          container.read(networkSettingProvider).authentication;
+      answer(
+        {
+          'authentication': ['panel:secret'],
+        },
+        ['authentication'],
+      );
+
+      await select(_profile(1));
+      expect(
+        auth(),
+        const AuthenticationProps(
+          enable: true,
+          username: 'panel',
+          password: 'secret',
+        ),
+      );
+      expect(
+        container.read(managedSettingsProvider),
+        contains('clash.authentication'),
+      );
+
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(ownedSettings: {'clash.authentication'}),
+          );
+      container
+          .read(networkSettingProvider.notifier)
+          .update((state) => state.copyWith.authentication(username: 'mine'));
+      await select(_profile(1, updatedAt: DateTime(2026, 10, 31)));
+      expect(auth().username, 'mine');
+
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(ownedSettings: {}));
+      answer({}, []);
+      await select(_profile(2));
+      expect(auth(), const AuthenticationProps());
+    },
+  );
 }
