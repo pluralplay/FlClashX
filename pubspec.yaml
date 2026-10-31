@@ -1,7 +1,7 @@
 name: fl_clash
 description: FlClashX, a fork of FlClash - a multi-platform proxy client based on ClashMeta for Remnawave users.
 publish_to: 'none'
-version: 0.5.0+2026102801
+version: 0.5.0+2026103101
 environment:
   sdk: '>=3.10.0 <4.0.0'
 
