@@ -14,8 +14,8 @@ AuthenticationProps authenticationFrom(Object? value) {
     if (colon > 0) {
       return AuthenticationProps(
         enable: true,
-        username: entry.substring(0, colon).trim(),
-        password: entry.substring(colon + 1).trim(),
+        username: entry.substring(0, colon),
+        password: entry.substring(colon + 1),
       );
     }
   }

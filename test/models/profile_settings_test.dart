@@ -273,6 +273,14 @@ void main() {
       authenticationFrom([':nouser', 'bob:pw']),
       const AuthenticationProps(enable: true, username: 'bob', password: 'pw'),
     );
+    expect(
+      authenticationFrom([' alice : secret ']),
+      const AuthenticationProps(
+        enable: true,
+        username: ' alice ',
+        password: ' secret ',
+      ),
+    );
     expect(authenticationFrom(<String>[]), const AuthenticationProps());
     expect(authenticationFrom(null), const AuthenticationProps());
     expect(authenticationFrom('alice:pw'), const AuthenticationProps());

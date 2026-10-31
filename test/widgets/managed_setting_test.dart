@@ -8,6 +8,7 @@ import 'package:fl_clash/views/proxies/setting.dart';
 import 'package:fl_clash/views/theme.dart';
 import 'package:fl_clash/widgets/managed_setting.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -88,6 +89,50 @@ void main() {
       find.ancestor(of: row(), matching: find.byType(Opacity)),
       findsNothing,
     );
+  });
+
+  testWidgets('Enter on a locked row asks before a takeover', (tester) async {
+    await pumpGeneral(tester);
+    final detector = find
+        .ancestor(of: row(), matching: find.byType(FocusableActionDetector))
+        .first;
+    final inside = find
+        .descendant(of: detector, matching: find.byType(GestureDetector))
+        .first;
+    Focus.of(tester.element(inside)).requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Managed by your provider'), findsOneWidget);
+    expect(setting().minimizeOnExit, isTrue);
+    expect(setting().ownedSettings, isEmpty);
+  });
+
+  testWidgets('a locked row takes focus itself, never its control', (
+    tester,
+  ) async {
+    await pumpGeneral(tester);
+    final nodes = <FocusNode>[];
+    void collect(Element element) {
+      if (element.widget is Focus) {
+        element.visitChildren((child) => nodes.add(Focus.of(child)));
+      }
+      element.visitChildren(collect);
+    }
+
+    tester.element(row()).visitChildren(collect);
+    expect(nodes, isNotEmpty);
+    expect(nodes.where((node) => node.canRequestFocus), isEmpty);
+
+    final detector = find
+        .ancestor(of: row(), matching: find.byType(FocusableActionDetector))
+        .first;
+    final inside = find
+        .descendant(of: detector, matching: find.byType(GestureDetector))
+        .first;
+    expect(Focus.of(tester.element(inside)).canRequestFocus, isTrue);
   });
 
   testWidgets('a taken-over row is handed back from its context menu', (
