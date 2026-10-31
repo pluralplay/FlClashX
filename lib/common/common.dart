@@ -15,6 +15,7 @@ export 'dialog.dart';
 export 'exception.dart';
 export 'file.dart';
 export 'fixed.dart';
+export 'frame_load.dart';
 export 'function.dart';
 export 'future.dart';
 export 'http.dart';

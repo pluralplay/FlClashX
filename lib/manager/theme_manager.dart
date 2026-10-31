@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -10,6 +11,7 @@ import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -188,16 +190,82 @@ class AppViewScope extends ConsumerWidget {
   }
 }
 
-class _LiquidGlassSetting extends ConsumerWidget {
+class _LiquidGlassSetting extends ConsumerStatefulWidget {
   const _LiquidGlassSetting({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(
+  ConsumerState<_LiquidGlassSetting> createState() =>
+      _LiquidGlassSettingState();
+}
+
+/// Draws no more glass than the GPU keeps up with: each sustained overload
+/// takes it a level lower until the app restarts, unless the user keeps it.
+class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
+  static var _toldReduced = false;
+
+  final _load = FrameLoadWatch();
+  var _cap = LiquidGlassMode.ultra;
+  var _kept = false;
+  var _shown = LiquidGlassMode.none;
+
+  @override
+  void initState() {
+    super.initState();
+    SchedulerBinding.instance.addTimingsCallback(_onTimings);
+    ref.listenManual(
+      themeSettingProvider.select((state) => state.liquidGlass),
+      (_, _) => setState(_lift),
+    );
+  }
+
+  @override
+  void dispose() {
+    SchedulerBinding.instance.removeTimingsCallback(_onTimings);
+    super.dispose();
+  }
+
+  void _lift() {
+    _cap = LiquidGlassMode.ultra;
+    _load.reset();
+  }
+
+  void _onTimings(List<FrameTiming> timings) {
+    if (_kept || _shown == LiquidGlassMode.none) {
+      return;
+    }
+    if (!_load.overloadedAfter(timings.map((t) => t.rasterDuration))) {
+      return;
+    }
+    setState(() => _cap = LiquidGlassMode.values[_shown.index - 1]);
+    if (_toldReduced) {
+      return;
+    }
+    _toldReduced = true;
+    dialogs.showNotifier(
+      currentAppLocalizations.liquidGlassReduced,
+      actionState: MessageActionState(
+        actionText: currentAppLocalizations.restore,
+        action: () {
+          if (mounted) {
+            setState(() {
+              _kept = true;
+              _lift();
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chosen = ref.watch(
       themeSettingProvider.select((state) => state.liquidGlass),
     );
+    final mode = chosen.index < _cap.index ? chosen : _cap;
+    _shown = mode;
     return LiquidGlassScope(
       enabled: mode != LiquidGlassMode.none,
       quality: mode == LiquidGlassMode.ultra
@@ -205,7 +273,7 @@ class _LiquidGlassSetting extends ConsumerWidget {
           : LiquidGlassQuality.standard,
       child: LiquidGlassHost(
         enabled: mode != LiquidGlassMode.none,
-        child: child,
+        child: widget.child,
       ),
     );
   }

@@ -229,6 +229,7 @@
   "backgroundBlur": "背景模糊",
   "sidebarBlurDesc": "背景模糊会让侧边栏透出窗口后方的桌面。",
   "liquidGlass": "液态玻璃",
+  "liquidGlassReduced": "设备性能不足，液态玻璃已简化至重启。",
   "keepAliveIntervalDesc": "TCP保持活动间隔",
   "local": "本地",
   "remote": "远程",

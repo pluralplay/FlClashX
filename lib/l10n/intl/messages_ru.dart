@@ -1097,6 +1097,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "lineWrap": MessageLookupByLibrary.simpleMessage("Перенос строк"),
     "link": MessageLookupByLibrary.simpleMessage("Ссылка"),
     "liquidGlass": MessageLookupByLibrary.simpleMessage("Жидкое стекло"),
+    "liquidGlassReduced": MessageLookupByLibrary.simpleMessage(
+      "Стекло упрощено до перезапуска: устройство не успевает.",
+    ),
     "list": MessageLookupByLibrary.simpleMessage("Список"),
     "listen": MessageLookupByLibrary.simpleMessage("Адрес прослушивания"),
     "listenRoutingMark": MessageLookupByLibrary.simpleMessage(

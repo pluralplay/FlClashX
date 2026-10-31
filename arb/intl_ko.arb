@@ -229,6 +229,7 @@
   "backgroundBlur": "배경 흐림",
   "sidebarBlurDesc": "배경 흐림은 창 뒤의 바탕화면을 사이드바에 비쳐 보이게 합니다.",
   "liquidGlass": "Liquid Glass",
+  "liquidGlassReduced": "기기가 따라가지 못해 다시 시작할 때까지 Liquid Glass를 단순화했습니다.",
   "keepAliveIntervalDesc": "TCP 킵얼라이브 간격",
   "local": "로컬",
   "remote": "원격",

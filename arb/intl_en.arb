@@ -229,6 +229,7 @@
   "backgroundBlur": "Background blur",
   "sidebarBlurDesc": "Background blur lets the desktop behind the window show through the sidebar.",
   "liquidGlass": "Liquid Glass",
+  "liquidGlassReduced": "Liquid Glass simplified until restart: this device can't keep up.",
   "keepAliveIntervalDesc": "TCP keep-alive interval",
   "local": "Local",
   "remote": "Remote",

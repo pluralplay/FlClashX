@@ -1836,6 +1836,16 @@ class AppLocalizations {
     );
   }
 
+  /// `Liquid Glass simplified until restart: this device can't keep up.`
+  String get liquidGlassReduced {
+    return Intl.message(
+      'Liquid Glass simplified until restart: this device can\'t keep up.',
+      name: 'liquidGlassReduced',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `TCP keep-alive interval`
   String get keepAliveIntervalDesc {
     return Intl.message(
