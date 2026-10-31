@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 import os
+import re
 import sys
 import html
 import requests
 import json
+
+BOLD = re.compile(r'\*\*(.+?)\*\*')
+CODE = re.compile(r'`([^`]+)`')
+BULLET = re.compile(r'^[-*•]\s+')
 
 def send_telegram_message(bot_token, chat_id, message, parse_mode='HTML'):
     """Send a message to a Telegram chat."""
@@ -25,6 +30,22 @@ def send_telegram_message(bot_token, chat_id, message, parse_mode='HTML'):
         print(f"Error sending message to channel: {e}")
         return False
 
+def format_changes(changes):
+    """Turn the release notes' Markdown bullets into Telegram HTML."""
+    lines = []
+    for line in changes.splitlines():
+        line = BULLET.sub('', line.strip())
+        if not line:
+            continue
+        text = ''.join(
+            f'<code>{html.escape(part, quote=False)}</code>'
+            if index % 2
+            else BOLD.sub(r'<b>\1</b>', html.escape(part, quote=False))
+            for index, part in enumerate(CODE.split(line))
+        )
+        lines.append(f'• {text}')
+    return '\n'.join(lines)
+
 def format_release_message(version, commits, release_url, is_stable):
     """Format the release notification message (HTML parse mode).
 
@@ -40,8 +61,10 @@ def format_release_message(version, commits, release_url, is_stable):
 
     message = f"{emoji} <b>{version_clean} in GitHub!</b> {emoji}\n\n"
     message += f"<i>{release_type}</i>\n\n"
-    message += "<b>Whats new:</b>\n"
-    message += html.escape(commits) + "\n"
+    changes = format_changes(commits or '')
+    if changes:
+        message += "<b>What's new:</b>\n"
+        message += changes + "\n\n"
     message += f'🔗 <a href="{html.escape(release_url)}">DOWNLOAD</a>\n'
 
     return message
@@ -56,14 +79,13 @@ def main():
     release_url = os.environ.get('RELEASE_URL')
     is_stable = os.environ.get('IS_STABLE', 'false').lower() == 'true'
 
-    if not all([bot_token, channel_id_1, channel_id_2, channel_id_3, version, commits, release_url]):
+    if not all([bot_token, channel_id_1, channel_id_2, channel_id_3, version, release_url]):
         print("Error: Missing required environment variables")
         print(f"TELEGRAM_BOT_TOKEN: {'✓' if bot_token else '✗'}")
         print(f"TELEGRAM_CHANNEL_ID_1: {'✓' if channel_id_1 else '✗'}")
         print(f"TELEGRAM_CHANNEL_ID_2: {'✓' if channel_id_2 else '✗'}")
         print(f"TELEGRAM_CHANNEL_ID_3: {'✓' if channel_id_3 else '✗'}")
         print(f"VERSION: {'✓' if version else '✗'}")
-        print(f"COMMITS: {'✓' if commits else '✗'}")
         print(f"RELEASE_URL: {'✓' if release_url else '✗'}")
         sys.exit(1)
     

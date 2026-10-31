@@ -146,12 +146,8 @@ jobs:
         run: |
           # Reuse the already-published release notes (same content release.md had).
           gh release view "$TAG" --json body -q .body > release.md
-          main_commit=$(git log -1 --pretty=format:"%s" "$TAG")
-          other_commits=$(head -n 20 release.md | grep "^- " | grep -v "^- ${main_commit}$" | head -n 9)
-          commits="• ${main_commit}"
-          if [ -n "$other_commits" ]; then
-            commits="${commits}"$'\n'"${other_commits}"
-          fi
+          # The tag commit is the version bump, not a change worth announcing.
+          commits=$(head -n 20 release.md | grep "^- " | head -n 9 || true)
           commits_escaped=$(echo "$commits" | jq -Rs .)
           echo "commits=$commits_escaped" >> $GITHUB_OUTPUT
 
