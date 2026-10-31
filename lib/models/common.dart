@@ -142,7 +142,7 @@ extension TrackerInfoExt on TrackerInfo {
   String get title {
     final host = metadata.host;
     if (host.isNotEmpty) {
-      return host;
+      return decodeIdnHost(host);
     }
     return metadata.destinationIP;
   }
@@ -159,6 +159,7 @@ extension TrackerInfoExt on TrackerInfo {
   List<String> get searchFields => [
     metadata.network,
     metadata.host,
+    title,
     metadata.destinationIP,
     metadata.destinationPort,
     metadata.sourceIP,

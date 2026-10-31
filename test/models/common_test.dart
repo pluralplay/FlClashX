@@ -136,6 +136,23 @@ void main() {
       expect(trackerInfo.title, 'example.com');
       expect(trackerInfo.progressText, 'Browser(501)');
     });
+
+    test('shows a punycode host in Unicode and finds it by either form', () {
+      final trackerInfo = TrackerInfo(
+        id: '1',
+        start: DateTime(2026),
+        metadata: const Metadata(host: 'xn--41a.xn--p1acf'),
+        chains: const [],
+        rule: 'MATCH',
+        rulePayload: '',
+      );
+
+      expect(trackerInfo.title, 'я.рус');
+      expect(
+        trackerInfo.searchFields,
+        containsAll(['xn--41a.xn--p1acf', 'я.рус']),
+      );
+    });
   });
 
   group('TrafficExt', () {
