@@ -558,36 +558,20 @@ abstract class IpInfo with _$IpInfo {
     };
   }
 
-  static IpInfo fromGeoJsJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'ip': final String ip, 'country_code': final String countryCode} =>
-        IpInfo(ip: ip, countryCode: countryCode),
-      _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromIpSbJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'ip': final String ip, 'country_code': final String countryCode} =>
-        IpInfo(ip: ip, countryCode: countryCode),
-      _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromIpWhoIsJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'ip': final String ip, 'country_code': final String countryCode} =>
-        IpInfo(ip: ip, countryCode: countryCode),
-      _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromCountryIsJson(Map<String, dynamic> json) {
+  static IpInfo fromIpInfoJson(Map<String, dynamic> json) {
     return switch (json) {
       {'ip': final String ip, 'country': final String countryCode} => IpInfo(
         ip: ip,
         countryCode: countryCode,
       ),
+      _ => throw const FormatException('invalid json'),
+    };
+  }
+
+  static IpInfo fromSeeIpJson(Map<String, dynamic> json) {
+    return switch (json) {
+      {'ip': final String ip, 'country_code': final String countryCode} =>
+        IpInfo(ip: ip, countryCode: countryCode),
       _ => throw const FormatException('invalid json'),
     };
   }
@@ -610,23 +594,6 @@ abstract class IpInfo with _$IpInfo {
       } =>
         IpInfo(ip: ip, countryCode: countryCode),
       _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromCloudflareTrace(String body) {
-    final fields = <String, String>{};
-    for (final line in const LineSplitter().convert(body)) {
-      final separator = line.indexOf('=');
-      if (separator > 0) {
-        fields[line.substring(0, separator)] = line.substring(separator + 1);
-      }
-    }
-    return switch (fields) {
-      {'ip': final ip, 'loc': final countryCode} => IpInfo(
-        ip: ip,
-        countryCode: countryCode,
-      ),
-      _ => throw const FormatException('invalid trace'),
     };
   }
 }

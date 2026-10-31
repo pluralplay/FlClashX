@@ -165,14 +165,13 @@ IpInfo Function(String) _json(IpInfo Function(Map<String, dynamic>) parse) {
   return (body) => parse(jsonDecode(body) as Map<String, dynamic>);
 }
 
+/// None behind Cloudflare: where it is throttled, a direct lookup stalls on
+/// those until the timeout.
 final Map<String, IpInfo Function(String)> ipInfoSources = {
-  'https://www.cloudflare.com/cdn-cgi/trace': IpInfo.fromCloudflareTrace,
-  'https://api.ip.sb/geoip': _json(IpInfo.fromIpSbJson),
-  'https://ipwho.is': _json(IpInfo.fromIpWhoIsJson),
   'http://ip-api.com/json': _json(IpInfo.fromIpAPIJson),
-  'https://get.geojs.io/v1/ip/geo.json': _json(IpInfo.fromGeoJsJson),
-  'https://api.country.is': _json(IpInfo.fromCountryIsJson),
+  'https://ipinfo.io/json': _json(IpInfo.fromIpInfoJson),
   'https://api.ipquery.io/?format=json': _json(IpInfo.fromIpQueryJson),
+  'https://api.seeip.org/geoip': _json(IpInfo.fromSeeIpJson),
   'https://ident.me/json': _json(IpInfo.fromIdentMeJson),
 };
 

@@ -50,8 +50,8 @@ ServiceCheckItem _item(
 );
 
 OutboundIpResult _address(String ip, String country) => OutboundIpResult(
-  url: 'https://www.cloudflare.com/cdn-cgi/trace',
-  body: 'ip=$ip\nloc=$country\n',
+  url: 'http://ip-api.com/json',
+  body: '{"query":"$ip","countryCode":"$country"}',
   coreEpoch: 1,
   routeVersion: 1,
 );

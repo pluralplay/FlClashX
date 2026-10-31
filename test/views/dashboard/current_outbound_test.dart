@@ -71,8 +71,8 @@ class _Ips extends OutboundIpProbe {
 }
 
 OutboundIpResult _address({int coreEpoch = 1}) => OutboundIpResult(
-  url: 'https://www.cloudflare.com/cdn-cgi/trace',
-  body: 'ip=$_ip\nloc=GB\n',
+  url: 'http://ip-api.com/json',
+  body: '{"query":"$_ip","countryCode":"GB"}',
   coreEpoch: coreEpoch,
   routeVersion: 1,
 );

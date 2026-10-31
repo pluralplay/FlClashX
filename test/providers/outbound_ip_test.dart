@@ -13,8 +13,8 @@ import 'package:riverpod/riverpod.dart';
 class _MockCore extends Mock implements CoreHandlerInterface {}
 
 const _answer = OutboundIpResult(
-  url: 'https://www.cloudflare.com/cdn-cgi/trace',
-  body: 'ip=2.2.2.2\nloc=US\n',
+  url: 'http://ip-api.com/json',
+  body: '{"query":"2.2.2.2","countryCode":"US"}',
   chains: ['HK-01'],
   coreEpoch: 1,
   routeVersion: 1,
@@ -102,18 +102,14 @@ void main() {
   test('the routed answer fills in the node it left through', () async {
     when(() => core.outboundIp(any())).thenAnswer(
       (_) async => const OutboundIpResult(
-        url: 'https://www.cloudflare.com/cdn-cgi/trace',
-        body: 'ip=2.2.2.2\nloc=US\n',
+        url: 'http://ip-api.com/json',
+        body: '{"query":"2.2.2.2","countryCode":"US"}',
         chains: ['HK-01', 'Balance', 'Proxy'],
         coreEpoch: 1,
         routeVersion: 1,
-        hits: [RouteHit(host: 'www.cloudflare.com:443', exit: 'Balance')],
+        hits: [RouteHit(host: 'ip-api.com:80', exit: 'Balance')],
         nodeHits: [
-          RouteHit(
-            host: 'www.cloudflare.com:443',
-            proxy: 'HK-01',
-            exit: 'HK-01',
-          ),
+          RouteHit(host: 'ip-api.com:80', proxy: 'HK-01', exit: 'HK-01'),
         ],
       ),
     );
@@ -130,7 +126,7 @@ void main() {
     expect(entry.phase, ProbePhase.fresh);
     expect(entry.value?.ip, '2.2.2.2');
     expect(entry.stamp?.hits, const [
-      RouteHit(host: 'www.cloudflare.com:443', proxy: 'HK-01', exit: 'HK-01'),
+      RouteHit(host: 'ip-api.com:80', proxy: 'HK-01', exit: 'HK-01'),
     ]);
   });
 
