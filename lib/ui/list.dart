@@ -550,6 +550,16 @@ class ListFooter extends StatelessWidget {
   }
 }
 
+/// Parts two sections without a header between them.
+class ListSectionGap extends StatelessWidget {
+  const ListSectionGap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(height: listHeaderPaddingOf(context).top);
+  }
+}
+
 Widget generateSection({
   String? title,
   required Iterable<Widget> items,

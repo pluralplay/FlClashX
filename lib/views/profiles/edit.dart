@@ -329,7 +329,8 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
           _AgeSecretKeyField(controller: _ageSecretKeyController),
         ],
       ),
-      if (isUrl)
+      if (isUrl) ...[
+        const ListSectionGap(),
         generateSection(
           items: [
             FormRow(
@@ -356,6 +357,8 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
             ),
           ],
         ),
+      ],
+      const ListSectionGap(),
       generateSection(
         items: [
           _ProfileFileItem(

@@ -130,6 +130,13 @@ void main() {
     } catch (_) {}
   });
 
+  testWidgets('the sections of the edit page keep a gap between them', (
+    tester,
+  ) async {
+    await pumpEditProfile(tester);
+    expect(find.byType(ListSectionGap), findsNWidgets(2));
+  });
+
   testWidgets('tabbing into the edit page reaches the form past its bar', (
     tester,
   ) async {

@@ -234,6 +234,7 @@ class _PortFormState extends ConsumerState<_PortForm> {
               ),
           ],
         ),
+        const ListSectionGap(),
         generateSection(
           items: [
             FormRow(title: appLocalizations.reset, onPressed: _handleReset),
