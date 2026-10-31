@@ -117,13 +117,9 @@ PatchClashConfig syncProfileSettings(
   if (mode != null && modes.contains(mode)) {
     next = next.copyWith(mode: mode);
   }
-  final findProcess = read<String>('find-process-mode')?.toLowerCase();
+  final findProcess = enumNamed('find-process-mode', FindProcessMode.values);
   if (findProcess != null) {
-    next = next.copyWith(
-      findProcessMode: findProcess == 'off'
-          ? FindProcessMode.off
-          : FindProcessMode.always,
-    );
+    next = next.copyWith(findProcessMode: findProcess);
   }
   final interfaceName = read<String>('interface-name');
   if (interfaceName != null) {

@@ -797,7 +797,11 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "filter": MessageLookupByLibrary.simpleMessage("Filter"),
     "filters": MessageLookupByLibrary.simpleMessage("Filters"),
+    "findProcessAlways": MessageLookupByLibrary.simpleMessage("Always"),
     "findProcessMode": MessageLookupByLibrary.simpleMessage("Find process"),
+    "findProcessStrict": MessageLookupByLibrary.simpleMessage(
+      "When rules need it",
+    ),
     "floating": MessageLookupByLibrary.simpleMessage("Floating"),
     "foldAllGroups": MessageLookupByLibrary.simpleMessage(
       "Collapse all groups",

@@ -442,13 +442,17 @@ class GeneralView extends ConsumerWidget {
         select: (state) => state.tcpConcurrent,
         update: (state, value) => state.copyWith(tcpConcurrent: value),
       ),
-      _clashToggle(
+      ConfigOptionsItem<FindProcessMode>(
         title: (l) => l.findProcessMode,
         managedKey: 'clash.find-process-mode',
-        select: (state) => state.findProcessMode == FindProcessMode.always,
-        update: (state, value) => state.copyWith(
-          findProcessMode: value ? FindProcessMode.always : FindProcessMode.off,
+        options: FindProcessMode.values,
+        textBuilder: (mode) => mode.label,
+        selector: patchClashConfigProvider.select(
+          (state) => state.findProcessMode,
         ),
+        onChanged: (ref, value) => ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith(findProcessMode: value)),
       ),
       _appSettingToggle(
         title: (l) => l.autoCloseConnections,

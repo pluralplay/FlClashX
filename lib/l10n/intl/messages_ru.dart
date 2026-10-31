@@ -830,7 +830,11 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "filter": MessageLookupByLibrary.simpleMessage("Фильтр"),
     "filters": MessageLookupByLibrary.simpleMessage("Фильтры"),
+    "findProcessAlways": MessageLookupByLibrary.simpleMessage("Всегда"),
     "findProcessMode": MessageLookupByLibrary.simpleMessage("Поиск процесса"),
+    "findProcessStrict": MessageLookupByLibrary.simpleMessage(
+      "Когда нужно правилам",
+    ),
     "floating": MessageLookupByLibrary.simpleMessage("Плавающая"),
     "foldAllGroups": MessageLookupByLibrary.simpleMessage(
       "Свернуть все группы",

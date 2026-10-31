@@ -191,6 +191,8 @@
   "requests": "Запросы",
   "recentRequests": "Последние запросы",
   "findProcessMode": "Поиск процесса",
+  "findProcessAlways": "Всегда",
+  "findProcessStrict": "Когда нужно правилам",
   "init": "Инициализация",
   "infiniteTime": "Бессрочно",
   "connections": "Соединения",

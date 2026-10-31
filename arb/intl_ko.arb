@@ -191,6 +191,8 @@
   "requests": "요청",
   "recentRequests": "최근 요청",
   "findProcessMode": "프로세스 찾기",
+  "findProcessAlways": "항상",
+  "findProcessStrict": "규칙에 필요할 때",
   "init": "초기화",
   "infiniteTime": "만료되지 않음",
   "connections": "연결",

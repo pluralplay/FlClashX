@@ -191,6 +191,8 @@
   "requests": "请求",
   "recentRequests": "最近请求",
   "findProcessMode": "查找进程",
+  "findProcessAlways": "始终",
+  "findProcessStrict": "规则需要时",
   "init": "初始化",
   "infiniteTime": "长期有效",
   "connections": "连接",

@@ -191,6 +191,8 @@
   "requests": "リクエスト",
   "recentRequests": "最近のリクエスト",
   "findProcessMode": "プロセス検出",
+  "findProcessAlways": "常に",
+  "findProcessStrict": "ルールで必要なとき",
   "init": "初期化",
   "infiniteTime": "無期限",
   "connections": "接続",

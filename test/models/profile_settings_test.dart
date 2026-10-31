@@ -107,7 +107,7 @@ void main() {
     expect(synced.ipv6, isTrue);
     expect(synced.mode, Mode.direct);
     expect(synced.logLevel, LogLevel.warning);
-    expect(synced.findProcessMode, FindProcessMode.always);
+    expect(synced.findProcessMode, FindProcessMode.strict);
     expect(synced.interfaceNameMode, InterfaceNameMode.custom);
     expect(synced.interfaceName, 'eth0');
     expect(synced.routingMark, 255);

@@ -191,6 +191,8 @@
   "requests": "Requêtes",
   "recentRequests": "Requêtes récentes",
   "findProcessMode": "Recherche de processus",
+  "findProcessAlways": "Toujours",
+  "findProcessStrict": "Quand les règles en ont besoin",
   "init": "Initialisation",
   "infiniteTime": "N’expire jamais",
   "connections": "Connexions",

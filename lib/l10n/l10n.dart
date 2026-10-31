@@ -1556,6 +1556,26 @@ class AppLocalizations {
     );
   }
 
+  /// `Always`
+  String get findProcessAlways {
+    return Intl.message(
+      'Always',
+      name: 'findProcessAlways',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `When rules need it`
+  String get findProcessStrict {
+    return Intl.message(
+      'When rules need it',
+      name: 'findProcessStrict',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Init`
   String get init {
     return Intl.message('Init', name: 'init', desc: '', args: []);

@@ -178,7 +178,7 @@ class _ProcessCell extends ConsumerWidget {
         process.isNotEmpty &&
         ref.watch(
           patchClashConfigProvider.select(
-            (state) => state.findProcessMode == FindProcessMode.always,
+            (state) => state.findProcessMode != FindProcessMode.off,
           ),
         );
     if (!showIcon) {
