@@ -280,6 +280,7 @@ void main() {
       lessThan(tester.getTopLeft(find.text(longMessage)).dy),
     );
     expect(find.byGlyph(AppGlyphs.error), findsNothing);
+    expect(find.byType(ListSectionGap), findsOneWidget);
 
     Navigator.of(tester.element(find.text('profile-a'))).pop();
     await tester.pumpAndSettle();
