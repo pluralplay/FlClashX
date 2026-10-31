@@ -276,6 +276,74 @@ void proxyDescriptionTests() {
     expect(find.text('Amsterdam, 10 Gbit', findRichText: true), findsOneWidget);
     expect(find.text('ss', findRichText: true), findsOneWidget);
   });
+
+  testWidgets('a nested group with a description hides the host it picked', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final profile = Profile.normal().copyWith(
+      currentGroupName: 'Selector',
+      unfoldSet: {'Selector'},
+    );
+    final groups = [
+      const Group(
+        name: 'Selector',
+        type: GroupType.Selector,
+        hidden: false,
+        now: 'Auto',
+        all: [
+          Proxy(name: 'Auto', type: 'URLTest', serverDescription: 'Best spot'),
+          Proxy(name: 'Plain', type: 'URLTest'),
+        ],
+      ),
+      const Group(
+        name: 'Auto',
+        type: GroupType.URLTest,
+        hidden: false,
+        now: 'HK-01',
+        all: [Proxy(name: 'HK-01', type: 'ss')],
+      ),
+      const Group(
+        name: 'Plain',
+        type: GroupType.URLTest,
+        hidden: false,
+        now: 'JP-01',
+        all: [Proxy(name: 'JP-01', type: 'ss')],
+      ),
+    ];
+    final container = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+        currentGroupsStateProvider.overrideWithValue(
+          GroupsState(value: groups.take(1).toList()),
+        ),
+        groupsProvider.overrideWithValue(groups),
+      ],
+    );
+    addTearDown(container.dispose);
+    globalState.container = container;
+    container
+        .read(viewSizeProvider.notifier)
+        .update((_) => const Size(500, 1000));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(child: ProxiesView()),
+      ),
+    );
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(type: ProxiesType.list));
+    await tester.pump();
+
+    expect(find.text('Best spot', findRichText: true), findsOneWidget);
+    expect(find.textContaining('HK-01', findRichText: true), findsNothing);
+    expect(find.text('JP-01', findRichText: true), findsOneWidget);
+  });
 }
 
 void proxiesBarTests() {

@@ -255,15 +255,14 @@ class _ProxyDesc extends ConsumerWidget {
     );
   }
 
-  // A nested group with no `groupDescription` of its own reads as the host it
-  // resolves to, not its bare type; with one, the description still wins.
+  // A nested group reads as the host it resolves to, not its bare type, unless
+  // its `groupDescription` speaks for it, which then hides the host.
   String _describe(String nodeName, {required bool isGroup}) {
-    if (isGroup && proxy.serverDescription == null) {
-      return nodeName == proxy.name ? proxy.type : nodeName;
+    if (!isGroup) {
+      return proxy.description;
     }
-    return nodeName == proxy.name
-        ? proxy.description
-        : '${proxy.description}($nodeName)';
+    return proxy.serverDescription ??
+        (nodeName == proxy.name ? proxy.type : nodeName);
   }
 }
 
