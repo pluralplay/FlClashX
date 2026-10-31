@@ -39,6 +39,9 @@ class TestSystemAction extends SystemAction {
   Future<void> closeWindow() async => calls.add('window');
 
   @override
+  Future<void> savePreferences() async => calls.add('save');
+
+  @override
   Future<void> closeCore() async {
     calls.add('core');
     final gate = closeCoreGate;
@@ -194,6 +197,21 @@ void main() {
       expect(action.calls, ['cleanup', 'window', 'core', 'exit']);
       expect(action.cleanupNeedSave, [true]);
     });
+
+    test(
+      'a minimize request keeps the Core running even with exit enabled',
+      () async {
+        container
+            .read(appSettingProvider.notifier)
+            .update((state) => state.copyWith(minimizeOnExit: false));
+
+        await notifier().handleClose(false);
+
+        expect(action.calls, isNot(contains('core')));
+        expect(action.calls, isNot(contains('exit')));
+        expect(action.cleanupNeedSave, isEmpty);
+      },
+    );
 
     test('forwards an explicit save opt-out to resource cleanup', () async {
       await notifier().handleExit(false);
