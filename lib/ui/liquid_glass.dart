@@ -423,14 +423,15 @@ class LiquidGlassStyle {
 
   double get _hairlineSide => hairlineSide ?? hairline;
 
-  /// The standard tier's: no colors parted, and a haze for the whole frost.
+  /// The standard tier's: no colors parted, a haze for the whole frost, and
+  /// a tint that does not thicken over clashing content, whose 20 reads of the
+  /// backdrop per pixel cost a weak GPU about as much as the rest of the pane.
   LiquidGlassStyle get _standard {
-    if (haze == 0 && dispersion == 0) {
+    if (haze == 0 && dispersion == 0 && contrast == 0) {
       return this;
     }
     return LiquidGlassStyle(
       tint: tint,
-      contrast: contrast,
       blur: haze > 0 ? hazeBlur : blur,
       refraction: refraction,
       bevel: bevel,
