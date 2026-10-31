@@ -538,34 +538,15 @@ func TestInjectTestURLFillsOnlyTheBlanks(t *testing.T) {
 	}
 	injectTestURL(raw)
 
-	if got := raw.ProxyGroup[0]["url"]; got != "https://pinned.test" {
-		t.Errorf("Auto url = %v, want the URL the profile already checks with", got)
+	if got := raw.ProxyGroup[0]["url"]; got != configured {
+		t.Errorf("Auto url = %v, want the host's test URL", got)
 	}
 	if got := raw.ProxyGroup[1]["url"]; got != "https://pinned.test" {
 		t.Errorf("Pinned url = %v, the group's own URL was overwritten", got)
 	}
 	check := raw.ProxyProvider["sub"]["health-check"].(map[string]any)
-	if got := check["url"]; got != "https://pinned.test" {
-		t.Errorf("provider health-check url = %v, want the profile's URL", got)
-	}
-
-	bare := config.DefaultRawConfig()
-	bare.ProxyGroup = []map[string]any{{"name": "Auto", "type": "url-test"}}
-	injectTestURL(bare)
-	if got := bare.ProxyGroup[0]["url"]; got != configured {
-		t.Errorf("url without any in the profile = %v, want the host's", got)
-	}
-
-	split := config.DefaultRawConfig()
-	split.ProxyGroup = []map[string]any{
-		{"name": "A", "type": "url-test", "url": "https://one.test"},
-		{"name": "B", "type": "url-test", "url": "https://two.test"},
-		{"name": "C", "type": "url-test", "url": "https://two.test"},
-		{"name": "D", "type": "url-test"},
-	}
-	injectTestURL(split)
-	if got := split.ProxyGroup[3]["url"]; got != "https://two.test" {
-		t.Errorf("url among several = %v, want the most used one", got)
+	if got := check["url"]; got != configured {
+		t.Errorf("provider health-check url = %v, want the host's test URL", got)
 	}
 }
 

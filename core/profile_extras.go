@@ -43,12 +43,10 @@ func profileProxyNames() []string {
 	return proxyOrder.names
 }
 
-// Blanks take the URL the profile checks with, so one round serves every group.
+// Blanks take the host's test URL, as mihomo would its own default: a selector
+// borrowing a url-test group's URL tests through a route the user never chose.
 func injectTestURL(raw *config.RawConfig) {
-	url := profileTestURL(raw)
-	if url == "" {
-		url = currentTestURL()
-	}
+	url := currentTestURL()
 	for _, group := range raw.ProxyGroup {
 		if text, _ := group["url"].(string); text == "" {
 			group["url"] = url
@@ -63,37 +61,6 @@ func injectTestURL(raw *config.RawConfig) {
 			check["url"] = url
 		}
 	}
-}
-
-func profileTestURL(raw *config.RawConfig) string {
-	counts := map[string]int{}
-	var order []string
-	note := func(text string) {
-		if text == "" {
-			return
-		}
-		if counts[text] == 0 {
-			order = append(order, text)
-		}
-		counts[text]++
-	}
-	for _, group := range raw.ProxyGroup {
-		text, _ := group["url"].(string)
-		note(text)
-	}
-	for _, provider := range raw.ProxyProvider {
-		if check, _ := provider["health-check"].(map[string]any); check != nil {
-			text, _ := check["url"].(string)
-			note(text)
-		}
-	}
-	best := ""
-	for _, text := range order {
-		if counts[text] > counts[best] {
-			best = text
-		}
-	}
-	return best
 }
 
 // A dialer-proxy that leads, through other dialer-proxies and the members
