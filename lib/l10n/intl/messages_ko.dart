@@ -211,9 +211,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m87(label) => "${label}은(는) URL이어야 합니다";
 
-  static String m88(count) => "${Intl.plural(count, other: '${count}년 전')}";
+  static String m88(appName) => "${appName}의 VPN 연결을 허용하지 않았습니다";
 
   static String m89(count) => "${Intl.plural(count, other: '${count}년 전')}";
+
+  static String m90(count) => "${Intl.plural(count, other: '${count}년 전')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1045,6 +1047,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "onlyStatisticsProxy": MessageLookupByLibrary.simpleMessage("프록시 트래픽만 집계"),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage("로그 폴더 열기"),
+    "openVpnSettings": MessageLookupByLibrary.simpleMessage("VPN 설정 열기"),
     "optional": MessageLookupByLibrary.simpleMessage("선택 사항"),
     "options": MessageLookupByLibrary.simpleMessage("옵션"),
     "originalRepository": MessageLookupByLibrary.simpleMessage("원본 저장소"),
@@ -1607,12 +1610,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "view": MessageLookupByLibrary.simpleMessage("보기"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("가상 IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("선명"),
+    "vpnBlockedByAnotherApp": MessageLookupByLibrary.simpleMessage(
+      "다른 앱이 VPN을 차단하고 있습니다",
+    ),
+    "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
+      "Android가 묻지 않고 거부했습니다. 다른 VPN 앱에 \'상시 VPN\'이 켜져 있습니다. VPN 설정에서 해당 앱의 상시 VPN을 끈 다음 다시 시작하세요.",
+    ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "VPN 관련 구성 변경이 감지되었습니다",
     ),
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN은 VpnService를 통해 모든 시스템 트래픽을 자동으로 라우팅합니다.",
     ),
+    "vpnPermissionNotGranted": m88,
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage("WebDAV 구성"),
     "website": MessageLookupByLibrary.simpleMessage("웹사이트"),
     "whitelistMode": MessageLookupByLibrary.simpleMessage("화이트리스트 모드"),
@@ -1620,8 +1630,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "시스템에 기록하면 시스템 시계도 설정합니다. Android에서는 무시됩니다.",
     ),
-    "yearsAgo": m88,
-    "yearsAgoShort": m89,
+    "yearsAgo": m89,
+    "yearsAgoShort": m90,
     "yes": MessageLookupByLibrary.simpleMessage("예"),
     "zhCN": MessageLookupByLibrary.simpleMessage("중국어 간체"),
   };

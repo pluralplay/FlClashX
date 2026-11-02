@@ -244,10 +244,13 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m87(label) => "${label} debe ser una URL";
 
-  static String m88(count) =>
+  static String m88(appName) =>
+      "No permitiste que ${appName} se conectara como VPN";
+
+  static String m89(count) =>
       "${Intl.plural(count, one: 'hace 1 año', other: 'hace ${count} años')}";
 
-  static String m89(count) => "${Intl.plural(count, other: 'hace ${count} a')}";
+  static String m90(count) => "${Intl.plural(count, other: 'hace ${count} a')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -997,9 +1000,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Introduce el contenido de la regla",
     ),
-    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
-      "Se denegó el permiso de lista de apps, por lo que no se pueden mostrar las apps instaladas. Concédelo manualmente en los ajustes del sistema.",
-    ),
+    "installedAppsPermissionDeniedMessage":
+        MessageLookupByLibrary.simpleMessage(
+          "Se denegó el permiso de lista de apps, por lo que no se pueden mostrar las apps instaladas. Concédelo manualmente en los ajustes del sistema.",
+        ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "Este sistema oculta la lista de apps instaladas hasta que se concede el permiso. Autorízalo para configurar el proxy por app.",
     ),
@@ -1345,6 +1349,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage(
       "Abrir carpeta de registros",
+    ),
+    "openVpnSettings": MessageLookupByLibrary.simpleMessage(
+      "Abrir ajustes de VPN",
     ),
     "optional": MessageLookupByLibrary.simpleMessage("Opcional"),
     "options": MessageLookupByLibrary.simpleMessage("Opciones"),
@@ -2064,12 +2071,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "view": MessageLookupByLibrary.simpleMessage("Ver"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("IPv4 virtual"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("Vivo"),
+    "vpnBlockedByAnotherApp": MessageLookupByLibrary.simpleMessage(
+      "Otra app bloquea la VPN",
+    ),
+    "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
+      "Android lo rechazó sin preguntar: otra app de VPN tiene activada la «VPN siempre activa». Desactívala para esa app en los ajustes de VPN y vuelve a iniciar.",
+    ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "Se detectó un cambio en la configuración relacionada con la VPN",
     ),
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "La VPN enruta automáticamente todo el tráfico del sistema a través de VpnService.",
     ),
+    "vpnPermissionNotGranted": m88,
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage(
       "Configuración de WebDAV",
     ),
@@ -2081,8 +2095,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Escribir en el sistema también ajusta el reloj del sistema; Android lo ignora.",
     ),
-    "yearsAgo": m88,
-    "yearsAgoShort": m89,
+    "yearsAgo": m89,
+    "yearsAgoShort": m90,
     "yes": MessageLookupByLibrary.simpleMessage("Sí"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chino simplificado"),
   };

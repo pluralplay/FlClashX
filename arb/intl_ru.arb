@@ -974,5 +974,9 @@
   "preferred": "Предпочтительный",
   "addToLocalProxies": "Добавить в локальные прокси",
   "addedToLocalProxies": "«{name}» добавлен в локальные прокси",
-  "alreadyInLocalProxies": "«{name}» уже есть в локальных прокси"
+  "alreadyInLocalProxies": "«{name}» уже есть в локальных прокси",
+  "vpnPermissionNotGranted": "Вы не дали {appName} разрешение на подключение VPN",
+  "vpnBlockedByAnotherApp": "VPN блокирует другое приложение",
+  "vpnBlockedByAnotherAppTip": "Android отказал, не спросив: у другого VPN-приложения включена «Постоянная VPN». Отключите её для этого приложения в настройках VPN и запустите снова.",
+  "openVpnSettings": "Открыть настройки VPN"
 }

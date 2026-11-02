@@ -208,9 +208,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m87(label) => "${label}必须为URL";
 
-  static String m88(count) => "${count} 年前";
+  static String m88(appName) => "你没有允许 ${appName} 建立 VPN 连接";
 
   static String m89(count) => "${count} 年前";
+
+  static String m90(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -974,6 +976,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "onlyStatisticsProxy": MessageLookupByLibrary.simpleMessage("仅统计代理流量"),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage("打开日志文件夹"),
+    "openVpnSettings": MessageLookupByLibrary.simpleMessage("打开 VPN 设置"),
     "optional": MessageLookupByLibrary.simpleMessage("可选"),
     "options": MessageLookupByLibrary.simpleMessage("选项"),
     "originalRepository": MessageLookupByLibrary.simpleMessage("原始仓库"),
@@ -1490,12 +1493,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "view": MessageLookupByLibrary.simpleMessage("查看"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("虚拟 IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("鲜明"),
+    "vpnBlockedByAnotherApp": MessageLookupByLibrary.simpleMessage(
+      "VPN 被其他应用阻止",
+    ),
+    "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
+      "Android 未经询问就拒绝了：另一个 VPN 应用开启了“始终开启的 VPN”。请在 VPN 设置中为该应用关闭它，然后重新启动。",
+    ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "检测到VPN相关配置改动",
     ),
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN 通过 VpnService 自动路由系统所有流量。",
     ),
+    "vpnPermissionNotGranted": m88,
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage("WebDAV配置"),
     "website": MessageLookupByLibrary.simpleMessage("网站"),
     "whitelistMode": MessageLookupByLibrary.simpleMessage("白名单模式"),
@@ -1503,8 +1513,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "写入系统会同时设置系统时钟，Android 上不生效。",
     ),
-    "yearsAgo": m88,
-    "yearsAgoShort": m89,
+    "yearsAgo": m89,
+    "yearsAgoShort": m90,
     "yes": MessageLookupByLibrary.simpleMessage("是"),
     "zhCN": MessageLookupByLibrary.simpleMessage("中文简体"),
   };

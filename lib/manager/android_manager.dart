@@ -10,6 +10,27 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// [blocked] when the system refused without asking, which another app's
+/// always-on VPN does and only its VPN settings undo.
+Future<void> explainVpnRefusal(bool blocked) async {
+  final appLocalizations = currentAppLocalizations;
+  if (!blocked) {
+    dialogs.showNotifier(
+      appLocalizations.vpnPermissionNotGranted(appName),
+      level: MessageLevel.warning,
+    );
+    return;
+  }
+  final open = await dialogs.showMessage(
+    title: appLocalizations.vpnBlockedByAnotherApp,
+    message: TextSpan(text: appLocalizations.vpnBlockedByAnotherAppTip),
+    confirmText: appLocalizations.openVpnSettings,
+  );
+  if (open == true) {
+    await app?.openVpnSettings();
+  }
+}
+
 class AndroidManager extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -47,6 +68,7 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
     });
     service?.addListener(this);
     app?.onPackagesChanged = _reloadPackages;
+    app?.onVpnPermissionDenied = explainVpnRefusal;
   }
 
   /// A reload reads every installed app's label, and a round of store updates
@@ -67,6 +89,9 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
     debouncer.cancel(FunctionTag.reloadPackages);
     if (app?.onPackagesChanged == _reloadPackages) {
       app?.onPackagesChanged = null;
+    }
+    if (app?.onVpnPermissionDenied == explainVpnRefusal) {
+      app?.onVpnPermissionDenied = null;
     }
     service?.removeListener(this);
     super.dispose();

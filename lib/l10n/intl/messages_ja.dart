@@ -211,9 +211,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m87(label) => "${label}はURLである必要があります";
 
-  static String m88(count) => "${count} 年前";
+  static String m88(appName) => "${appName} の VPN 接続が許可されませんでした";
 
   static String m89(count) => "${count} 年前";
+
+  static String m90(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1069,6 +1071,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "プロキシトラフィックのみ集計",
     ),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage("ログフォルダーを開く"),
+    "openVpnSettings": MessageLookupByLibrary.simpleMessage("VPN 設定を開く"),
     "optional": MessageLookupByLibrary.simpleMessage("任意"),
     "options": MessageLookupByLibrary.simpleMessage("オプション"),
     "originalRepository": MessageLookupByLibrary.simpleMessage("オリジナルリポジトリ"),
@@ -1639,12 +1642,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "view": MessageLookupByLibrary.simpleMessage("表示"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("仮想 IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("ビビッド"),
+    "vpnBlockedByAnotherApp": MessageLookupByLibrary.simpleMessage(
+      "別のアプリが VPN をブロックしています",
+    ),
+    "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
+      "Android が確認せずに拒否しました。別の VPN アプリで「常時接続 VPN」がオンになっています。VPN 設定でそのアプリの設定をオフにしてから、もう一度開始してください。",
+    ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "VPN関連の設定変更を検出しました",
     ),
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN は VpnService でシステムの全トラフィックを自動的にルーティングします。",
     ),
+    "vpnPermissionNotGranted": m88,
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage("WebDAV設定"),
     "website": MessageLookupByLibrary.simpleMessage("ウェブサイト"),
     "whitelistMode": MessageLookupByLibrary.simpleMessage("ホワイトリストモード"),
@@ -1652,8 +1662,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "システムに書き込むを有効にするとシステムクロックも設定します。Android では無視されます。",
     ),
-    "yearsAgo": m88,
-    "yearsAgoShort": m89,
+    "yearsAgo": m89,
+    "yearsAgoShort": m90,
     "yes": MessageLookupByLibrary.simpleMessage("はい"),
     "zhCN": MessageLookupByLibrary.simpleMessage("簡体字中国語"),
   };

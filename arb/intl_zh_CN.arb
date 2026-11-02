@@ -974,5 +974,9 @@
   "preferred": "首选",
   "addToLocalProxies": "添加到本地代理",
   "addedToLocalProxies": "已将 {name} 添加到本地代理",
-  "alreadyInLocalProxies": "本地代理中已有 {name}"
+  "alreadyInLocalProxies": "本地代理中已有 {name}",
+  "vpnPermissionNotGranted": "你没有允许 {appName} 建立 VPN 连接",
+  "vpnBlockedByAnotherApp": "VPN 被其他应用阻止",
+  "vpnBlockedByAnotherAppTip": "Android 未经询问就拒绝了：另一个 VPN 应用开启了“始终开启的 VPN”。请在 VPN 设置中为该应用关闭它，然后重新启动。",
+  "openVpnSettings": "打开 VPN 设置"
 }

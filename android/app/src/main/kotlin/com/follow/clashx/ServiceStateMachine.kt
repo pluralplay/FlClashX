@@ -251,7 +251,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         }
         val options = sharedState.vpnOptions ?: return false
         if (!prepareVpn(options)) {
-            if (host.app() == null && isCurrent(request)) {
+            if (isCurrent(request) && host.app()?.explainVpnRefusal() != true) {
                 host.showToast(VPN_PERMISSION_MESSAGE)
             }
             return false

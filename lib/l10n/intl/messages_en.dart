@@ -239,10 +239,13 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m87(label) => "${label} must be a URL";
 
-  static String m88(count) =>
+  static String m88(appName) =>
+      "You did not allow ${appName} to connect as a VPN";
+
+  static String m89(count) =>
       "${Intl.plural(count, one: '1 year ago', other: '${count} years ago')}";
 
-  static String m89(count) => "${Intl.plural(count, other: '${count}y ago')}";
+  static String m90(count) => "${Intl.plural(count, other: '${count}y ago')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -932,9 +935,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Enter the rule content",
     ),
-    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
-      "The app list permission was denied, so installed apps cannot be listed. Please grant it manually in system settings.",
-    ),
+    "installedAppsPermissionDeniedMessage":
+        MessageLookupByLibrary.simpleMessage(
+          "The app list permission was denied, so installed apps cannot be listed. Please grant it manually in system settings.",
+        ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "This system hides the installed app list until the permission is granted. Authorize it to configure the per-app proxy.",
     ),
@@ -1247,6 +1251,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Only count proxy traffic",
     ),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage("Open logs folder"),
+    "openVpnSettings": MessageLookupByLibrary.simpleMessage(
+      "Open VPN settings",
+    ),
     "optional": MessageLookupByLibrary.simpleMessage("Optional"),
     "options": MessageLookupByLibrary.simpleMessage("Options"),
     "originalRepository": MessageLookupByLibrary.simpleMessage(
@@ -1907,12 +1914,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "view": MessageLookupByLibrary.simpleMessage("View"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("Virtual IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("Vivid"),
+    "vpnBlockedByAnotherApp": MessageLookupByLibrary.simpleMessage(
+      "VPN blocked by another app",
+    ),
+    "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
+      "Android refused without asking: another VPN app has Always-on VPN turned on. Turn it off for that app in the VPN settings, then start again.",
+    ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "VPN-related configuration change detected",
     ),
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN routes all system traffic through VpnService automatically.",
     ),
+    "vpnPermissionNotGranted": m88,
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage(
       "WebDAV configuration",
     ),
@@ -1922,8 +1936,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Write to system also sets the system clock; Android ignores it.",
     ),
-    "yearsAgo": m88,
-    "yearsAgoShort": m89,
+    "yearsAgo": m89,
+    "yearsAgoShort": m90,
     "yes": MessageLookupByLibrary.simpleMessage("Yes"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Simplified Chinese"),
   };

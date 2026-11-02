@@ -12,6 +12,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -65,6 +66,11 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     private lateinit var scope: CoroutineScope
 
     private val vpnPrepareCallback = PendingCallback<Boolean>()
+
+    private var vpnConsentAskedAt = 0L
+
+    @Volatile
+    private var vpnRefusedWithoutAsking = false
 
     private val requestNotificationCallback = PendingCallback<Boolean>()
 
@@ -199,6 +205,10 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 result.success(openAppSettings())
             }
 
+            "openVpnSettings" -> {
+                result.success(openVpnSettings())
+            }
+
             "getLastExitInfo" -> reply(result) {
                 GlobalState.lastExitInfo()
             }
@@ -262,6 +272,25 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             QuickAction.STOP -> R.drawable.ic_shortcut_stop
             QuickAction.TOGGLE -> R.drawable.ic_shortcut_toggle
         }
+
+    private fun openVpnSettings(): Boolean {
+        val activity = activity ?: return false
+        return try {
+            activity.startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun explainVpnRefusal(): Boolean {
+        if (activity == null) {
+            return false
+        }
+        val blocked = vpnRefusedWithoutAsking
+        onMainThread { channel.invokeMethod("vpnPermissionDenied", blocked) }
+        return true
+    }
 
     private fun openAppSettings(): Boolean {
         val activity = activity ?: return false
@@ -395,6 +424,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             if (activity == null) {
                 invokeVpnPrepareCallback(false)
             } else {
+                vpnConsentAskedAt = SystemClock.elapsedRealtime()
                 @Suppress("DEPRECATION")
                 activity.startActivityForResult(intent, VPN_PERMISSION_REQUEST_CODE)
             }
@@ -504,7 +534,10 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         if (requestCode != VPN_PERMISSION_REQUEST_CODE) {
             return false
         }
-        invokeVpnPrepareCallback(resultCode == Activity.RESULT_OK)
+        val granted = resultCode == Activity.RESULT_OK
+        vpnRefusedWithoutAsking = !granted &&
+            SystemClock.elapsedRealtime() - vpnConsentAskedAt < SILENT_REFUSAL_MILLIS
+        invokeVpnPrepareCallback(granted)
         return true
     }
 
@@ -545,5 +578,9 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
         const val INSTALLED_APPS_PERMISSION_REQUEST_CODE = 1003
         const val LOCAL_NETWORK_PERMISSION_REQUEST_CODE = 1004
+
+        // The consent dialog finishes in onCreate while another app holds the always-on VPN,
+        // and nobody taps Cancel on a dialog this fast.
+        const val SILENT_REFUSAL_MILLIS = 500L
     }
 }

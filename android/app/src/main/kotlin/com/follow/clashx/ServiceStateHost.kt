@@ -68,6 +68,9 @@ internal interface AppGateway {
     fun prepareVpn(enable: Boolean, callback: (Boolean) -> Unit)
 
     fun cancelVpnPreparation(callback: (Boolean) -> Unit)
+
+    /** False when no activity is in front to explain the refusal in. */
+    fun explainVpnRefusal(): Boolean
 }
 
 internal object AndroidServiceStateHost : ServiceStateHost {
@@ -132,6 +135,8 @@ internal object AndroidServiceStateHost : ServiceStateHost {
 
             override fun cancelVpnPreparation(callback: (Boolean) -> Unit) =
                 plugin.cancelVpnPreparation(callback)
+
+            override fun explainVpnRefusal(): Boolean = plugin.explainVpnRefusal()
         }
     }
 

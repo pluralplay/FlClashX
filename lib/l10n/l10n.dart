@@ -8082,8 +8082,7 @@ class AppLocalizations {
   String customImportDroppedSubRules(num count, Object label) {
     return Intl.plural(
       count,
-      one:
-          '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
+      one: '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
       other:
           '$label SUB-RULE rules were dropped, since custom profiles do not support sub-rules',
       name: 'customImportDroppedSubRules',
@@ -8189,6 +8188,46 @@ class AppLocalizations {
       name: 'alreadyInLocalProxies',
       desc: '',
       args: [name],
+    );
+  }
+
+  /// `You did not allow {appName} to connect as a VPN`
+  String vpnPermissionNotGranted(Object appName) {
+    return Intl.message(
+      'You did not allow $appName to connect as a VPN',
+      name: 'vpnPermissionNotGranted',
+      desc: '',
+      args: [appName],
+    );
+  }
+
+  /// `VPN blocked by another app`
+  String get vpnBlockedByAnotherApp {
+    return Intl.message(
+      'VPN blocked by another app',
+      name: 'vpnBlockedByAnotherApp',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Android refused without asking: another VPN app has Always-on VPN turned on. Turn it off for that app in the VPN settings, then start again.`
+  String get vpnBlockedByAnotherAppTip {
+    return Intl.message(
+      'Android refused without asking: another VPN app has Always-on VPN turned on. Turn it off for that app in the VPN settings, then start again.',
+      name: 'vpnBlockedByAnotherAppTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open VPN settings`
+  String get openVpnSettings {
+    return Intl.message(
+      'Open VPN settings',
+      name: 'openVpnSettings',
+      desc: '',
+      args: [],
     );
   }
 }

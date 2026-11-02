@@ -974,5 +974,9 @@
   "preferred": "優先",
   "addToLocalProxies": "ローカルプロキシに追加",
   "addedToLocalProxies": "{name} をローカルプロキシに追加しました",
-  "alreadyInLocalProxies": "{name} はすでにローカルプロキシにあります"
+  "alreadyInLocalProxies": "{name} はすでにローカルプロキシにあります",
+  "vpnPermissionNotGranted": "{appName} の VPN 接続が許可されませんでした",
+  "vpnBlockedByAnotherApp": "別のアプリが VPN をブロックしています",
+  "vpnBlockedByAnotherAppTip": "Android が確認せずに拒否しました。別の VPN アプリで「常時接続 VPN」がオンになっています。VPN 設定でそのアプリの設定をオフにしてから、もう一度開始してください。",
+  "openVpnSettings": "VPN 設定を開く"
 }

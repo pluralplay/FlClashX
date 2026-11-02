@@ -974,5 +974,9 @@
   "preferred": "Préféré",
   "addToLocalProxies": "Ajouter aux proxys locaux",
   "addedToLocalProxies": "{name} ajouté aux proxys locaux",
-  "alreadyInLocalProxies": "{name} est déjà dans les proxys locaux"
+  "alreadyInLocalProxies": "{name} est déjà dans les proxys locaux",
+  "vpnPermissionNotGranted": "Vous n'avez pas autorisé {appName} à se connecter en VPN",
+  "vpnBlockedByAnotherApp": "VPN bloqué par une autre app",
+  "vpnBlockedByAnotherAppTip": "Android a refusé sans demander : une autre app VPN a le « VPN permanent » activé. Désactivez-le pour cette app dans les paramètres VPN, puis relancez.",
+  "openVpnSettings": "Ouvrir les paramètres VPN"
 }

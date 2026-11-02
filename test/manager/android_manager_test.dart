@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fl_clash/manager/android_manager.dart';
@@ -53,18 +54,57 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  Future<void> pumpAndroidManager(WidgetTester tester) async {
+  Future<void> pumpAndroidManager(
+    WidgetTester tester, {
+    bool withStatusManager = false,
+  }) async {
     await container.read(vpnOptionsProvider.future);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const TestApp(
-          child: AndroidManager(child: SizedBox(key: Key('child'))),
+        child: TestApp(
+          withStatusManager: withStatusManager,
+          child: const AndroidManager(child: SizedBox(key: Key('child'))),
         ),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('a cancelled vpn request says the permission was not given', (
+    tester,
+  ) async {
+    await pumpAndroidManager(tester, withStatusManager: true);
+
+    unawaited(explainVpnRefusal(false));
+    await tester.pump();
+
+    expect(
+      find.text('You did not allow FlClashX to connect as a VPN'),
+      findsOneWidget,
+    );
+    expect(find.text('Open VPN settings'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a vpn request another app blocked offers the vpn settings', (
+    tester,
+  ) async {
+    await pumpAndroidManager(tester);
+
+    final explained = explainVpnRefusal(true);
+    await tester.pumpAndSettle();
+
+    expect(find.text('VPN blocked by another app'), findsOneWidget);
+    await tester.tap(find.text('Open VPN settings'));
+    await tester.pumpAndSettle();
+    await explained;
+    expect(find.text('VPN blocked by another app'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('renders its child unchanged', (tester) async {
     await pumpAndroidManager(tester);
