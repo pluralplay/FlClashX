@@ -20,9 +20,8 @@ void main() {
   setUpAll(() => registerFallbackValue(Duration.zero));
   proxiesBarTests();
   proxyDescriptionTests();
-  testWidgets('a folded group shows its description, never its type', (
-    tester,
-  ) async {
+  testWidgets('a group description takes the place of the location it '
+      'picked, which shows only without one', (tester) async {
     tester.view.physicalSize = const Size(500, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -41,7 +40,21 @@ void main() {
         serverDescription: 'Fastest',
         all: [Proxy(name: 'Proxy 1', type: 'ss')],
       ),
+      const Group(
+        name: 'Manual',
+        type: GroupType.Selector,
+        hidden: false,
+        now: 'Proxy 2',
+        all: [Proxy(name: 'Proxy 2', type: 'ss')],
+      ),
     ];
+    Finder inHeader(String groupName, String text) => find.descendant(
+      of: find.ancestor(
+        of: find.text(groupName),
+        matching: find.byType(ListHeader),
+      ),
+      matching: find.text(text),
+    );
     final container = ProviderContainer(
       overrides: [
         profilesProvider.overrideWith(() => TestProfiles([profile])),
@@ -68,12 +81,15 @@ void main() {
         .read(proxiesStyleSettingProvider.notifier)
         .update((state) => state.copyWith(type: ProxiesType.list));
     await tester.pumpAndSettle();
-    expect(find.text('Fastest'), findsNothing);
+    expect(inHeader('Auto', 'Fastest'), findsOneWidget);
+    expect(inHeader('Auto', 'Proxy 1'), findsNothing);
+    expect(inHeader('Manual', 'Proxy 2'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Collapse'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Fastest'), findsOneWidget);
+    expect(inHeader('Auto', 'Fastest'), findsOneWidget);
+    expect(inHeader('Auto', 'Proxy 1'), findsNothing);
     expect(find.text(GroupType.URLTest.name), findsNothing);
   });
 
