@@ -135,6 +135,24 @@ void main() {
       expect(scoped.read(profilesProvider).map((item) => item.id), [1, 2]);
     });
 
+    test('a drain waits for an edit the user already sees to land', () async {
+      final landing = Completer<void>();
+      final held = testDatabase.transaction(() => landing.future);
+      notifier.put(profile(1, label: 'Mine'));
+      expect(read().single.label, 'Mine');
+
+      var drained = false;
+      final drain = drainDatabaseWrites().then((_) => drained = true);
+      await pumpEventQueue();
+      expect(drained, isFalse);
+
+      landing.complete();
+      await held;
+      await drain;
+      final rows = await testDatabase.profilesDao.query().get();
+      expect(rows.single.label, 'Mine');
+    });
+
     test('a new profile sorts last before and after its write lands', () async {
       notifier.put(profile(1, label: 'First'));
       await pumpEventQueue();

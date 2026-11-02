@@ -45,6 +45,16 @@ void _reportOptimisticFailure(Object error, StackTrace stackTrace) {
   );
 }
 
+final _inFlightWrites = <Future<void>>{};
+
+/// An optimistic edit shows before its row is written, so exit waits here for
+/// what the user already saw, writes started meanwhile included.
+Future<void> drainDatabaseWrites() async {
+  while (_inFlightWrites.isNotEmpty) {
+    await Future.wait(_inFlightWrites.toList());
+  }
+}
+
 /// Read-backs landing while a write is in flight can predate the write and
 /// would briefly undo its optimistic value, so they wait for [idle]. One
 /// turned away may carry a write made outside the notifier, so the rows are
@@ -65,9 +75,13 @@ class _Writes {
 
   Future<void> track(Future<void> Function() write) async {
     _pending++;
+    final landed = Completer<void>();
+    _inFlightWrites.add(landed.future);
     try {
       await write();
     } finally {
+      _inFlightWrites.remove(landed.future);
+      landed.complete();
       _pending--;
       if (idle && _missed) {
         _missed = false;
