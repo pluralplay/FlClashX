@@ -409,6 +409,10 @@ namespace proxy
       proxy_applied_ = proxy_applied_ && !stopped;
       result->Success(stopped);
     }
+    else if (method_call.method_name() == "ClearStaleProxy")
+    {
+      result->Success(ClearStaleProxy());
+    }
     else if (method_call.method_name() == "StartProxy")
     {
       auto *arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());

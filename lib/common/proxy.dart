@@ -15,7 +15,7 @@ final systemProxyQueue = proxy == null
 abstract interface class SystemProxyOwnership {
   Future<bool> read();
 
-  Future<void> save(bool applied);
+  Future<bool> save(bool applied);
 }
 
 final class PreferencesSystemProxyOwnership implements SystemProxyOwnership {
@@ -25,21 +25,23 @@ final class PreferencesSystemProxyOwnership implements SystemProxyOwnership {
   Future<bool> read() => preferences.getSystemProxyApplied();
 
   @override
-  Future<void> save(bool applied) =>
+  Future<bool> save(bool applied) =>
       preferences.saveSystemProxyApplied(applied);
 }
 
 /// Exit's stop goes through the same queue as every other change, so a start
 /// still waiting behind a slow call cannot turn the proxy back on after it.
-/// Only undoes a start of this app, so a stop leaves others' settings alone;
-/// that start is kept on disk, so a run that crashed or was killed with the
-/// proxy on is undone by the next launch.
+/// Only undoes a start of this run, so a stop leaves others' settings alone.
+/// A start is also kept on disk: a launch after a run that crashed or was
+/// killed with the proxy on clears it, but only if it still points at a
+/// port nothing listens on, since someone may have set another one since.
 class SystemProxyQueue {
   final Proxy _proxy;
   final SystemProxyOwnership _ownership;
   Future<void> _tail = Future.value();
   bool _closed = false;
-  bool? _applied;
+  bool _applied = false;
+  bool? _leftByLastRun;
 
   SystemProxyQueue(this._proxy, this._ownership);
 
@@ -49,7 +51,9 @@ class SystemProxyQueue {
         return;
       }
       if (state.isStart && state.systemProxy) {
-        await _setApplied(true);
+        _applied = true;
+        _leftByLastRun = false;
+        await _record(true);
         if (!await _proxy.startProxy(state.port, state.bassDomain)) {
           _logFailure();
         }
@@ -65,22 +69,36 @@ class SystemProxyQueue {
   }
 
   Future<void> _stop() async {
-    if (!(_applied ??= await _ownership.read())) {
+    if (_applied) {
+      if (!await _proxy.stopProxy()) {
+        _logFailure();
+        return;
+      }
+      _applied = false;
+      await _record(false);
       return;
     }
-    if (!await _proxy.stopProxy()) {
-      _logFailure();
-      return;
+    if (_leftByLastRun ??= await _ownership.read()) {
+      if (!await _proxy.clearStaleProxy()) {
+        _logFailure();
+        return;
+      }
+      _leftByLastRun = false;
+      await _record(false);
     }
-    await _setApplied(false);
   }
 
-  Future<void> _setApplied(bool applied) async {
-    if (_applied == applied) {
-      return;
-    }
-    _applied = applied;
-    await _ownership.save(applied);
+  /// Saved on every start, so one that failed is tried again by the next.
+  Future<void> _record(bool applied) async {
+    try {
+      if (await _ownership.save(applied)) {
+        return;
+      }
+    } catch (_) {}
+    commonPrint.log(
+      'Failed to record the system proxy as ${applied ? 'set' : 'cleared'}',
+      logLevel: LogLevel.warning,
+    );
   }
 
   void _logFailure() {

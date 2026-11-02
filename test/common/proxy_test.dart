@@ -29,10 +29,14 @@ class _FakeProxy implements Proxy {
 
   @override
   Future<bool> stopProxy() => _call('stop');
+
+  @override
+  Future<bool> clearStaleProxy() => _call('clear stale');
 }
 
 class _MemoryOwnership implements SystemProxyOwnership {
   bool applied;
+  bool writable = true;
   final List<bool> saves = [];
 
   _MemoryOwnership([this.applied = false]);
@@ -41,9 +45,12 @@ class _MemoryOwnership implements SystemProxyOwnership {
   Future<bool> read() async => applied;
 
   @override
-  Future<void> save(bool applied) async {
+  Future<bool> save(bool applied) async {
     saves.add(applied);
-    this.applied = applied;
+    if (writable) {
+      this.applied = applied;
+    }
+    return writable;
   }
 }
 
@@ -108,18 +115,41 @@ void main() {
     expect(proxy.calls, isEmpty);
   });
 
+  test('a launch after a run that died clears only a stale proxy', () async {
+    final proxy = _FakeProxy();
+    final ownership = _MemoryOwnership(true);
+    final queue = SystemProxyQueue(proxy, ownership);
+
+    await queue.apply(_state(isStart: false));
+    await queue.close();
+
+    expect(proxy.calls, ['clear stale']);
+    expect(ownership.applied, isFalse);
+  });
+
+  test('a start after a dead run stops its own proxy as usual', () async {
+    final proxy = _FakeProxy();
+    final queue = SystemProxyQueue(proxy, _MemoryOwnership(true));
+
+    await queue.apply(_state(isStart: true));
+    await queue.apply(_state(isStart: false));
+
+    expect(proxy.calls, ['start 7890', 'stop']);
+  });
+
   test(
-    'a launch after a run that died with the proxy on turns it off',
+    'a start whose record failed still runs and saves again next time',
     () async {
       final proxy = _FakeProxy();
-      final ownership = _MemoryOwnership(true);
+      final ownership = _MemoryOwnership()..writable = false;
       final queue = SystemProxyQueue(proxy, ownership);
 
-      await queue.apply(_state(isStart: false));
-      await queue.close();
+      await queue.apply(_state(isStart: true));
+      ownership.writable = true;
+      await queue.apply(_state(isStart: true));
 
-      expect(proxy.calls, ['stop']);
-      expect(ownership.applied, isFalse);
+      expect(proxy.calls, ['start 7890', 'start 7890']);
+      expect(ownership.applied, isTrue);
     },
   );
 

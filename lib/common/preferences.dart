@@ -162,13 +162,14 @@ class Preferences {
     return sharedPreferencesIns?.getBool(systemProxyAppliedKey) ?? false;
   }
 
-  Future<void> saveSystemProxyApplied(bool applied) async {
+  Future<bool> saveSystemProxyApplied(bool applied) async {
     final sharedPreferencesIns = await _store.value;
-    if (applied) {
-      await sharedPreferencesIns?.setBool(systemProxyAppliedKey, true);
-    } else {
-      await sharedPreferencesIns?.remove(systemProxyAppliedKey);
+    if (sharedPreferencesIns == null) {
+      return false;
     }
+    return applied
+        ? sharedPreferencesIns.setBool(systemProxyAppliedKey, true)
+        : sharedPreferencesIns.remove(systemProxyAppliedKey);
   }
 
   Future<BootRecord?> getBootRecord() async {

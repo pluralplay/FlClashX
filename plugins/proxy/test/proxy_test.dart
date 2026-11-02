@@ -430,6 +430,133 @@ USB 10/100/1000 LAN
     });
   });
 
+  group('stale proxy clearing', () {
+    ProxyProcessRunner recording(
+      List<List<String>> calls,
+      String Function(String executable, List<String> arguments) stdout,
+    ) {
+      return (executable, arguments, {runInShell = false}) async {
+        calls.add([executable, ...arguments]);
+        return ProcessResult(0, 0, stdout(executable, arguments), '');
+      };
+    }
+
+    String webProxy(String server, int port, {bool enabled = true}) =>
+        'Enabled: ${enabled ? 'Yes' : 'No'}\nServer: $server\nPort: $port\n'
+        'Authenticated Proxy Enabled: 0\n';
+
+    test('reads the port of an enabled macOS web proxy on 127.0.0.1', () {
+      expect(
+        MacosProxyCommands.parseLocalProxyPort(webProxy('127.0.0.1', 7890)),
+        7890,
+      );
+      expect(
+        MacosProxyCommands.parseLocalProxyPort(
+          webProxy('127.0.0.1', 7890, enabled: false),
+        ),
+        isNull,
+      );
+      expect(
+        MacosProxyCommands.parseLocalProxyPort(webProxy('10.0.0.1', 3128)),
+        isNull,
+      );
+    });
+
+    test(
+      'turns off only the macOS services left on a dead local port',
+      () async {
+        final calls = <List<String>>[];
+        final proxy = MacosProxy(
+          commandRunner: ProxyCommandRunner(
+            recording(calls, (_, arguments) {
+              return switch (arguments) {
+                ['-listallnetworkservices'] => 'Wi-Fi\nEthernet\nVPN\n',
+                ['-getwebproxy', 'Wi-Fi'] => webProxy('127.0.0.1', 7890),
+                ['-getwebproxy', 'Ethernet'] => webProxy('127.0.0.1', 7891),
+                ['-getwebproxy', _] => webProxy('10.0.0.1', 3128),
+                _ => '',
+              };
+            }),
+          ),
+        );
+
+        expect(await proxy.clearStale((port) async => port == 7891), isTrue);
+
+        final changed = {
+          for (final call in calls)
+            if (call[1].startsWith('-set')) call[2],
+        };
+        expect(changed, {'Wi-Fi'});
+      },
+    );
+
+    test('reads the port of a manual GNOME or KDE proxy on 127.0.0.1', () {
+      expect(
+        LinuxProxyCommands.parseGSettingsLocalPort(
+          mode: "'manual'",
+          host: "'127.0.0.1'",
+          port: '7890',
+        ),
+        7890,
+      );
+      expect(
+        LinuxProxyCommands.parseGSettingsLocalPort(
+          mode: "'none'",
+          host: "'127.0.0.1'",
+          port: '7890',
+        ),
+        isNull,
+      );
+      const kde =
+          '[Proxy Settings]\nProxyType=1\nhttpProxy=http://127.0.0.1:7890\n'
+          '[Other]\nProxyType=0\n';
+      expect(LinuxProxyCommands.parseKdeLocalPort(kde), 7890);
+      expect(
+        LinuxProxyCommands.parseKdeLocalPort(kde.replaceFirst('=1', '=0')),
+        isNull,
+      );
+      expect(
+        LinuxProxyCommands.parseKdeLocalPort(
+          '[Proxy Settings]\nProxyType=1\nhttpProxy=http://10.0.0.1:3128\n',
+        ),
+        isNull,
+      );
+    });
+
+    test('turns a GNOME proxy off only while its port is dead', () async {
+      for (final listening in [true, false]) {
+        final calls = <List<String>>[];
+        final proxy = LinuxProxy(
+          commandRunner: ProxyCommandRunner(
+            recording(calls, (_, arguments) {
+              return switch (arguments) {
+                ['get', _, 'mode'] => "'manual'\n",
+                ['get', _, 'host'] => "'127.0.0.1'\n",
+                ['get', _, 'port'] => '7890\n',
+                _ => '',
+              };
+            }),
+          ),
+          executableChecker: (executable) async => executable == 'gsettings',
+        );
+
+        expect(
+          await proxy.clearStale(
+            (_) async => listening,
+            desktop: 'GNOME',
+            homeDir: '/home/user',
+          ),
+          isTrue,
+        );
+        expect(
+          calls.any((call) => call.contains('set')),
+          !listening,
+          reason: listening ? 'a live port' : 'a dead port',
+        );
+      }
+    });
+  });
+
   group('windowsBypassList', () {
     test('adds the intranet token once', () {
       expect(windowsBypassList(['localhost', '127.*', '<local>']), [
@@ -479,6 +606,18 @@ USB 10/100/1000 LAN
         'port': 7890,
         'bypassDomain': ['localhost'],
       });
+    });
+
+    test('asks Windows to clear a stale proxy', () async {
+      MethodCall? capturedCall;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(proxy.methodChannel, (call) async {
+            capturedCall = call;
+            return true;
+          });
+
+      expect(await proxy.clearStaleProxy(), isTrue);
+      expect(capturedCall?.method, 'ClearStaleProxy');
     });
 
     test('maps a null native response to false', () async {

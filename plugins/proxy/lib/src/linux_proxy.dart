@@ -64,6 +64,67 @@ class LinuxProxy {
     );
   }
 
+  Future<bool> clearStale(
+    Future<bool> Function(int port) isListening, {
+    required String? desktop,
+    required String? homeDir,
+  }) async {
+    if (homeDir == null || homeDir.isEmpty) {
+      return false;
+    }
+    final selection = await _resolveBackend(desktop);
+    if (selection == null) {
+      return false;
+    }
+    final port = switch (selection.backend) {
+      LinuxProxyBackend.gnome => await _gsettingsLocalPort(
+        'org.gnome.system.proxy',
+      ),
+      LinuxProxyBackend.mate => await _gsettingsLocalPort(
+        'org.mate.system.proxy',
+      ),
+      LinuxProxyBackend.kde => await _kdeLocalPort(homeDir),
+    };
+    if (port == null || await isListening(port)) {
+      return true;
+    }
+    return _commandRunner.run(
+      LinuxProxyCommands.buildStopForBackend(
+        homeDir: homeDir,
+        backend: selection.backend,
+        kdeConfigWriter: selection.executable,
+      ),
+    );
+  }
+
+  Future<int?> _gsettingsLocalPort(String schemaPrefix) async {
+    return LinuxProxyCommands.parseGSettingsLocalPort(
+      mode: await _read('gsettings', ['get', schemaPrefix, 'mode']),
+      host: await _read('gsettings', ['get', '$schemaPrefix.http', 'host']),
+      port: await _read('gsettings', ['get', '$schemaPrefix.http', 'port']),
+    );
+  }
+
+  Future<int?> _kdeLocalPort(String homeDir) async {
+    try {
+      final config = await File(
+        path.join(homeDir, '.config', 'kioslaverc'),
+      ).readAsString();
+      return LinuxProxyCommands.parseKdeLocalPort(config);
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  Future<String?> _read(String executable, List<String> arguments) async {
+    try {
+      final result = await _commandRunner.process(executable, arguments);
+      return result.exitCode == 0 ? result.stdout.toString().trim() : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
   Future<_LinuxBackendSelection?> _resolveBackend(String? desktop) async {
     final preferredBackend = LinuxProxyCommands.preferredBackend(desktop);
     if (preferredBackend != null) {
@@ -367,6 +428,48 @@ class LinuxProxyCommands {
     'org.kde.KIO.Scheduler.reparseSlaveConfiguration',
     'string:',
   ], optional: true);
+
+  /// The port of a manual HTTP proxy on [proxyHost], from `gsettings get`.
+  static int? parseGSettingsLocalPort({
+    required String? mode,
+    required String? host,
+    required String? port,
+  }) {
+    if (mode != "'manual'" || host != "'$proxyHost'") {
+      return null;
+    }
+    return int.tryParse(port ?? '');
+  }
+
+  /// The port of a manual HTTP proxy on [proxyHost], from `kioslaverc`.
+  static int? parseKdeLocalPort(String config) {
+    var inGroup = false;
+    String? type;
+    String? httpProxy;
+    for (final raw in config.split('\n')) {
+      final line = raw.trim();
+      if (line.startsWith('[')) {
+        inGroup = line == '[Proxy Settings]';
+        continue;
+      }
+      final separator = line.indexOf('=');
+      if (!inGroup || separator <= 0) {
+        continue;
+      }
+      final value = line.substring(separator + 1).trim();
+      switch (line.substring(0, separator).trim()) {
+        case 'ProxyType':
+          type = value;
+        case 'httpProxy':
+          httpProxy = value;
+      }
+    }
+    final uri = httpProxy == null ? null : Uri.tryParse(httpProxy);
+    if (type != '1' || uri == null || uri.host != proxyHost || !uri.hasPort) {
+      return null;
+    }
+    return uri.port;
+  }
 
   static String _formatGSettingsStringList(List<String> values) {
     final escaped = values.map((value) {

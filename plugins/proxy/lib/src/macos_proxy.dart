@@ -22,6 +22,35 @@ class MacosProxy {
     return _commandRunner.run(services.expand(MacosProxyCommands.buildStop));
   }
 
+  Future<bool> clearStale(Future<bool> Function(int port) isListening) async {
+    final stale = <String>[];
+    for (final service in await _networkServices()) {
+      final port = await _localProxyPort(service);
+      if (port != null && !await isListening(port)) {
+        stale.add(service);
+      }
+    }
+    if (stale.isEmpty) {
+      return true;
+    }
+    return _commandRunner.run(stale.expand(MacosProxyCommands.buildStop));
+  }
+
+  Future<int?> _localProxyPort(String service) async {
+    try {
+      final result = await _commandRunner.process('/usr/sbin/networksetup', [
+        '-getwebproxy',
+        service,
+      ]);
+      if (result.exitCode != 0) {
+        return null;
+      }
+      return MacosProxyCommands.parseLocalProxyPort(result.stdout.toString());
+    } on ProcessException {
+      return null;
+    }
+  }
+
   Future<List<String>> _networkServices() async {
     try {
       final result = await _commandRunner.process('/usr/sbin/networksetup', [
@@ -116,6 +145,23 @@ class MacosProxyCommands {
       service,
       if (bypassDomain.isEmpty) 'Empty' else ...bypassDomain,
     ]);
+  }
+
+  /// The port of an enabled web proxy on [proxyHost], from `-getwebproxy`.
+  static int? parseLocalProxyPort(String stdout) {
+    final fields = <String, String>{};
+    for (final line in stdout.split('\n')) {
+      final separator = line.indexOf(':');
+      if (separator > 0) {
+        fields[line.substring(0, separator).trim()] = line
+            .substring(separator + 1)
+            .trim();
+      }
+    }
+    if (fields['Enabled'] != 'Yes' || fields['Server'] != proxyHost) {
+      return null;
+    }
+    return int.tryParse(fields['Port'] ?? '');
   }
 
   static List<String> parseNetworkServices(String stdout) {
