@@ -15,7 +15,7 @@ extension PageLabelL10n on PageLabel {
       PageLabel.logs => appLocalizations.logs,
       PageLabel.requests => appLocalizations.recentRequests,
       PageLabel.resources => appLocalizations.resources,
-      PageLabel.connections => appLocalizations.liveConnections,
+      PageLabel.connections => appLocalizations.connections,
       PageLabel.dns => appLocalizations.dnsQueries,
     };
   }

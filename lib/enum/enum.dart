@@ -842,4 +842,6 @@ enum LoadingTag {
 
 enum CoreStatus { connecting, connected, disconnected }
 
+enum RequestFeed { recent, live }
+
 enum UpdatingScope { core, local }

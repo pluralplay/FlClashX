@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/method.dart';
-import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/features.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -14,11 +13,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ConnectionsView extends ConsumerStatefulWidget {
   final ScrollController? scrollController;
+  final List<CommonPopupMenuItem> titleMenuItems;
   final Future<List<TrackerInfo>> Function()? connectionsReader;
 
   const ConnectionsView({
     super.key,
     this.scrollController,
+    this.titleMenuItems = const [],
     @visibleForTesting this.connectionsReader,
   });
 
@@ -128,7 +129,8 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return CommonScaffold(
-      title: PageLabel.connections.label,
+      title: appLocalizations.liveConnections,
+      titleMenuItems: widget.titleMenuItems,
       onKeywordsUpdate: _listController.updateKeywords,
       searchState: AppBarSearchState(onSearch: _listController.search),
       iconActions: _buildActions(),
