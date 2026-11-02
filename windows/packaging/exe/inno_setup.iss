@@ -64,14 +64,21 @@ begin
 end;
 
 // Killing the app skips its exit path, which is what turns the system proxy
-// off; the executable clears a proxy left on a port nothing listens on.
+// off; the executable clears a proxy left on a port nothing listens on. The
+// proxy is a per-user setting, so Setup runs it as the user who started it,
+// which the uninstaller cannot.
 procedure ClearStaleProxy;
 var
   AppPath: String;
+  ResultCode: Integer;
 begin
   AppPath := ExpandConstant('{app}\{{EXECUTABLE_NAME}}');
-  if FileExists(AppPath) then
-    RunHidden(AppPath, '--clear-stale-proxy');
+  if not FileExists(AppPath) then
+    Exit;
+  if IsUninstaller then
+    Exec(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+  else
+    ExecAsOriginalUser(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
 procedure ReleaseHelper;

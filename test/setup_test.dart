@@ -149,7 +149,10 @@ hooks:
         'windows/packaging/exe/inno_setup.iss',
       ).readAsStringSync();
 
-      expect(script, contains("RunHidden(AppPath, '--clear-stale-proxy')"));
+      expect(
+        script,
+        contains("ExecAsOriginalUser(AppPath, '--clear-stale-proxy'"),
+      );
       expect(
         script,
         matches(RegExp(r'ssPostInstall then\s+begin[^;]+;\s+ClearStaleProxy;')),
