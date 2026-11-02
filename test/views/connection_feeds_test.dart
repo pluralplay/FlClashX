@@ -22,10 +22,15 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late ProviderContainer container;
+  late int connectionReads;
 
   setUp(() {
+    connectionReads = 0;
     final core = _MockCoreHandlerInterface();
-    when(core.getConnections).thenAnswer((_) async => const <TrackerInfo>[]);
+    when(core.getConnections).thenAnswer((_) async {
+      connectionReads++;
+      return const <TrackerInfo>[];
+    });
     container = ProviderContainer(
       overrides: [
         profilesProvider.overrideWith(TestProfiles.new),
@@ -67,6 +72,44 @@ void main() {
     expect(find.byType(RequestsView), findsOneWidget);
     expect(find.byType(ConnectionsView), findsNothing);
     expect(container.read(appSettingProvider).requestFeed, RequestFeed.recent);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('a hidden feed keeps its state and stops polling', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(child: ConnectionFeedsView()),
+      ),
+    );
+    await settle(tester);
+    Future<void> select(String shown, String next) async {
+      await tester.tap(find.text(shown));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(next));
+      await tester.pumpAndSettle();
+    }
+
+    await select('Live connections', 'Recent requests');
+    final recent = tester.state(find.byType(RequestsView));
+    final readsWhileHidden = connectionReads;
+    await tester.pump(const Duration(seconds: 3));
+    expect(connectionReads, readsWhileHidden);
+
+    await select('Recent requests', 'Live connections');
+    await tester.pump(const Duration(seconds: 2));
+    expect(connectionReads, greaterThan(readsWhileHidden));
+
+    await select('Live connections', 'Recent requests');
+    expect(tester.state(find.byType(RequestsView)), same(recent));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));
