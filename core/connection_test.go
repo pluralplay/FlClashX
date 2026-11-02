@@ -59,3 +59,32 @@ func TestProxyOnlyTrafficLeavesOutADirectProxyOfAnyName(t *testing.T) {
 	}
 	handleResetTraffic()
 }
+
+func TestStoppingClosesTheConnectionsAlreadyOpen(t *testing.T) {
+	local, remote := net.Pipe()
+	t.Cleanup(func() { _ = remote.Close() })
+	go func() { _, _ = io.Copy(io.Discard, remote) }()
+	direct := outbound.NewDirectWithOption(outbound.DirectOption{Name: "DIRECT"})
+	tracker := statistic.NewTCPTracker(
+		outbound.NewConn(local, direct),
+		statistic.DefaultManager,
+		&constant.Metadata{},
+		nil,
+		0,
+		0,
+		true,
+	)
+	id := tracker.ID()
+	if statistic.DefaultManager.Get(id) == nil {
+		t.Fatal("the connection was not tracked")
+	}
+
+	handleStopListener()
+
+	if statistic.DefaultManager.Get(id) != nil {
+		t.Error("the connection outlived the stop")
+	}
+	if _, err := local.Write([]byte("x")); err == nil {
+		t.Error("the connection still carries traffic after the stop")
+	}
+}

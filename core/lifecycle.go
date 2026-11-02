@@ -62,6 +62,9 @@ func handleStopListener() bool {
 	defer configMu.Unlock()
 	isRunning.Store(false)
 	stopListeners()
+	// A closed listener only turns new connections away; those it already
+	// accepted would keep going through the proxy.
+	handleCloseConnections()
 	resolver.ResetConnection()
 	return true
 }
