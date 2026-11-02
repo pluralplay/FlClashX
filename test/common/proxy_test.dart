@@ -31,6 +31,22 @@ class _FakeProxy implements Proxy {
   Future<bool> stopProxy() => _call('stop');
 }
 
+class _MemoryOwnership implements SystemProxyOwnership {
+  bool applied;
+  final List<bool> saves = [];
+
+  _MemoryOwnership([this.applied = false]);
+
+  @override
+  Future<bool> read() async => applied;
+
+  @override
+  Future<void> save(bool applied) async {
+    saves.add(applied);
+    this.applied = applied;
+  }
+}
+
 ProxyState _state({required bool isStart}) {
   return ProxyState(
     isStart: isStart,
@@ -43,7 +59,7 @@ ProxyState _state({required bool isStart}) {
 void main() {
   test('applies changes in the order they come', () async {
     final proxy = _FakeProxy();
-    final queue = SystemProxyQueue(proxy);
+    final queue = SystemProxyQueue(proxy, _MemoryOwnership());
 
     unawaited(queue.apply(_state(isStart: true)));
     await queue.apply(_state(isStart: false));
@@ -53,7 +69,7 @@ void main() {
 
   test('close stops last and drops the starts queued before it', () async {
     final proxy = _FakeProxy();
-    final queue = SystemProxyQueue(proxy);
+    final queue = SystemProxyQueue(proxy, _MemoryOwnership());
     final inFlight = Completer<bool>();
     proxy.held = inFlight.future;
 
@@ -73,7 +89,7 @@ void main() {
 
   test('a failing call does not stall the queue', () async {
     final proxy = _FakeProxy();
-    final queue = SystemProxyQueue(proxy);
+    final queue = SystemProxyQueue(proxy, _MemoryOwnership());
     proxy.failure = StateError('channel gone');
 
     await queue.apply(_state(isStart: true));
@@ -84,7 +100,7 @@ void main() {
 
   test('leaves a proxy it never set alone', () async {
     final proxy = _FakeProxy();
-    final queue = SystemProxyQueue(proxy);
+    final queue = SystemProxyQueue(proxy, _MemoryOwnership());
 
     await queue.apply(_state(isStart: false));
     await queue.close();
@@ -92,9 +108,46 @@ void main() {
     expect(proxy.calls, isEmpty);
   });
 
+  test(
+    'a launch after a run that died with the proxy on turns it off',
+    () async {
+      final proxy = _FakeProxy();
+      final ownership = _MemoryOwnership(true);
+      final queue = SystemProxyQueue(proxy, ownership);
+
+      await queue.apply(_state(isStart: false));
+      await queue.close();
+
+      expect(proxy.calls, ['stop']);
+      expect(ownership.applied, isFalse);
+    },
+  );
+
+  test('keeps a start on disk until a stop succeeds', () async {
+    final proxy = _FakeProxy();
+    final ownership = _MemoryOwnership();
+    final queue = SystemProxyQueue(proxy, ownership);
+    final started = Completer<bool>();
+    proxy.held = started.future;
+
+    unawaited(queue.apply(_state(isStart: true)));
+    await pumpEventQueue();
+    expect(proxy.calls, ['start 7890']);
+    expect(ownership.applied, isTrue);
+
+    started.complete(true);
+    proxy.held = Future.value(false);
+    await queue.apply(_state(isStart: false));
+    expect(ownership.applied, isTrue);
+
+    await queue.apply(_state(isStart: false));
+    expect(ownership.applied, isFalse);
+    expect(ownership.saves, [true, false]);
+  });
+
   test('tries a failed stop again on close', () async {
     final proxy = _FakeProxy();
-    final queue = SystemProxyQueue(proxy);
+    final queue = SystemProxyQueue(proxy, _MemoryOwnership());
 
     await queue.apply(_state(isStart: true));
     proxy.held = Future.value(false);
