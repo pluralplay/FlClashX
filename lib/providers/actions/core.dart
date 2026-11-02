@@ -4,11 +4,22 @@ part of '../action.dart';
 class CoreAction extends _$CoreAction {
   CoreController get _core => ref.read(coreHandlerProvider);
 
+  static const crashRestartLimit = 2;
+  static const crashRestartWindow = Duration(seconds: 5);
+
   int _requestedRestartRevision = 0;
   Future<bool>? _restartOperation;
+  int _failedRestarts = 0;
+  DateTime? _crashRestartedAt;
+  bool _restartingAfterCrash = false;
+  String? _unansweredCrash;
+  bool _answeringCrashes = false;
 
   @override
   void build() {}
+
+  @protected
+  DateTime currentTime() => DateTime.now();
 
   Future<void> initCore() async {
     final isInit = await _core.isInit;
@@ -86,14 +97,71 @@ class CoreAction extends _$CoreAction {
     await _core.crash();
   }
 
-  Future<bool> restartCore() {
+  /// Restarting a Core that keeps falling would only hide why it falls.
+  Future<void> restartAfterCrash(String reason) async {
+    final restartedAt = _crashRestartedAt;
+    final restartFailed =
+        _restartingAfterCrash ||
+        (restartedAt != null &&
+            currentTime().difference(restartedAt) < crashRestartWindow);
+    _failedRestarts = restartFailed ? _failedRestarts + 1 : 0;
+    _unansweredCrash = reason;
+    if (_answeringCrashes) {
+      return;
+    }
+    _answeringCrashes = true;
+    try {
+      for (
+        var crash = _unansweredCrash;
+        crash != null;
+        crash = _unansweredCrash
+      ) {
+        _unansweredCrash = null;
+        if (_failedRestarts >= crashRestartLimit) {
+          commonPrint.log(
+            '$crashRestartLimit restarts in a row did not keep the Core up for '
+            '${crashRestartWindow.inSeconds}s, leaving it down: $crash',
+            logLevel: LogLevel.error,
+          );
+          return;
+        }
+        commonPrint.log(
+          'Core is down, restarting it: $crash',
+          logLevel: LogLevel.warning,
+        );
+        // restartCore() joins a restart under way instead of relaunching.
+        await _restartOperation?.catchError((_) => false);
+        final running = ref.read(setupActionProvider.notifier).requestedRunning;
+        _restartingAfterCrash = true;
+        try {
+          await restartCore(running: running);
+          _crashRestartedAt = currentTime();
+        } catch (error) {
+          if (error case DesktopCoreFailure(phase: DesktopCorePhase.closed)) {
+            return;
+          }
+          if (_unansweredCrash == null) {
+            _failedRestarts++;
+            _unansweredCrash = compactError(error);
+          }
+        } finally {
+          _restartingAfterCrash = false;
+        }
+      }
+    } finally {
+      _answeringCrashes = false;
+    }
+  }
+
+  /// [running] stands in for a run that a crash rolled back.
+  Future<bool> restartCore({bool? running}) {
     _requestedRestartRevision++;
     final activeOperation = _restartOperation;
     if (activeOperation != null) {
       return activeOperation;
     }
 
-    final operation = _runRestartWorker();
+    final operation = _runRestartWorker(running: running);
     _restartOperation = operation;
     return operation;
   }
@@ -103,9 +171,9 @@ class CoreAction extends _$CoreAction {
   @protected
   bool get coreIsEmbedded => coreLib != null;
 
-  Future<bool> _runRestartWorker() async {
+  Future<bool> _runRestartWorker({bool? running}) async {
     final setupAction = ref.read(setupActionProvider.notifier);
-    final wasRunning = ref.read(isStartProvider);
+    final bool wasRunning = running ?? ref.read(isStartProvider);
     try {
       ref.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
       final stopping = coreIsEmbedded && wasRunning
@@ -128,6 +196,7 @@ class CoreAction extends _$CoreAction {
         applied = await _restoreRunning(
           setupAction,
           wasRunning: wasRunning,
+          runRequested: running,
           observedIntent: runIntent,
         );
         appliedRevision = revision;
@@ -145,12 +214,13 @@ class CoreAction extends _$CoreAction {
   Future<bool> _restoreRunning(
     SetupAction setupAction, {
     required bool wasRunning,
+    required bool? runRequested,
     required Object? observedIntent,
   }) async {
     final intentChanged = !identical(setupAction.runIntent, observedIntent);
     final running = intentChanged
         ? setupAction.requestedRunning == true
-        : wasRunning || ref.read(isStartProvider);
+        : runRequested ?? (wasRunning || ref.read(isStartProvider));
     if (running) {
       return setupAction.setRunning(true, initialize: true);
     }

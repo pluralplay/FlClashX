@@ -888,6 +888,228 @@ void main() {
       expect(coreAction.initCoreCount, 1);
       expect(container.read(coreStatusProvider), CoreStatus.connected);
     });
+
+    group('after a crash', () {
+      late List<String> printed;
+      late ProviderContainer container;
+      late _TestCoreAction coreAction;
+      late _TestSetupAction setupAction;
+
+      setUp(() {
+        printed = [];
+        final original = debugPrint;
+        debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+        addTearDown(() => debugPrint = original);
+        container = ProviderContainer(
+          overrides: [
+            coreActionProvider.overrideWith(_TestCoreAction.new),
+            setupActionProvider.overrideWith(_TestSetupAction.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(runTimeProvider.notifier).value = 0;
+        coreAction =
+            container.read(coreActionProvider.notifier) as _TestCoreAction;
+        setupAction =
+            container.read(setupActionProvider.notifier) as _TestSetupAction;
+      });
+
+      Future<void> crashAfter(Duration uptime, String reason) {
+        coreAction.now = coreAction.now.add(uptime);
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        return coreAction.restartAfterCrash(reason);
+      }
+
+      test('restarts the Core with the run it had', () async {
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 1);
+        expect(setupAction.runningCalls, [(true, true)]);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+        expect(printed, contains(contains('boom')));
+      });
+
+      test('leaves a Core that fell within 5 s of two restarts in a row '
+          'down and logs why', () async {
+        await crashAfter(Duration.zero, 'first');
+        await crashAfter(const Duration(seconds: 4), 'second');
+        await crashAfter(const Duration(seconds: 4), 'third');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+        expect(printed.last, allOf(contains('5s'), contains('third')));
+      });
+
+      test('restarts a Core that outlived the window again', () async {
+        await crashAfter(Duration.zero, 'first');
+        await crashAfter(const Duration(seconds: 4), 'second');
+        await crashAfter(const Duration(seconds: 6), 'third');
+
+        expect(coreAction.lifecycleRestartCount, 3);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+      });
+
+      test(
+        'answers a crash that came while the restart was under way',
+        () async {
+          final init = Completer<void>();
+          coreAction.initCompleter = init;
+          final first = crashAfter(Duration.zero, 'first');
+          await pumpEventQueue();
+          expect(container.read(coreStatusProvider), CoreStatus.connected);
+
+          coreAction.initCompleter = null;
+          await crashAfter(const Duration(seconds: 1), 'second');
+          init.complete();
+          await first;
+
+          expect(coreAction.lifecycleRestartCount, 2);
+          expect(container.read(coreStatusProvider), CoreStatus.connected);
+        },
+      );
+
+      test('relaunches a Core that fell during a restart already under '
+          'way', () async {
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        final userRestart = coreAction.restartCore();
+        await pumpEventQueue();
+
+        coreAction.initCompleter = null;
+        final recovery = crashAfter(const Duration(seconds: 1), 'boom');
+        init.complete();
+        await userRestart;
+        await recovery;
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+      });
+
+      (ProviderContainer, _TestCoreAction, _RestartSetupAction) realRun() {
+        final container = ProviderContainer(
+          overrides: [
+            initProvider.overrideWithBuild((_, _) => true),
+            commonActionProvider.overrideWith(_RaceCommonAction.new),
+            coreActionProvider.overrideWith(_TestCoreAction.new),
+            setupActionProvider.overrideWith(_RestartSetupAction.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        return (
+          container,
+          container.read(coreActionProvider.notifier) as _TestCoreAction,
+          container.read(setupActionProvider.notifier) as _RestartSetupAction,
+        );
+      }
+
+      test('restores the run a crash during the restart rolled back', () async {
+        final (container, coreAction, setupAction) = realRun();
+        await setupAction.setRunning(true);
+        setupAction.crashOnNextApply = () {
+          container.read(coreStatusProvider.notifier).value =
+              CoreStatus.disconnected;
+          unawaited(coreAction.restartAfterCrash('during restore'));
+        };
+
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        await coreAction.restartAfterCrash('boom');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(setupAction.transitions, [true, true, false, true]);
+        expect(container.read(isStartProvider), isTrue);
+      });
+
+      test('keeps a stop made while the Core was being restarted', () async {
+        final (container, coreAction, setupAction) = realRun();
+        await setupAction.setRunning(true);
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        final recovery = coreAction.restartAfterCrash('boom');
+        await pumpEventQueue();
+
+        await setupAction.setRunning(false);
+        coreAction.initCompleter = null;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        unawaited(coreAction.restartAfterCrash('second'));
+        init.complete();
+        await recovery;
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(isStartProvider), isFalse);
+      });
+
+      test('keeps a stop that the crash itself rolled back', () async {
+        final (container, coreAction, setupAction) = realRun();
+        await setupAction.setRunning(true);
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        final recovery = coreAction.restartAfterCrash('boom');
+        await pumpEventQueue();
+
+        setupAction.coreRunningError = Exception('Core is gone');
+        await expectLater(setupAction.setRunning(false), throwsException);
+        expect(container.read(isStartProvider), isTrue);
+        setupAction.coreRunningError = null;
+        coreAction.initCompleter = null;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        unawaited(coreAction.restartAfterCrash('second'));
+        init.completeError(StateError('Core is gone'));
+        await recovery;
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(isStartProvider), isFalse);
+      });
+
+      test('a crash during a restart counts however long it took', () async {
+        var slowCrashes = 0;
+        coreAction.onInit = () {
+          if (slowCrashes == 2) {
+            return;
+          }
+          slowCrashes++;
+          coreAction.now = coreAction.now.add(const Duration(seconds: 10));
+          container.read(coreStatusProvider.notifier).value =
+              CoreStatus.disconnected;
+          unawaited(coreAction.restartAfterCrash('slow $slowCrashes'));
+        };
+
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(printed.last, contains('slow 2'));
+      });
+
+      test('stops once the app exit has closed the Core', () async {
+        coreAction.restartError = const DesktopCoreFailure(
+          code: 'lifecycle_closed',
+          phase: DesktopCorePhase.closed,
+          revision: 3,
+        );
+
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 1);
+        expect(printed, isNot(contains(contains('leaving it down'))));
+      });
+
+      test('a restart that fails counts as one that fell', () async {
+        coreAction.restartError = StateError('no core binary');
+
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+        expect(printed.last, contains('no core binary'));
+      });
+    });
   });
 
   group('SetupAction', () {
@@ -1243,13 +1465,22 @@ class _TestCoreAction extends CoreAction {
   @override
   bool get coreIsEmbedded => embedded;
   int initCoreCount = 0;
+  Completer<void>? initCompleter;
+  void Function()? onInit;
   Completer<CoreLifecycleResult>? restartCompleter;
   Completer<CoreLifecycleResult>? startCompleter;
   CoreLifecycleResult startResult = _restartResult;
+  Object? restartError;
+  DateTime now = DateTime(2026, 11, 3);
+
+  @override
+  DateTime currentTime() => now;
 
   @override
   Future<void> initCore() async {
     initCoreCount++;
+    onInit?.call();
+    await initCompleter?.future;
   }
 
   @override
@@ -1260,6 +1491,10 @@ class _TestCoreAction extends CoreAction {
   @override
   Future<CoreLifecycleResult> restartLifecycle() {
     lifecycleRestartCount++;
+    final error = restartError;
+    if (error != null) {
+      return Future.error(error);
+    }
     return restartCompleter?.future ?? Future.value(_restartResult);
   }
 }
@@ -1281,7 +1516,6 @@ class _TestSetupAction extends SetupAction {
   bool setRunningResult = true;
   Completer<void>? firstApplyStarted;
   Completer<void>? firstApplyCompleter;
-
   @override
   Future<bool> setRunning(bool running, {bool initialize = false}) async {
     setRunningCount++;
@@ -1317,7 +1551,7 @@ class _RestartRecordingCoreAction extends CoreAction {
   bool restartResult = true;
 
   @override
-  Future<bool> restartCore() async {
+  Future<bool> restartCore({bool? running}) async {
     restartCount++;
     return restartResult;
   }
@@ -1325,7 +1559,7 @@ class _RestartRecordingCoreAction extends CoreAction {
 
 class _FailingRestartCoreAction extends CoreAction {
   @override
-  Future<bool> restartCore() async {
+  Future<bool> restartCore({bool? running}) async {
     throw _restartFailure;
   }
 }
@@ -1408,6 +1642,7 @@ class _RestartSetupAction extends SetupAction {
   final transitions = <bool>[];
   int applyProfileCount = 0;
   Exception? coreRunningError;
+  void Function()? crashOnNextApply;
 
   @override
   void applyProfileDebounce({bool silence = false, bool force = false}) {}
@@ -1433,6 +1668,9 @@ class _RestartSetupAction extends SetupAction {
   }) async {
     applyProfileCount++;
     await preloadInvoke?.call();
-    return true;
+    final crash = crashOnNextApply;
+    crashOnNextApply = null;
+    crash?.call();
+    return crash == null;
   }
 }

@@ -189,6 +189,7 @@ class _CoreContainerState extends ConsumerState<CoreManager>
     if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       context.showNotifier(message, level: MessageLevel.error);
     }
+    unawaited(ref.read(coreActionProvider.notifier).restartAfterCrash(message));
     super.onCrash(message);
   }
 

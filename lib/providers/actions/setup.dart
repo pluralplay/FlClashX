@@ -23,12 +23,14 @@ class _RunRequest {
   /// Adopts a run the Android service has, config and groups alike.
   final bool resume;
   final DateTime? previousStartTime;
+  final bool undoesFailedStart;
 
   const _RunRequest({
     required this.running,
     required this.initialize,
     required this.resume,
     required this.previousStartTime,
+    this.undoesFailedStart = false,
   });
 }
 
@@ -178,12 +180,14 @@ class SetupAction extends _$SetupAction {
     bool running, {
     required bool initialize,
     bool resume = false,
+    bool undoesFailedStart = false,
   }) {
     final request = _RunRequest(
       running: running,
       initialize: initialize,
       resume: resume,
       previousStartTime: _startTime,
+      undoesFailedStart: undoesFailedStart,
     );
     _latestRunRequest = request;
     _setLocalRunning(running);
@@ -205,7 +209,9 @@ class SetupAction extends _$SetupAction {
         applied = false;
       }
       if (!applied && _isCurrent(request)) {
-        await globalState.safeRun(() => setRunning(false));
+        await globalState.safeRun(
+          () => _run(false, initialize: false, undoesFailedStart: true),
+        );
       }
       return applied;
     }
@@ -357,7 +363,13 @@ class SetupAction extends _$SetupAction {
   /// Identity of the latest run request, answered or rolled back alike.
   Object? get runIntent => _latestRunRequest;
 
-  bool? get requestedRunning => _latestRunRequest?.running;
+  /// A stop that undid a failed start leaves the run still asked for.
+  bool? get requestedRunning {
+    final request = _latestRunRequest;
+    return request == null
+        ? null
+        : request.running || request.undoesFailedStart;
+  }
 
   Future<void> updateConfigDebounce() async {
     debouncer.call(FunctionTag.updateConfig, updateConfig);
