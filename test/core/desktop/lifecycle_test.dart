@@ -420,6 +420,23 @@ void main() {
     await lifecycle.close();
   });
 
+  test('a crash carries the headline of the report the Core wrote', () async {
+    final transport = FakeDesktopCoreTransport();
+    final launcher = FakeLauncher(owner: CoreProcessOwner.direct, pid: 42);
+    final lifecycle = _createLifecycle(
+      transport: transport,
+      resolver: MutableLauncherResolver(launcher),
+    );
+    await _startConnected(lifecycle, transport, launcher, pid: 42);
+    final crash = lifecycle.crashEvents.first;
+
+    launcher.lease.crashHeadline = 'fatal error: concurrent map writes';
+    transport.disconnect(1);
+
+    expect((await crash).crashHeadline, 'fatal error: concurrent map writes');
+    await lifecycle.close();
+  });
+
   test(
     'unexpected disconnect cleans one session and emits one crash',
     () async {

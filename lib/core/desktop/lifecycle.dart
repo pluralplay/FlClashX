@@ -789,6 +789,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
       connectionGeneration:
           connectionGeneration ?? session?.connectionGeneration,
       cause: cause,
+      crashHeadline: (session?.lease ?? lease)?.crashHeadline,
       stackTrace: stackTrace,
     );
   }

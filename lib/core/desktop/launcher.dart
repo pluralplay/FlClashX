@@ -35,14 +35,16 @@ final class DirectCoreLauncher implements CoreProcessLauncher {
     required String address,
   }) async {
     final process = await _startProcess(corePath, [address]);
+    final lease = DirectCoreLease(sessionId: sessionId, process: process);
     process.stdout.listen((_) {});
     process.stderr.listen((data) {
       final error = utf8.decode(data);
       if (error.isNotEmpty) {
+        lease._noteOutput(error);
         commonPrint.log(error, logLevel: LogLevel.warning);
       }
     });
-    return DirectCoreLease(sessionId: sessionId, process: process);
+    return lease;
   }
 }
 
@@ -52,6 +54,11 @@ final class DirectCoreLease implements CoreProcessLease {
 
   final Process _process;
   Future<CoreProcessStopResult>? _stopOperation;
+  String? _crashHeadline;
+  String _partialLine = '';
+
+  static const _longestLine = 4096;
+  static final _goCrashHeadline = RegExp(r'^(?:panic|fatal error|SIG[A-Z]+): ');
 
   DirectCoreLease({required this.sessionId, required Process process})
     : _process = process;
@@ -61,6 +68,22 @@ final class DirectCoreLease implements CoreProcessLease {
 
   @override
   int get pid => _process.pid;
+
+  @override
+  String? get crashHeadline => _crashHeadline;
+
+  void _noteOutput(String output) {
+    final lines = '$_partialLine$output'.split('\n');
+    final partial = lines.removeLast();
+    _partialLine = partial.length > _longestLine
+        ? partial.substring(0, _longestLine)
+        : partial;
+    for (final line in lines) {
+      if (_goCrashHeadline.hasMatch(line)) {
+        _crashHeadline = line.trim();
+      }
+    }
+  }
 
   @override
   Future<CoreProcessStopResult> stop(Duration timeout) {

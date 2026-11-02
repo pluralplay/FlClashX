@@ -549,6 +549,9 @@ final class HelperCoreLease implements CoreProcessLease {
   CoreProcessOwner get owner => CoreProcessOwner.helper;
 
   @override
+  String? get crashHeadline => null;
+
+  @override
   Future<CoreProcessStopResult> stop(Duration timeout) {
     final stopOperation = _stopOperation;
     if (stopOperation != null) {

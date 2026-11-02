@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:fl_clash/core/desktop/lifecycle.dart';
 import 'package:fl_clash/core/desktop/model.dart';
@@ -88,6 +89,25 @@ void main() {
     await pumpEventQueue();
 
     expect(listener.messages, ['core done']);
+    coreEventManager.removeListener(listener);
+  });
+
+  test('names a crash by the report the Core wrote', () async {
+    final listener = _CrashListener();
+    coreEventManager.addListener(listener);
+
+    crashes.add(
+      const DesktopCoreFailure(
+        code: 'unexpected_disconnect',
+        phase: DesktopCorePhase.running,
+        revision: 2,
+        cause: SocketException('Connection reset by peer'),
+        crashHeadline: 'panic: runtime error: index out of range',
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(listener.messages, ['panic: runtime error: index out of range']);
     coreEventManager.removeListener(listener);
   });
 
