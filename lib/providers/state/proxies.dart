@@ -35,6 +35,11 @@ bool _hasSelection(Proxy proxy) => proxy.now?.isNotEmpty ?? false;
 ProxyState proxyState(Ref ref) {
   final suspend = ref.watch(suspendProvider);
   final isStart = ref.watch(runTimeProvider.select((state) => state != null));
+  // A crash keeps the run on, so a Core restart resumes it, but until then
+  // nothing listens on the port the proxy would send traffic to.
+  final coreAlive = ref.watch(
+    coreStatusProvider.select((status) => status != CoreStatus.disconnected),
+  );
   final systemProxySelector = ref.watch(
     networkSettingProvider.select(
       (state) => SystemProxySelectorState(
@@ -47,7 +52,7 @@ ProxyState proxyState(Ref ref) {
     patchClashConfigProvider.select((state) => state.mixedPort),
   );
   return ProxyState(
-    isStart: suspend ? false : isStart,
+    isStart: !suspend && isStart && coreAlive,
     systemProxy: systemProxySelector.systemProxy,
     bassDomain: systemProxySelector.bypassDomain,
     port: mixedPort,

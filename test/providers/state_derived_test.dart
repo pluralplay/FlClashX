@@ -538,6 +538,7 @@ void main() {
     container
         .read(runTimeProvider.notifier)
         .update((_) => DateTime(2026).millisecondsSinceEpoch);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
     container
         .read(networkSettingProvider.notifier)
         .update(

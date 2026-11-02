@@ -1,3 +1,4 @@
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/proxy_manager.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
@@ -40,6 +41,7 @@ void main() {
     container.read(patchClashConfigProvider.notifier).value =
         const PatchClashConfig().copyWith(mixedPort: mixedPort);
     container.read(runTimeProvider.notifier).value = running ? 1 : null;
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
   }
 
   testWidgets('renders its child unchanged', (tester) async {
@@ -84,6 +86,7 @@ void main() {
 
   test('a running core reports the mixed port as the proxy target', () {
     container.read(runTimeProvider.notifier).value = 1;
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
     container.read(networkSettingProvider.notifier).value = const NetworkProps()
         .copyWith(systemProxy: true);
     container.read(patchClashConfigProvider.notifier).value =
@@ -93,6 +96,21 @@ void main() {
     expect(state.isStart, isTrue);
     expect(state.systemProxy, isTrue);
     expect(state.port, 7892);
+  });
+
+  test('a crashed core drops the system proxy but keeps the run', () {
+    container.read(runTimeProvider.notifier).value = 1;
+    container.read(networkSettingProvider.notifier).value = const NetworkProps()
+        .copyWith(systemProxy: true);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    expect(container.read(proxyStateProvider).isStart, isTrue);
+
+    container.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
+    expect(container.read(proxyStateProvider).isStart, isFalse);
+    expect(container.read(isStartProvider), isTrue);
+
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+    expect(container.read(proxyStateProvider).isStart, isTrue);
   });
 
   test('an excluded SSID suspends the system proxy', () {
