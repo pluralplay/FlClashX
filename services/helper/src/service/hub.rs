@@ -123,11 +123,25 @@ struct ManagedCore {
     session_id: String,
     child: Child,
     #[cfg(windows)]
-    _job: CoreJob,
+    _job: Option<CoreJob>,
+}
+
+/// A Core its job refused, kept when it did not exit so that it stays owned
+/// and a later stop can try again, as for any Core whose exit is unconfirmed.
+#[cfg_attr(not(windows), allow(dead_code))]
+struct ConfinementFailed {
+    error: Error,
+    unconfirmed: Option<ManagedCore>,
+}
+
+impl std::fmt::Debug for ConfinementFailed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.error.fmt(formatter)
+    }
 }
 
 impl ManagedCore {
-    fn adopt(session_id: String, child: Child) -> Result<Self, Error> {
+    fn adopt(session_id: String, child: Child) -> Result<Self, ConfinementFailed> {
         #[cfg(windows)]
         let job = match CoreJob::bind(&child) {
             Ok(job) => job,
@@ -135,17 +149,22 @@ impl ManagedCore {
             Err(error) => {
                 let mut child = child;
                 let _ = child.kill();
-                if !matches!(wait_for_child_exit(&mut child, CORE_EXIT_TIMEOUT), Ok(true)) {
-                    log_message("Helper could not end the Core it failed to confine".to_string());
-                }
-                return Err(error);
+                let exited = matches!(wait_for_child_exit(&mut child, CORE_EXIT_TIMEOUT), Ok(true));
+                return Err(ConfinementFailed {
+                    error,
+                    unconfirmed: (!exited).then_some(Self {
+                        session_id,
+                        child,
+                        _job: None,
+                    }),
+                });
             }
         };
         Ok(Self {
             session_id,
             child,
             #[cfg(windows)]
-            _job: job,
+            _job: Some(job),
         })
     }
 
@@ -517,17 +536,21 @@ fn launch(start_params: StartParams) -> warp::reply::Response {
                     reap_exited_core(&session_id);
                 });
             }
-            *managed = match ManagedCore::adopt(start_params.session_id.clone(), child) {
-                Ok(core) => Some(core),
-                Err(error) => {
+            let core = match ManagedCore::adopt(start_params.session_id.clone(), child) {
+                Ok(core) => core,
+                Err(failed) => {
+                    let error = &failed.error;
                     log_message(format!("Helper could not confine the Core: {error}"));
-                    return error_response(
+                    let response = error_response(
                         "internalError",
                         format!("Core confinement failed: {error}"),
                         StatusCode::INTERNAL_SERVER_ERROR,
                     );
+                    *managed = failed.unconfirmed;
+                    return response;
                 }
             };
+            *managed = Some(core);
             json_response(
                 &StartResponse {
                     session_id: start_params.session_id,
