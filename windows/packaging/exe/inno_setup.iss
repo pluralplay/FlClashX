@@ -63,6 +63,17 @@ begin
   Sleep(1000);
 end;
 
+// Killing the app skips its exit path, which is what turns the system proxy
+// off; the executable clears a proxy left on a port nothing listens on.
+procedure ClearStaleProxy;
+var
+  AppPath: String;
+begin
+  AppPath := ExpandConstant('{app}\{{EXECUTABLE_NAME}}');
+  if FileExists(AppPath) then
+    RunHidden(AppPath, '--clear-stale-proxy');
+end;
+
 procedure ReleaseHelper;
 begin
   if not HelperHeld then
@@ -161,6 +172,7 @@ begin
   if CurStep = ssPostInstall then
   begin
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0);
+    ClearStaleProxy;
     ReleaseHelper;
   end;
 end;
@@ -171,6 +183,7 @@ begin
     usUninstall:
     begin
       ShutDownApp;
+      ClearStaleProxy;
       RunHidden('sc.exe', 'delete "' + HelperService + '"');
     end;
     usPostUninstall:
