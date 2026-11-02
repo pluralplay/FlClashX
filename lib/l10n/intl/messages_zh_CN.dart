@@ -1497,7 +1497,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN 被其他应用阻止",
     ),
     "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
-      "Android 未经询问就拒绝了：另一个 VPN 应用开启了“始终开启的 VPN”。请在 VPN 设置中为该应用关闭它，然后重新启动。",
+      "另一个 VPN 应用开启了“始终开启的 VPN”。请在 VPN 设置中为该应用关闭它，然后重新启动。",
     ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "检测到VPN相关配置改动",

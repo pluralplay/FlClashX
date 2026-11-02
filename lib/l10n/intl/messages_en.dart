@@ -1918,7 +1918,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN blocked by another app",
     ),
     "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
-      "Android refused without asking: another VPN app has Always-on VPN turned on. Turn it off for that app in the VPN settings, then start again.",
+      "Another VPN app has Always-on VPN turned on. Turn it off for that app in the VPN settings, then start again.",
     ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "VPN-related configuration change detected",

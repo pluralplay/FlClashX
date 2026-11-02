@@ -1614,7 +1614,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "다른 앱이 VPN을 차단하고 있습니다",
     ),
     "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
-      "Android가 묻지 않고 거부했습니다. 다른 VPN 앱에 \'상시 VPN\'이 켜져 있습니다. VPN 설정에서 해당 앱의 상시 VPN을 끈 다음 다시 시작하세요.",
+      "다른 VPN 앱에 \'상시 VPN\'이 켜져 있습니다. VPN 설정에서 해당 앱의 상시 VPN을 끈 다음 다시 시작하세요.",
     ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "VPN 관련 구성 변경이 감지되었습니다",

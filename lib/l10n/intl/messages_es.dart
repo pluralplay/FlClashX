@@ -2075,7 +2075,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Otra app bloquea la VPN",
     ),
     "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
-      "Android lo rechazó sin preguntar: otra app de VPN tiene activada la «VPN siempre activa». Desactívala para esa app en los ajustes de VPN y vuelve a iniciar.",
+      "Otra app de VPN tiene activada la «VPN siempre activa». Desactívala para esa app en los ajustes de VPN y vuelve a iniciar.",
     ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "Se detectó un cambio en la configuración relacionada con la VPN",

@@ -2021,7 +2021,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN блокирует другое приложение",
     ),
     "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
-      "Android отказал, не спросив: у другого VPN-приложения включена «Постоянная VPN». Отключите её для этого приложения в настройках VPN и запустите снова.",
+      "У другого VPN-приложения включена «Постоянная VPN». Отключите её для этого приложения в настройках VPN и запустите снова.",
     ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "Обнаружено изменение настроек VPN",

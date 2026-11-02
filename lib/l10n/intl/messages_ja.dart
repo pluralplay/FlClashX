@@ -1646,7 +1646,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "別のアプリが VPN をブロックしています",
     ),
     "vpnBlockedByAnotherAppTip": MessageLookupByLibrary.simpleMessage(
-      "Android が確認せずに拒否しました。別の VPN アプリで「常時接続 VPN」がオンになっています。VPN 設定でそのアプリの設定をオフにしてから、もう一度開始してください。",
+      "別の VPN アプリで「常時接続 VPN」がオンになっています。VPN 設定でそのアプリの設定をオフにしてから、もう一度開始してください。",
     ),
     "vpnConfigChangeDetected": MessageLookupByLibrary.simpleMessage(
       "VPN関連の設定変更を検出しました",
