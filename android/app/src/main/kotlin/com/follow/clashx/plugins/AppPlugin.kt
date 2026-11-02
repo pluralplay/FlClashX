@@ -436,9 +436,14 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             if (activity == null) {
                 invokeVpnPrepareCallback(false)
             } else {
-                vpnConsentAskedAt = SystemClock.elapsedRealtime()
-                @Suppress("DEPRECATION")
-                activity.startActivityForResult(intent, vpnConsentCodes.issue())
+                val code = vpnConsentCodes.issue()
+                if (code == null) {
+                    invokeVpnPrepareCallback(false)
+                } else {
+                    vpnConsentAskedAt = SystemClock.elapsedRealtime()
+                    @Suppress("DEPRECATION")
+                    activity.startActivityForResult(intent, code)
+                }
             }
             return@onMainThread
         }
@@ -536,6 +541,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     override fun onDetachedFromActivity() {
         channel.invokeMethod("exit", null)
         detachFromActivity()
+        vpnConsentCodes.reset()
         invokeVpnPrepareCallback(false)
         invokeRequestNotificationCallback(false)
         invokeRequestLocalNetworkCallback(false)
