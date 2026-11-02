@@ -65,6 +65,7 @@ func handleStopListener() bool {
 	// A closed listener only turns new connections away; those it already
 	// accepted would keep going through the proxy.
 	handleCloseConnections()
+	closeOpenInbound()
 	resolver.ResetConnection()
 	return true
 }

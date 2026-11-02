@@ -34,8 +34,22 @@ var (
 	_ proxydialer.Tunnel = accountingTunnel{}
 )
 
+// A connection still resolving or dialing out has no tracker yet, so
+// stopping closes these from the client's side too.
+var openInbound sync.Map
+
 func (t accountingTunnel) HandleTCPConn(conn net.Conn, metadata *constant.Metadata) {
-	t.Tunnel.HandleTCPConn(&accountedConn{Conn: conn, metadata: metadata}, metadata)
+	accounted := &accountedConn{Conn: conn, metadata: metadata}
+	openInbound.Store(accounted, struct{}{})
+	defer openInbound.Delete(accounted)
+	t.Tunnel.HandleTCPConn(accounted, metadata)
+}
+
+func closeOpenInbound() {
+	openInbound.Range(func(conn, _ any) bool {
+		_ = conn.(*accountedConn).Close()
+		return true
+	})
 }
 
 func (t accountingTunnel) HandleUDPPacket(packet constant.UDPPacket, metadata *constant.Metadata) {

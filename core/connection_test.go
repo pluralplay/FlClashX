@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outbound"
@@ -86,5 +87,37 @@ func TestStoppingClosesTheConnectionsAlreadyOpen(t *testing.T) {
 	}
 	if _, err := local.Write([]byte("x")); err == nil {
 		t.Error("the connection still carries traffic after the stop")
+	}
+}
+
+type dialingTunnel struct {
+	constant.Tunnel
+	entered chan struct{}
+}
+
+// Stands in for a connection whose upstream dial is still out: it holds the
+// client's side until something closes it.
+func (t dialingTunnel) HandleTCPConn(conn net.Conn, _ *constant.Metadata) {
+	close(t.entered)
+	_, _ = io.Copy(io.Discard, conn)
+}
+
+func TestStoppingClosesAConnectionStillDialingOut(t *testing.T) {
+	local, remote := net.Pipe()
+	t.Cleanup(func() { _ = remote.Close() })
+	dialing := dialingTunnel{entered: make(chan struct{})}
+	handled := make(chan struct{})
+	go func() {
+		accountingTunnel{dialing}.HandleTCPConn(local, &constant.Metadata{})
+		close(handled)
+	}()
+	<-dialing.entered
+
+	handleStopListener()
+
+	select {
+	case <-handled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a connection accepted before the stop is still open")
 	}
 }
