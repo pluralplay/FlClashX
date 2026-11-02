@@ -121,8 +121,11 @@ void main() {
     );
     addTearDown(suspended.dispose);
     suspended.read(runTimeProvider.notifier).value = 1;
-    suspended.read(currentSSIDProvider.notifier).value = 'Office Wi-Fi';
+    suspended.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    suspended.read(currentSSIDProvider.notifier).value = 'Home Wi-Fi';
+    expect(suspended.read(proxyStateProvider).isStart, isTrue);
 
+    suspended.read(currentSSIDProvider.notifier).value = 'Office Wi-Fi';
     expect(suspended.read(proxyStateProvider).isStart, isFalse);
   });
 }
