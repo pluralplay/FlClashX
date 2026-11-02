@@ -1623,6 +1623,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN은 VpnService를 통해 모든 시스템 트래픽을 자동으로 라우팅합니다.",
     ),
     "vpnPermissionNotGranted": m88,
+    "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
+      "이 기기에서는 관리자가 VPN을 제한했습니다",
+    ),
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage("WebDAV 구성"),
     "website": MessageLookupByLibrary.simpleMessage("웹사이트"),
     "whitelistMode": MessageLookupByLibrary.simpleMessage("화이트리스트 모드"),

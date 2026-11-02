@@ -1927,6 +1927,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN routes all system traffic through VpnService automatically.",
     ),
     "vpnPermissionNotGranted": m88,
+    "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
+      "VPN is restricted on this device by its administrator",
+    ),
     "webDAVConfiguration": MessageLookupByLibrary.simpleMessage(
       "WebDAV configuration",
     ),

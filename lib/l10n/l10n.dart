@@ -8230,6 +8230,16 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `VPN is restricted on this device by its administrator`
+  String get vpnRestrictedByAdministrator {
+    return Intl.message(
+      'VPN is restricted on this device by its administrator',
+      name: 'vpnRestrictedByAdministrator',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

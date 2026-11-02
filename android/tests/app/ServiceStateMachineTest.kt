@@ -57,12 +57,13 @@ private class FakeApp(
     private val localNetworkGranted: Boolean = true,
     private val vpnGranted: Boolean = true,
     private val holdVpnPreparation: Boolean = false,
-    private val inFront: Boolean = true,
+    private val holdExplanation: Boolean = false,
 ) : AppGateway {
     var beforeVpnPrepared: (() -> Unit)? = null
     var cancelledPreparations = 0
     var localNetworkRequests = 0
     var explainedRefusals = 0
+    private var heldExplanation: (() -> Boolean)? = null
 
     private var heldCallback: ((Boolean) -> Unit)? = null
 
@@ -90,11 +91,18 @@ private class FakeApp(
         }
     }
 
-    override fun explainVpnRefusal(): Boolean {
-        if (inFront) {
+    override fun explainVpnRefusal(isCurrent: () -> Boolean) {
+        heldExplanation = isCurrent
+        if (!holdExplanation) {
+            deliverExplanation()
+        }
+    }
+
+    fun deliverExplanation() {
+        if (heldExplanation?.invoke() == true) {
             explainedRefusals++
         }
-        return inFront
+        heldExplanation = null
     }
 }
 
@@ -332,14 +340,19 @@ class ServiceStateMachineTest {
     }
 
     @Test
-    fun `a denied vpn permission falls back to a toast without an app in front`() = runTest {
+    fun `a denied vpn permission is not explained once a stop superseded the start`() = runTest {
         val host = FakeHost(backgroundScope)
-        host.app = FakeApp(vpnGranted = false, inFront = false)
+        val app = FakeApp(vpnGranted = false, holdExplanation = true)
+        host.app = app
         val machine = ServiceStateMachine(host)
         machine.syncSharedState(configuredState())
 
         assertFalse(machine.requestStart().await())
-        assertTrue(host.toasts.contains(VPN_PERMISSION_MESSAGE))
+        machine.requestStop().await()
+        app.deliverExplanation()
+
+        assertEquals(0, app.explainedRefusals)
+        assertFalse(host.toasts.contains(VPN_PERMISSION_MESSAGE))
     }
 
     @Test

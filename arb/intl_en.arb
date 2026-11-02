@@ -978,5 +978,6 @@
   "vpnPermissionNotGranted": "You did not allow {appName} to connect as a VPN",
   "vpnBlockedByAnotherApp": "VPN blocked by another app",
   "vpnBlockedByAnotherAppTip": "Android refused without asking: another VPN app has Always-on VPN turned on. Turn it off for that app in the VPN settings, then start again.",
-  "openVpnSettings": "Open VPN settings"
+  "openVpnSettings": "Open VPN settings",
+  "vpnRestrictedByAdministrator": "VPN is restricted on this device by its administrator"
 }

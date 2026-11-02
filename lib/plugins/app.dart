@@ -15,7 +15,7 @@ class App {
   late MethodChannel methodChannel;
   Function()? onExit;
   Function()? onPackagesChanged;
-  void Function(bool blocked)? onVpnPermissionDenied;
+  void Function(VpnRefusal refusal)? onVpnPermissionDenied;
   final floatingKeyboard = ValueNotifier(false);
 
   App._internal() {
@@ -31,7 +31,10 @@ class App {
         case 'floatingImeChanged':
           floatingKeyboard.value = call.arguments as bool;
         case 'vpnPermissionDenied':
-          onVpnPermissionDenied?.call(call.arguments == true);
+          final refusal = VpnRefusal.values.asNameMap()[call.arguments];
+          if (refusal != null) {
+            onVpnPermissionDenied?.call(refusal);
+          }
         default:
           throw MissingPluginException();
       }

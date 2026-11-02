@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/android_manager.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/service.dart';
@@ -71,36 +72,46 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('a cancelled vpn request says the permission was not given', (
-    tester,
-  ) async {
-    await pumpAndroidManager(tester, withStatusManager: true);
+  for (final (refusal, notice) in [
+    (VpnRefusal.cancelled, 'You did not allow FlClashX to connect as a VPN'),
+    (
+      VpnRefusal.restricted,
+      'VPN is restricted on this device by its administrator',
+    ),
+  ]) {
+    testWidgets('a ${refusal.name} vpn request is told in a notice', (
+      tester,
+    ) async {
+      await pumpAndroidManager(tester, withStatusManager: true);
 
-    unawaited(explainVpnRefusal(false));
-    await tester.pump();
+      unawaited(explainVpnRefusal(refusal));
+      await tester.pump();
 
-    expect(
-      find.text('You did not allow FlClashX to connect as a VPN'),
-      findsOneWidget,
-    );
-    expect(find.text('Open VPN settings'), findsNothing);
+      expect(find.text(notice), findsOneWidget);
+      expect(find.text('Open VPN settings'), findsNothing);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(seconds: 5));
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
+    });
+  }
 
   testWidgets('a vpn request another app blocked offers the vpn settings', (
     tester,
   ) async {
     await pumpAndroidManager(tester);
+    var opened = 0;
 
-    final explained = explainVpnRefusal(true);
+    final explained = explainVpnRefusal(
+      VpnRefusal.otherAlwaysOn,
+      openVpnSettings: () async => opened++,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('VPN blocked by another app'), findsOneWidget);
     await tester.tap(find.text('Open VPN settings'));
     await tester.pumpAndSettle();
     await explained;
+    expect(opened, 1);
     expect(find.text('VPN blocked by another app'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());

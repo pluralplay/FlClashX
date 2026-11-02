@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.os.UserManager
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -25,6 +26,7 @@ import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.follow.clashx.R
+import com.follow.clashx.VPN_PERMISSION_MESSAGE
 import com.follow.clashx.common.Components
 import com.follow.clashx.common.GlobalState
 import com.follow.clashx.common.PendingCallback
@@ -69,8 +71,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
 
     private var vpnConsentAskedAt = 0L
 
-    @Volatile
-    private var vpnRefusedWithoutAsking = false
+    private var vpnRefusal = REFUSAL_CANCELLED
 
     private val requestNotificationCallback = PendingCallback<Boolean>()
 
@@ -283,13 +284,19 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         }
     }
 
-    fun explainVpnRefusal(): Boolean {
-        if (activity == null) {
-            return false
+    private fun refusalOf(elapsedMillis: Long): String = when {
+        GlobalState.application.getSystemService(UserManager::class.java)
+            ?.hasUserRestriction(UserManager.DISALLOW_CONFIG_VPN) == true -> REFUSAL_RESTRICTED
+        elapsedMillis >= SILENT_REFUSAL_MILLIS -> REFUSAL_CANCELLED
+        else -> REFUSAL_OTHER_ALWAYS_ON
+    }
+
+    fun explainVpnRefusal(isCurrent: () -> Boolean) = onMainThread {
+        when {
+            !isCurrent() -> Unit
+            activity == null -> GlobalState.application.showToast(VPN_PERMISSION_MESSAGE)
+            else -> channel.invokeMethod("vpnPermissionDenied", vpnRefusal)
         }
-        val blocked = vpnRefusedWithoutAsking
-        onMainThread { channel.invokeMethod("vpnPermissionDenied", blocked) }
-        return true
     }
 
     private fun openAppSettings(): Boolean {
@@ -414,6 +421,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
 
     fun prepareVpn(needPrepare: Boolean, callback: (Boolean) -> Unit) = onMainThread {
         vpnPrepareCallback.replace(callback, supersededValue = false)
+        vpnRefusal = REFUSAL_CANCELLED
         if (!needPrepare) {
             invokeVpnPrepareCallback(true)
             return@onMainThread
@@ -535,8 +543,9 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             return false
         }
         val granted = resultCode == Activity.RESULT_OK
-        vpnRefusedWithoutAsking = !granted &&
-            SystemClock.elapsedRealtime() - vpnConsentAskedAt < SILENT_REFUSAL_MILLIS
+        if (!granted) {
+            vpnRefusal = refusalOf(SystemClock.elapsedRealtime() - vpnConsentAskedAt)
+        }
         invokeVpnPrepareCallback(granted)
         return true
     }
@@ -579,8 +588,11 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         const val INSTALLED_APPS_PERMISSION_REQUEST_CODE = 1003
         const val LOCAL_NETWORK_PERMISSION_REQUEST_CODE = 1004
 
-        // The consent dialog finishes in onCreate while another app holds the always-on VPN,
-        // and nobody taps Cancel on a dialog this fast.
+        // The consent dialog finishes in onCreate while another app holds the always-on VPN or
+        // VPN settings are restricted, and nobody taps Cancel on a dialog this fast.
         const val SILENT_REFUSAL_MILLIS = 500L
+        const val REFUSAL_CANCELLED = "cancelled"
+        const val REFUSAL_OTHER_ALWAYS_ON = "otherAlwaysOn"
+        const val REFUSAL_RESTRICTED = "restricted"
     }
 }

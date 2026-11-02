@@ -10,24 +10,33 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// [blocked] when the system refused without asking, which another app's
-/// always-on VPN does and only its VPN settings undo.
-Future<void> explainVpnRefusal(bool blocked) async {
+/// A consent refused without asking is undone only in the system VPN settings,
+/// where another app's always-on VPN is turned off.
+Future<void> explainVpnRefusal(
+  VpnRefusal refusal, {
+  Future<void> Function()? openVpnSettings,
+}) async {
   final appLocalizations = currentAppLocalizations;
-  if (!blocked) {
-    dialogs.showNotifier(
-      appLocalizations.vpnPermissionNotGranted(appName),
-      level: MessageLevel.warning,
-    );
-    return;
-  }
-  final open = await dialogs.showMessage(
-    title: appLocalizations.vpnBlockedByAnotherApp,
-    message: TextSpan(text: appLocalizations.vpnBlockedByAnotherAppTip),
-    confirmText: appLocalizations.openVpnSettings,
-  );
-  if (open == true) {
-    await app?.openVpnSettings();
+  switch (refusal) {
+    case VpnRefusal.cancelled:
+      dialogs.showNotifier(
+        appLocalizations.vpnPermissionNotGranted(appName),
+        level: MessageLevel.warning,
+      );
+    case VpnRefusal.restricted:
+      dialogs.showNotifier(
+        appLocalizations.vpnRestrictedByAdministrator,
+        level: MessageLevel.warning,
+      );
+    case VpnRefusal.otherAlwaysOn:
+      final open = await dialogs.showMessage(
+        title: appLocalizations.vpnBlockedByAnotherApp,
+        message: TextSpan(text: appLocalizations.vpnBlockedByAnotherAppTip),
+        confirmText: appLocalizations.openVpnSettings,
+      );
+      if (open == true) {
+        await (openVpnSettings ?? () async => app?.openVpnSettings())();
+      }
   }
 }
 
