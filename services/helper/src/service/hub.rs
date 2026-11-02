@@ -12,6 +12,7 @@ use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::AsRawHandle;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use std::{io, thread};
@@ -105,6 +106,19 @@ struct ErrorResponse {
     details: Option<ErrorDetails>,
 }
 
+fn wait_for_child_exit(child: &mut Child, timeout: Duration) -> Result<bool, Error> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if child.try_wait()?.is_some() {
+            return Ok(true);
+        }
+        if Instant::now() >= deadline {
+            return Ok(false);
+        }
+        thread::sleep(CORE_EXIT_POLL_INTERVAL);
+    }
+}
+
 struct ManagedCore {
     session_id: String,
     child: Child,
@@ -121,7 +135,9 @@ impl ManagedCore {
             Err(error) => {
                 let mut child = child;
                 let _ = child.kill();
-                let _ = child.wait();
+                if !matches!(wait_for_child_exit(&mut child, CORE_EXIT_TIMEOUT), Ok(true)) {
+                    log_message("Helper could not end the Core it failed to confine".to_string());
+                }
                 return Err(error);
             }
         };
@@ -145,16 +161,7 @@ impl ManagedCore {
     }
 
     fn wait_for_exit(&mut self, timeout: Duration) -> Result<bool, Error> {
-        let deadline = Instant::now() + timeout;
-        loop {
-            if self.child.try_wait()?.is_some() {
-                return Ok(true);
-            }
-            if Instant::now() >= deadline {
-                return Ok(false);
-            }
-            thread::sleep(CORE_EXIT_POLL_INTERVAL);
-        }
+        wait_for_child_exit(&mut self.child, timeout)
     }
 
     /// Only the TUN device dies with the process; SIGTERM lets the Core remove
@@ -354,6 +361,8 @@ fn stop_decision(current: Option<&str>, requested: &str) -> StopDecision {
 static LOGS: Lazy<Mutex<VecDeque<String>>> =
     Lazy::new(|| Mutex::new(VecDeque::with_capacity(LOG_CAPACITY)));
 static MANAGED_CORE: Lazy<Mutex<Option<ManagedCore>>> = Lazy::new(|| Mutex::new(None));
+/// A request the bounded drain gave up on can still reach launch afterwards.
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 fn lock_surviving_poison<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
@@ -460,6 +469,13 @@ fn start(start_params: StartParams) -> warp::reply::Response {
 /// point must already be accepted: a rejected one has to leave it running.
 fn launch(start_params: StartParams) -> warp::reply::Response {
     let mut managed = lock_surviving_poison(&MANAGED_CORE);
+    if SHUTTING_DOWN.load(Ordering::SeqCst) {
+        return error_response(
+            "helperStopping",
+            "the Helper is shutting down",
+            StatusCode::SERVICE_UNAVAILABLE,
+        );
+    }
     if let Err(error) = release_managed_core(&mut managed) {
         log_message(format!(
             "Helper could not release the managed Core: {error}"
@@ -881,6 +897,7 @@ impl ShutdownDrain {
 }
 
 pub(super) fn release_managed_core_on_shutdown() {
+    SHUTTING_DOWN.store(true, Ordering::SeqCst);
     let mut managed = lock_surviving_poison(&MANAGED_CORE);
     if let Err(error) = release_managed_core(&mut managed) {
         log_message(format!(
