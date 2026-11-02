@@ -270,7 +270,7 @@ final class SetupActionProvider extends $NotifierProvider<SetupAction, void> {
   }
 }
 
-String _$setupActionHash() => r'3f123bf399fe18efd95a56045de5dddd80e778f9';
+String _$setupActionHash() => r'572ac3daf36bd909c58126b257efad8fca3ea6e8';
 
 abstract class _$SetupAction extends $Notifier<void> {
   void build();
@@ -372,7 +372,7 @@ final class CoreActionProvider extends $NotifierProvider<CoreAction, void> {
   }
 }
 
-String _$coreActionHash() => r'cff98ee6c3914cc20ed8e018b6cd7cbcceaf1499';
+String _$coreActionHash() => r'8b11b297dabd4dc087d9466fa02381424170781c';
 
 abstract class _$CoreAction extends $Notifier<void> {
   void build();
@@ -423,7 +423,7 @@ final class SystemActionProvider extends $NotifierProvider<SystemAction, void> {
   }
 }
 
-String _$systemActionHash() => r'537ebef749249ca52499abc512e992678c46a403';
+String _$systemActionHash() => r'fa818fa8e84de54ed89609febe147feded618ca9';
 
 abstract class _$SystemAction extends $Notifier<void> {
   void build();
