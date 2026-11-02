@@ -326,15 +326,17 @@ class ServiceStateMachineTest {
         assertFalse(machine.isRunRequested)
     }
 
+    /** The explanation reaches the main thread only after the refused start was rolled back. */
     @Test
     fun `a denied vpn permission is explained by the app in front`() = runTest {
         val host = FakeHost(backgroundScope)
-        val app = FakeApp(vpnGranted = false)
+        val app = FakeApp(vpnGranted = false, holdExplanation = true)
         host.app = app
         val machine = ServiceStateMachine(host)
         machine.syncSharedState(configuredState())
 
         assertFalse(machine.requestStart().await())
+        app.deliverExplanation()
         assertEquals(1, app.explainedRefusals)
         assertFalse(host.toasts.contains(VPN_PERMISSION_MESSAGE))
     }

@@ -256,7 +256,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
                 if (app == null) {
                     host.showToast(VPN_PERMISSION_MESSAGE)
                 } else {
-                    app.explainVpnRefusal { isCurrent(request) }
+                    app.explainVpnRefusal { arbiter.isLatestRequest(request) }
                 }
             }
             return false

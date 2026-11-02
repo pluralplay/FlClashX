@@ -134,4 +134,17 @@ class RunIntentArbiterTest {
             executor.shutdownNow()
         }
     }
+
+    @Test
+    fun `a rolled back request stays the latest until a newer one arrives`() {
+        val arbiter = RunIntentArbiter()
+        val token = arbiter.request(running = true)
+
+        assertTrue(arbiter.resetToStopped(token))
+        assertFalse(arbiter.isCurrent(token))
+        assertTrue(arbiter.isLatestRequest(token))
+
+        arbiter.request(running = false)
+        assertFalse(arbiter.isLatestRequest(token))
+    }
 }

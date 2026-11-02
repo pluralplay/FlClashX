@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference
 class RunIntentArbiter(initialRunning: Boolean = false) {
     class Token internal constructor(
         val running: Boolean,
+        internal val resetOf: Token? = null,
     )
 
     private val latest = AtomicReference(Token(initialRunning))
@@ -23,6 +24,12 @@ class RunIntentArbiter(initialRunning: Boolean = false) {
 
     fun isCurrent(token: Token): Boolean = latest.get() === token
 
+    /** Rolling [token] back with [resetToStopped] is no newer request; any other change is. */
+    fun isLatestRequest(token: Token): Boolean {
+        val current = latest.get()
+        return current === token || current.resetOf === token
+    }
+
     fun resetToStopped(token: Token): Boolean =
-        latest.compareAndSet(token, Token(running = false))
+        latest.compareAndSet(token, Token(running = false, resetOf = token))
 }
