@@ -17,6 +17,8 @@ public class TrayPlugin: NSObject, FlutterPlugin {
     private var statusItem: TrayStatusItem?
     private var menu: TrayMenu?
     private var clickActivates = false
+    private var isMenuOpen = false
+    private var menuSelection: Int?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "tray", binaryMessenger: registrar.messenger)
@@ -66,7 +68,7 @@ public class TrayPlugin: NSObject, FlutterPlugin {
             menu = TrayMenu(
                 items: items,
                 onSelect: { [weak self] id in
-                    self?.channel.invokeMethod("onMenuItemSelected", arguments: ["id": id])
+                    self?.select(id)
                 },
                 onClose: { [weak self] in
                     self?.statusItem?.closeMenu()
@@ -92,12 +94,31 @@ public class TrayPlugin: NSObject, FlutterPlugin {
         menu = nil
     }
 
+    // The Dock stays hidden for good if the process exits before the menu has posted the end of its tracking.
     private func openMenu() -> Bool {
         guard let statusItem = statusItem, let menu = menu else {
             return false
         }
+        isMenuOpen = true
         statusItem.openMenu(menu)
+        isMenuOpen = false
+        if let id = menuSelection {
+            menuSelection = nil
+            sendSelection(id)
+        }
         return true
+    }
+
+    private func select(_ id: Int) {
+        if isMenuOpen {
+            menuSelection = id
+        } else {
+            sendSelection(id)
+        }
+    }
+
+    private func sendSelection(_ id: Int) {
+        channel.invokeMethod("onMenuItemSelected", arguments: ["id": id])
     }
 
     private func makeStatusItem() -> TrayStatusItem? {
