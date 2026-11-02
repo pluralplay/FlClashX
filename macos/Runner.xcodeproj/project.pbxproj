@@ -223,6 +223,7 @@
 				3399D490228B24CF009A79C7 /* ShellScript */,
 				F51BB7CC2EF0268000E05D67 /* Stage Core */,
 				F51BB7C92EF0265000E05D67 /* Copy Core */,
+				F5C0FFEE2F10000100000001 /* Copy Launch at Login Helper */,
 			);
 			buildRules = (
 			);
@@ -369,6 +370,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "core=\"$SRCROOT/../libclash/macos/FlClashCore\"\nif [ ! -f \"$core\" ]; then\n  echo \"error: $core is missing; the setup build hook produced no Core\"\n  exit 1\nfi\nslices=\"$(lipo -archs \"$core\")\"\nfor arch in $ARCHS; do\n  case \" $slices \" in\n    *\" $arch \"*) ;;\n    *) echo \"error: $core has no $arch slice (has: $slices)\"; exit 1 ;;\n  esac\ndone\nif ! cmp -s \"$core\" \"$BUILT_PRODUCTS_DIR/FlClashCore\"; then\n  cp -f \"$core\" \"$BUILT_PRODUCTS_DIR/FlClashCore\"\nfi\n";
+		};
+		F5C0FFEE2F10000100000001 /* Copy Launch at Login Helper */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Launch at Login Helper";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# LaunchAtLogin registers macOS 12 through this login item; 13 and later need none.\n# Its script signs with the identity name, which an ad-hoc build has no certificate for.\nEXPANDED_CODE_SIGN_IDENTITY_NAME=\"$EXPANDED_CODE_SIGN_IDENTITY\" \\\n  \"${BUILT_PRODUCTS_DIR}/LaunchAtLogin_LaunchAtLogin.bundle/Contents/Resources/copy-helper-swiftpm.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
