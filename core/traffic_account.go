@@ -42,6 +42,14 @@ func (t accountingTunnel) HandleTCPConn(conn net.Conn, metadata *constant.Metada
 	accounted := &accountedConn{Conn: conn, metadata: metadata}
 	openInbound.Store(accounted, struct{}{})
 	defer openInbound.Delete(accounted)
+	// One still in its SOCKS or HTTP handshake when the listeners stopped
+	// arrives after the sweep; registered first, it is either swept or sees
+	// the stop here. TUN connections die with the device, and Android starts
+	// the device before the listeners; probes run whether or not they do.
+	if !isRunning.Load() && metadata.Type != constant.TUN && metadata.Type != constant.INNER {
+		_ = accounted.Close()
+		return
+	}
 	t.Tunnel.HandleTCPConn(accounted, metadata)
 }
 

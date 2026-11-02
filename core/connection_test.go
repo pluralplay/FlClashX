@@ -103,6 +103,7 @@ func (t dialingTunnel) HandleTCPConn(conn net.Conn, _ *constant.Metadata) {
 }
 
 func TestStoppingClosesAConnectionStillDialingOut(t *testing.T) {
+	isRunning.Store(true)
 	local, remote := net.Pipe()
 	t.Cleanup(func() { _ = remote.Close() })
 	dialing := dialingTunnel{entered: make(chan struct{})}
@@ -119,5 +120,28 @@ func TestStoppingClosesAConnectionStillDialingOut(t *testing.T) {
 	case <-handled:
 	case <-time.After(5 * time.Second):
 		t.Fatal("a connection accepted before the stop is still open")
+	}
+}
+
+func TestAConnectionArrivingAfterTheStopIsTurnedAway(t *testing.T) {
+	handleStopListener()
+	local, remote := net.Pipe()
+	t.Cleanup(func() { _ = remote.Close() })
+	dialing := dialingTunnel{entered: make(chan struct{})}
+	returned := make(chan struct{})
+	go func() {
+		accountingTunnel{dialing}.HandleTCPConn(local, &constant.Metadata{Type: constant.SOCKS5})
+		close(returned)
+	}()
+
+	select {
+	case <-returned:
+	case <-dialing.entered:
+		t.Fatal("a connection reached the tunnel after the stop")
+	case <-time.After(5 * time.Second):
+		t.Fatal("handling a connection after the stop never returned")
+	}
+	if _, err := local.Write([]byte("x")); err == nil {
+		t.Error("a connection turned away after the stop is still open")
 	}
 }
