@@ -1,5 +1,6 @@
 use crate::service::hub::{
-    ensure_core_sha256_configured, log_message, release_managed_core_on_shutdown, routes,
+    bounded_shutdown, ensure_core_sha256_configured, log_message, release_managed_core_on_shutdown,
+    routes,
 };
 use crate::service::owner::{client_pid, same_sid, TcpConnection};
 
@@ -287,8 +288,9 @@ where
         owner_sid,
         retry: None,
     };
-    warp::serve(routes())
-        .serve_incoming_with_graceful_shutdown(incoming, shutdown)
+    let (shutdown, drain) = bounded_shutdown(shutdown);
+    drain
+        .serve(warp::serve(routes()).serve_incoming_with_graceful_shutdown(incoming, shutdown))
         .await;
     drop(published);
     release_managed_core_on_shutdown();

@@ -4,16 +4,7 @@ use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::fs::{File, OpenOptions};
-#[cfg(all(
-    not(all(feature = "windows-service", target_os = "windows")),
-    not(target_os = "linux")
-))]
-use std::future::pending;
-#[cfg(not(any(
-    all(feature = "windows-service", target_os = "windows"),
-    target_os = "linux"
-)))]
-use std::future::Future;
+use std::future::{pending, Future};
 use std::io::{BufRead, Error, Read};
 #[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
@@ -24,6 +15,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use std::{io, thread};
+use tokio::sync::oneshot;
 use warp::http::StatusCode;
 use warp::{Filter, Rejection, Reply};
 #[cfg(windows)]
@@ -59,6 +51,7 @@ const MAX_REQUEST_BODY_BYTES: u64 = 4096;
 const CORE_EXIT_TIMEOUT: Duration = Duration::from_millis(1500);
 const CORE_GRACEFUL_EXIT_TIMEOUT: Duration = Duration::from_millis(3000);
 const CORE_EXIT_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const SHUTDOWN_DRAIN_TIMEOUT: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -830,6 +823,63 @@ pub(super) fn ensure_core_sha256_configured() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// warp's graceful shutdown waits for every open request, so one a client
+/// never finishes would keep the Helper stopping, and the Core it releases
+/// afterwards running, for good.
+pub(super) fn bounded_shutdown<F>(
+    shutdown: F,
+) -> (impl Future<Output = ()> + Send + 'static, ShutdownDrain)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    bounded_shutdown_within(shutdown, SHUTDOWN_DRAIN_TIMEOUT)
+}
+
+fn bounded_shutdown_within<F>(
+    shutdown: F,
+    timeout: Duration,
+) -> (impl Future<Output = ()> + Send + 'static, ShutdownDrain)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    let (started, started_rx) = oneshot::channel();
+    let signal = async move {
+        shutdown.await;
+        let _ = started.send(());
+    };
+    (
+        signal,
+        ShutdownDrain {
+            started: started_rx,
+            timeout,
+        },
+    )
+}
+
+pub(super) struct ShutdownDrain {
+    started: oneshot::Receiver<()>,
+    timeout: Duration,
+}
+
+impl ShutdownDrain {
+    pub(super) async fn serve<S>(self, server: S)
+    where
+        S: Future<Output = ()>,
+    {
+        let timeout = self.timeout;
+        let deadline = async move {
+            match self.started.await {
+                Ok(()) => tokio::time::sleep(timeout).await,
+                Err(_) => pending::<()>().await,
+            }
+        };
+        tokio::select! {
+            () = server => {}
+            () = deadline => log_message("Helper stopped waiting for unfinished requests".to_string()),
+        }
+    }
+}
+
 pub(super) fn release_managed_core_on_shutdown() {
     let mut managed = lock_surviving_poison(&MANAGED_CORE);
     if let Err(error) = release_managed_core(&mut managed) {
@@ -858,11 +908,12 @@ where
 {
     ensure_core_sha256_configured()?;
 
+    let (shutdown, drain) = bounded_shutdown(shutdown);
     let (_, server) = warp::serve(routes())
         .try_bind_with_graceful_shutdown(([127, 0, 0, 1], LISTEN_PORT), shutdown)
         .map_err(|error| anyhow::anyhow!("bind helper server: {error}"))?;
     on_started()?;
-    server.await;
+    drain.serve(server).await;
     release_managed_core_on_shutdown();
 
     Ok(())
@@ -1545,5 +1596,27 @@ mod tests {
         assert!(lock_surviving_poison(&LOGS)
             .iter()
             .any(|entry| entry == "helper still logs after poisoning"));
+    }
+
+    #[tokio::test]
+    async fn shutdown_stops_waiting_for_a_request_that_never_finishes() {
+        let (shutdown, drain) = bounded_shutdown_within(async {}, Duration::from_millis(20));
+        let server = async move {
+            shutdown.await;
+            pending::<()>().await;
+        };
+
+        tokio::time::timeout(Duration::from_secs(5), drain.serve(server))
+            .await
+            .expect("the drain outlived its deadline");
+    }
+
+    #[tokio::test]
+    async fn the_drain_deadline_starts_with_shutdown() {
+        let (_shutdown, drain) = bounded_shutdown_within(pending(), Duration::from_millis(20));
+
+        let served = tokio::time::timeout(Duration::from_millis(200), drain.serve(pending())).await;
+
+        assert!(served.is_err(), "the server ended before any shutdown");
     }
 }
