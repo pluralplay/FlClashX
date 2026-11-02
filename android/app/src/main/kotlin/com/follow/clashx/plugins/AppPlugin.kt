@@ -31,6 +31,7 @@ import com.follow.clashx.common.Components
 import com.follow.clashx.common.GlobalState
 import com.follow.clashx.common.PendingCallback
 import com.follow.clashx.common.QuickAction
+import com.follow.clashx.common.RequestCodes
 import com.follow.clashx.common.quickIntent
 import com.follow.clashx.common.registerReceiverCompat
 import com.follow.clashx.common.shortcutId
@@ -68,6 +69,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     private lateinit var scope: CoroutineScope
 
     private val vpnPrepareCallback = PendingCallback<Boolean>()
+
+    private val vpnConsentCodes = RequestCodes(VPN_CONSENT_FIRST_CODE, VPN_CONSENT_CODE_COUNT)
 
     private var vpnConsentAskedAt = 0L
 
@@ -421,6 +424,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
 
     fun prepareVpn(needPrepare: Boolean, callback: (Boolean) -> Unit) = onMainThread {
         vpnPrepareCallback.replace(callback, supersededValue = false)
+        vpnConsentCodes.forget()
         vpnRefusal = REFUSAL_CANCELLED
         if (!needPrepare) {
             invokeVpnPrepareCallback(true)
@@ -434,7 +438,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             } else {
                 vpnConsentAskedAt = SystemClock.elapsedRealtime()
                 @Suppress("DEPRECATION")
-                activity.startActivityForResult(intent, VPN_PERMISSION_REQUEST_CODE)
+                activity.startActivityForResult(intent, vpnConsentCodes.issue())
             }
             return@onMainThread
         }
@@ -539,8 +543,11 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     }
 
     private fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode != VPN_PERMISSION_REQUEST_CODE) {
+        if (requestCode !in vpnConsentCodes) {
             return false
+        }
+        if (!vpnConsentCodes.answers(requestCode)) {
+            return true
         }
         val granted = resultCode == Activity.RESULT_OK
         if (!granted) {
@@ -583,10 +590,11 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
 
     private companion object {
         val SHORTCUT_ORDER = listOf(QuickAction.START, QuickAction.STOP, QuickAction.TOGGLE)
-        const val VPN_PERMISSION_REQUEST_CODE = 1001
         const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
         const val INSTALLED_APPS_PERMISSION_REQUEST_CODE = 1003
         const val LOCAL_NETWORK_PERMISSION_REQUEST_CODE = 1004
+        const val VPN_CONSENT_FIRST_CODE = 1100
+        const val VPN_CONSENT_CODE_COUNT = 64
 
         // The consent dialog finishes in onCreate while another app holds the always-on VPN or
         // VPN settings are restricted, and nobody taps Cancel on a dialog this fast.
