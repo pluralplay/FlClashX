@@ -122,7 +122,16 @@ struct ManagedCore {
 impl ManagedCore {
     fn adopt(session_id: String, child: Child) -> Result<Self, Error> {
         #[cfg(windows)]
-        let job = CoreJob::bind(&child)?;
+        let job = match CoreJob::bind(&child) {
+            Ok(job) => job,
+            // Dropping a Child leaves its process running, here outside a job.
+            Err(error) => {
+                let mut child = child;
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error);
+            }
+        };
         Ok(Self {
             session_id,
             child,
