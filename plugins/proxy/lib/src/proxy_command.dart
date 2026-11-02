@@ -16,13 +16,15 @@ typedef ProxyExecutableChecker = Future<bool> Function(String executable);
 typedef ProxyEndpoint = ({String host, int port});
 
 /// Whether [enabled], every proxy a setting turns on, points at [proxyHost]
-/// on ports nothing listens on: one other proxy in it may be someone's
-/// working setup, which turning the setting off would take down.
+/// on ports nothing listens on: one other proxy in it, or one whose port is
+/// left to a default, may be someone's working setup, which turning the
+/// setting off would take down.
 Future<bool> isStaleLocalProxy(
   List<ProxyEndpoint> enabled,
   Future<bool> Function(int port) isListening,
 ) async {
-  if (enabled.isEmpty || enabled.any((proxy) => proxy.host != proxyHost)) {
+  if (enabled.isEmpty ||
+      enabled.any((proxy) => proxy.host != proxyHost || proxy.port <= 0)) {
     return false;
   }
   for (final port in {for (final proxy in enabled) proxy.port}) {

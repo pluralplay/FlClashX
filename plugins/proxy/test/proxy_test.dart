@@ -473,6 +473,7 @@ USB 10/100/1000 LAN
       expect(await stale([local], live: {7890}), isFalse);
       expect(await stale([local, (host: '10.0.0.1', port: 3128)]), isFalse);
       expect(await stale(const []), isFalse);
+      expect(await stale([(host: '127.0.0.1', port: 0)]), isFalse);
     });
 
     test(
@@ -533,6 +534,12 @@ USB 10/100/1000 LAN
       expect(
         LinuxProxyCommands.parseKdeProxies(kde.replaceFirst('=1', '=0')),
         isEmpty,
+      );
+      expect(
+        LinuxProxyCommands.parseKdeProxies(
+          '[Proxy Settings]\nProxyType=1\nhttpProxy=http://127.0.0.1\n',
+        ),
+        [(host: '127.0.0.1', port: 0)],
       );
     });
 
