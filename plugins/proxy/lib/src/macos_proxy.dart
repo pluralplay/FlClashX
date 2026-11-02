@@ -25,8 +25,8 @@ class MacosProxy {
   Future<bool> clearStale(Future<bool> Function(int port) isListening) async {
     final stale = <String>[];
     for (final service in await _networkServices()) {
-      final port = await _localProxyPort(service);
-      if (port != null && !await isListening(port)) {
+      final enabled = await _enabledProxies(service);
+      if (enabled != null && await isStaleLocalProxy(enabled, isListening)) {
         stale.add(service);
       }
     }
@@ -36,19 +36,33 @@ class MacosProxy {
     return _commandRunner.run(stale.expand(MacosProxyCommands.buildStop));
   }
 
-  Future<int?> _localProxyPort(String service) async {
-    try {
-      final result = await _commandRunner.process('/usr/sbin/networksetup', [
-        '-getwebproxy',
-        service,
-      ]);
-      if (result.exitCode != 0) {
+  /// Null when a setting could not be read.
+  Future<List<ProxyEndpoint>?> _enabledProxies(String service) async {
+    final enabled = <ProxyEndpoint>[];
+    for (final query in const [
+      '-getwebproxy',
+      '-getsecurewebproxy',
+      '-getsocksfirewallproxy',
+    ]) {
+      try {
+        final result = await _commandRunner.process('/usr/sbin/networksetup', [
+          query,
+          service,
+        ]);
+        if (result.exitCode != 0) {
+          return null;
+        }
+        final proxy = MacosProxyCommands.parseEnabledProxy(
+          result.stdout.toString(),
+        );
+        if (proxy != null) {
+          enabled.add(proxy);
+        }
+      } on ProcessException {
         return null;
       }
-      return MacosProxyCommands.parseLocalProxyPort(result.stdout.toString());
-    } on ProcessException {
-      return null;
     }
+    return enabled;
   }
 
   Future<List<String>> _networkServices() async {
@@ -147,8 +161,8 @@ class MacosProxyCommands {
     ]);
   }
 
-  /// The port of an enabled web proxy on [proxyHost], from `-getwebproxy`.
-  static int? parseLocalProxyPort(String stdout) {
+  /// The proxy a `-get…proxy` query reports, or null when it is off.
+  static ProxyEndpoint? parseEnabledProxy(String stdout) {
     final fields = <String, String>{};
     for (final line in stdout.split('\n')) {
       final separator = line.indexOf(':');
@@ -158,10 +172,13 @@ class MacosProxyCommands {
             .trim();
       }
     }
-    if (fields['Enabled'] != 'Yes' || fields['Server'] != proxyHost) {
+    if (fields['Enabled'] != 'Yes') {
       return null;
     }
-    return int.tryParse(fields['Port'] ?? '');
+    return (
+      host: fields['Server'] ?? '',
+      port: int.tryParse(fields['Port'] ?? '') ?? 0,
+    );
   }
 
   static List<String> parseNetworkServices(String stdout) {

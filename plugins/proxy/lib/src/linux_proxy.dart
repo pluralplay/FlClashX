@@ -76,16 +76,16 @@ class LinuxProxy {
     if (selection == null) {
       return false;
     }
-    final port = switch (selection.backend) {
-      LinuxProxyBackend.gnome => await _gsettingsLocalPort(
+    final enabled = switch (selection.backend) {
+      LinuxProxyBackend.gnome => await _gsettingsProxies(
         'org.gnome.system.proxy',
       ),
-      LinuxProxyBackend.mate => await _gsettingsLocalPort(
+      LinuxProxyBackend.mate => await _gsettingsProxies(
         'org.mate.system.proxy',
       ),
-      LinuxProxyBackend.kde => await _kdeLocalPort(homeDir),
+      LinuxProxyBackend.kde => await _kdeProxies(homeDir),
     };
-    if (port == null || await isListening(port)) {
+    if (enabled == null || !await isStaleLocalProxy(enabled, isListening)) {
       return true;
     }
     return _commandRunner.run(
@@ -97,22 +97,39 @@ class LinuxProxy {
     );
   }
 
-  Future<int?> _gsettingsLocalPort(String schemaPrefix) async {
-    return LinuxProxyCommands.parseGSettingsLocalPort(
-      mode: await _read('gsettings', ['get', schemaPrefix, 'mode']),
-      host: await _read('gsettings', ['get', '$schemaPrefix.http', 'host']),
-      port: await _read('gsettings', ['get', '$schemaPrefix.http', 'port']),
-    );
+  /// Null when a setting could not be read.
+  Future<List<ProxyEndpoint>?> _gsettingsProxies(String schemaPrefix) async {
+    final mode = await _read('gsettings', ['get', schemaPrefix, 'mode']);
+    if (mode == null) {
+      return null;
+    }
+    final settings = <String, String>{};
+    if (mode == "'manual'") {
+      for (final type in _ProxyType.values) {
+        for (final key in const ['host', 'port']) {
+          final value = await _read('gsettings', [
+            'get',
+            '$schemaPrefix.${type.name}',
+            key,
+          ]);
+          if (value == null) {
+            return null;
+          }
+          settings['${type.name}.$key'] = value;
+        }
+      }
+    }
+    return LinuxProxyCommands.parseGSettingsProxies(mode, settings);
   }
 
-  Future<int?> _kdeLocalPort(String homeDir) async {
+  Future<List<ProxyEndpoint>?> _kdeProxies(String homeDir) async {
     try {
       final config = await File(
         path.join(homeDir, '.config', 'kioslaverc'),
       ).readAsString();
-      return LinuxProxyCommands.parseKdeLocalPort(config);
+      return LinuxProxyCommands.parseKdeProxies(config);
     } on FileSystemException {
-      return null;
+      return const [];
     }
   }
 
@@ -429,23 +446,31 @@ class LinuxProxyCommands {
     'string:',
   ], optional: true);
 
-  /// The port of a manual HTTP proxy on [proxyHost], from `gsettings get`.
-  static int? parseGSettingsLocalPort({
-    required String? mode,
-    required String? host,
-    required String? port,
-  }) {
-    if (mode != "'manual'" || host != "'$proxyHost'") {
-      return null;
+  /// The proxies a manual [mode] sets, from `gsettings get` output keyed
+  /// `http.host`, `http.port` and so on; a protocol with no host is unused.
+  static List<ProxyEndpoint> parseGSettingsProxies(
+    String mode,
+    Map<String, String> settings,
+  ) {
+    if (mode != "'manual'") {
+      return const [];
     }
-    return int.tryParse(port ?? '');
+    return [
+      for (final type in _ProxyType.values)
+        if (_unquote(settings['${type.name}.host'] ?? '') case final host
+            when host.isNotEmpty)
+          (
+            host: host,
+            port: int.tryParse(settings['${type.name}.port'] ?? '') ?? 0,
+          ),
+    ];
   }
 
-  /// The port of a manual HTTP proxy on [proxyHost], from `kioslaverc`.
-  static int? parseKdeLocalPort(String config) {
+  /// The proxies a manual `ProxyType=1` sets in `kioslaverc`, whose entries
+  /// KDE writes as `http://host:port` or `http://host port`.
+  static List<ProxyEndpoint> parseKdeProxies(String config) {
     var inGroup = false;
-    String? type;
-    String? httpProxy;
+    final values = <String, String>{};
     for (final raw in config.split('\n')) {
       final line = raw.trim();
       if (line.startsWith('[')) {
@@ -453,22 +478,35 @@ class LinuxProxyCommands {
         continue;
       }
       final separator = line.indexOf('=');
-      if (!inGroup || separator <= 0) {
-        continue;
-      }
-      final value = line.substring(separator + 1).trim();
-      switch (line.substring(0, separator).trim()) {
-        case 'ProxyType':
-          type = value;
-        case 'httpProxy':
-          httpProxy = value;
+      if (inGroup && separator > 0) {
+        values[line.substring(0, separator).trim()] = line
+            .substring(separator + 1)
+            .trim();
       }
     }
-    final uri = httpProxy == null ? null : Uri.tryParse(httpProxy);
-    if (type != '1' || uri == null || uri.host != proxyHost || !uri.hasPort) {
-      return null;
+    if (values['ProxyType'] != '1') {
+      return const [];
     }
-    return uri.port;
+    return [
+      for (final type in _ProxyType.values)
+        if (values['${type.name}Proxy'] case final entry? when entry.isNotEmpty)
+          _kdeEndpoint(entry),
+    ];
+  }
+
+  static ProxyEndpoint _kdeEndpoint(String entry) {
+    final parts = entry.split(RegExp(r'\s+'));
+    final uri = Uri.tryParse(parts.first);
+    final port = parts.length > 1
+        ? int.tryParse(parts[1])
+        : (uri != null && uri.hasPort ? uri.port : null);
+    return (host: uri?.host ?? '', port: port ?? 0);
+  }
+
+  static String _unquote(String value) {
+    return value.length >= 2 && value.startsWith("'") && value.endsWith("'")
+        ? value.substring(1, value.length - 1)
+        : value;
   }
 
   static String _formatGSettingsStringList(List<String> values) {

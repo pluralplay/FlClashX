@@ -13,7 +13,7 @@ namespace proxy {
 
 // Turns off a system proxy that still points at FlClash's address while
 // nothing listens on its port any more, the state a killed app leaves behind.
-bool ClearStaleProxy();
+bool ClearStaleProxy(bool waitForRelease = true);
 
 class ProxyPlugin : public flutter::Plugin {
  public:

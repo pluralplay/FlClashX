@@ -69,6 +69,8 @@ class Proxy {
     };
   }
 
+  /// Only a refused connection shows the port is dead; a probe that fails
+  /// any other way may be blocked while browsers still get through.
   static Future<bool> _acceptsConnections(int port) async {
     try {
       final socket = await Socket.connect(
@@ -78,10 +80,12 @@ class Proxy {
       );
       socket.destroy();
       return true;
-    } on SocketException {
-      return false;
+    } on SocketException catch (error) {
+      return error.osError?.errorCode != _connectionRefused;
     }
   }
+
+  static int get _connectionRefused => Platform.isMacOS ? 61 : 111;
 
   Future<bool> stopProxy() async {
     return switch (Platform.operatingSystem) {
