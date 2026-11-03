@@ -121,6 +121,38 @@ void main() {
     expect(setting.autoCheckUpdate, isTrue);
   });
 
+  test('the hideip special hides the IP and locks its switch', () async {
+    await select(_profile(1, special: 'hideip'));
+
+    expect(container.read(appSettingProvider).hideIp, isTrue);
+    expect(container.read(settingLockedProvider(hideIpSetting)), isTrue);
+  });
+
+  test('an IP switch the user took over is left to the user', () async {
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) =>
+              state.copyWith(hideIp: false, ownedSettings: {hideIpSetting}),
+        );
+
+    await select(_profile(1, special: 'hideip'));
+
+    expect(container.read(appSettingProvider).hideIp, isFalse);
+    expect(container.read(settingLockedProvider(hideIpSetting)), isFalse);
+    expect(container.read(settingReleasableProvider(hideIpSetting)), isTrue);
+  });
+
+  test('without the hideip special the IP switch stays the user\'s', () async {
+    await select(_profile(1, special: 'noglobal'));
+
+    expect(container.read(appSettingProvider).hideIp, isFalse);
+    expect(
+      container.read(managedSettingsProvider),
+      isNot(contains(hideIpSetting)),
+    );
+  });
+
   test('the header picks the style when its profile is switched to', () async {
     await select(_profile(1, view: 'app.board:extended'));
     expect(style(), ThemeStyle.enhanced);

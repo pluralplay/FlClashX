@@ -21,8 +21,14 @@ Set<String> managedSettings(Ref ref) {
   final view = ref.watch(
     currentProfileProvider.select((profile) => profile?.headers.view),
   );
+  final hideIp = ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.hideIp ?? false,
+    ),
+  );
   return {
     if (switches != null) ...appSwitchSettings.values,
+    if (hideIp) hideIpSetting,
     ...managedViewKeysOf(view),
     ...ref.watch(managedClashKeysProvider),
   };

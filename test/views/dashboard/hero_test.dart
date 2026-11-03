@@ -372,6 +372,47 @@ void main() {
     expect(find.text(ipMask), findsOneWidget);
   });
 
+  testWidgets('the hideip special masks the IP and locks its switch', (
+    tester,
+  ) async {
+    setUp_(
+      profiles: [
+        _profile(
+          headers: const {
+            'flclashx-serverinfo': 'Auto',
+            'flclashx-special': 'hideip',
+          },
+        ),
+      ],
+      groups: [
+        _group('Auto', ['🇳🇱 Amsterdam'], now: '🇳🇱 Amsterdam'),
+      ],
+      running: true,
+    );
+    container.listen(appSettingProvider, (_, _) {});
+    container.listen(profileHeadersActionProvider, (_, _) {});
+    await pump(tester);
+
+    expect(find.text(_ip), findsNothing);
+    await tester.tap(find.text(ipMask));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Hide IP'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.ensureVisible(find.text('Hide IP'));
+    await tester.pumpAndSettle();
+    // The lock over the row takes the tap, not the title under it.
+    await tester.tap(find.text('Hide IP'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Managed by your provider'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(container.read(appSettingProvider).hideIp, isTrue);
+  });
+
   testWidgets('the swap button opens the server picker', (tester) async {
     setUp_(
       profiles: [

@@ -5,6 +5,7 @@ typedef ProfileHeaderSettings = ({
   List<DashboardWidget>? widgets,
   Set<String>? switches,
   bool globalModeAllowed,
+  bool hideIp,
 });
 
 ProfileHeaderSettings profileHeaderSettingsOf(Profile? profile) {
@@ -14,6 +15,7 @@ ProfileHeaderSettings profileHeaderSettingsOf(Profile? profile) {
     widgets: headers?.dashboardWidgets,
     switches: headers?.appSwitches,
     globalModeAllowed: headers?.globalModeAllowed ?? true,
+    hideIp: headers?.hideIp ?? false,
   );
 }
 
@@ -133,6 +135,11 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
                   said('closeconnections') ?? state.closeConnections,
             ),
           );
+    }
+    if (settings.hideIp && !owned.contains(hideIpSetting)) {
+      ref
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(hideIp: true));
     }
     if (!settings.globalModeAllowed &&
         ref.read(patchClashConfigProvider).mode == Mode.global) {

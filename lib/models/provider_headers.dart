@@ -90,6 +90,8 @@ class ProviderHeaders {
   /// `flclashx-special: noglobal` takes the Global outbound mode away.
   bool get globalModeAllowed => !(specials?.contains('noglobal') ?? false);
 
+  bool get hideIp => specials?.contains('hideip') ?? false;
+
   String? get serviceName => _plainOrBase64(text('flclashx-servicename'));
 
   String? get serviceLogo {

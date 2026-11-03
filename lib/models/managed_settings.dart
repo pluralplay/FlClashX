@@ -12,6 +12,9 @@ const appSwitchSettings = {
   'closeconnections': 'app.closeConnections',
 };
 
+/// Driven by `flclashx-special: hideip`.
+const hideIpSetting = 'app.hideIp';
+
 /// The config keys a subscription takes over and the user may take back.
 const managedClashKeys = {
   'mode',

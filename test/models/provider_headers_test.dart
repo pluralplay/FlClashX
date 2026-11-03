@@ -312,6 +312,20 @@ void main() {
     });
   });
 
+  group('hideIp', () {
+    test('is asked for only by the hideip special', () {
+      expect(const ProviderHeaders({}).hideIp, isFalse);
+      expect(
+        const ProviderHeaders({'flclashx-special': 'noglobal'}).hideIp,
+        isFalse,
+      );
+      expect(
+        const ProviderHeaders({'flclashx-special': 'noglobal, HideIP'}).hideIp,
+        isTrue,
+      );
+    });
+  });
+
   group('fallbackUrlsOf', () {
     final url = Uri.parse('https://u:p@old.example.com/sub/abc?x=1');
     List<String> moved(String header) => ProviderHeaders({

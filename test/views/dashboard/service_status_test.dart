@@ -9,6 +9,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/core.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/ip_quality.dart';
 import 'package:fl_clash/providers/route_state.dart';
 import 'package:fl_clash/providers/routed_probe.dart';
@@ -28,6 +29,7 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/glyph_finders.dart';
 import '../../helpers/test_app.dart';
+import '../../helpers/test_profiles.dart';
 
 class _MockCore extends Mock implements CoreHandlerInterface {}
 
@@ -95,6 +97,7 @@ void main() {
       locale: locale,
       overrides: [
         viewSizeProvider.overrideWithBuild((_, _) => const Size(400, 800)),
+        profilesProvider.overrideWith(() => TestProfiles([])),
         appSettingProvider.overrideWithBuild((_, _) => settings),
         runTimeProvider.overrideWithBuild((_, _) => started ? 1 : null),
         routeTrackerProvider.overrideWithBuild(
