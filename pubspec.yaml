@@ -77,6 +77,7 @@ dependencies:
     path: plugins/setup
   flutter_local_notifications: ^22.3.2
   qr: ^4.0.0
+  zxing2: ^0.2.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
