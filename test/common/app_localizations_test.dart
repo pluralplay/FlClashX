@@ -98,6 +98,37 @@ void main() {
     }
   });
 
+  test('tells a failure worth another attempt from one that would repeat', () {
+    final transient = [
+      dioError(DioExceptionType.receiveTimeout),
+      dioError(
+        DioExceptionType.connectionError,
+        cause: const SocketException("Failed host lookup: 'sub.example'"),
+      ),
+      dioError(
+        DioExceptionType.connectionError,
+        cause: const SocketException('Connection refused'),
+      ),
+      dioError(DioExceptionType.badResponse, statusCode: 429),
+      dioError(DioExceptionType.badResponse, statusCode: 503),
+      const SocketException('Network is unreachable'),
+    ];
+    final lasting = [
+      dioError(DioExceptionType.badResponse, statusCode: 404),
+      dioError(DioExceptionType.badResponse, statusCode: 401),
+      dioError(DioExceptionType.badCertificate),
+      dioError(DioExceptionType.cancel),
+      const FormatException('bad body'),
+    ];
+
+    for (final error in transient) {
+      expect(isTransientNetworkError(error), isTrue, reason: '$error');
+    }
+    for (final error in lasting) {
+      expect(isTransientNetworkError(error), isFalse, reason: '$error');
+    }
+  });
+
   test('keeps the detail of an unclassified Dio failure', () {
     final error = DioException(
       requestOptions: RequestOptions(path: '/'),

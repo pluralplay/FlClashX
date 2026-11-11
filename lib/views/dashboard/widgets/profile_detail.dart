@@ -18,12 +18,15 @@ import 'package:yaml/yaml.dart';
 
 const _statSpacing = 8.0;
 
-Future<void> syncProfile(WidgetRef ref, Profile profile) async {
-  await globalState.loadingRun(() async {
+/// Whether the update went through; a failure has already been shown.
+Future<bool> syncProfile(WidgetRef ref, Profile profile) async {
+  final done = await globalState.loadingRun(() async {
     await ref
         .read(profilesActionProvider.notifier)
         .updateProfile(profile, showLoading: true);
+    return true;
   }, tag: LoadingTag.profiles);
+  return done ?? false;
 }
 
 void showProfileDetailSheet(BuildContext context) {

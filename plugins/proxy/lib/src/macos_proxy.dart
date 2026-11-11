@@ -22,6 +22,49 @@ class MacosProxy {
     return _commandRunner.run(services.expand(MacosProxyCommands.buildStop));
   }
 
+  Future<bool> clearStale(Future<bool> Function(int port) isListening) async {
+    final stale = <String>[];
+    for (final service in await _networkServices()) {
+      final enabled = await _enabledProxies(service);
+      if (enabled != null && await isStaleLocalProxy(enabled, isListening)) {
+        stale.add(service);
+      }
+    }
+    if (stale.isEmpty) {
+      return true;
+    }
+    return _commandRunner.run(stale.expand(MacosProxyCommands.buildStop));
+  }
+
+  /// Null when a setting could not be read.
+  Future<List<ProxyEndpoint>?> _enabledProxies(String service) async {
+    final enabled = <ProxyEndpoint>[];
+    for (final query in const [
+      '-getwebproxy',
+      '-getsecurewebproxy',
+      '-getsocksfirewallproxy',
+    ]) {
+      try {
+        final result = await _commandRunner.process('/usr/sbin/networksetup', [
+          query,
+          service,
+        ]);
+        if (result.exitCode != 0) {
+          return null;
+        }
+        final proxy = MacosProxyCommands.parseEnabledProxy(
+          result.stdout.toString(),
+        );
+        if (proxy != null) {
+          enabled.add(proxy);
+        }
+      } on ProcessException {
+        return null;
+      }
+    }
+    return enabled;
+  }
+
   Future<List<String>> _networkServices() async {
     try {
       final result = await _commandRunner.process('/usr/sbin/networksetup', [
@@ -116,6 +159,26 @@ class MacosProxyCommands {
       service,
       if (bypassDomain.isEmpty) 'Empty' else ...bypassDomain,
     ]);
+  }
+
+  /// The proxy a `-get…proxy` query reports, or null when it is off.
+  static ProxyEndpoint? parseEnabledProxy(String stdout) {
+    final fields = <String, String>{};
+    for (final line in stdout.split('\n')) {
+      final separator = line.indexOf(':');
+      if (separator > 0) {
+        fields[line.substring(0, separator).trim()] = line
+            .substring(separator + 1)
+            .trim();
+      }
+    }
+    if (fields['Enabled'] != 'Yes') {
+      return null;
+    }
+    return (
+      host: fields['Server'] ?? '',
+      port: int.tryParse(fields['Port'] ?? '') ?? 0,
+    );
   }
 
   static List<String> parseNetworkServices(String stdout) {

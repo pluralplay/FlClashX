@@ -5,6 +5,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:fl_clash/common/boot_guard.dart';
 import 'package:fl_clash/common/boot_record.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/system_notification.dart';
 import 'package:fl_clash/common/launch.dart';
 import 'package:fl_clash/common/migration.dart';
 import 'package:fl_clash/common/tray.dart';
@@ -43,6 +44,7 @@ class Bootstrap {
     windowPort = window;
     trayPort = appTray;
     navigationPort = navigation;
+    notificationPort = systemNotifications;
     final dynamicColor = await _initDynamicColor();
     return _initData(version, dynamicColor);
   }
@@ -109,11 +111,6 @@ class Bootstrap {
       config = config.copyWith(currentProfileId: null);
       await preferences.saveConfig(config);
     }
-    final patchClashConfig = config.patchClashConfig.ensureControllerSecret();
-    if (patchClashConfig != config.patchClashConfig) {
-      config = config.copyWith(patchClashConfig: patchClashConfig);
-      await preferences.saveConfig(config);
-    }
     final appState = AppState(
       brightness: WidgetsBinding.instance.platformDispatcher.platformBrightness,
       version: version,
@@ -143,7 +140,11 @@ class Bootstrap {
       getLocaleForString(config.appSettingProps.locale) ??
           WidgetsBinding.instance.platformDispatcher.locale,
     );
-    await window?.init(version, config.windowProps);
+    await window?.init(
+      version,
+      config.windowProps,
+      menuBarMode: system.isMacOS && config.appSettingProps.menuBarMode,
+    );
     if (system.isAndroid) {
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
@@ -160,16 +161,25 @@ class Bootstrap {
 
   ProviderContainer get _container => globalState.container;
 
+  /// Runs after the start requests [_initApp] awaits. Those return once the
+  /// Core, or the Android service, takes the command, so a route still being
+  /// adopted is left to the retry inside the profile action.
+  Future<void> _refreshProfilesAfterStart() async {
+    final profiles = _container.read(profilesActionProvider.notifier);
+    final refreshed = await profiles.autoUpdateProfiles();
+    await profiles.refreshCurrentProfileAfterStart(refreshed: refreshed);
+    await profiles.noticeSubscriptionExpiries();
+  }
+
   Future<void> _initApp() async {
     unawaited(_container.read(systemActionProvider.notifier).updateTray());
-    unawaited(
-      _container.read(profilesActionProvider.notifier).autoUpdateProfiles(),
-    );
     unawaited(_container.read(commonActionProvider.notifier).autoCheckUpdate());
     unawaited(
       autoLaunch?.updateStatus(_container.read(appSettingProvider).autoLaunch),
     );
-    if (!_container.read(appSettingProvider).silentLaunch) {
+    // A menu bar app waits in the status item for a click.
+    if (!_container.read(appSettingProvider).silentLaunch &&
+        !(window?.isMenuBarMode ?? false)) {
       unawaited(window?.show());
     } else {
       unawaited(window?.hide());
@@ -184,6 +194,7 @@ class Bootstrap {
       await _container.read(setupActionProvider.notifier).initStatus();
     }
     _container.read(initProvider.notifier).value = true;
+    unawaited(_refreshProfilesAfterStart());
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
     unawaited(_container.read(locationPermissionsProvider.notifier).refresh());

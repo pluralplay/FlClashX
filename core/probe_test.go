@@ -40,16 +40,16 @@ func TestHandleProbePinsTheNamedProxy(t *testing.T) {
 	})
 	withProbeProxies(t, "node-a")
 
-	result := handleProbe(&ProbeParams{
-		Url:       server.URL + "/trace",
-		ProxyName: "node-a",
-		Headers:   map[string]string{"User-Agent": "probe-test"},
-		Timeout:   2000,
-		MaxBody:   1024,
+	result := runProbe(context.Background(), probeRequest{
+		url:       server.URL + "/trace",
+		proxyName: "node-a",
+		headers:   map[string]string{"User-Agent": "probe-test"},
+		timeout:   2000 * time.Millisecond,
+		maxBody:   1024,
 	})
 
 	if result == nil {
-		t.Fatal("handleProbe = nil, want a result")
+		t.Fatal("runProbe = nil, want a result")
 	}
 	if result.Error != "" {
 		t.Fatalf("error = %q (%s), want none", result.Error, result.Message)
@@ -81,7 +81,7 @@ func TestHandleProbeFollowsRedirectsAndCapsTheBody(t *testing.T) {
 	})
 	withProbeProxies(t, "node-a")
 
-	result := handleProbe(&ProbeParams{Url: server.URL, ProxyName: "node-a", Timeout: 2000, MaxBody: 8})
+	result := runProbe(context.Background(), probeRequest{url: server.URL, proxyName: "node-a", timeout: 2000 * time.Millisecond, maxBody: 8})
 
 	if result == nil || result.Error != "" {
 		t.Fatalf("result = %+v, want a success", result)
@@ -131,7 +131,7 @@ func TestHandleProbeSkipsTheBodyWhenNotAsked(t *testing.T) {
 	})
 	withProbeProxies(t, "node-a")
 
-	result := handleProbe(&ProbeParams{Url: server.URL, ProxyName: "node-a", Timeout: 2000})
+	result := runProbe(context.Background(), probeRequest{url: server.URL, proxyName: "node-a", timeout: 2000 * time.Millisecond})
 
 	if result == nil || result.Error != "" {
 		t.Fatalf("result = %+v, want a success", result)
@@ -146,10 +146,10 @@ func TestHandleProbeReportsATimeout(t *testing.T) {
 	withProbeProxies(t, "node-a")
 
 	start := time.Now()
-	result := handleProbe(&ProbeParams{Url: "http://" + addr.String(), ProxyName: "node-a", Timeout: 200})
+	result := runProbe(context.Background(), probeRequest{url: "http://" + addr.String(), proxyName: "node-a", timeout: 200 * time.Millisecond})
 
 	if result == nil {
-		t.Fatal("handleProbe = nil, want a result")
+		t.Fatal("runProbe = nil, want a result")
 	}
 	if result.Error != probeErrorTimeout {
 		t.Errorf("error = %q (%s), want timeout", result.Error, result.Message)
@@ -165,7 +165,7 @@ func TestHandleProbeReportsARefusedConnection(t *testing.T) {
 	server.Close()
 	withProbeProxies(t, "node-a")
 
-	result := handleProbe(&ProbeParams{Url: url, ProxyName: "node-a", Timeout: 2000})
+	result := runProbe(context.Background(), probeRequest{url: url, proxyName: "node-a", timeout: 2000 * time.Millisecond})
 
 	if result == nil || result.Error != probeErrorFailed {
 		t.Fatalf("result = %+v, want a failed probe", result)
@@ -187,7 +187,7 @@ func TestHandleProbeRejectsAnUnknownProxyWithoutWaitingForASlot(t *testing.T) {
 
 	done := make(chan *ProbeResult, 1)
 	go func() {
-		done <- handleProbe(&ProbeParams{Url: "http://example.invalid", ProxyName: "missing", Timeout: 1})
+		done <- runProbe(context.Background(), probeRequest{url: "http://example.invalid", proxyName: "missing", timeout: 1 * time.Millisecond})
 	}()
 
 	select {
@@ -211,7 +211,7 @@ func TestHandleProbeGivesUpQueueingOnTheDeadline(t *testing.T) {
 	})
 	withProbeProxies(t, "node-a")
 
-	if result := handleProbe(&ProbeParams{Url: "http://example.invalid", ProxyName: "node-a", Timeout: 50}); result != nil {
+	if result := runProbe(context.Background(), probeRequest{url: "http://example.invalid", proxyName: "node-a", timeout: 50 * time.Millisecond}); result != nil {
 		t.Errorf("result = %+v, want nil when no slot was granted", result)
 	}
 }
@@ -224,7 +224,7 @@ func TestHandleProbeRoutesThroughTheTunnel(t *testing.T) {
 	tunnel.OnRunning()
 	t.Cleanup(tunnel.OnSuspend)
 
-	result := handleProbe(&ProbeParams{Url: server.URL, Timeout: 2000, MaxBody: 64})
+	result := runProbe(context.Background(), probeRequest{url: server.URL, timeout: 2000 * time.Millisecond, maxBody: 64})
 
 	if result == nil || result.Error != "" {
 		t.Fatalf("result = %+v, want a success", result)
@@ -281,7 +281,7 @@ func TestHandleProbeSendsTheRequestWithTheHandshake(t *testing.T) {
 	tunnel.OnRunning()
 	t.Cleanup(tunnel.OnSuspend)
 
-	result := handleProbe(&ProbeParams{Url: server.URL, Timeout: 2000, MaxBody: 64})
+	result := runProbe(context.Background(), probeRequest{url: server.URL, timeout: 2000 * time.Millisecond, maxBody: 64})
 
 	if result == nil || result.Error != "" {
 		t.Fatalf("result = %+v, want a success", result)
@@ -303,7 +303,7 @@ func TestHandleProbeWaitsOutASuspendedTunnel(t *testing.T) {
 	t.Cleanup(tunnel.OnSuspend)
 	time.AfterFunc(150*time.Millisecond, tunnel.OnRunning)
 
-	result := handleProbe(&ProbeParams{Url: server.URL, Timeout: 2000, MaxBody: 64})
+	result := runProbe(context.Background(), probeRequest{url: server.URL, timeout: 2000 * time.Millisecond, maxBody: 64})
 
 	if result == nil || result.Error != "" {
 		t.Fatalf("result = %+v, want the answer once the tunnel runs again", result)
@@ -320,7 +320,7 @@ func TestHandleProbeTimesOutWhileTheTunnelStaysSuspended(t *testing.T) {
 	withProbeProxies(t, "DIRECT")
 	tunnel.OnSuspend()
 
-	result := handleProbe(&ProbeParams{Url: server.URL, Timeout: 200})
+	result := runProbe(context.Background(), probeRequest{url: server.URL, timeout: 200 * time.Millisecond})
 
 	if result == nil || result.Error != probeErrorTimeout {
 		t.Fatalf("result = %+v, want a timeout", result)

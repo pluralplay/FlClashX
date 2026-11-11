@@ -30,6 +30,7 @@ void main() {
     test('rejects an invalid config without touching the saved file', () async {
       final profile = Profile.normal(label: 'p');
       final bytes = Uint8List.fromList(utf8.encode('bad: ['));
+      await (await profile.file).writeAsString('proxies: []\n');
 
       await expectLater(
         profile.saveFile(bytes, validate: (_, _) async => 'invalid config'),
@@ -43,7 +44,14 @@ void main() {
       );
 
       final savedFile = await profile.file;
-      expect(await savedFile.length(), 0);
+      expect(await savedFile.readAsString(), 'proxies: []\n');
+      expect(
+        savedFile.parent.listSync().where(
+          (entry) => entry.path.startsWith('${savedFile.path}.'),
+        ),
+        isEmpty,
+        reason: 'no staging file is left behind',
+      );
     });
 
     test('copies validated bytes and stamps the update time', () async {

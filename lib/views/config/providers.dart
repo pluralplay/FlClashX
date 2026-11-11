@@ -149,6 +149,7 @@ class _ClashProvidersViewState extends ConsumerState<ClashProvidersView> {
   }
 
   Future<void> _handleEditorSave(
+    BuildContext editorContext,
     String title,
     EditorContent content, {
     ClashProvider? provider,
@@ -181,12 +182,15 @@ class _ClashProvidersViewState extends ConsumerState<ClashProvidersView> {
     )) {
       return;
     }
-    if (mounted) {
-      Navigator.of(context).pop();
+    // The user may have left the editor while the provider compiled.
+    if (editorContext.mounted &&
+        ModalRoute.of(editorContext)?.isCurrent == true) {
+      Navigator.of(editorContext).pop();
     }
   }
 
   Future<bool> _handleEditorPop(
+    BuildContext editorContext,
     String title,
     EditorContent content, {
     ClashProvider? provider,
@@ -195,10 +199,10 @@ class _ClashProvidersViewState extends ConsumerState<ClashProvidersView> {
     if (res == null) {
       return false;
     }
-    if (!res || !mounted) {
+    if (!res || !mounted || !editorContext.mounted) {
       return true;
     }
-    unawaited(_handleEditorSave(title, content, provider: provider));
+    await _handleEditorSave(editorContext, title, content, provider: provider);
     return false;
   }
 
@@ -213,10 +217,18 @@ class _ClashProvidersViewState extends ConsumerState<ClashProvidersView> {
               ? CodeForgeDocument.fromText('')
               : openEditorFile(await provider.path),
           schema: EditorSchema.provider,
-          onSave: (_, title, content) =>
-              _handleEditorSave(title, content, provider: provider),
-          onPop: (_, title, content) =>
-              _handleEditorPop(title, content, provider: provider),
+          onSave: (editorContext, title, content) => _handleEditorSave(
+            editorContext,
+            title,
+            content,
+            provider: provider,
+          ),
+          onPop: (editorContext, title, content) => _handleEditorPop(
+            editorContext,
+            title,
+            content,
+            provider: provider,
+          ),
         ),
       ),
     );

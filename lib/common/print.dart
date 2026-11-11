@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:fl_clash/common/file_logger.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
@@ -28,12 +29,12 @@ class CommonPrint {
   void log(String? text, {LogLevel logLevel = LogLevel.info}) {
     final payload = '[APP] $text';
     debugPrint(payload);
+    final log = Log.app(payload).copyWith(logLevel: logLevel);
     if (!globalState.isAttach) {
+      fileLogger.write(log);
       return;
     }
-    globalState.container
-        .read(logsProvider.notifier)
-        .add(Log.app(payload).copyWith(logLevel: logLevel));
+    globalState.container.read(logsProvider.notifier).add(log);
   }
 }
 

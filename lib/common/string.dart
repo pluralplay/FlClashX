@@ -7,6 +7,15 @@ import 'package:fl_clash/enum/enum.dart';
 
 import 'dart:math';
 
+const _regionalIndicatorA = 0x1F1E6;
+
+final _flagEmoji = RegExp(
+  '[\\u{1F1E6}-\\u{1F1FF}][\\u{1F1E6}-\\u{1F1FF}]',
+  unicode: true,
+);
+
+final _leadingFlag = RegExp('^(?:${_flagEmoji.pattern})\\s*', unicode: true);
+
 extension StringExtension on String {
   bool get isUrl => webUri != null;
 
@@ -37,9 +46,21 @@ extension StringExtension on String {
     return parts.length > 1 ? parts : this;
   }
 
-  int compareToLower(String other) {
-    return toLowerCase().compareTo(other.toLowerCase());
+  /// The country of the first flag emoji in this text, upper-cased.
+  String? get flagCountryCode {
+    final match = _flagEmoji.firstMatch(this);
+    if (match == null) {
+      return null;
+    }
+    final runes = match.group(0)!.runes.toList();
+    return String.fromCharCodes([
+      runes[0] - _regionalIndicatorA + 0x41,
+      runes[1] - _regionalIndicatorA + 0x41,
+    ]);
   }
+
+  /// This text without a flag emoji that opens it.
+  String get withoutLeadingFlag => replaceFirst(_leadingFlag, '');
 
   String get countryFlagEmoji {
     final code = toUpperCase();
@@ -51,26 +72,6 @@ extension StringExtension on String {
       code.codeUnitAt(0) - 0x41 + regionalIndicatorA,
       code.codeUnitAt(1) - 0x41 + regionalIndicatorA,
     ]);
-  }
-
-  String safeSubstring(int start, [int? end]) {
-    if (isEmpty) return '';
-    final safeStart = start.clamp(0, length);
-    if (end == null) {
-      return substring(safeStart);
-    }
-    final safeEnd = end.clamp(safeStart, length);
-    return substring(safeStart, safeEnd);
-  }
-
-  List<int> get encodeUtf16LeWithBom {
-    final byteData = ByteData(length * 2);
-    final bom = [0xFF, 0xFE];
-    for (int i = 0; i < length; i++) {
-      final int charCode = codeUnitAt(i);
-      byteData.setUint16(i * 2, charCode, Endian.little);
-    }
-    return bom + byteData.buffer.asUint8List();
   }
 
   Uint8List? get getBase64 {
@@ -96,16 +97,6 @@ extension StringExtension on String {
       return startsWith('data:image/svg+xml');
     }
     return (Uri.tryParse(this)?.path ?? this).toLowerCase().endsWith('.svg');
-  }
-
-  bool get isRegex {
-    try {
-      RegExp(this);
-      return true;
-    } catch (e) {
-      commonPrint.log(e.toString());
-      return false;
-    }
   }
 
   String toMd5() {

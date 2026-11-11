@@ -37,12 +37,17 @@ class CommonAction extends _$CommonAction {
         );
   }
 
+  /// The cycling hotkey, which has nowhere to ask before taking the mode
+  /// over from the subscription.
   void updateMode() {
+    ref
+        .read(managedSettingsActionProvider.notifier)
+        .takeOverIfLocked('clash.mode');
+    final modes = ref.read(availableModesProvider);
     ref.read(patchClashConfigProvider.notifier).update((state) {
-      final index = Mode.values.indexWhere((item) => item == state.mode);
-      if (index == -1) return state;
-      final nextIndex = index + 1 > Mode.values.length - 1 ? 0 : index + 1;
-      return state.copyWith(mode: Mode.values[nextIndex]);
+      final index = modes.indexWhere((item) => item == state.mode);
+      final nextIndex = index + 1 > modes.length - 1 ? 0 : index + 1;
+      return state.copyWith(mode: modes[nextIndex]);
     });
   }
 

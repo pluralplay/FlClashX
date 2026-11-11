@@ -33,11 +33,13 @@ func handleGetProfileBase(path string) (*ProfileBase, error) {
 		return nil, err
 	}
 	base := &ProfileBase{
-		Digest:      hex.EncodeToString(digest[:]),
-		MatchRules:  []string{},
-		Proxies:     len(raw.Proxy),
-		ProxyGroups: len(raw.ProxyGroup),
-		Rules:       len(raw.Rule),
+		Digest:         hex.EncodeToString(digest[:]),
+		MatchRules:     []string{},
+		Proxies:        len(raw.Proxy),
+		ProxyGroups:    len(raw.ProxyGroup),
+		Rules:          len(raw.Rule),
+		Present:        presentKeys(buf),
+		GlobalOverride: globalOverride(raw.ProxyGroup),
 	}
 	for _, rule := range raw.Rule {
 		if isMatchRule(rule) {
@@ -47,6 +49,22 @@ func handleGetProfileBase(path string) (*ProfileBase, error) {
 	raw.Proxy, raw.ProxyGroup, raw.Rule, raw.SubRules = nil, nil, nil, nil
 	base.Config = raw
 	return base, nil
+}
+
+func globalOverride(groups []map[string]any) bool {
+	for _, group := range groups {
+		if group["name"] != globalProxyName {
+			continue
+		}
+		switch flag := group["flclashx-override"].(type) {
+		case bool:
+			return flag
+		case string:
+			return strings.EqualFold(strings.TrimSpace(flag), "true")
+		}
+		return false
+	}
+	return false
 }
 
 func handleGetProfileOutbounds(path string) (*ProfileOutbounds, error) {
@@ -92,6 +110,45 @@ func handleBuildProfile(base *SetupBase) (string, error) {
 	return path, nil
 }
 
+var nestedPresentSections = []string{"tun"}
+
+func presentKeys(buf []byte) []string {
+	keys := []string{}
+	var document yaml.Node
+	if yaml.Unmarshal(buf, &document) != nil {
+		return keys
+	}
+	root, err := documentMapping(&document)
+	if err != nil {
+		return keys
+	}
+	for _, key := range mappingKeys(root) {
+		keys = append(keys, key)
+	}
+	for _, section := range nestedPresentSections {
+		nested := resolveAlias(mappingValue(root, section))
+		if nested == nil || nested.Kind != yaml.MappingNode {
+			continue
+		}
+		for _, key := range mappingKeys(nested) {
+			keys = append(keys, section+"."+key)
+		}
+	}
+	return keys
+}
+
+func mappingKeys(mapping *yaml.Node) []string {
+	keys := []string{}
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		name := mapping.Content[i]
+		if name.Kind != yaml.ScalarNode || name.ShortTag() == "!!merge" {
+			continue
+		}
+		keys = append(keys, name.Value)
+	}
+	return keys
+}
+
 // Mirrors Rule.parse in Dart, which reads the type from the first field.
 func isMatchRule(rule string) bool {
 	kind, _, _ := strings.Cut(rule, ",")
@@ -110,6 +167,7 @@ func loadConfigWithBase(base *SetupBase, configPath string) (*config.Config, err
 	if err := writeConfigDocument(configPath, document); err != nil {
 		return nil, err
 	}
+	captureProfileExtras(raw)
 	cfg, err := config.ParseRawConfig(raw)
 	if err != nil {
 		return nil, err

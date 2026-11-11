@@ -64,6 +64,7 @@ class _DecorationListItemState extends State<DecorationListItem> {
       states: _states,
       endIndent: 14,
       child: CommonCard(
+        frosts: false,
         shape: AppShape.of(borderRadius),
         isError: widget.invalid,
         isSelected: widget.isSelected,

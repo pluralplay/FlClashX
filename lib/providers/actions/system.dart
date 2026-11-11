@@ -49,6 +49,8 @@ class SystemAction extends _$SystemAction {
     }
     await Future.wait([
       ?saveOperation,
+      drainDatabaseWrites(),
+      fileLogger.dispose(),
       bootGuard.markClosed(),
       if (systemDnsCoordinator != null) systemDnsCoordinator!.shutdown(),
       ?systemProxyQueue?.close(),
@@ -84,7 +86,17 @@ class SystemAction extends _$SystemAction {
       }
     }
     await preferences.saveConfig(ref.read(configProvider));
+    if (savesSharedState) {
+      // The save AndroidManager debounces would die with the engine.
+      debouncer.cancel(FunctionTag.saveSharedFile);
+      await ref.read(vpnOptionsProvider.future);
+      await preferences.saveShareState(ref.read(sharedStateProvider));
+    }
   }
+
+  /// A Quick Settings start without Flutter reads the VPN options from it.
+  @protected
+  bool get savesSharedState => system.isAndroid;
 
   @protected
   Future<void> closeWindow() async {
@@ -119,7 +131,12 @@ class SystemAction extends _$SystemAction {
     await windowPort?.toggle();
   }
 
+  /// From the tray or a hotkey, which have nowhere to ask before taking the
+  /// switch over from the subscription.
   void updateTun() {
+    ref
+        .read(managedSettingsActionProvider.notifier)
+        .takeOverIfLocked('clash.tun.enable');
     ref
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith.tun(enable: !state.tun.enable));
@@ -138,12 +155,6 @@ class SystemAction extends _$SystemAction {
     await Clipboard.setData(
       ClipboardData(text: proxyEnvCommand(port, isWindows: system.isWindows)),
     );
-  }
-
-  void updateAutoLaunch() {
-    ref
-        .read(appSettingProvider.notifier)
-        .update((state) => state.copyWith(autoLaunch: !state.autoLaunch));
   }
 
   Future<void> updateTray() async {

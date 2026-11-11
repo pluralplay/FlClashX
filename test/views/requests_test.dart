@@ -141,6 +141,47 @@ void main() {
     await teardownView(tester);
   });
 
+  testWidgets('a request reaches each of two open lists', (tester) async {
+    container.read(viewSizeProvider.notifier).update((_) => _tableSize);
+    tester.view.physicalSize = _tableSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    seedRequests([_tracker(id: 'a', host: 'alpha.test')]);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(
+          child: Column(
+            children: [
+              Expanded(child: RequestsView()),
+              Expanded(child: RequestsView()),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    addRequest(_tracker(id: 'c', host: 'gamma.test'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    await tester.pump();
+
+    for (final index in [0, 1]) {
+      expect(
+        find.descendant(
+          of: find.byType(RequestsView).at(index),
+          matching: find.textContaining('gamma.test'),
+        ),
+        findsWidgets,
+      );
+    }
+
+    await teardownView(tester);
+  });
+
   testWidgets('traffic after a request opened reaches its row', (tester) async {
     seedRequests([_tracker(id: 'a', host: 'alpha.test')]);
 

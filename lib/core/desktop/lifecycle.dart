@@ -18,8 +18,6 @@ abstract interface class DesktopCoreLifecycleController {
   Future<CoreLifecycleResult> stop();
 
   Future<CoreLifecycleResult> close();
-
-  Future<DesktopCoreSession> waitUntilRunning(Duration timeout);
 }
 
 enum _LifecycleTarget { running, restarted, stopped, closed }
@@ -61,15 +59,14 @@ final class _SessionDisconnect {
 final class _TransportConnectionWaiter {
   final Completer<void> _settled = Completer<void>();
   late final StreamSubscription<DesktopTransportEvent> _subscription;
-  late final Timer _timer;
+  Timer? _timer;
   TransportConnected? _connection;
   Object? _error;
   StackTrace? _stackTrace;
 
-  _TransportConnectionWaiter(
-    Stream<DesktopTransportEvent> events,
-    Duration timeout,
-  ) {
+  bool connectionLost = false;
+
+  _TransportConnectionWaiter(Stream<DesktopTransportEvent> events) {
     _subscription = events.listen(
       (event) {
         switch (event) {
@@ -83,12 +80,18 @@ final class _TransportConnectionWaiter {
               _error = error;
               _stackTrace = stackTrace;
               _settled.complete();
+            } else {
+              connectionLost = _connection != null;
             }
-          case TransportReady() || TransportDisconnected():
+          case TransportDisconnected(:final generation):
+            connectionLost =
+                connectionLost || generation == _connection?.generation;
+          case TransportReady():
             break;
         }
       },
       onDone: () {
+        connectionLost = _connection != null;
         if (!_settled.isCompleted) {
           _error = StateError('Core transport closed before connection');
           _stackTrace = StackTrace.current;
@@ -96,7 +99,11 @@ final class _TransportConnectionWaiter {
         }
       },
     );
-    _timer = Timer(timeout, () {
+  }
+
+  /// From the launch's answer on, as the Helper's launch has its own deadline.
+  void arm(Duration timeout) {
+    _timer ??= Timer(timeout, () {
       if (!_settled.isCompleted) {
         _error = TimeoutException(
           'Core transport connection timed out',
@@ -118,7 +125,7 @@ final class _TransportConnectionWaiter {
   }
 
   Future<void> cancel() async {
-    _timer.cancel();
+    _timer?.cancel();
     await _subscription.cancel();
   }
 }
@@ -285,7 +292,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
           }
           continue;
         }
-        _publish(DesktopCoreFailed(failure));
+        _publish(const DesktopCoreFailed());
         _failCommands(intent.revision, failure);
       }
     }
@@ -353,7 +360,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
         }
         await _transportSubscription.cancel();
         await _transport.close();
-        _publish(DesktopCoreClosed(intent.revision));
+        _publish(const DesktopCoreClosed());
         await _stateController.close();
         await _crashController.close();
         return _LifecycleAchievement.closed;
@@ -381,7 +388,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
 
   Future<bool> _startSession(int revision) async {
     final sessionId = sessionIdFactory();
-    _publish(DesktopCoreStarting(revision: revision, sessionId: sessionId));
+    _publish(const DesktopCoreStarting());
     CoreProcessLease? lease;
     var leaseReleased = false;
     _TransportConnectionWaiter? connectionWaiter;
@@ -403,14 +410,12 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
       if (!_wantsRunning) {
         return false;
       }
-      connectionWaiter = _TransportConnectionWaiter(
-        _transport.events,
-        timeouts.connection,
-      );
+      connectionWaiter = _TransportConnectionWaiter(_transport.events);
       lease = await launcher.start(
         sessionId: sessionId,
         address: _transport.address,
       );
+      connectionWaiter.arm(timeouts.connection);
       if (lease.sessionId != sessionId) {
         await releaseLease();
         throw _failure(
@@ -430,6 +435,16 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
       if (connected == null || !_wantsRunning) {
         await releaseLease();
         return false;
+      }
+      if (connectionWaiter.connectionLost) {
+        await releaseLease();
+        throw _failure(
+          code: 'unexpected_disconnect',
+          phase: DesktopCorePhase.starting,
+          revision: revision,
+          lease: lease,
+          connectionGeneration: connected.generation,
+        );
       }
       if (verifyPeerPid && connected.pid != lease.pid) {
         await releaseLease();
@@ -581,7 +596,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
     int revision, {
     required bool allowUnconfirmedExit,
   }) async {
-    _publish(DesktopCoreStopping(revision: revision, session: session));
+    _publish(const DesktopCoreStopping());
     final disconnected = _disconnectFor(session);
     try {
       final stopResult = await session.lease.stop(timeouts.disconnection);
@@ -748,7 +763,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
       cause: cause,
       stackTrace: stackTrace,
     );
-    _publish(DesktopCoreFailed(failure));
+    _publish(const DesktopCoreFailed());
     if (!_crashController.isClosed) {
       _crashController.add(failure);
     }
@@ -791,6 +806,7 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
       connectionGeneration:
           connectionGeneration ?? session?.connectionGeneration,
       cause: cause,
+      crashHeadline: (session?.lease ?? lease)?.crashHeadline,
       stackTrace: stackTrace,
     );
   }
@@ -800,39 +816,5 @@ final class DesktopCoreLifecycle implements DesktopCoreLifecycleController {
     if (!_stateController.isClosed) {
       _stateController.add(state);
     }
-  }
-
-  @override
-  Future<DesktopCoreSession> waitUntilRunning(Duration timeout) {
-    final current = _state;
-    if (current is DesktopCoreRunning) {
-      return Future.value(current.session);
-    }
-    if (current is DesktopCoreFailed) {
-      return Future.error(current.failure, current.failure.stackTrace);
-    }
-    if (current is DesktopCoreClosed) {
-      return Future.error(StateError('Desktop Core lifecycle is closed'));
-    }
-    return states
-        .firstWhere(
-          (state) =>
-              state is DesktopCoreRunning ||
-              state is DesktopCoreFailed ||
-              state is DesktopCoreClosed,
-        )
-        .then<DesktopCoreSession>((state) {
-          if (state case DesktopCoreRunning(:final session)) {
-            return session;
-          }
-          if (state case DesktopCoreFailed(:final failure)) {
-            Error.throwWithStackTrace(
-              failure,
-              failure.stackTrace ?? StackTrace.current,
-            );
-          }
-          throw StateError('Desktop Core lifecycle is closed');
-        })
-        .timeout(timeout);
   }
 }

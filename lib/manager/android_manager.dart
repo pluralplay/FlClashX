@@ -10,6 +10,36 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// A consent refused without asking is undone only in the system VPN settings,
+/// where another app's always-on VPN is turned off.
+Future<void> explainVpnRefusal(
+  VpnRefusal refusal, {
+  Future<void> Function()? openVpnSettings,
+}) async {
+  final appLocalizations = currentAppLocalizations;
+  switch (refusal) {
+    case VpnRefusal.cancelled:
+      dialogs.showNotifier(
+        appLocalizations.vpnPermissionNotGranted(appName),
+        level: MessageLevel.warning,
+      );
+    case VpnRefusal.restricted:
+      dialogs.showNotifier(
+        appLocalizations.vpnRestrictedByAdministrator,
+        level: MessageLevel.warning,
+      );
+    case VpnRefusal.otherAlwaysOn:
+      final open = await dialogs.showMessage(
+        title: appLocalizations.vpnBlockedByAnotherApp,
+        message: TextSpan(text: appLocalizations.vpnBlockedByAnotherAppTip),
+        confirmText: appLocalizations.openVpnSettings,
+      );
+      if (open == true) {
+        await (openVpnSettings ?? () async => app?.openVpnSettings())();
+      }
+  }
+}
+
 class AndroidManager extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -47,6 +77,7 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
     });
     service?.addListener(this);
     app?.onPackagesChanged = _reloadPackages;
+    app?.onVpnPermissionDenied = explainVpnRefusal;
   }
 
   /// A reload reads every installed app's label, and a round of store updates
@@ -68,6 +99,9 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
     if (app?.onPackagesChanged == _reloadPackages) {
       app?.onPackagesChanged = null;
     }
+    if (app?.onVpnPermissionDenied == explainVpnRefusal) {
+      app?.onVpnPermissionDenied = null;
+    }
     service?.removeListener(this);
     super.dispose();
   }
@@ -82,6 +116,15 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
   void onServiceStopped() {
     unawaited(ref.read(setupActionProvider.notifier).setRunning(false));
     super.onServiceStopped();
+  }
+
+  /// An excluded SSID keeps the run while the service is down.
+  @override
+  void onServiceStopRequested() {
+    if (ref.read(isStartProvider)) {
+      unawaited(ref.read(setupActionProvider.notifier).setRunning(false));
+    }
+    super.onServiceStopRequested();
   }
 
   @override

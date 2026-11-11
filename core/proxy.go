@@ -12,10 +12,8 @@ import (
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/convert"
-	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
-	"github.com/metacubex/mihomo/tunnel"
 )
 
 const globalProxyName = "GLOBAL"
@@ -36,7 +34,7 @@ type pickableGroup interface {
 }
 
 func lookupProxy(name string) constant.Proxy {
-	return tunnel.AllProxies()[name]
+	return allProxies()[name]
 }
 
 func adapterAs[T any](proxy constant.Proxy) (group T, ok bool) {
@@ -83,9 +81,9 @@ func proxyGroupNames(
 }
 
 func handleGetProxies() ProxiesData {
-	proxies := tunnel.AllProxies()
+	proxies := allProxies()
 
-	names := proxyGroupNames(config.GetProxyNameList(), func(name string) (constant.AdapterType, bool) {
+	names := proxyGroupNames(profileProxyNames(), func(name string) (constant.AdapterType, bool) {
 		p, ok := proxies[name]
 		if !ok || p == nil {
 			return 0, false
@@ -93,9 +91,15 @@ func handleGetProxies() ProxiesData {
 		return p.Type(), true
 	})
 
+	held := heldGroups()
 	views := make(map[string]any, len(proxies))
 	for name, proxy := range proxies {
-		views[name] = proxyView(proxy)
+		view := proxyView(proxy)
+		// The host reads a pin as the user's; a held one is the core's.
+		if group, ok := view.(map[string]any); ok && held[name] == proxy {
+			group["fixed"] = ""
+		}
+		views[name] = view
 	}
 	return ProxiesData{All: names, Proxies: views}
 }
@@ -103,9 +107,10 @@ func handleGetProxies() ProxiesData {
 // Proxy.MarshalJSON encodes each node twice, with history the host never reads.
 func proxyView(proxy constant.Proxy) any {
 	node := nodeView{
-		Name:         proxy.Name(),
-		Type:         proxy.Type().String(),
-		ProviderName: proxy.ProxyInfo().ProviderName,
+		Name:              proxy.Name(),
+		Type:              proxy.Type().String(),
+		ServerDescription: descriptionOf(proxy.Name()),
+		ProviderName:      proxy.ProxyInfo().ProviderName,
 	}
 	if !isProxyGroupType(proxy.Type()) {
 		return node
@@ -120,6 +125,9 @@ func proxyView(proxy constant.Proxy) any {
 		return node
 	}
 	view["name"] = node.Name
+	if node.ServerDescription != "" {
+		view["serverDescription"] = node.ServerDescription
+	}
 	if isBuiltInGlobal(proxy) {
 		view["hidden"] = true
 	}
@@ -171,15 +179,15 @@ func handleChangeProxy(params *ChangeProxyParams) *ChangeProxyResult {
 	} else if err := selector.Set(params.ProxyName); err != nil {
 		return &ChangeProxyResult{Message: err.Error()}
 	}
+	userPicked(params.GroupName)
 	changed := selector.Now() != before
 	refreshRouteLocked(routeUnchanged)
 	return &ChangeProxyResult{Changed: changed}
 }
 
-func patchSelectGroup(mapping map[string]string) {
+func patchSelectGroup(proxies map[string]constant.Proxy, mapping map[string]string) {
 	selectMu.Lock()
 	defer selectMu.Unlock()
-	proxies := tunnel.AllProxies()
 	for name, selected := range mapping {
 		if selector, ok := adapterAs[outboundgroup.SelectAble](proxies[name]); ok {
 			selector.ForceSet(selected)

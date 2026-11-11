@@ -157,10 +157,6 @@ void main() {
     await tester.pump();
     expect(focusedHeaderActionIndex(), 1);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-    await tester.pump();
-    expect(focusedHeaderActionIndex(), 2);
-
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
@@ -179,13 +175,17 @@ void main() {
     await tester.pump();
     expect(focusedHeaderActionIndex(), 0);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pump();
-    expect(focusedHeaderActionIndex(), 2);
+    expect(focusedHeaderActionIndex(), 1);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
-    expect(focusedHeaderActionIndex(), 0);
+    expect(focusedHeaderActionIndex(), 1);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(focusedHeaderActionIndex(), 1);
 
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpWidget(const SizedBox());
@@ -195,7 +195,7 @@ void main() {
   testWidgets('revealed proxy stays below the pinned header', (tester) async {
     await pumpListLayout(tester, size: const Size(600, 400), proxyCount: 30);
 
-    final proxyFinder = find.byKey(const ValueKey('Selector.Proxy 3')).first;
+    final proxyFinder = find.byKey(const ValueKey(('Proxy 3', 0))).first;
     final targetContext = tester.element(proxyFinder);
     final scrollable = Scrollable.of(targetContext);
     final viewportTop = tester.getTopLeft(find.byWidget(scrollable.widget)).dy;

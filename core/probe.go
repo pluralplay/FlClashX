@@ -38,9 +38,7 @@ var (
 )
 
 type probeRoute struct {
-	chains      []string
-	rule        string
-	rulePayload string
+	chains []string
 }
 
 // probeDialer opens one connection per dial, either pinned to a proxy or
@@ -90,7 +88,7 @@ func (d *probeDialer) dial(ctx context.Context, _ string, address string) (net.C
 	attempt.Conn = local
 	attempt.metadata = metadata
 	pendingProbeRoutes.Store(metadata, attempt)
-	go tunnel.Tunnel.HandleTCPConn(remote, metadata)
+	go trafficTunnel.HandleTCPConn(remote, metadata)
 	d.remember(attempt)
 	return attempt, nil
 }
@@ -197,11 +195,25 @@ type routedConn struct {
 }
 
 func (c *routedConn) Close() error {
+	c.resolve()
 	pendingProbeRoutes.CompareAndDelete(c.metadata, c)
 	return c.Conn.Close()
 }
 
+// A probe that got its answer before the accounting tunnel looked its
+// tracker up still finds it here, as long as the connection is open.
 func (c *routedConn) resolve() *probeRoute {
+	c.mu.Lock()
+	route := c.route
+	c.mu.Unlock()
+	if route != nil || c.metadata == nil {
+		return route
+	}
+	if tracker := findTracker(func(info *statistic.TrackerInfo) bool {
+		return info.Metadata == c.metadata
+	}); tracker != nil {
+		notifyProbeRoute(tracker)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.route
@@ -220,9 +232,7 @@ func notifyProbeRoute(tracker statistic.Tracker) {
 		return
 	}
 	pending.(*routedConn).settle(&probeRoute{
-		chains:      append([]string(nil), info.Chain...),
-		rule:        info.Rule,
-		rulePayload: info.RulePayload,
+		chains: append([]string(nil), info.Chain...),
 	})
 }
 
@@ -246,21 +256,14 @@ type probeRequest struct {
 	// A followed redirect loses the Location that Netflix names its region in.
 	noRedirect bool
 
+	// Russian state and bank sites chain to a root the system stores lack;
+	// a check that only asks whether they answer trusts their certificate.
+	insecure bool
+
 	// until sees the latest chunk and probeScanOverlap bytes before it.
 	until func(tail string) bool
 
 	recorder *hitRecorder
-}
-
-func handleProbe(params *ProbeParams) *ProbeResult {
-	return runProbe(context.Background(), probeRequest{
-		method:    http.MethodGet,
-		url:       params.Url,
-		proxyName: params.ProxyName,
-		headers:   params.Headers,
-		timeout:   timeoutFromMillis(params.Timeout, defaultProbeTimeout),
-		maxBody:   params.MaxBody,
-	})
 }
 
 // runProbe returns nil when the request never got a slot before its deadline.
@@ -290,6 +293,7 @@ func runProbe(parent context.Context, req probeRequest) *ProbeResult {
 	if err != nil {
 		return fail(err)
 	}
+	tlsConfig.InsecureSkipVerify = req.insecure
 
 	timeout := req.timeout
 	if timeout <= 0 {
@@ -347,8 +351,6 @@ func runProbe(parent context.Context, req probeRequest) *ProbeResult {
 	result.Url = response.Request.URL.String()
 	if route := dialer.route(); route != nil {
 		result.Chains = route.chains
-		result.Rule = route.rule
-		result.RulePayload = route.rulePayload
 	}
 	if req.maxBody > 0 {
 		result.Body = readProbeBody(response.Body, req.maxBody, req.until)

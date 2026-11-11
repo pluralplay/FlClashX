@@ -32,7 +32,7 @@ void main() {
         logLevel: LogLevel.info,
         ipv6: false,
         tcpConcurrent: false,
-        externalController: ExternalControllerStatus.close,
+        externalController: '',
         unifiedDelay: false,
       ),
     );
@@ -64,24 +64,24 @@ void main() {
   });
 
   group('lifecycle methods', () {
-    test('start, restart, stop, and close delegate to interface', () async {
+    test('start, restart, and close delegate to interface', () async {
       const result = CoreLifecycleResult(
         revision: 1,
         outcome: CoreLifecycleOutcome.applied,
       );
       when(() => mock.start()).thenAnswer((_) async => result);
       when(() => mock.restart()).thenAnswer((_) async => result);
-      when(() => mock.stop()).thenAnswer((_) async => result);
+
       when(() => mock.close()).thenAnswer((_) async => result);
 
       expect(await controller.start(), same(result));
       expect(await controller.restart(), same(result));
-      expect(await controller.stop(), same(result));
+
       expect(await controller.close(), same(result));
 
       verify(() => mock.start()).called(1);
       verify(() => mock.restart()).called(1);
-      verify(() => mock.stop()).called(1);
+
       verify(() => mock.close()).called(1);
     });
 
@@ -163,7 +163,7 @@ void main() {
         logLevel: LogLevel.info,
         ipv6: false,
         tcpConcurrent: false,
-        externalController: ExternalControllerStatus.close,
+        externalController: '',
         unifiedDelay: false,
       );
       when(() => mock.updateConfig(params)).thenAnswer((_) async => 'ok');
@@ -338,6 +338,12 @@ void main() {
       when(() => mock.stopListener()).thenAnswer((_) async => false);
       final result = await controller.stopListener();
       expect(result, false);
+    });
+
+    test('restartListener delegates', () async {
+      when(() => mock.restartListener()).thenAnswer((_) async => true);
+      final result = await controller.restartListener();
+      expect(result, true);
     });
 
     test('updateGeoData delegates', () async {

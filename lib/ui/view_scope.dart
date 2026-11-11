@@ -1,17 +1,15 @@
 import 'package:flutter/widgets.dart';
 
-enum ViewScopeAspect { size, isMobile, windowControls }
+enum ViewScopeAspect { isMobile, windowControls }
 
 class ViewScope extends InheritedModel<ViewScopeAspect> {
   const ViewScope({
     super.key,
-    required this.size,
     required this.isMobile,
     this.windowControls = Size.zero,
     required super.child,
   });
 
-  final Size size;
   final bool isMobile;
 
   /// Caption controls the window draws over a page's top trailing corner.
@@ -25,9 +23,6 @@ class ViewScope extends InheritedModel<ViewScopeAspect> {
     assert(scope != null, 'No ViewScope found above $context.');
     return scope!;
   }
-
-  static Size sizeOf(BuildContext context) =>
-      _of(context, ViewScopeAspect.size).size;
 
   static bool isMobileOf(BuildContext context, {bool listen = true}) {
     if (listen) {
@@ -43,7 +38,6 @@ class ViewScope extends InheritedModel<ViewScopeAspect> {
 
   @override
   bool updateShouldNotify(ViewScope oldWidget) =>
-      size != oldWidget.size ||
       isMobile != oldWidget.isMobile ||
       windowControls != oldWidget.windowControls;
 
@@ -53,7 +47,6 @@ class ViewScope extends InheritedModel<ViewScopeAspect> {
     Set<ViewScopeAspect> dependencies,
   ) => dependencies.any(
     (aspect) => switch (aspect) {
-      ViewScopeAspect.size => size != oldWidget.size,
       ViewScopeAspect.isMobile => isMobile != oldWidget.isMobile,
       ViewScopeAspect.windowControls =>
         windowControls != oldWidget.windowControls,

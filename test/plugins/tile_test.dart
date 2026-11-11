@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/plugins/tile.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +23,13 @@ class _ThrowingTileListener with TileListener {
     called = true;
     throw StateError('tile listener error');
   }
+}
+
+class _PendingTileListener with TileListener {
+  final started = Completer<void>();
+
+  @override
+  Future<void> onStart() => started.future;
 }
 
 class _MutatingTileListener with TileListener {
@@ -103,6 +112,28 @@ void main() {
     });
 
     await expectLater(emitFromPlatform('start'), completes);
+  });
+
+  test('a start is answered only once its listener is done with it', () async {
+    final listener = _PendingTileListener();
+    Tile.instance.addListener(listener);
+    addTearDown(() => Tile.instance.removeListener(listener));
+    var answered = false;
+
+    final dispatch = TestDefaultBinaryMessengerBinding
+        .instance
+        .defaultBinaryMessenger
+        .handlePlatformMessage(
+          channelName,
+          codec.encodeMethodCall(const MethodCall('start')),
+          (_) => answered = true,
+        );
+    await pumpEventQueue();
+    expect(answered, isFalse);
+
+    listener.started.complete();
+    await dispatch;
+    expect(answered, isTrue);
   });
 
   test('ignores an action it does not model', () async {

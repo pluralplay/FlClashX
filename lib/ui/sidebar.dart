@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/l10n.dart';
 import 'package:fl_clash/ui/scroll_behavior.dart';
@@ -403,7 +404,7 @@ class _SidebarButton extends StatelessWidget {
             child: InkWell(
               onTap: onTap,
               customBorder: _itemShape,
-              mouseCursor: SystemMouseCursors.basic,
+              mouseCursor: clickableCursor,
               splashFactory: NoSplash.splashFactory,
               overlayColor: colors.overlay,
               child: Tooltip(

@@ -13,6 +13,12 @@ abstract final class AppGlyphs {
     GlyphBox(13.5, 12.5, 20.5, 20.5, 2),
   ]);
 
+  static const zashboard = Glyph([
+    GlyphBox(3.5, 4.5, 10, 19.5, 2),
+    GlyphBox(12, 4.5, 20.5, 11, 2),
+    GlyphBox(12, 13, 20.5, 19.5, 2),
+  ]);
+
   static const proxies = Glyph([
     GlyphCircle(12, 12, 8.8),
     GlyphOval(8.2, 3.2, 15.8, 20.8, role: GlyphRole.detail),
@@ -94,25 +100,6 @@ abstract final class AppGlyphs {
     ], role: GlyphRole.detail),
   ]);
 
-  static const tools = Glyph([
-    GlyphBox(3, 7, 21, 20, 2.8),
-    GlyphPolyline([
-      GlyphVertex(9, 7),
-      GlyphVertex(9, 4.6, 1.4),
-      GlyphVertex(15, 4.6, 1.4),
-      GlyphVertex(15, 7),
-    ], role: GlyphRole.line),
-    GlyphPolyline([
-      GlyphVertex(3.2, 12.6),
-      GlyphVertex(9.6, 12.6),
-    ], role: GlyphRole.detail),
-    GlyphPolyline([
-      GlyphVertex(14.4, 12.6),
-      GlyphVertex(20.8, 12.6),
-    ], role: GlyphRole.detail),
-    GlyphBox(10.4, 11, 13.6, 14.4, 1, role: GlyphRole.detail),
-  ]);
-
   static const target = Glyph([
     GlyphArc(
       12,
@@ -167,6 +154,32 @@ abstract final class AppGlyphs {
       GlyphVertex(5.5, 15.25),
       GlyphVertex(12, 8.75, 0.4),
       GlyphVertex(18.5, 15.25),
+    ], role: GlyphRole.line),
+  ]);
+
+  static const unfoldAll = Glyph([
+    GlyphPolyline([
+      GlyphVertex(7.5, 8.5),
+      GlyphVertex(12, 4, 0.4),
+      GlyphVertex(16.5, 8.5),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(7.5, 15.5),
+      GlyphVertex(12, 20, 0.4),
+      GlyphVertex(16.5, 15.5),
+    ], role: GlyphRole.line),
+  ]);
+
+  static const foldAll = Glyph([
+    GlyphPolyline([
+      GlyphVertex(7.5, 4),
+      GlyphVertex(12, 8.5, 0.4),
+      GlyphVertex(16.5, 4),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(7.5, 20),
+      GlyphVertex(12, 15.5, 0.4),
+      GlyphVertex(16.5, 20),
     ], role: GlyphRole.line),
   ]);
 
@@ -408,36 +421,11 @@ abstract final class AppGlyphs {
     ], role: GlyphRole.line),
   ]);
 
-  static const clearField = Glyph([
-    GlyphCircle(12, 12, 8.8),
-    GlyphPolyline([
-      GlyphVertex(9.3, 9.3),
-      GlyphVertex(14.7, 14.7),
-    ], role: GlyphRole.detail),
-    GlyphPolyline([
-      GlyphVertex(14.7, 9.3),
-      GlyphVertex(9.3, 14.7),
-    ], role: GlyphRole.detail),
-  ]);
-
   static const check = Glyph([
     GlyphPolyline([
       GlyphVertex(4.8, 12.5),
       GlyphVertex(9.6, 17.3),
       GlyphVertex(19.4, 6.7),
-    ], role: GlyphRole.line),
-  ]);
-
-  static const checkDouble = Glyph([
-    GlyphPolyline([
-      GlyphVertex(2.9, 12.5),
-      GlyphVertex(6.7, 16.3),
-      GlyphVertex(14.45, 7.9),
-    ], role: GlyphRole.line),
-    GlyphPolyline([
-      GlyphVertex(11.8, 16.3),
-      GlyphVertex(13.2, 17.7),
-      GlyphVertex(20.95, 9.3),
     ], role: GlyphRole.line),
   ]);
 
@@ -465,6 +453,27 @@ abstract final class AppGlyphs {
       GlyphVertex(12, 11.8),
       GlyphVertex(12, 16.7),
     ], role: GlyphRole.detail),
+  ]);
+
+  static const stop = Glyph([GlyphBox(6, 6, 18, 18, 2.5)]);
+
+  /// A headset: the band, two cups and a mic boom.
+  static const globe = Glyph([
+    GlyphCircle(12, 12, 8.8),
+    GlyphOval(8.4, 3.2, 15.6, 20.8, role: GlyphRole.detail),
+    GlyphPolyline([
+      GlyphVertex(3.2, 12),
+      GlyphVertex(20.8, 12),
+    ], role: GlyphRole.detail),
+    GlyphPath('M4.6 7.6 Q12 10.2 19.4 7.6', role: GlyphRole.detail),
+    GlyphPath('M4.6 16.4 Q12 13.8 19.4 16.4', role: GlyphRole.detail),
+  ]);
+
+  static const support = Glyph([
+    GlyphPath('M4.2 13.2 A7.8 7.8 0 0 1 19.8 13.2', role: GlyphRole.line),
+    GlyphBox(3.2, 12.2, 7.4, 18.6, 1.8),
+    GlyphBox(16.6, 12.2, 20.8, 18.6, 1.8),
+    GlyphPath('M18.7 18.6 Q18.7 21.4 14.2 21.4', role: GlyphRole.line),
   ]);
 
   static const warning = Glyph([
@@ -1091,11 +1100,6 @@ abstract final class AppGlyphs {
     GlyphCircle(8.4, 12, 2.8, role: GlyphRole.detail, solid: true),
   ]);
 
-  static const toggleOn = Glyph([
-    GlyphBox(2.9, 6.5, 21.1, 17.5, 5.5),
-    GlyphCircle(15.6, 12, 2.8, role: GlyphRole.detail, solid: true),
-  ]);
-
   static const pin = Glyph([
     GlyphPolyline([
       GlyphVertex(15.42, 3.5, 1.5),
@@ -1169,13 +1173,6 @@ abstract final class AppGlyphs {
     ], role: GlyphRole.line),
   ]);
 
-  static const password = Glyph([
-    GlyphBox(2.9, 6, 21.1, 18, 3),
-    GlyphCircle(7.4, 12, 1.4, role: GlyphRole.detail, solid: true),
-    GlyphCircle(12, 12, 1.4, role: GlyphRole.detail, solid: true),
-    GlyphCircle(16.6, 12, 1.4, role: GlyphRole.detail, solid: true),
-  ]);
-
   static const account = Glyph([
     GlyphCircle(12, 12, 8.8),
     GlyphCircle(12, 9.4, 2.8, role: GlyphRole.detail),
@@ -1242,21 +1239,6 @@ abstract final class AppGlyphs {
       GlyphVertex(18.2, 12),
       GlyphVertex(21.1, 12),
     ], role: GlyphRole.line),
-  ]);
-
-  static const star = Glyph([
-    GlyphPolyline([
-      GlyphVertex(12, 3.2, 1.2),
-      GlyphVertex(14.41, 9.48, 0.6),
-      GlyphVertex(21.13, 9.83, 1.2),
-      GlyphVertex(15.9, 14.07, 0.6),
-      GlyphVertex(17.64, 20.57, 1.2),
-      GlyphVertex(12, 16.9, 0.6),
-      GlyphVertex(6.36, 20.57, 1.2),
-      GlyphVertex(8.1, 14.07, 0.6),
-      GlyphVertex(2.87, 9.83, 1.2),
-      GlyphVertex(9.59, 9.48, 0.6),
-    ], closed: true),
   ]);
 
   static const puzzle = Glyph([
@@ -2036,4 +2018,16 @@ abstract final class AppGlyphs {
       _ => arrowBack,
     };
   }
+
+  static const clearField = Glyph([
+    GlyphCircle(12, 12, 8.8),
+    GlyphPolyline([
+      GlyphVertex(9.3, 9.3),
+      GlyphVertex(14.7, 14.7),
+    ], role: GlyphRole.detail),
+    GlyphPolyline([
+      GlyphVertex(14.7, 9.3),
+      GlyphVertex(9.3, 14.7),
+    ], role: GlyphRole.detail),
+  ]);
 }

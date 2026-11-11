@@ -16,7 +16,9 @@ import (
 var netIndexOfLocal = -1
 var netIndexOfUid = -1
 
-func QuerySocketUidFromProcFs(source, _ net.Addr) int {
+var procNetDir = "/proc/net/"
+
+func QuerySocketUidFromProcFs(source, target net.Addr) int {
 	if netIndexOfLocal < 0 || netIndexOfUid < 0 {
 		return -1
 	}
@@ -27,7 +29,10 @@ func QuerySocketUidFromProcFs(source, _ net.Addr) int {
 		network = network[:len(network)-1]
 	}
 
-	path := "/proc/net/" + network
+	path := procNetDir + network
+	// A socket that has not connected lists the address it was bound to,
+	// usually the wildcard, while its packets carry the interface's own.
+	wildcard := network == "udp"
 
 	var sIP net.IP
 	var sPort int
@@ -48,19 +53,65 @@ func QuerySocketUidFromProcFs(source, _ net.Addr) int {
 		return -1
 	}
 
-	uid := doQuery(path+"6", sIP, sPort)
-	if uid == -1 {
-		sIP = sIP.To4()
-		if sIP == nil {
-			return -1
-		}
-		uid = doQuery(path, sIP, sPort)
+	// An IPv4-mapped socket in the v6 table shares its port space with the v4
+	// one, so both tables are read before either settles the owner.
+	found := doQuery(path+"6", sIP, sPort, addressColumnOf(target, net.IP.To16), wildcard)
+	if sIP = sIP.To4(); sIP != nil {
+		found = found.join(doQuery(path, sIP, sPort, addressColumnOf(target, net.IP.To4), wildcard))
 	}
-
-	return uid
+	if owner := soleOwner(found.connected); owner != -1 {
+		return owner
+	}
+	if len(found.exact) > 0 {
+		return soleOwner(found.exact)
+	}
+	return soleOwner(found.bound)
 }
 
-func localAddressColumn(sIP net.IP, sPort int) []byte {
+// The owners of the rows a lookup found: bound to the source itself, also
+// connected to the target, or bound to the unspecified address on its port.
+type socketOwners struct {
+	exact, connected, bound []int
+}
+
+func (o socketOwners) join(other socketOwners) socketOwners {
+	return socketOwners{
+		exact:     append(o.exact, other.exact...),
+		connected: append(o.connected, other.connected...),
+		bound:     append(o.bound, other.bound...),
+	}
+}
+
+func addressColumnOf(addr net.Addr, family func(net.IP) net.IP) []byte {
+	var ip net.IP
+	var port int
+	switch a := addr.(type) {
+	case *net.TCPAddr:
+		ip, port = a.IP, a.Port
+	case *net.UDPAddr:
+		ip, port = a.IP, a.Port
+	default:
+		return nil
+	}
+	if ip = family(ip); ip == nil {
+		return nil
+	}
+	return addressColumn(ip, port)
+}
+
+func soleOwner(uids []int) int {
+	if len(uids) == 0 {
+		return -1
+	}
+	for _, uid := range uids[1:] {
+		if uid != uids[0] {
+			return -1
+		}
+	}
+	return uids[0]
+}
+
+func addressColumn(sIP net.IP, sPort int) []byte {
 	ip := nativeEndianIP(sIP)
 	column := make([]byte, 0, hex.EncodedLen(len(ip))+1+4)
 
@@ -94,40 +145,55 @@ func column(row []byte, index int) []byte {
 	}
 }
 
-func doQuery(path string, sIP net.IP, sPort int) int {
+// Several sockets can list one local address: SO_REUSEADDR lets apps bind the
+// same UDP address, and a TIME_WAIT row outlives the connection that held its
+// port. The remote address tells them apart when it can; otherwise apps that
+// disagree leave the socket without an owner.
+func doQuery(path string, sIP net.IP, sPort int, remote []byte, wildcard bool) (found socketOwners) {
 	file, err := os.Open(path)
 	if err != nil {
-		return -1
+		return found
 	}
 
 	defer func(file *os.File) {
 		_ = file.Close()
 	}(file)
 
-	local := localAddressColumn(sIP, sPort)
+	local := addressColumn(sIP, sPort)
+	unspecified := addressColumn(make(net.IP, len(sIP)), sPort)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		row := scanner.Bytes()
+		address := column(row, netIndexOfLocal)
 
-		if !bytes.EqualFold(local, column(row, netIndexOfLocal)) {
+		if bytes.EqualFold(local, address) {
+			owner := uidOf(row)
+			found.exact = append(found.exact, owner)
+			if remote != nil && bytes.EqualFold(remote, column(row, netIndexOfLocal+1)) {
+				found.connected = append(found.connected, owner)
+			}
 			continue
 		}
-
-		uidColumn := column(row, netIndexOfUid)
-		if uidColumn == nil {
-			return -1
+		if wildcard && bytes.EqualFold(unspecified, address) {
+			found.bound = append(found.bound, uidOf(row))
 		}
+	}
+	return found
+}
 
-		uid, err := strconv.Atoi(string(uidColumn))
-		if err != nil {
-			return -1
-		}
-
-		return uid
+func uidOf(row []byte) int {
+	uidColumn := column(row, netIndexOfUid)
+	if uidColumn == nil {
+		return -1
 	}
 
-	return -1
+	uid, err := strconv.Atoi(string(uidColumn))
+	if err != nil {
+		return -1
+	}
+
+	return uid
 }
 
 func nativeEndianIP(ip net.IP) []byte {

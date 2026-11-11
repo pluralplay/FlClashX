@@ -47,7 +47,7 @@ const _updateParams = UpdateParams(
   logLevel: LogLevel.info,
   ipv6: false,
   tcpConcurrent: false,
-  externalController: ExternalControllerStatus.close,
+  externalController: '',
   unifiedDelay: false,
 );
 
@@ -62,8 +62,12 @@ void main() {
     'validateConfig': () => core.validateConfig('/tmp/config.yaml'),
     'updateGeoData': () => core.updateGeoData('geoip'),
     'updateExternalProvider': () => core.updateExternalProvider('provider'),
-    'sideLoadExternalProvider': () =>
-        core.sideLoadExternalProvider(providerName: 'p', data: 'd'),
+    'sideLoadExternalProvider': () => core.sideLoadExternalProvider(
+      providerName: 'p',
+      path: '/p.yaml',
+      type: 'Proxy',
+      data: 'd',
+    ),
     'clearEffect': () => core.clearEffect(1),
   };
 

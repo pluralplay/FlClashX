@@ -31,14 +31,7 @@ Map<String, dynamic> _$IpQualityToJson(_IpQuality instance) =>
       'isAbuser': instance.isAbuser,
     };
 
-const _$IpQualitySourceEnumMap = {
-  IpQualitySource.identMe: 'identMe',
-  IpQualitySource.ipApiCom: 'ipApiCom',
-  IpQualitySource.ipQuery: 'ipQuery',
-  IpQualitySource.ipLocate: 'ipLocate',
-  IpQualitySource.proxyCheck: 'proxyCheck',
-  IpQualitySource.ipApiIs: 'ipApiIs',
-};
+const _$IpQualitySourceEnumMap = {IpQualitySource.ipInfo: 'ipInfo'};
 
 const _$IpTypeEnumMap = {
   IpType.residential: 'residential',

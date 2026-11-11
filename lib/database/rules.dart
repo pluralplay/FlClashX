@@ -62,10 +62,6 @@ class RulesDao extends DatabaseAccessor<Database> with _$RulesDaoMixin {
     return _ownedBy(profileId).map((item) => item.toRule());
   }
 
-  Selectable<int> profileRulesCount(int profileId) {
-    return _ownedBy(profileId).count;
-  }
-
   Selectable<int> queryDisabledRuleIds(int profileId) {
     final query = selectOnly(disabledRules)
       ..addColumns([disabledRules.ruleId])

@@ -2,15 +2,20 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
 	"github.com/metacubex/mihomo/common/utils"
+	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
 	cp "github.com/metacubex/mihomo/constant/provider"
+	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/tunnel"
 )
 
@@ -110,12 +115,49 @@ func TestMethodCallDecodeArgumentsAcceptsScalar(t *testing.T) {
 func TestSideLoadParamsMatchesTheWirePayload(t *testing.T) {
 	params := SideLoadParams{}
 
-	if err := json.Unmarshal([]byte(`{"providerName":"rules","data":"payload"}`), &params); err != nil {
+	if err := json.Unmarshal([]byte(`{"providerName":"rules","path":"/p/rules.yaml","type":"Rule","data":"payload"}`), &params); err != nil {
 		t.Fatalf("decode error: %v", err)
 	}
 
-	if params.ProviderName != "rules" || params.Data != "payload" {
-		t.Errorf("params = %+v, want {rules payload}", params)
+	want := SideLoadParams{ProviderName: "rules", Path: "/p/rules.yaml", Type: "Rule", Data: "payload"}
+	if params != want {
+		t.Errorf("params = %+v, want %+v", params, want)
+	}
+}
+
+func TestASideLoadForAProviderSinceReplacedIsRefused(t *testing.T) {
+	runningApplies(t)
+	write := func(name string) string {
+		path := filepath.Join(constant.Path.HomeDir(), name)
+		if err := os.WriteFile(path, []byte("proxies:\n  - {name: a, type: socks5, server: 127.0.0.1, port: 1}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	write("sub.yaml")
+	hub.ApplyConfig(mihomoConfig(parsedConfig(t, func(raw *config.RawConfig) {
+		raw.ProxyProvider = map[string]map[string]any{"sub": {"type": "file", "path": "./sub.yaml"}}
+	})))
+	running := handleGetExternalProvider("sub")
+	if running == nil {
+		t.Fatal("the file provider is not running")
+	}
+	edit := "proxies:\n  - {name: b, type: socks5, server: 127.0.0.1, port: 1}\n  - {name: c, type: socks5, server: 127.0.0.1, port: 1}\n"
+
+	err := handleSideLoadExternalProvider(&SideLoadParams{ProviderName: "sub", Path: write("other.yaml"), Type: running.Type, Data: edit})
+	var methodErr *MethodError
+	if !errors.As(err, &methodErr) || methodErr.Code != "provider_replaced" {
+		t.Fatalf("err = %v, want the provider reported replaced", err)
+	}
+	if handleGetExternalProvider("sub").Count != 1 {
+		t.Fatal("the edit went into the provider running under the name")
+	}
+
+	if err := handleSideLoadExternalProvider(&SideLoadParams{ProviderName: "sub", Path: running.Path, Type: running.Type, Data: edit}); err != nil {
+		t.Fatalf("side-load into the provider the host edited: %v", err)
+	}
+	if handleGetExternalProvider("sub").Count != 2 {
+		t.Error("the edit did not reach the provider")
 	}
 }
 

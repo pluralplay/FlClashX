@@ -113,7 +113,8 @@ class BackupAction extends _$BackupAction {
         clashProviders: data.clashProviders,
         customProxies: data.customProxies,
         proxyDialers: data.proxyDialers,
-        isOverride: isOverride,
+        iconSets: data.iconSets,
+        isOverride: isOverride && data.includesTables,
       );
     } catch (_) {
       await putBack?.call();

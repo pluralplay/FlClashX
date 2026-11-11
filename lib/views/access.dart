@@ -135,30 +135,17 @@ class _AccessViewState extends ConsumerState<AccessView>
           );
   }
 
-  Future<void> _intelligentSelected() async {
-    final packageNames = ref.read(
-      packagesProvider.select((state) => state.map((item) => item.packageName)),
-    );
-    if (packageNames.isEmpty) {
-      return;
-    }
-    final selectedPackageNames =
-        (await globalState.loadingRun<List<String>>(() async {
-          return await app?.getChinaPackageNames() ?? [];
-        }, tag: LoadingTag.access))?.toSet() ??
-        {};
-    final acceptList = packageNames
-        .where((item) => !selectedPackageNames.contains(item))
-        .toList();
-    final rejectList = packageNames
-        .where((item) => selectedPackageNames.contains(item))
-        .toList();
-    ref
-        .read(accessControlStateProvider.notifier)
-        .update(
-          (state) =>
-              state.copyWith(acceptList: acceptList, rejectList: rejectList),
+  Future<void> _handleToSetting() async {
+    await showSheet<int>(
+      context: context,
+      builder: (context) {
+        final appLocalizations = context.appLocalizations;
+        return CommonScaffold(
+          body: const AccessControlPanel(),
+          title: appLocalizations.accessControlSettings,
         );
+      },
+    );
   }
 
   void _handleSelected(String packageName) {
@@ -169,8 +156,10 @@ class _AccessViewState extends ConsumerState<AccessView>
     });
   }
 
-  void _update(AccessControlProps Function(AccessControlProps state) update) {
-    ref.read(accessControlStateProvider.notifier).update(update);
+  void _handleEnable(bool enable) {
+    ref.read(accessControlStateProvider.notifier).update((state) {
+      return state.copyWith(enable: enable);
+    });
   }
 
   Future<void> _handleBack() async {
@@ -193,16 +182,12 @@ class _AccessViewState extends ConsumerState<AccessView>
     if (packages.isEmpty) {
       return accessControl;
     }
-    final viewPackageNames = packages
-        .whereVisible(
-          isFilterSystemApp: accessControl.isFilterSystemApp,
-          isFilterNonInternetApp: accessControl.isFilterNonInternetApp,
-        )
+    final installedPackageNames = packages
         .map((item) => item.packageName)
         .toSet();
     return accessControl.copyWithNewList(
       accessControl.currentList
-          .where((item) => viewPackageNames.contains(item))
+          .where((item) => installedPackageNames.contains(item))
           .toList()
         ..sort(),
     );
@@ -240,74 +225,53 @@ class _AccessViewState extends ConsumerState<AccessView>
     });
   }
 
+  void _smartSelect() {
+    final names = ref.read(packagesProvider).map((item) => item.packageName);
+    if (names.isEmpty) {
+      return;
+    }
+    ref
+        .read(accessControlStateProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            acceptList: [
+              for (final name in names)
+                if (!isRussianPackage(name)) name,
+            ],
+            rejectList: [
+              for (final name in names)
+                if (isRussianPackage(name)) name,
+            ],
+          ),
+        );
+  }
+
   List<CommonPopupMenuItem> _buildMenuItems(
-    BuildContext context,
-    AccessControlProps accessControl,
-  ) {
+    BuildContext context, {
+    required bool enable,
+  }) {
     final appLocalizations = context.appLocalizations;
-    String modeText(AccessControlMode mode) => switch (mode) {
-      AccessControlMode.acceptSelected => appLocalizations.whitelistMode,
-      AccessControlMode.rejectSelected => appLocalizations.blacklistMode,
-    };
     return [
       CommonPopupMenuItem(
-        glyph: AppGlyphs.toggleOn,
-        label: appLocalizations.turnOn,
-        checked: accessControl.enable,
-        section: CommonPopupMenuSection(title: appLocalizations.accessControl),
-        onPressed: () => _update((state) => state.copyWith(enable: true)),
-      ),
-      CommonPopupMenuItem(
         glyph: AppGlyphs.toggle,
-        label: appLocalizations.turnOff,
-        checked: !accessControl.enable,
-        onPressed: () => _update((state) => state.copyWith(enable: false)),
+        label: appLocalizations.accessControl,
+        subItems: [
+          CommonPopupMenuItem(
+            label: appLocalizations.turnOn,
+            checked: enable,
+            onPressed: () => _handleEnable(true),
+          ),
+          CommonPopupMenuItem(
+            label: appLocalizations.turnOff,
+            checked: !enable,
+            onPressed: () => _handleEnable(false),
+          ),
+        ],
       ),
       CommonPopupMenuItem(
         glyph: AppGlyphs.sliders,
         label: appLocalizations.settings,
-        subtitle: modeText(accessControl.mode),
-        section: const CommonPopupMenuSection(),
-        subItems: [
-          ..._optionsSection(
-            title: appLocalizations.mode,
-            options: AccessControlMode.values,
-            value: accessControl.mode,
-            textOf: modeText,
-            onSelected: (mode) =>
-                _update((state) => state.copyWith(mode: mode)),
-          ),
-          ..._optionsSection(
-            title: appLocalizations.sort,
-            options: AccessSortType.values,
-            value: accessControl.sort,
-            textOf: (type) => switch (type) {
-              AccessSortType.none => appLocalizations.defaultText,
-              AccessSortType.name => appLocalizations.name,
-              AccessSortType.time => appLocalizations.time,
-            },
-            onSelected: (sort) =>
-                _update((state) => state.copyWith(sort: sort)),
-          ),
-          CommonPopupMenuItem(
-            label: appLocalizations.systemApp,
-            checked: !accessControl.isFilterSystemApp,
-            section: CommonPopupMenuSection(title: appLocalizations.source),
-            onPressed: () => _update(
-              (state) =>
-                  state.copyWith(isFilterSystemApp: !state.isFilterSystemApp),
-            ),
-          ),
-          CommonPopupMenuItem(
-            label: appLocalizations.noNetworkApp,
-            checked: !accessControl.isFilterNonInternetApp,
-            onPressed: () => _update(
-              (state) => state.copyWith(
-                isFilterNonInternetApp: !state.isFilterNonInternetApp,
-              ),
-            ),
-          ),
-        ],
+        onPressed: _handleToSetting,
       ),
       CommonPopupMenuItem(
         glyph: AppGlyphs.moreCircle,
@@ -316,7 +280,7 @@ class _AccessViewState extends ConsumerState<AccessView>
           CommonPopupMenuItem(
             glyph: AppGlyphs.sparkle,
             label: appLocalizations.intelligentSelected,
-            onPressed: _intelligentSelected,
+            onPressed: _smartSelect,
           ),
           CommonPopupMenuItem(
             glyph: AppGlyphs.copy,
@@ -458,25 +422,26 @@ class _AccessViewState extends ConsumerState<AccessView>
               )
             : null,
         iconActions: [?selectAllAction],
-        menuItems: _buildMenuItems(context, accessControl),
-        body: needsInstalledAppsPermission
-            ? _buildInstalledAppsPermissionStatus()
-            : FloatingFootBar(
-                bar: _AccessStatus(
-                  accessControl: accessControl,
-                  selectedCount: valueList.length,
-                  onEnable: () =>
-                      _update((state) => state.copyWith(enable: true)),
-                ),
-                body: DisabledMask(
-                  status: !accessControl.enable,
-                  child: _buildContent(
-                    packages: viewPackages,
-                    selected: valueList.toSet(),
-                    isSearching: query.isNotEmpty,
+        menuItems: _buildMenuItems(context, enable: accessControl.enable),
+        body: AppBarClearance(
+          child: needsInstalledAppsPermission
+              ? _buildInstalledAppsPermissionStatus()
+              : FloatingFootBar(
+                  bar: _AccessStatus(
+                    accessControl: accessControl,
+                    selectedCount: valueList.length,
+                    onEnable: () => _handleEnable(true),
+                  ),
+                  body: DisabledMask(
+                    status: !accessControl.enable,
+                    child: _buildContent(
+                      packages: viewPackages,
+                      selected: valueList.toSet(),
+                      isSearching: query.isNotEmpty,
+                    ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -576,22 +541,89 @@ class PackageListItem extends StatelessWidget {
   }
 }
 
-List<CommonPopupMenuItem> _optionsSection<T>({
-  required String title,
-  required List<T> options,
-  required T value,
-  required String Function(T option) textOf,
-  required ValueSetter<T> onSelected,
-}) {
-  return [
-    for (final option in options)
-      CommonPopupMenuItem(
-        label: textOf(option),
-        checked: option == value,
-        section: option == options.first
-            ? CommonPopupMenuSection(title: title)
-            : null,
-        onPressed: () => onSelected(option),
+class AccessControlPanel extends StatelessWidget {
+  const AccessControlPanel({super.key});
+
+  static ConfigWriter<T> _writer<T>(
+    AccessControlProps Function(AccessControlProps state, T value) update,
+  ) {
+    return (ref, value) => ref
+        .read(accessControlStateProvider.notifier)
+        .update((state) => update(state, value));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
+        top: context.contentTopPadding,
+        bottom: 32 + context.bottomInset,
       ),
-  ];
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          generateSection(
+            items: [
+              ConfigOptionsItem<AccessControlMode>(
+                title: (l) => l.mode,
+                options: AccessControlMode.values,
+                textBuilder: (mode) => switch (mode) {
+                  AccessControlMode.acceptSelected =>
+                    appLocalizations.whitelistMode,
+                  AccessControlMode.rejectSelected =>
+                    appLocalizations.blacklistMode,
+                },
+                selector: accessControlStateProvider.select(
+                  (state) => state.mode,
+                ),
+                onChanged: _writer(
+                  (state, value) => state.copyWith(mode: value),
+                ),
+              ),
+              ConfigOptionsItem<AccessSortType>(
+                title: (l) => l.sort,
+                options: AccessSortType.values,
+                textBuilder: (type) => switch (type) {
+                  AccessSortType.none => appLocalizations.defaultText,
+                  AccessSortType.name => appLocalizations.name,
+                  AccessSortType.time => appLocalizations.time,
+                },
+                selector: accessControlStateProvider.select(
+                  (state) => state.sort,
+                ),
+                onChanged: _writer(
+                  (state, value) => state.copyWith(sort: value),
+                ),
+              ),
+            ],
+          ),
+          generateSection(
+            title: appLocalizations.source,
+            items: [
+              ConfigToggleItem(
+                title: (l) => l.systemApp,
+                selector: accessControlStateProvider.select(
+                  (state) => !state.isFilterSystemApp,
+                ),
+                onChanged: _writer(
+                  (state, value) => state.copyWith(isFilterSystemApp: !value),
+                ),
+              ),
+              ConfigToggleItem(
+                title: (l) => l.noNetworkApp,
+                selector: accessControlStateProvider.select(
+                  (state) => !state.isFilterNonInternetApp,
+                ),
+                onChanged: _writer(
+                  (state, value) =>
+                      state.copyWith(isFilterNonInternetApp: !value),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

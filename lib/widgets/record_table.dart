@@ -401,6 +401,7 @@ class RecordHeaderCell extends StatelessWidget {
       return content;
     }
     return InkWell(
+      mouseCursor: clickableCursor,
       onTap: onTap,
       child: SizedBox.expand(child: content),
     );
@@ -431,6 +432,7 @@ class RecordTableRow extends StatelessWidget {
     Widget row = Material(
       type: MaterialType.transparency,
       child: InkWell(
+        mouseCursor: clickableCursor,
         onTap: onTap,
         customBorder: shape,
         child: DefaultTextStyle(

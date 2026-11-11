@@ -74,6 +74,7 @@ class ClashProvidersAction extends _$ClashProvidersAction {
     final info = await _core.compileRuleSet(
       provider.fileName,
       url: download ? provider.url : '',
+      skipCertVerify: !ref.read(appSettingProvider).checkCertificate,
     );
     final next = provider.withInfo(info);
     if (!next.isCompiled) {

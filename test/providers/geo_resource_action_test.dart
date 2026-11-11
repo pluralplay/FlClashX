@@ -232,6 +232,29 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('an update after the stale sweep shows its progress again', (
+    tester,
+  ) async {
+    final coreInterface = _MockCoreHandlerInterface();
+    when(() => coreInterface.updateGeoData('MMDB')).thenAnswer((_) async => '');
+    final container = await _pumpGeoResourceAction(tester, coreInterface);
+    container.read(updatingActionProvider.notifier);
+    final action = container.read(geoResourceActionProvider.notifier);
+    final key = GeoResource.MMDB.updatingKey;
+
+    await action.updateGeoResource(GeoResource.MMDB);
+    await tester.pump(updatingStaleTimeout + updatingSweepInterval);
+    expect(container.read(isUpdatingProvider(key)), isFalse);
+
+    await action.updateGeoResource(GeoResource.MMDB);
+    expect(container.read(isUpdatingProvider(key)), isTrue);
+
+    action.handleCoreUpdate('MMDB', false, false, null);
+    await tester.pump();
+    expect(container.read(isUpdatingProvider(key)), isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('a manual update failure is surfaced as an error', (
     tester,
   ) async {

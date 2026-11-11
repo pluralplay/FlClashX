@@ -71,27 +71,30 @@ class FloatingHeader extends StatelessWidget {
     required this.backgroundColor,
     this.fadeStart = 0.5,
     this.overhang = 0,
+    this.alpha = 0.9,
     required this.child,
   });
 
-  static const _alpha = 0.9;
   static const _fadeSteps = 8;
 
   final Color backgroundColor;
   final double fadeStart;
+
+  /// Negative to end the fade above the foot.
   final double overhang;
+  final double alpha;
   final Widget child;
 
   Gradient _scrimOf(double height) {
     final start = (height - overhang) * fadeStart / height;
     final stops = <double>[0];
-    final colors = <Color>[backgroundColor.withValues(alpha: _alpha)];
+    final colors = <Color>[backgroundColor.withValues(alpha: alpha)];
     for (var i = 0; i <= _fadeSteps; i++) {
       final t = i / _fadeSteps;
       stops.add(start + (1 - start) * t);
       colors.add(
         backgroundColor.withValues(
-          alpha: _alpha * (1 - Curves.easeInOut.transform(t)),
+          alpha: alpha * (1 - Curves.easeInOut.transform(t)),
         ),
       );
     }

@@ -54,14 +54,18 @@ class _CoreContainerState extends ConsumerState<CoreManager>
       if (prev != next) {
         ref
             .read(setupActionProvider.notifier)
-            .applyProfileDebounce(
-              silence: true,
-              // The test URL changes no YAML, so only a forced apply hands
-              // it over.
-              force:
-                  prev != null &&
-                  prev.patchConfig.testUrl != next.patchConfig.testUrl,
-            );
+            .applyProfileDebounce(silence: true);
+      }
+    });
+    // The test URL changes no YAML, so only a forced apply hands it over.
+    ref.listenManual(appSettingProvider.select((state) => state.testUrl), (
+      prev,
+      next,
+    ) {
+      if (prev != null && prev != next) {
+        ref
+            .read(setupActionProvider.notifier)
+            .applyProfileDebounce(silence: true, force: true);
       }
     });
     ref.listenManual(globalRulesProvider, (prev, next) {
@@ -141,6 +145,12 @@ class _CoreContainerState extends ConsumerState<CoreManager>
   }
 
   @override
+  void onTunFailed() {
+    unawaited(ref.read(setupActionProvider.notifier).tunFailed());
+    super.onTunFailed();
+  }
+
+  @override
   void onRequest(TrackerInfo trackerInfo) async {
     ref.read(requestsProvider.notifier).addRequest(trackerInfo);
     ref.read(requestCountProvider.notifier).update((count) => count + 1);
@@ -185,6 +195,7 @@ class _CoreContainerState extends ConsumerState<CoreManager>
     if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       context.showNotifier(message, level: MessageLevel.error);
     }
+    unawaited(ref.read(coreActionProvider.notifier).restartAfterCrash(message));
     super.onCrash(message);
   }
 

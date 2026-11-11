@@ -205,6 +205,30 @@ void main() {
     expect(_top(tester, 'c'), lessThan(_top(tester, 'a')));
   });
 
+  testWidgets('ListEditView shows a repeated value once', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: TestApp(
+          overrides: [
+            viewSizeProvider.overrideWithBuild(
+              (_, _) => const Size(1200, 1000),
+            ),
+          ],
+          child: const ListEditView(
+            title: 'Items',
+            items: ['a', 'b', 'a'],
+            titleBuilder: _textBuilder,
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('a'), findsOneWidget);
+    expect(find.text('b'), findsOneWidget);
+    expect(find.byTooltip('Save'), findsNothing);
+  });
+
   testWidgets('ListItem.options picks from a menu its value opens', (
     tester,
   ) async {

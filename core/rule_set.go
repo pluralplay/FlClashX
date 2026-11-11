@@ -2,7 +2,7 @@ package core
 
 import (
 	"bytes"
-	"context"
+	"encoding/binary"
 	"io"
 	"net/netip"
 	"os"
@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/metacubex/mihomo/common/utils"
+	"github.com/klauspost/compress/zstd"
 	"github.com/metacubex/mihomo/common/yaml"
 	"github.com/metacubex/mihomo/component/resource"
 	"github.com/metacubex/mihomo/constant"
@@ -25,6 +25,70 @@ var (
 )
 
 var zstdMagic = []byte{0x28, 0xB5, 0x2F, 0xFD}
+
+// mihomo's mrs reader makes every array a header declares before it reads
+// any of it, so a small compressed file can ask for gigabytes. The file is
+// unpacked within this bound and each length checked against what it holds.
+var maxMrsSize int64 = 128 << 20
+
+func checkMrs(buf []byte, behavior cp.RuleBehavior) error {
+	reader, err := zstd.NewReader(bytes.NewReader(buf), zstd.WithDecoderMaxMemory(uint64(maxMrsSize)))
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	data, err := io.ReadAll(io.LimitReader(reader, maxMrsSize+1))
+	if err != nil {
+		return err
+	}
+	if int64(len(data)) > maxMrsSize {
+		return errRuleSetInvalid
+	}
+	body := mrsCursor{data: data}
+	body.skip(4 + 1 + 8)
+	body.skip(body.length(1))
+	body.skip(1)
+	switch behavior {
+	case cp.Domain:
+		body.skip(body.length(8))
+		body.skip(body.length(8))
+		body.skip(body.length(1))
+	case cp.IPCIDR:
+		body.skip(body.length(32))
+	}
+	if body.short {
+		return errRuleSetInvalid
+	}
+	return nil
+}
+
+type mrsCursor struct {
+	data  []byte
+	short bool
+}
+
+func (c *mrsCursor) skip(size int64) {
+	if c.short || size < 0 || size > int64(len(c.data)) {
+		c.short = true
+		return
+	}
+	c.data = c.data[size:]
+}
+
+// length reads an array length and returns the bytes it spans.
+func (c *mrsCursor) length(elementSize int64) int64 {
+	if c.short || len(c.data) < 8 {
+		c.short = true
+		return 0
+	}
+	count := int64(binary.BigEndian.Uint64(c.data))
+	c.data = c.data[8:]
+	if count < 0 || count > int64(len(c.data))/elementSize {
+		c.short = true
+		return 0
+	}
+	return count * elementSize
+}
 
 // A name, never a path: the Core may run as root. The directory and the .mrs
 // beside the source match ClashProviderExt in lib/models/common.dart.
@@ -51,7 +115,7 @@ func handleCompileRuleSet(params CompileRuleSetParams) (*RuleSetInfo, error) {
 	var buf []byte
 	var err error
 	if params.URL != "" {
-		buf, err = downloadRuleSet(params.URL, source)
+		buf, err = downloadRuleSet(params.URL, params.SkipCertVerify)
 	} else {
 		buf, err = os.ReadFile(source)
 	}
@@ -75,9 +139,8 @@ func handleCompileRuleSet(params CompileRuleSetParams) (*RuleSetInfo, error) {
 	return info, nil
 }
 
-func downloadRuleSet(url string, path string) ([]byte, error) {
-	buf, _, err := resource.NewHTTPVehicle(url, path, "", nil, resource.DefaultHttpTimeout, 0).
-		Read(context.Background(), utils.HashType{})
+func downloadRuleSet(url string, skipVerify bool) ([]byte, error) {
+	buf, err := downloadBytes(url, resource.DefaultHttpTimeout, skipVerify)
 	if err != nil {
 		if methodErr := requestMethodError(err, map[string]any{}); methodErr != nil {
 			return nil, methodErr
@@ -117,7 +180,8 @@ func writeRuleSetFile(path string, buf []byte) error {
 func compileRuleSet(buf []byte, allowEmpty bool) (*RuleSetInfo, []byte, error) {
 	if bytes.HasPrefix(buf, zstdMagic) {
 		for _, behavior := range []cp.RuleBehavior{cp.Domain, cp.IPCIDR} {
-			if rp.ConvertToMrs(buf, behavior, cp.MrsRule, io.Discard) == nil {
+			if checkMrs(buf, behavior) == nil &&
+				rp.ConvertToMrs(buf, behavior, cp.MrsRule, io.Discard) == nil {
 				return ruleSetInfo(cp.MrsRule, behavior), nil, nil
 			}
 		}

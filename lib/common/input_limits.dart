@@ -11,7 +11,6 @@ abstract final class TextInputLimits {
   static const hostValue = url;
   static const userName = 128;
   static const password = 512;
-  static const userAgent = 512;
   static const fileName = 255;
   static const port = 5;
   static const portRange = 11;
@@ -21,6 +20,7 @@ abstract final class TextInputLimits {
   /// mihomo multiplies these hours into a Duration, which overflows past
   /// about 2.5 million and panics its update ticker.
   static const geoUpdateInterval = 6;
+  static const maxGeoUpdateInterval = 999999;
   static const search = 256;
   static const rule = 1024;
   static const filter = 1024;

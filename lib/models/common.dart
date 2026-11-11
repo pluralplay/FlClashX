@@ -142,7 +142,7 @@ extension TrackerInfoExt on TrackerInfo {
   String get title {
     final host = metadata.host;
     if (host.isNotEmpty) {
-      return host;
+      return decodeIdnHost(host);
     }
     return metadata.destinationIP;
   }
@@ -159,6 +159,7 @@ extension TrackerInfoExt on TrackerInfo {
   List<String> get searchFields => [
     metadata.network,
     metadata.host,
+    title,
     metadata.destinationIP,
     metadata.destinationPort,
     metadata.sourceIP,
@@ -476,8 +477,6 @@ extension TrafficExt on Traffic {
   String get trayTitle {
     return '${up.shortTraffic.show}/s\n${down.shortTraffic.show}/s';
   }
-
-  num get speed => up + down;
 }
 
 @freezed
@@ -496,10 +495,12 @@ abstract class Group with _$Group {
     @JsonKey(fromJson: GroupType.parse) required GroupType type,
     @Default([]) List<Proxy> all,
     String? now,
+    String? fixed,
     bool? hidden,
     String? testUrl,
     @Default('') String icon,
     required String name,
+    String? serverDescription,
   }) = _Group;
 
   factory Group.fromJson(Map<String, Object?> json) => _$GroupFromJson(json);
@@ -527,53 +528,52 @@ extension GroupExt on Group {
   /// A saved pick outlives a subscription update that renames or drops it.
   bool _isMember(String proxyName) =>
       all.isEmpty || all.any((proxy) => proxy.name == proxyName);
+
+  /// The first [trayProxyLimit], [selected] put last when it lies beyond.
+  List<Proxy> trayProxies(String? selected) {
+    if (all.length <= trayProxyLimit) {
+      return all;
+    }
+    final shown = all.take(trayProxyLimit).toList();
+    if (selected != null && !shown.any((proxy) => proxy.name == selected)) {
+      if (all.firstWhereOrNull((proxy) => proxy.name == selected)
+          case final pick?) {
+        shown[trayProxyLimit - 1] = pick;
+      }
+    }
+    return shown;
+  }
 }
+
+const trayProxyLimit = 100;
 
 @freezed
 abstract class IpInfo with _$IpInfo {
   const factory IpInfo({required String ip, required String countryCode}) =
       _IpInfo;
 
-  static IpInfo fromIpInfoIoJson(Map<String, dynamic> json) {
+  static IpInfo fromIpAPIJson(Map<String, dynamic> json) {
     return switch (json) {
-      {'ip': final String ip, 'country': final String country} => IpInfo(
-        ip: ip,
-        countryCode: country,
-      ),
-      _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromGeoJsJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'ip': final String ip, 'country_code': final String countryCode} =>
+      {'query': final String ip, 'countryCode': final String countryCode} =>
         IpInfo(ip: ip, countryCode: countryCode),
       _ => throw const FormatException('invalid json'),
     };
   }
 
-  static IpInfo fromIpSbJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'ip': final String ip, 'country_code': final String countryCode} =>
-        IpInfo(ip: ip, countryCode: countryCode),
-      _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromIpWhoIsJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'ip': final String ip, 'country_code': final String countryCode} =>
-        IpInfo(ip: ip, countryCode: countryCode),
-      _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromCountryIsJson(Map<String, dynamic> json) {
+  static IpInfo fromIpInfoJson(Map<String, dynamic> json) {
     return switch (json) {
       {'ip': final String ip, 'country': final String countryCode} => IpInfo(
         ip: ip,
         countryCode: countryCode,
       ),
+      _ => throw const FormatException('invalid json'),
+    };
+  }
+
+  static IpInfo fromSeeIpJson(Map<String, dynamic> json) {
+    return switch (json) {
+      {'ip': final String ip, 'country_code': final String countryCode} =>
+        IpInfo(ip: ip, countryCode: countryCode),
       _ => throw const FormatException('invalid json'),
     };
   }
@@ -596,23 +596,6 @@ abstract class IpInfo with _$IpInfo {
       } =>
         IpInfo(ip: ip, countryCode: countryCode),
       _ => throw const FormatException('invalid json'),
-    };
-  }
-
-  static IpInfo fromCloudflareTrace(String body) {
-    final fields = <String, String>{};
-    for (final line in const LineSplitter().convert(body)) {
-      final separator = line.indexOf('=');
-      if (separator > 0) {
-        fields[line.substring(0, separator)] = line.substring(separator + 1);
-      }
-    }
-    return switch (fields) {
-      {'ip': final ip, 'loc': final countryCode} => IpInfo(
-        ip: ip,
-        countryCode: countryCode,
-      ),
-      _ => throw const FormatException('invalid trace'),
     };
   }
 }
@@ -649,27 +632,6 @@ class EscapeBackIntent extends Intent {
 }
 
 @freezed
-abstract class Result<T> with _$Result<T> {
-  const factory Result({
-    required T? data,
-    required ResultType type,
-    required String message,
-  }) = _Result;
-
-  factory Result.success(T data) =>
-      Result(data: data, type: ResultType.success, message: '');
-
-  factory Result.error(String message) =>
-      Result(data: null, type: ResultType.error, message: message);
-}
-
-extension ResultExt on Result {
-  bool get isError => type == ResultType.error;
-
-  bool get isSuccess => type == ResultType.success;
-}
-
-@freezed
 abstract class Script with _$Script {
   const factory Script({
     required int id,
@@ -692,17 +654,6 @@ abstract class Script with _$Script {
 }
 
 extension ScriptsExt on List<Script> {
-  Script? get(int? id) {
-    if (id == null) {
-      return null;
-    }
-    final index = indexWhere((script) => script.id == id);
-    if (index != -1) {
-      return this[index];
-    }
-    return null;
-  }
-
   bool hasLabel(String label, {Script? except}) {
     return any((script) => script.id != except?.id && script.label == label);
   }
@@ -717,8 +668,6 @@ extension ScriptsExt on List<Script> {
 }
 
 extension ScriptExt on Script {
-  String get fileName => '$id.js';
-
   String get updatingKey => 'script_$id';
 
   Future<String> get path async => appPath.getScriptPath(id.toString());

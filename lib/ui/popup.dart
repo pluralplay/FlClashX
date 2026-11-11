@@ -5,9 +5,11 @@ import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:fl_clash/ui/color.dart';
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/metrics.dart';
 import 'package:fl_clash/ui/motion.dart';
+import 'package:fl_clash/ui/outer_shadow.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:fl_clash/ui/surface.dart';
 import 'package:fl_clash/ui/typography.dart';
@@ -2287,6 +2289,7 @@ class _CommonPopupMenuState extends State<CommonPopupMenu>
     // A press is the menu's to follow across the rows, so the row's own ink
     // only shows hover and focus.
     final child = InkWell(
+      mouseCursor: clickableCursor,
       customBorder: AppShape.all(_itemRadius),
       onTap: onTap,
       splashFactory: NoSplash.splashFactory,
@@ -2942,11 +2945,15 @@ class _RenderPopupMenuCard extends RenderProxyBox {
       final canvas = context.canvas;
       final surface = shape.shift(offset);
       final corners = AppRadius.all(radius);
-      for (final shadow in _shadows) {
-        canvas.drawRSuperellipse(
-          corners.toRSuperellipse(rect.shift(offset + shadow.offset)),
-          shadow.toPaint(),
-        );
+      if (_fill.a == 1) {
+        paintSurfaceShadows(canvas, rect.shift(offset), corners, _shadows);
+      } else {
+        for (final shadow in _shadows) {
+          canvas.drawRSuperellipse(
+            corners.toRSuperellipse(rect.shift(offset + shadow.offset)),
+            shadow.toPaint(),
+          );
+        }
       }
       canvas.drawPath(surface, Paint()..color = _fill);
     } else if (_bare) {

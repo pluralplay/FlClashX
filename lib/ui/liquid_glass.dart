@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:fl_clash/ui/color.dart';
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/outer_shadow.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -11,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 part 'liquid_glass_capture.dart';
 
 const _shaderAsset = 'shaders/liquid_glass.frag';
+const _flatShaderAsset = 'shaders/liquid_glass_flat.frag';
 const _glowIn = Duration(milliseconds: 120);
 const _glowOut = Duration(milliseconds: 360);
 const double _glowSpread = 3;
@@ -66,7 +68,16 @@ class LiquidGlassScope extends InheritedWidget {
   final bool enabled;
   final LiquidGlassQuality quality;
 
-  static bool of(BuildContext context) => _of(context)?.enabled ?? false;
+  /// Only the top tier frosts more than [dockOf]: phones did not keep up.
+  static bool of(BuildContext context) {
+    final scope = _of(context);
+    return scope != null &&
+        scope.enabled &&
+        scope.quality == LiquidGlassQuality.ultra;
+  }
+
+  /// The navigation dock and the foot bar, glass on every tier that has any.
+  static bool dockOf(BuildContext context) => _of(context)?.enabled ?? false;
 
   static LiquidGlassQuality qualityOf(BuildContext context) =>
       _of(context)?.quality ?? LiquidGlassQuality.ultra;
@@ -276,6 +287,29 @@ class LiquidGlassStyle {
   final double? hairlineSide;
 
   /// Eases in from bare air, as glass materializes by bending, not fading.
+  /// Lets 40% through, 55% in ultra, frosted wide for the smallest capture.
+  factory LiquidGlassStyle.frost(
+    Color surface,
+    LiquidGlassQuality quality, {
+    double? opacity,
+  }) {
+    final dark = surface.computeLuminance() < 0.5;
+    return LiquidGlassStyle(
+      tint: surface.withValues(
+        alpha: surface.a * (opacity ?? frostOpacity(quality)),
+      ),
+      contrast: dark ? -0.4 : 0.4,
+      blur: 24,
+      refraction: 0,
+      bevel: 0,
+      saturation: 1.6,
+      rim: 0,
+    );
+  }
+
+  static double frostOpacity(LiquidGlassQuality quality) =>
+      quality == LiquidGlassQuality.ultra ? 0.45 : 0.6;
+
   LiquidGlassStyle scale(double t) {
     final amount = t.clamp(0.0, 1.0);
     return LiquidGlassStyle(
@@ -400,14 +434,15 @@ class LiquidGlassStyle {
 
   double get _hairlineSide => hairlineSide ?? hairline;
 
-  /// The standard tier's: no colors parted, and a haze for the whole frost.
+  /// The standard tier's: no colors parted, a haze for the whole frost, and
+  /// a tint that does not thicken over clashing content, whose 20 reads of the
+  /// backdrop per pixel cost a weak GPU about as much as the rest of the pane.
   LiquidGlassStyle get _standard {
-    if (haze == 0 && dispersion == 0) {
+    if (haze == 0 && dispersion == 0 && contrast == 0) {
       return this;
     }
     return LiquidGlassStyle(
       tint: tint,
-      contrast: contrast,
       blur: haze > 0 ? hazeBlur : blur,
       refraction: refraction,
       bevel: bevel,
@@ -1092,7 +1127,7 @@ class LiquidGlassPane {
         );
         _profiled = null;
         if (hold == null && shadows.isNotEmpty) {
-          _paintShadows(context.canvas, rect, corners, shadows);
+          paintOuterShadows(context.canvas, rect, corners, shadows);
         }
         pane
           ..corners = corners
@@ -1131,7 +1166,7 @@ class LiquidGlassPane {
       ..group = group;
     context.addLayer(pane);
     if (hold != null && shadows.isNotEmpty) {
-      _paintShadows(context.canvas, rect, pane.corners, shadows);
+      paintOuterShadows(context.canvas, rect, pane.corners, shadows);
     }
   }
 
@@ -1141,43 +1176,30 @@ class LiquidGlassPane {
     _GlassProgram.forget(onReady);
     clear();
   }
-
-  static void _paintShadows(
-    Canvas canvas,
-    Rect rect,
-    BorderRadius corners,
-    List<BoxShadow> shadows,
-  ) {
-    final shape = AppShape.of(corners);
-    final reach = shadows.fold(
-      0.0,
-      (reach, shadow) => math.max(
-        reach,
-        shadow.offset.distance + shadow.spreadRadius + shadow.blurRadius * 2,
-      ),
-    );
-    canvas
-      ..save()
-      ..clipPath(
-        Path()
-          ..fillType = PathFillType.evenOdd
-          ..addRect(rect.inflate(reach))
-          ..addPath(shape.getOuterPath(rect), Offset.zero),
-      );
-    for (final shadow in shadows) {
-      canvas.drawRSuperellipse(
-        corners.toRSuperellipse(
-          rect.shift(shadow.offset).inflate(shadow.spreadRadius),
-        ),
-        shadow.toPaint(),
-      );
-    }
-    canvas.restore();
-  }
 }
+
+/// A flat pane's colors are affine in the capture it reads: shaded per texel
+/// of it and stretched, it lands within two levels in 255 of shading every
+/// pixel, which took a phone's GPU most of a frame on a page of cards.
+typedef _Shading = ({
+  Rect texels,
+  List<double> sample,
+  ui.FragmentShader shader,
+  void Function(ui.Image shaded, Offset frame) finish,
+});
+
+typedef _CaptureKey = (
+  ui.Image,
+  Path?,
+  BorderRadius,
+  BlendMode,
+  ui.FragmentProgram?,
+  List<double>,
+);
 
 abstract final class _GlassProgram {
   static ui.FragmentProgram? _program;
+  static ui.FragmentProgram? _flat;
   static Future<void>? _loading;
 
   /// Final: a bundled shader that failed once fails again, and every attempt
@@ -1193,8 +1215,9 @@ abstract final class _GlassProgram {
     }
     _waiting.add(onLoaded);
     _loading ??= _load().then(
-      (program) {
-        _program = program;
+      (programs) {
+        _program = programs.$1;
+        _flat = programs.$2;
         final waiting = _waiting.toList();
         _waiting.clear();
         for (final callback in waiting) {
@@ -1216,10 +1239,14 @@ abstract final class _GlassProgram {
     return null;
   }
 
+  static ui.FragmentProgram? get flat => _flat;
+
   static void forget(VoidCallback onLoaded) => _waiting.remove(onLoaded);
 
-  static Future<ui.FragmentProgram> _load() =>
-      ui.FragmentProgram.fromAsset(_shaderAsset);
+  static Future<(ui.FragmentProgram, ui.FragmentProgram)> _load() async => (
+    await ui.FragmentProgram.fromAsset(_shaderAsset),
+    await ui.FragmentProgram.fromAsset(_flatShaderAsset),
+  );
 }
 
 class _LiquidGlassLayer extends Layer {
@@ -1247,7 +1274,10 @@ class _LiquidGlassLayer extends Layer {
   int _capturedPass = -1;
   ui.Picture? _captured;
   ui.FragmentShader? _captureShader;
-  (ui.Image, Path?, BlendMode, ui.FragmentProgram?, List<double>)? _captureKey;
+  ui.FragmentShader? _flatShader;
+  ui.Image? _shaded;
+  (RSuperellipse, Path)? _inner;
+  _CaptureKey? _captureKey;
 
   @override
   bool get alwaysNeedsAddToScene => true;
@@ -1319,6 +1349,39 @@ class _LiquidGlassLayer extends Layer {
     ...goo,
   ];
 
+  /// Whether liquid_glass_flat.frag draws [style] as liquid_glass.frag does.
+  bool _isFlat(LiquidGlassStyle style, List<double> mapping) =>
+      outline == null &&
+      rim == null &&
+      mapping[_hazeShare] == 0 &&
+      style.refraction == 0 &&
+      style.dispersion == 0 &&
+      style.rimBlur == 0 &&
+      style.rim == 0 &&
+      style.endShade == 0 &&
+      style.hairline == 0 &&
+      style._hairlineSide == 0;
+
+  List<double> _flatLook(LiquidGlassStyle style) => [
+    rect.width,
+    rect.height,
+    style.bevel,
+    style.blur,
+    style.refraction,
+    style.saturation,
+    style.brightness,
+    style.tint.r,
+    style.tint.g,
+    style.tint.b,
+    style.tint.a,
+    glow.center.dx,
+    glow.center.dy,
+    glow.strength,
+    style.contrast,
+    glow.reach,
+    glow.wash,
+  ];
+
   void _addFrost(ui.SceneBuilder builder) {
     final key = (rect, corners, outline, style, rim);
     if (_frost == null || key != _frostKey) {
@@ -1337,7 +1400,7 @@ class _LiquidGlassLayer extends Layer {
 
   /// Draws the pane from [atlas], where a host laid out what lies behind it,
   /// until the next pass of the host; [mapping] places the pane's slot.
-  void _captureFrom(
+  _Shading? _captureFrom(
     int pass,
     ui.Image atlas,
     List<double> mapping,
@@ -1345,7 +1408,16 @@ class _LiquidGlassLayer extends Layer {
     LiquidGlassStyle style,
   ) {
     _capturedPass = pass;
-    final program = this.program;
+    final general = this.program;
+    final flatProgram = general == null ? null : _GlassProgram.flat;
+    final flat = flatProgram != null && _isFlat(style, mapping);
+    // Over a capture blurred across two of its texels, neighbors differ too
+    // little for the shader's final clamp to tell texels from pixels.
+    final stretches = mapping[_heldFrost] >= _captureFrost;
+    final band = flatProgram == null || flat || !stretches
+        ? null
+        : _bandOf(style, mapping);
+    final program = flat ? flatProgram : general;
     final uniforms = <double>[
       atlas.width.toDouble(),
       atlas.height.toDouble(),
@@ -1353,40 +1425,183 @@ class _LiquidGlassLayer extends Layer {
       -rect.top,
       1,
       1,
-      ...mapping,
-      ..._look(style),
+      if (flat) ...[
+        ...mapping.take(_hazeSample),
+        ...mapping.skip(_veilColor).take(4),
+        ..._flatLook(style),
+      ] else ...[
+        ...mapping,
+        ..._look(style),
+      ],
     ];
+    final key = (atlas, outline, corners, blendMode, program, uniforms);
     if (_captureKey
-        case (final image, final path, final mode, final shaded, final values)?
+        case (
+              final image,
+              final path,
+              final radii,
+              final mode,
+              final shaded,
+              final values,
+            )?
         when _captured != null &&
             identical(image, atlas) &&
             identical(path, outline) &&
+            radii == corners &&
             mode == blendMode &&
             identical(shaded, program) &&
             listEquals(values, uniforms)) {
-      return;
+      return null;
     }
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
     if (program == null) {
-      _frostFrom(canvas, atlas, mapping, blendMode, style);
-    } else {
-      final shader = _captureShader ??= program.fragmentShader();
-      shader.setImageSampler(0, atlas, filterQuality: FilterQuality.low);
-      for (final (index, value) in uniforms.indexed) {
-        shader.setFloat(index, value);
-      }
-      final paint = Paint()
-        ..shader = shader
-        ..blendMode = blendMode;
-      if (outline case final outline?) {
-        canvas.drawPath(outline, paint);
-      } else {
-        canvas.drawRSuperellipse(corners.toRSuperellipse(rect), paint);
-      }
+      _record(key, (canvas) {
+        _frostFrom(canvas, atlas, mapping, blendMode, style);
+      });
+      return null;
     }
+    final direct = flat && stretches
+        ? null
+        : flat
+        ? (_flatShader ??= program.fragmentShader())
+        : (_captureShader ??= program.fragmentShader());
+    direct?.setImageSampler(0, atlas, filterQuality: FilterQuality.low);
+    for (final (index, value) in uniforms.indexed) {
+      direct?.setFloat(index, value);
+    }
+    final shape = corners.toRSuperellipse(rect);
+    if (flatProgram == null || !stretches || (!flat && band == null)) {
+      _record(key, (canvas) {
+        final paint = Paint()
+          ..shader = direct
+          ..blendMode = blendMode;
+        if (outline case final outline?) {
+          canvas.drawPath(outline, paint);
+        } else {
+          canvas.drawRSuperellipse(shape, paint);
+        }
+      });
+      return null;
+    }
+    final shader = _flatShader ??= flatProgram.fragmentShader();
+    shader.setImageSampler(0, atlas, filterQuality: FilterQuality.low);
+    for (final (index, value) in [
+      atlas.width.toDouble(),
+      atlas.height.toDouble(),
+      ...mapping.take(4),
+      ...mapping.take(_hazeSample),
+      ...mapping.skip(_veilColor).take(4),
+      ..._flatLook(style),
+    ].indexed) {
+      shader.setFloat(index, value);
+    }
+    final inner = band == null ? null : _innerOf(shape.deflate(band));
+    return (
+      texels: Rect.fromLTRB(
+        mapping[4] - 0.5,
+        mapping[5] - 0.5,
+        mapping[6] + 0.5,
+        mapping[7] + 0.5,
+      ),
+      sample: mapping.take(4).toList(),
+      shader: shader,
+      finish: (shaded, frame) => _record(key, (canvas) {
+        _shaded?.dispose();
+        final image = _shaded = shaded.clone();
+        final stretch = ImageShader(
+          image,
+          TileMode.clamp,
+          TileMode.clamp,
+          (Matrix4.translationValues(
+            rect.left + frame.dx,
+            rect.top + frame.dy,
+            0,
+          )..scaleByDouble(mapping[2], mapping[3], 1, 1)).storage,
+          filterQuality: FilterQuality.low,
+        );
+        final stretched = Paint()
+          ..blendMode = blendMode
+          ..shader = stretch;
+        if (band == null) {
+          canvas.drawRSuperellipse(shape, stretched);
+        } else {
+          canvas
+            ..drawPath(inner!, stretched)
+            ..save()
+            ..clipPath(
+              Path()
+                ..fillType = PathFillType.evenOdd
+                ..addRect(rect.inflate(1))
+                ..addPath(inner, Offset.zero),
+            )
+            ..drawRSuperellipse(
+              shape,
+              Paint()
+                ..shader = _captureShader
+                ..blendMode = blendMode,
+            )
+            ..restore();
+        }
+        // The recorded picture holds the image through its own reference.
+        stretch.dispose();
+      }),
+    );
+  }
+
+  /// The seam as straight sides, which a fill and a clip flatten alike, so
+  /// MSAA parts its samples exactly where curves left some to neither.
+  Path _innerOf(RSuperellipse shape) {
+    if (_inner case (final cached, final path) when cached == shape) {
+      return path;
+    }
+    final source = Path()..addRSuperellipse(shape);
+    final path = Path();
+    for (final metric in source.computeMetrics()) {
+      final count = math.max(4, metric.length.ceil());
+      for (var index = 0; index < count; index++) {
+        final point = metric
+            .getTangentForOffset(metric.length * index / count)!
+            .position;
+        if (index == 0) {
+          path.moveTo(point.dx, point.dy);
+        } else {
+          path.lineTo(point.dx, point.dy);
+        }
+      }
+      path.close();
+    }
+    _inner = (shape, path);
+    return path;
+  }
+
+  /// How far in from the rim [style] differs from its flat frost, if not all.
+  double? _bandOf(LiquidGlassStyle style, List<double> mapping) {
+    if (outline != null ||
+        mapping[_hazeShare] != 0 ||
+        style.endShade != 0 ||
+        style.refraction < 0) {
+      return null;
+    }
+    const line = 0.67;
+    final band =
+        [
+          if (style.refraction != 0 || style.rimBlur != 0)
+            math.min(style.bevel, rect.shortestSide / 4),
+          if (style.dispersion != 0) 10.0,
+          if (style.rim != 0) line + math.max(style.rimWidth, 4.5),
+          if (style.hairline != 0 || style._hairlineSide != 0) line,
+          if (rim != null)
+            _shineBands.map((band) => band.depth + band.width).reduce(math.max),
+        ].fold(0.0, math.max) +
+        1 +
+        mapping[_heldFrost - 1];
+    return rect.shortestSide > band * 4 ? band : null;
+  }
+
+  void _record(_CaptureKey key, void Function(Canvas canvas) draw) {
+    final recorder = ui.PictureRecorder();
+    draw(Canvas(recorder));
     _hold(recorder.endRecording());
-    _captureKey = (atlas, outline, blendMode, program, uniforms);
+    _captureKey = key;
   }
 
   /// Frosts the pane, without bending it, from the part of [atlas] behind it,
@@ -1451,6 +1666,10 @@ class _LiquidGlassLayer extends Layer {
     _captureKey = null;
     _captureShader?.dispose();
     _captureShader = null;
+    _flatShader?.dispose();
+    _flatShader = null;
+    _shaded?.dispose();
+    _shaded = null;
   }
 
   void _hold(ui.Picture? captured) {

@@ -9,15 +9,16 @@ import (
 
 	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/component/resolver"
-	"github.com/metacubex/mihomo/component/updater"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/listener"
-	"github.com/metacubex/mihomo/tunnel"
+	LC "github.com/metacubex/mihomo/listener/config"
+	"github.com/metacubex/mihomo/listener/tproxy"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 )
+
+const isAndroid = runtime.GOOS == "android"
 
 var (
 	isInit     atomic.Bool
@@ -40,6 +41,11 @@ func handleGetIsInit() bool {
 	return isInit.Load()
 }
 
+// The mihomo release this core was linked with, set by the build's ldflags.
+func handleGetCoreVersion() string {
+	return constant.Version
+}
+
 func handleStartListener() bool {
 	configMu.Lock()
 	defer configMu.Unlock()
@@ -56,7 +62,11 @@ func handleStopListener() bool {
 	configMu.Lock()
 	defer configMu.Unlock()
 	isRunning.Store(false)
-	listener.StopListener()
+	stopListeners()
+	// A closed listener only turns new connections away; those it already
+	// accepted would keep going through the proxy.
+	handleCloseConnections()
+	closeOpenInbound()
 	resolver.ResetConnection()
 	return true
 }
@@ -66,7 +76,7 @@ func updateListeners(cfg *config.Config) {
 		return
 	}
 	general := cfg.General
-	listener.PatchInboundListeners(cfg.Listeners, tunnel.Tunnel, true)
+	patchNamedListeners(cfg.Listeners)
 
 	listener.SetAllowLan(general.AllowLan)
 	inbound.SetSkipAuthPrefixes(general.SkipAuthPrefixes)
@@ -74,16 +84,58 @@ func updateListeners(cfg *config.Config) {
 	inbound.SetDisAllowedIPs(general.LanDisAllowedIPs)
 
 	listener.SetBindAddress(general.BindAddress)
-	listener.ReCreateHTTP(general.Port, tunnel.Tunnel)
-	listener.ReCreateSocks(general.SocksPort, tunnel.Tunnel)
-	listener.ReCreateRedir(general.RedirPort, tunnel.Tunnel)
-	listener.ReCreateTProxy(general.TProxyPort, tunnel.Tunnel)
-	listener.ReCreateMixed(general.MixedPort, tunnel.Tunnel)
-	listener.ReCreateShadowSocks(general.ShadowSocksConfig, tunnel.Tunnel)
-	listener.ReCreateVmess(general.VmessConfig, tunnel.Tunnel)
-	listener.ReCreateTuic(general.TuicServer, tunnel.Tunnel)
-	if !features.Android {
-		listener.ReCreateTun(general.Tun, tunnel.Tunnel)
+	listener.ReCreateHTTP(general.Port, trafficTunnel)
+	listener.ReCreateSocks(general.SocksPort, trafficTunnel)
+	listener.ReCreateRedir(general.RedirPort, trafficTunnel)
+	listener.ReCreateTProxy(general.TProxyPort, trafficTunnel)
+	listener.ReCreateMixed(general.MixedPort, trafficTunnel)
+	listener.ReCreateShadowSocks(general.ShadowSocksConfig, trafficTunnel)
+	listener.ReCreateVmess(general.VmessConfig, trafficTunnel)
+	listener.ReCreateTuic(general.TuicServer, trafficTunnel)
+	patchForwardTunnels(cfg.Tunnels)
+	if !isAndroid {
+		openTun(general.Tun, trafficTunnel)
+		if general.Tun.Enable && !tunListening() {
+			sendMessage(TunFailedMessage, nil)
+		}
+	}
+	openedShadowSocks, openedVmess = general.ShadowSocksConfig, general.VmessConfig
+	updateIPTables(cfg)
+}
+
+// mihomo only logs a TUN it could not open, and goes on without one.
+var (
+	openTun      = listener.ReCreateTun
+	tunListening = func() bool { return listener.GetTunConf().Enable }
+)
+
+// A tunFailed event may describe a config a later push replaced, so the host
+// confirms it once its own pushes have landed.
+func handleGetTunFailed() bool {
+	configMu.Lock()
+	defer configMu.Unlock()
+	return !isAndroid && isRunning.Load() && currentConfig != nil &&
+		currentConfig.General.Tun.Enable && !tunListening()
+}
+
+// mihomo closes a listener re-created with nothing to listen on.
+func stopListeners() {
+	tproxy.CleanupTProxyIPTables()
+	openedShadowSocks, openedVmess = "", ""
+	patchNamedListeners(nil)
+	patchForwardTunnels(nil)
+	listener.PatchInboundListeners(nil, trafficTunnel, true)
+	closeMihomoTunnels()
+	listener.ReCreateHTTP(0, trafficTunnel)
+	listener.ReCreateSocks(0, trafficTunnel)
+	listener.ReCreateRedir(0, trafficTunnel)
+	listener.ReCreateTProxy(0, trafficTunnel)
+	listener.ReCreateMixed(0, trafficTunnel)
+	listener.ReCreateShadowSocks("", trafficTunnel)
+	listener.ReCreateVmess("", trafficTunnel)
+	listener.ReCreateTuic(LC.TuicServer{}, trafficTunnel)
+	if !isAndroid {
+		listener.ReCreateTun(LC.Tun{}, trafficTunnel)
 	}
 }
 
@@ -93,8 +145,9 @@ func handleShutdown() bool {
 
 	configMu.Lock()
 	isRunning.Store(false)
-	listener.StopListener()
-	updater.StopGeoUpdater()
+	stopListeners()
+	stopGeoUpdater()
+	stopDelayWatch()
 	executor.Shutdown()
 	currentConfig = nil
 	isInit.Store(false)
@@ -105,7 +158,7 @@ func handleShutdown() bool {
 }
 
 func handleForceGC() {
-	tunnel.InvalidateAllProxies()
+	invalidateAllProxies()
 	debug.FreeOSMemory()
 }
 

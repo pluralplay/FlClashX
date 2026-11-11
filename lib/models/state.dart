@@ -59,7 +59,9 @@ abstract class TrayState with _$TrayState {
     required bool showTrayTitle,
     @Default(true) bool monochromeTrayIcon,
     required bool safeMode,
+    @Default(false) bool menuBarMode,
     @Default({}) Map<HotAction, HotKeyAction> hotKeys,
+    @Default(true) bool globalModeAllowed,
   }) = _TrayState;
 }
 
@@ -188,7 +190,6 @@ abstract class SharedState with _$SharedState {
     required String localNetworkTip,
     required String currentProfileName,
     required String stopText,
-    required bool onlyStatisticsProxy,
     @Default(true) bool showStopAction,
   }) = _SharedState;
 
@@ -248,6 +249,10 @@ abstract class MigrationData with _$MigrationData {
     @Default([]) List<ClashProvider> clashProviders,
     @Default([]) List<CustomProxy> customProxies,
     @Default([]) List<ProxyDialer> proxyDialers,
+    @Default([]) List<IconSet> iconSets,
+    // False for an archive that carries settings alone: an empty list then
+    // says nothing about the rows, so an override restore must keep them.
+    @Default(true) bool includesTables,
   }) = _MigrationData;
 }
 

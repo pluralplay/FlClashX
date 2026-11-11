@@ -450,6 +450,8 @@ ProxyGroup _importGroup(
       'use-position': usePositionOf(group['use-position'], use),
     if (group['default-selected'] case final Object selected)
       'default-selected': names[selected.toString()] ?? selected.toString(),
+    if (group['empty-fallback'] case final Object fallback)
+      'empty-fallback': names[fallback.toString()] ?? fallback.toString(),
   }, proxyGroupTextKeys);
   final imported = _decodeEntry(
     _nameOf(group),

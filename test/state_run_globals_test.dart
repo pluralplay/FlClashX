@@ -1,5 +1,6 @@
+import 'dart:io';
+
 import 'package:fl_clash/bootstrap.dart';
-import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/state.dart';
@@ -9,7 +10,7 @@ import 'package:riverpod/riverpod.dart';
 
 final _packageInfo = PackageInfo(
   appName: 'FlClash',
-  packageName: 'com.follow.clash',
+  packageName: 'com.follow.clashx',
   version: '1.2.3',
   buildNumber: '1',
 );
@@ -40,23 +41,23 @@ void main() {
   }
 
   group('user agent', () {
-    test('falls back to the package user agent when none is configured', () {
-      setGlobalUa('');
-
-      expect(globalState.ua, _packageInfo.ua);
-      expect(globalState.ua, contains('FlClash/v1.2.3'));
-    });
-
-    test('prefers the configured global user agent', () {
+    test('the app always speaks with its own user agent', () {
       setGlobalUa('custom-agent/1.0');
 
-      expect(globalState.ua, 'custom-agent/1.0');
+      expect(
+        globalState.ua,
+        'FlClashX/v1.2.3 Platform/${Platform.operatingSystem}',
+      );
     });
 
-    test('treats a blank configured user agent as unset', () {
-      setGlobalUa('   ');
+    test('the core version joins the user agent once known', () {
+      globalState.coreVersion = 'v1.19.32';
+      addTearDown(() => globalState.coreVersion = '');
 
-      expect(globalState.ua, _packageInfo.ua);
+      expect(
+        globalState.ua,
+        'FlClashX/v1.2.3 core/v1.19.32 Platform/${Platform.operatingSystem}',
+      );
     });
   });
 

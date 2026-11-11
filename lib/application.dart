@@ -10,6 +10,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/manager/manager.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -89,36 +90,28 @@ class ApplicationState extends ConsumerState<Application> {
   void _initLink() {
     linkManager.initAppLinksListen((url) async {
       unawaited(window?.show());
-      final message = currentAppLocalizations.createProfileFromUrlTip(url);
-      final parts = message.split(url);
-      final res = await dialogs.showMessage(
-        title: currentAppLocalizations.addProfile,
-        message: TextSpan(
-          children: [
-            TextSpan(text: parts.first),
-            TextSpan(
-              text: url,
-              style: TextStyle(
-                color: context.colorScheme.primary,
-                decoration: TextDecoration.underline,
-                decorationColor: context.colorScheme.primary,
-              ),
-            ),
-            if (parts.length > 1) TextSpan(text: parts.last),
-          ],
-        ),
-      );
-      if (res != true) return;
-      unawaited(
-        ref.read(profilesActionProvider.notifier).addProfileFromLink(url),
-      );
+      final profile = await ref
+          .read(profilesActionProvider.notifier)
+          .addProfileFromLink(url);
+      if (profile != null) {
+        dialogs.showNotifier(
+          currentAppLocalizations.profileAddedTip(profile.realLabel),
+        );
+      }
     });
   }
 
   void _autoUpdateProfilesTask() {
     _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
-      await ref.read(profilesActionProvider.notifier).autoUpdateProfiles();
-      await ref.read(resourcesActionProvider.notifier).autoUpdate();
+      try {
+        await ref.read(profilesActionProvider.notifier).autoUpdateProfiles();
+        await ref.read(resourcesActionProvider.notifier).autoUpdate();
+      } catch (error) {
+        commonPrint.log(
+          'auto update pass failed: $error',
+          logLevel: LogLevel.error,
+        );
+      }
       if (!mounted) {
         return;
       }

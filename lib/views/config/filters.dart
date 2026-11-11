@@ -198,6 +198,11 @@ class _FilterFormState extends State<_FilterForm> {
     return null;
   }
 
+  Filter get _shown => Filter(
+    label: _labelController.text.trim(),
+    regex: _regexController.text.trim(),
+  );
+
   Future<void> _handleSubmit() async {
     if (_checking) {
       return;
@@ -208,10 +213,7 @@ class _FilterFormState extends State<_FilterForm> {
       });
       return;
     }
-    final filter = Filter(
-      label: _labelController.text.trim(),
-      regex: _regexController.text.trim(),
-    );
+    final filter = _shown;
     setState(() {
       _checking = true;
     });
@@ -223,13 +225,23 @@ class _FilterFormState extends State<_FilterForm> {
         setState(() {
           _checking = false;
           _attempted = true;
-          _regexError = error;
         });
       }
     }
-    if (error == null && mounted) {
-      Navigator.of(context).pop(filter);
+    if (!mounted) {
+      return;
     }
+    // The fields stay editable while the regex is checked.
+    if (_shown != filter) {
+      return _handleSubmit();
+    }
+    if (error != null) {
+      setState(() {
+        _regexError = error;
+      });
+      return;
+    }
+    Navigator.of(context).pop(filter);
   }
 
   @override

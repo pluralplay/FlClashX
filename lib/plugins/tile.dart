@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 abstract mixin class TileListener {
-  void onStart() {}
+  /// The start is answered to Android once this completes.
+  FutureOr<void> onStart() {}
 
   void onDetached() {}
 }
@@ -27,7 +28,7 @@ class Tile {
       try {
         switch (call.method) {
           case 'start':
-            listener.onStart();
+            await listener.onStart();
             break;
           case 'detached':
             listener.onDetached();

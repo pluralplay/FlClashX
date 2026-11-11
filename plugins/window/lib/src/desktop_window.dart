@@ -83,6 +83,8 @@ class DesktopWindow {
         listener.onWindowShouldTerminate();
       case WindowEvent.activate:
         listener.onWindowActivate();
+      case WindowEvent.zoom:
+        listener.onWindowZoom();
     }
   }
 
@@ -223,6 +225,17 @@ class DesktopWindow {
   }
 
   Future<void> startDragging() => _call('startDragging');
+
+  /// macOS: moves the app into the menu bar, its view in a popover under the
+  /// status item and no Dock icon, or back into its window.
+  Future<void> setMenuBarMode(bool value) {
+    return _call('setMenuBarMode', {'value': value});
+  }
+
+  Future<bool> isMenuBarMode() => _invoke<bool>('isMenuBarMode');
+
+  /// macOS, in menu bar mode: opens the popover, or closes it when shown.
+  Future<void> togglePopover() => _call('togglePopover');
 }
 
 final DesktopWindow desktopWindow = DesktopWindow.instance;

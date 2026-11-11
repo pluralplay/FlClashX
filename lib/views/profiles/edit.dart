@@ -33,8 +33,9 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   late final TextEditingController _ageSecretKeyController;
   late final TextEditingController _autoUpdateDurationController;
   late bool _autoUpdate;
-  Uint8List? _editedData;
+  late bool _sendDeviceHeaders;
   bool _attempted = false;
+  bool _saving = false;
   final _fileInfoNotifier = ValueNotifier<FileInfo?>(null);
   late SetupAction _setupAction;
   Uint8List? _fileData;
@@ -48,6 +49,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       text: widget.profile.ageSecretKey,
     );
     _autoUpdate = widget.profile.autoUpdate;
+    _sendDeviceHeaders = widget.profile.sendDeviceHeaders;
     _autoUpdateDurationController = TextEditingController(
       text: widget.profile.autoUpdateDuration.inMinutes.toString(),
     );
@@ -117,12 +119,24 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   }
 
   Future<void> _handleConfirm() async {
+    if (_saving) {
+      return;
+    }
     if (_issue(context.appLocalizations) != null) {
       setState(() {
         _attempted = true;
       });
       return;
     }
+    setState(() => _saving = true);
+    try {
+      await _save();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _save() async {
     final current =
         ref.read(profilesProvider).getProfile(widget.profile.id) ??
         widget.profile;
@@ -132,6 +146,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       ageSecretKey: _ageSecretKeyController.text.trim(),
       label: _labelController.text,
       autoUpdate: _autoUpdate,
+      sendDeviceHeaders: _sendDeviceHeaders,
       autoUpdateDuration: interval != null && interval > 0
           ? Duration(minutes: interval)
           : current.autoUpdateDuration,
@@ -140,7 +155,8 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     final appLocalizations = context.appLocalizations;
     final hasUpdate =
         current.url != profile.url ||
-        current.ageSecretKey != profile.ageSecretKey;
+        current.ageSecretKey != profile.ageSecretKey ||
+        current.sendDeviceHeaders != profile.sendDeviceHeaders;
     if (_fileData != null) {
       if (profile.type == ProfileType.url && _autoUpdate) {
         final res = await dialogs.showMessage(
@@ -186,6 +202,13 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     });
   }
 
+  void _setSendDeviceHeaders(bool value) {
+    if (_sendDeviceHeaders == value) return;
+    setState(() {
+      _sendDeviceHeaders = value;
+    });
+  }
+
   Future<void> _handleSaveEdit(BuildContext context, Uint8List data) async {
     final message = await globalState.safeRun<String>(() async {
       final message = await ref
@@ -202,20 +225,23 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       );
       return;
     }
-    if (context.mounted) {
+    if (context.mounted && ModalRoute.of(context)?.isCurrent == true) {
       Navigator.of(context).pop(data);
     }
   }
 
   Future<void> _editProfileFile() async {
+    if (_saving) {
+      return;
+    }
     final title = widget.profile.label.takeFirstValid([
       widget.profile.id.toString(),
     ]);
-    final editedData = _editedData;
+    final staged = _fileData;
     final editorPage = EditorPage(
       title: title,
-      load: () async => editedData != null
-          ? CodeForgeDocument.fromUtf8(editedData)
+      load: () async => staged != null
+          ? CodeForgeDocument.fromUtf8(staged)
           : openEditorFile(
               await appPath.getProfilePath(widget.profile.id.toString()),
             ),
@@ -230,12 +256,15 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
           title: title,
           message: TextSpan(text: context.appLocalizations.hasCacheChange),
         );
-        if (res != true || !context.mounted) {
+        if (res == null) {
+          return false;
+        }
+        if (!res || !context.mounted) {
           return true;
         }
         final data = await content.readBytes();
         if (context.mounted) {
-          unawaited(_handleSaveEdit(context, data));
+          await _handleSaveEdit(context, data);
         }
         return false;
       },
@@ -244,7 +273,6 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     if (data == null || !mounted) {
       return;
     }
-    _editedData = data;
     setState(() {
       _fileData = data;
     });
@@ -255,6 +283,9 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   }
 
   Future<void> _uploadProfileFile() async {
+    if (_saving) {
+      return;
+    }
     final platformFile = await globalState.safeRun(picker.pickerFile);
     if (platformFile == null) return;
     final fileData = await platformFile.readBytes();
@@ -276,12 +307,13 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       title: appLocalizations.tip,
       message: TextSpan(text: appLocalizations.fileIsUpdate),
     );
-    if (res == true) {
+    if (res == null || !mounted) {
+      return;
+    }
+    if (res) {
       unawaited(_handleConfirm());
     } else {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      Navigator.of(context).pop();
     }
   }
 
@@ -318,7 +350,8 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
           _AgeSecretKeyField(controller: _ageSecretKeyController),
         ],
       ),
-      if (isUrl)
+      if (isUrl) ...[
+        const ListSectionGap(),
         generateSection(
           items: [
             FormRow(
@@ -335,8 +368,18 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                 invalid: issue?.field == _ProfileField.autoUpdateInterval,
                 onChanged: _handleChanged,
               ),
+            FormRow(
+              title: appLocalizations.sendDeviceHeaders,
+              onPressed: () => _setSendDeviceHeaders(!_sendDeviceHeaders),
+              trailing: Switch(
+                value: _sendDeviceHeaders,
+                onChanged: _setSendDeviceHeaders,
+              ),
+            ),
           ],
         ),
+      ],
+      const ListSectionGap(),
       generateSection(
         items: [
           _ProfileFileItem(
@@ -351,34 +394,65 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       policy: PageTraversalPolicy(),
       child: PageFocusScope(
         child: CommonPopScope(
-          onPop: _fileData == null
+          onPop: _fileData == null && !_saving
               ? null
               : (_) {
-                  _handleBack();
+                  if (!_saving) {
+                    _handleBack();
+                  }
                   return false;
                 },
-          child: CommonScaffold(
-            title: appLocalizations.edit,
-            confirmationAction: IconButtonData(
-              glyph: AppGlyphs.check,
-              onPressed: _handleConfirm,
-              tooltip: appLocalizations.save,
-            ),
-            body: Builder(
-              builder: (context) => ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
-                  top: context.sectionsTopPadding,
-                  bottom: context.bottomInset + 16,
+          child: _ClosesThroughPopScope(
+            child: CommonScaffold(
+              title: appLocalizations.edit,
+              confirmationAction: IconButtonData(
+                glyph: AppGlyphs.check,
+                onPressed: _saving ? null : _handleConfirm,
+                tooltip: appLocalizations.save,
+              ),
+              // A save commits the fields as they were when it began.
+              body: IgnorePointer(
+                ignoring: _saving,
+                child: ExcludeFocus(
+                  excluding: _saving,
+                  child: Builder(
+                    builder: (context) => ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16)
+                          .copyWith(
+                            top: context.sectionsTopPadding,
+                            bottom: context.bottomInset + 16,
+                          ),
+                      children: [
+                        ErrorBanner(message: issue?.message),
+                        ...sections,
+                      ],
+                    ),
+                  ),
                 ),
-                children: [
-                  ErrorBanner(message: issue?.message),
-                  ...sections,
-                ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// A side sheet's close button pops its route outright, past a save in flight.
+class _ClosesThroughPopScope extends StatelessWidget {
+  const _ClosesThroughPopScope({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final sheet = SheetProvider.of(context);
+    if (sheet == null || sheet.onClose != null) {
+      return child;
+    }
+    return sheet.copyWith(
+      onClose: () => Navigator.of(context).maybePop(),
+      child: child,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fl_clash/ui/context.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/outer_shadow.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:fl_clash/ui/surface.dart';
 import 'package:fl_clash/ui/typography.dart';
@@ -271,9 +272,9 @@ class _DockSurface extends StatelessWidget {
         child: child,
       );
     }
-    return DecoratedBox(
-      decoration: ShapeDecoration(
-        shape: AppShape.full,
+    return CustomPaint(
+      painter: SurfaceShadowPainter(
+        corners: AppRadius.full,
         shadows: dockShadows(colorScheme),
       ),
       child: child,
@@ -1267,7 +1268,7 @@ class _FloatingNavigationBarState extends State<FloatingNavigationBar>
       0.0,
       (height, label) => math.max(height, label.height),
     );
-    final glass = LiquidGlassScope.of(context);
+    final glass = LiquidGlassScope.dockOf(context);
     final ultra =
         LiquidGlassScope.qualityOf(context) == LiquidGlassQuality.ultra;
     final bar = _DockSurface(
@@ -1342,8 +1343,11 @@ class _FloatingNavigationBarState extends State<FloatingNavigationBar>
                         ],
                       ),
                     );
+                    // The clear lens reads the bar at full resolution every
+                    // frame it moves, which the standard tier cannot afford.
+                    final glassLens = glass && ultra;
                     final lensed =
-                        glass && _lifted && widget.destinations.isNotEmpty;
+                        glassLens && _lifted && widget.destinations.isNotEmpty;
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -1352,7 +1356,7 @@ class _FloatingNavigationBarState extends State<FloatingNavigationBar>
                             animation: _motion,
                             builder: (_, _) => _Lens(
                               rect: lensRect(),
-                              lift: _lift.value,
+                              lift: glassLens ? _lift.value : 0,
                               glass: glass,
                             ),
                           ),
@@ -1368,7 +1372,7 @@ class _FloatingNavigationBarState extends State<FloatingNavigationBar>
                               opacity: _hoverShow.value,
                             ),
                           ),
-                        if (glass && widget.destinations.isNotEmpty)
+                        if (glassLens && widget.destinations.isNotEmpty)
                           AnimatedBuilder(
                             animation: _motion,
                             builder: (_, _) =>

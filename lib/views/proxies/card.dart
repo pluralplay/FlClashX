@@ -164,9 +164,7 @@ class ProxyCard extends ConsumerWidget {
               children: [
                 Flexible(
                   flex: 1,
-                  child: TooltipText(
-                    text: Text(proxy.type, maxLines: 1, style: typeStyle),
-                  ),
+                  child: _ProxyDesc(proxy: proxy, style: typeStyle),
                 ),
                 delayText,
               ],
@@ -250,11 +248,21 @@ class _ProxyDesc extends ConsumerWidget {
           )
         : proxy.name;
     return EmojiText(
-      nodeName == proxy.name ? proxy.type : '${proxy.type}($nodeName)',
+      _describe(nodeName, isGroup: isGroup),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: style,
     );
+  }
+
+  // A nested group reads as the host it resolves to, not its bare type, unless
+  // its `groupDescription` speaks for it, which then hides the host.
+  String _describe(String nodeName, {required bool isGroup}) {
+    if (!isGroup) {
+      return proxy.description;
+    }
+    return proxy.serverDescription ??
+        (nodeName == proxy.name ? proxy.type : nodeName);
   }
 }
 

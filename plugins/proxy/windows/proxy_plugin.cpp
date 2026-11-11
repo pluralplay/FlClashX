@@ -278,7 +278,8 @@ bool IsPortReleased(int port)
 
 bool ClearStaleProxyForConnection(
     LPTSTR connection,
-    std::map<int, bool>& releasedPorts)
+    std::map<int, bool>& releasedPorts,
+    bool waitForRelease)
 {
   std::vector<INTERNET_PER_CONN_OPTION> options(2);
   options[0].dwOption = INTERNET_PER_CONN_FLAGS;
@@ -313,7 +314,8 @@ bool ClearStaleProxyForConnection(
   auto [released, unchecked] = releasedPorts.try_emplace(*port, false);
   if (unchecked)
   {
-    released->second = IsPortReleased(*port);
+    released->second =
+        waitForRelease ? IsPortReleased(*port) : !IsPortListening(*port);
   }
   if (!released->second)
   {
@@ -332,13 +334,14 @@ bool ClearStaleProxyForConnection(
 namespace proxy
 {
 
-  bool ClearStaleProxy()
+  bool ClearStaleProxy(bool waitForRelease)
   {
     std::map<int, bool> releasedPorts;
     const bool cleared = ForEachConnection(
-        [&releasedPorts](LPTSTR connection)
+        [&releasedPorts, waitForRelease](LPTSTR connection)
         {
-          return ClearStaleProxyForConnection(connection, releasedPorts);
+          return ClearStaleProxyForConnection(
+              connection, releasedPorts, waitForRelease);
         });
     const bool settingsNotified = NotifySettingsChanged();
     return cleared && settingsNotified;
@@ -408,6 +411,12 @@ namespace proxy
       const bool stopped = stopProxy();
       proxy_applied_ = proxy_applied_ && !stopped;
       result->Success(stopped);
+    }
+    else if (method_call.method_name() == "ClearStaleProxy")
+    {
+      // The Core of the run that left it died long ago, and polling here
+      // would stall the window's thread.
+      result->Success(ClearStaleProxy(false));
     }
     else if (method_call.method_name() == "StartProxy")
     {

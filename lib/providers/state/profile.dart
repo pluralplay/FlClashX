@@ -16,6 +16,103 @@ Profile? currentProfile(Ref ref) {
 }
 
 @riverpod
+List<ProfileOffer> profileOffers(Ref ref) {
+  final profile = ref.watch(currentProfileProvider);
+  final now = DateTime.now();
+  if (nextOfferChange(profile, now) case final at?) {
+    // A second past the threshold, where the day count has dropped to it.
+    final timer = Timer(
+      at.difference(now) + const Duration(seconds: 1),
+      ref.invalidateSelf,
+    );
+    ref.onDispose(timer.cancel);
+  }
+  return visibleOffersOf(profile, now: now);
+}
+
+@riverpod
+bool globalModeAllowed(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.globalModeAllowed ?? true,
+    ),
+  );
+}
+
+@riverpod
+bool androidSecure(Ref ref) {
+  return system.isAndroid &&
+      ref.watch(
+        currentProfileProvider.select(
+          (profile) => profile?.headers.androidSecure ?? false,
+        ),
+      );
+}
+
+@riverpod
+PanelBackground? panelBackground(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select((profile) => profile?.headers.background),
+  );
+}
+
+/// The backdrop picture from the disk cache, fetched once per url and
+/// served from there afterwards, offline included. A fetch that fails, as one
+/// does while a profile switch restarts the Core's listener, is retried.
+@riverpod
+Future<ImageProvider?> panelBackdropImage(Ref ref) async {
+  final background = ref.watch(panelBackgroundProvider);
+  if (background == null) {
+    return null;
+  }
+  try {
+    final file = await DefaultCacheManager().getSingleFile(background.url);
+    return FileImage(file);
+  } catch (error) {
+    commonPrint.log('backdrop ${background.url} unavailable: $error');
+    rethrow;
+  }
+}
+
+/// Where the panel's logo lies on disk, kept as its backdrop is so it shows
+/// at launch without the network.
+@riverpod
+Future<String?> panelLogoPath(Ref ref, String url) async {
+  try {
+    return (await DefaultCacheManager().getSingleFile(url)).path;
+  } catch (error) {
+    commonPrint.log('logo $url unavailable: $error');
+    rethrow;
+  }
+}
+
+@riverpod
+bool widgetEditingDenied(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.widgetEditingDenied ?? false,
+    ),
+  );
+}
+
+/// The outbound modes the current panel leaves on offer.
+@riverpod
+List<Mode> availableModes(Ref ref) {
+  final globalAllowed = ref.watch(globalModeAllowedProvider);
+  return [
+    for (final mode in Mode.values)
+      if (globalAllowed || mode != Mode.global) mode,
+  ];
+}
+
+@riverpod
+String? announcement(Ref ref) {
+  return ref.watch(
+    currentProfileProvider.select((profile) => profile?.announcement),
+  );
+}
+
+@riverpod
 Profile? profile(Ref ref, int? profileId) {
   return ref.watch(
     profilesProvider.select((state) => state.getProfile(profileId)),

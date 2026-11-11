@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -11,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'edit.dart';
+import 'hero.dart';
 import 'layout.dart';
 import 'style.dart';
 import 'widget_registry.dart';
@@ -51,7 +51,18 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final sideWidth = ref.watch(sideWidthProvider);
     final scale = math.max(1.0, MediaQuery.textScalerOf(context).scale(1));
     final size = Size(viewSize.width - sideWidth, viewSize.height) / scale;
-    final editable = !DashboardDensity.of(size).isDesktop;
+    final hero = ref.watch(
+      themeSettingProvider.select(
+        (state) => state.style == ThemeStyle.enhanced,
+      ),
+    );
+    final mode = hero
+        ? ref.watch(patchClashConfigProvider.select((state) => state.mode))
+        : null;
+    final editable =
+        !hero &&
+        !DashboardDensity.of(size).isDesktop &&
+        !ref.watch(widgetEditingDeniedProvider);
     if (!editable) {
       _editing = false;
     }
@@ -63,7 +74,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       title: editing
           ? appLocalizations.editDashboard
           : appLocalizations.dashboard,
-      actions: [if (!editing && coreLib == null) const CoreStatusButton()],
+      actions: [if (!editing) const CoreStatusButton()],
       confirmationAction: editing
           ? IconButtonData(
               glyph: AppGlyphs.check,
@@ -72,6 +83,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             )
           : null,
       iconActions: [
+        if (mode != null && ref.watch(globalModeAllowedProvider))
+          IconButtonData(
+            glyph: mode == Mode.global ? AppGlyphs.proxies : AppGlyphs.rules,
+            tooltip:
+                '${appLocalizations.outboundMode}: '
+                '${mode == Mode.global ? appLocalizations.global : appLocalizations.rule}',
+            onPressed: () => ref
+                .read(setupActionProvider.notifier)
+                .pickMode(mode == Mode.global ? Mode.rule : Mode.global),
+          ),
         if (editable && !editing)
           IconButtonData(
             glyph: AppGlyphs.edit,
@@ -84,6 +105,13 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         builder: (context, constraints) {
           final room = constraints.biggest / scale;
           final layout = DashboardDensity.of(room);
+          if (hero) {
+            return DashboardDensityScope(
+              density: DashboardDensity.mobile,
+              scale: scale,
+              child: const HeroDashboard(),
+            );
+          }
           return DashboardDensityScope(
             density: layout,
             scale: scale,
@@ -110,7 +138,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 /// Four columns fill the window, the tables taking what the rows above them
 /// leave. A window too short for the tables, and every two column one, gets
 /// the summary cards instead, so no list scrolls inside a page that scrolls.
-class _DesktopDashboard extends StatelessWidget {
+class _DesktopDashboard extends ConsumerWidget {
   const _DesktopDashboard({
     required this.platform,
     required this.columns,
@@ -122,7 +150,11 @@ class _DesktopDashboard extends StatelessWidget {
   final double gap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final announcement = ref.watch(announcementProvider) != null;
+    final offers = ref.watch(
+      profileOffersProvider.select((offers) => offers.isNotEmpty),
+    );
     final density = DashboardDensityScope.of(context);
     final compact = density.isCompact;
     final scale = DashboardDensityScope.scaleOf(context);
@@ -132,9 +164,11 @@ class _DesktopDashboard extends StatelessWidget {
       24,
       24 + MediaQuery.paddingOf(context).bottom,
     );
+    final announcementHeight = (compact ? 100 : 112) * scale;
     final topHeight = (compact ? 176 : 208) * scale;
     final controlHeight = (compact ? 56 : 64) * scale;
-    final middleHeight = (compact ? 152 : 176) * scale;
+    // The profile card's offer buttons need a taller middle row.
+    final middleHeight = ((compact ? 152 : 176) + (offers ? 44 : 0)) * scale;
     final tablesHeight = connectionsTableMinHeight(density, scale);
     final summaryHeight = (compact ? 112 : 120) * scale;
     return LayoutBuilder(
@@ -180,6 +214,11 @@ class _DesktopDashboard extends StatelessWidget {
             child: Column(
               spacing: gap,
               children: [
+                if (announcement)
+                  sized(
+                    announcementHeight,
+                    const RepaintBoundary(child: AnnouncementCard()),
+                  ),
                 sized(
                   topHeight,
                   const RepaintBoundary(child: CurrentOutboundCard()),
@@ -210,6 +249,11 @@ class _DesktopDashboard extends StatelessWidget {
           );
         }
         final rows = [
+          if (announcement)
+            sized(
+              announcementHeight,
+              const RepaintBoundary(child: AnnouncementCard()),
+            ),
           sized(
             topHeight,
             row(const [
@@ -239,6 +283,7 @@ class _DesktopDashboard extends StatelessWidget {
         ];
         final rowsHeight =
             padding.vertical +
+            (announcement ? announcementHeight + gap : 0) +
             topHeight +
             controlHeight +
             middleHeight +
@@ -308,7 +353,8 @@ class _MobileDashboard extends ConsumerWidget {
     final saved = ref.watch(
       dashboardStateProvider.select((state) => state.dashboardWidgets),
     );
-    final top = context.contentTopPadding;
+    final announcement = ref.watch(announcementProvider) != null;
+    final top = MediaQuery.paddingOf(context).top + 4;
     final bottom = 16 + context.bottomInset;
     return CustomScrollView(
       // A viewport per card lays them all out and holds the scroll end still.
@@ -319,10 +365,10 @@ class _MobileDashboard extends ConsumerWidget {
         SliverLayoutBuilder(
           builder: (context, constraints) {
             final side = dashboardMobileSideOf(constraints.crossAxisExtent);
-            final widgets = [
+            final widgets = withFixedCards([
               for (final widget in saved)
                 if (widget.platforms.contains(platform)) widget,
-            ];
+            ], announcement: announcement);
             if (editing) {
               return DashboardEditor(
                 platform: platform,

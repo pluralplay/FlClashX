@@ -286,6 +286,41 @@ void main() {
     await teardownView(tester);
   });
 
+  testWidgets('a query reaches each of two open lists', (tester) async {
+    container.read(viewSizeProvider.notifier).update((_) => _tableSize);
+    tester.view.physicalSize = _tableSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    seedDnsQueries([_dnsQuery('alpha.test')]);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(
+          child: Column(
+            children: [
+              Expanded(child: DnsQueriesView()),
+              Expanded(child: DnsQueriesView()),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    container
+        .read(dnsQueriesProvider.notifier)
+        .addQuery(_dnsQuery('gamma.test'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('gamma.test'), findsNWidgets(2));
+
+    await teardownView(tester);
+  });
+
   testWidgets('tapping a chip keeps only the queries carrying it', (
     tester,
   ) async {
@@ -297,7 +332,7 @@ void main() {
     await pumpDnsQueries(tester);
     expect(find.text('alpha.test'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(RecordLabel, 'AAAA'));
+    await tester.tap(find.widgetWithText(TonalChip, 'AAAA'));
     await tester.pumpAndSettle();
 
     expect(find.text('alpha.test'), findsNothing);

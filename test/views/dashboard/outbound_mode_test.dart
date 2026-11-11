@@ -1,5 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -86,6 +87,25 @@ void main() {
     }
   });
 
+  testWidgets('a panel that forbids global mode leaves two buttons', (
+    tester,
+  ) async {
+    const profile = Profile(
+      id: 1,
+      autoUpdateDuration: Duration.zero,
+      providerHeaders: {'flclashx-special': 'noglobal'},
+    );
+    container.read(profilesProvider.notifier).put(profile);
+    container.read(currentProfileIdProvider.notifier).value = profile.id;
+
+    await pump(tester, const OutboundModeCard());
+
+    expect(find.text(Mode.rule.label), findsOneWidget);
+    expect(find.text(Mode.direct.label), findsOneWidget);
+    expect(find.text(Mode.global.label), findsNothing);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('tapping a mode selects it and turns it into the pill', (
     tester,
   ) async {
@@ -114,7 +134,15 @@ void main() {
       tester.element(find.byType(OutboundModeCard)),
     ).colorScheme;
 
-    expect(find.byType(LiquidGlass), findsNothing);
+    // Only the card's own frost is glass, not the controls on it.
+    expect(
+      find.descendant(
+        of: find.byType(LiquidGlass),
+        matching: find.byType(LiquidGlass),
+      ),
+      findsNothing,
+    );
+    expect(find.byType(LiquidGlass), findsOneWidget);
     expect(decorationOf(tester, Mode.rule).color, colorScheme.primary);
   });
 

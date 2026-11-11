@@ -38,12 +38,8 @@ double getRowExtent(ProxyCardType proxyCardType) =>
 class GroupOffsets {
   const GroupOffsets(this.groups, this.offsets);
 
-  static const empty = GroupOffsets(<Group>[], <double>[]);
-
   final List<Group> groups;
   final List<double> offsets;
-
-  bool get isEmpty => offsets.isEmpty;
 
   double offsetOf(String groupName) {
     final index = groups.indexWhere((group) => group.name == groupName);

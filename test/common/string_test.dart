@@ -99,14 +99,6 @@ void main() {
     });
   });
 
-  group('StringExtension.compareToLower', () {
-    test('case insensitive comparison', () {
-      expect('abc'.compareToLower('ABC'), 0);
-      expect('a'.compareToLower('b'), lessThan(0));
-      expect('b'.compareToLower('a'), greaterThan(0));
-    });
-  });
-
   group('StringExtension.countryFlagEmoji', () {
     test('maps a two-letter region code to its flag', () {
       expect('us'.countryFlagEmoji, '🇺🇸');
@@ -116,28 +108,6 @@ void main() {
       expect('1A'.countryFlagEmoji, '1A');
       expect('É1'.countryFlagEmoji, 'É1');
       expect('USA'.countryFlagEmoji, 'USA');
-    });
-  });
-
-  group('StringExtension.safeSubstring', () {
-    test('returns empty for empty string', () {
-      expect(''.safeSubstring(0), '');
-    });
-
-    test('returns substring from start', () {
-      expect('hello'.safeSubstring(2), 'llo');
-    });
-
-    test('clamps start to length', () {
-      expect('hi'.safeSubstring(10), '');
-    });
-
-    test('clamps end to length', () {
-      expect('hello'.safeSubstring(1, 10), 'ello');
-    });
-
-    test('clamps negative start to 0', () {
-      expect('hello'.safeSubstring(-5), 'hello');
     });
   });
 
@@ -170,18 +140,6 @@ void main() {
       expect('https://example.com/icon.png#.svg'.isSvg, isFalse);
       expect('data:image/svg+xml;base64,PHN2Zy8+'.isSvg, isTrue);
       expect('data:image/png;base64,iVBORw0KGgo='.isSvg, isFalse);
-    });
-  });
-
-  group('StringExtension.isRegex', () {
-    test('valid regex', () {
-      expect(r'\d+'.isRegex, isTrue);
-      expect(r'[a-z]+'.isRegex, isTrue);
-    });
-
-    test('invalid regex', () {
-      expect(r'['.isRegex, isFalse);
-      expect(r'(unclosed'.isRegex, isFalse);
     });
   });
 
@@ -238,21 +196,14 @@ void main() {
     });
   });
 
-  group('StringExtension.encodeUtf16LeWithBom', () {
-    test('starts with BOM', () {
-      final encoded = 'A'.encodeUtf16LeWithBom;
-      expect(encoded[0], 0xFF);
-      expect(encoded[1], 0xFE);
-    });
-
-    test('encodes ASCII correctly', () {
-      final encoded = 'AB'.encodeUtf16LeWithBom;
-      // BOM + 'A' (0x41 0x00) + 'B' (0x42 0x00)
-      expect(encoded.length, 2 + 4); // 2 BOM + 2 chars * 2 bytes
-      expect(encoded[2], 0x41);
-      expect(encoded[3], 0x00);
-      expect(encoded[4], 0x42);
-      expect(encoded[5], 0x00);
+  group('StringExtension flags', () {
+    test('reads the country off a leading flag and strips it', () {
+      expect('🇳🇱 Amsterdam'.flagCountryCode, 'NL');
+      expect('🇳🇱 Amsterdam'.withoutLeadingFlag, 'Amsterdam');
+      expect('Berlin 🇩🇪'.flagCountryCode, 'DE');
+      expect('Berlin 🇩🇪'.withoutLeadingFlag, 'Berlin 🇩🇪');
+      expect('Plain'.flagCountryCode, isNull);
+      expect('Plain'.withoutLeadingFlag, 'Plain');
     });
   });
 

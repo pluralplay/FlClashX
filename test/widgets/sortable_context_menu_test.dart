@@ -211,38 +211,26 @@ void main() {
     expect(find.text('Delete a'), findsNothing);
   });
 
-  testWidgets('a sorting row drags on a long press anywhere on it, its '
-      'handle included, and not on a plain press', (tester) async {
+  testWidgets('a handle drags its row without waiting for a long press', (
+    tester,
+  ) async {
     await _pump(tester, sorting: true);
     final rowHeight =
         tester.getTopLeft(find.text('b')).dy -
         tester.getTopLeft(find.text('a')).dy;
-    Future<void> dragDown(Offset from, {required bool hold}) async {
-      final gesture = await tester.startGesture(from);
-      await tester.pump(
-        hold
-            ? kLongPressTimeout + const Duration(milliseconds: 50)
-            : kPressTimeout,
-      );
-      for (var step = 0; step < 4; step++) {
-        await gesture.moveBy(Offset(0, rowHeight * 2 / 4 + 4));
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      await gesture.up();
-      await tester.pumpAndSettle();
-    }
 
-    await dragDown(
+    final gesture = await tester.startGesture(
       tester.getCenter(find.byType(SortHandle).first),
-      hold: false,
     );
-    expect(_order(tester, ['a', 'b', 'c']), ['a', 'b', 'c']);
+    await tester.pump(kPressTimeout);
+    for (var step = 0; step < 4; step++) {
+      await gesture.moveBy(Offset(0, rowHeight * 2 / 4 + 4));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
 
-    await dragDown(tester.getCenter(find.text('a')), hold: true);
     expect(_order(tester, ['a', 'b', 'c']), ['b', 'c', 'a']);
-
-    await dragDown(tester.getCenter(find.byType(SortHandle).first), hold: true);
-    expect(_order(tester, ['a', 'b', 'c']), ['c', 'a', 'b']);
   });
 
   testWidgets(

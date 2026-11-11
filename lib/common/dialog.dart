@@ -49,6 +49,7 @@ class Dialogs {
     String? cancelText,
     bool? dismissible,
     bool destructive = false,
+    bool cancelable = true,
   }) {
     return _showMessage(
       message: message,
@@ -58,7 +59,7 @@ class Dialogs {
       cancelText: cancelText,
       dismissible: dismissible,
       destructive: destructive,
-      cancelable: true,
+      cancelable: cancelable,
     );
   }
 
@@ -289,7 +290,7 @@ class _FailureDetailsSheet extends StatelessWidget {
           itemCount: groups.length,
           itemBuilder: (_, index) {
             final MapEntry(key: message, value: labels) = groups[index];
-            return generateSection(
+            final section = generateSection(
               items: [
                 for (final label in labels)
                   DecorationListItem(
@@ -304,6 +305,9 @@ class _FailureDetailsSheet extends StatelessWidget {
               ],
               footer: message,
             );
+            return index == 0
+                ? section
+                : Column(children: [const ListSectionGap(), section]);
           },
         ),
       ),

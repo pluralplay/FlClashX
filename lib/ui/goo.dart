@@ -232,7 +232,12 @@ class _RenderGooSurface extends RenderProxyBox {
     final bounds = pills.reduce((a, b) => a.expandToInclude(b));
     final path = _outlineOf(pills, blends);
     final canvas = context.canvas;
-    _paintShadows(canvas, path.shift(offset), bounds.shift(offset));
+    _paintShadows(
+      canvas,
+      path.shift(offset),
+      bounds.shift(offset),
+      pill: pills.length == 1 ? _pillOf(pills.single.shift(offset)) : null,
+    );
     final glass = _glass;
     if (glass == null) {
       _pane.clear();
@@ -295,7 +300,12 @@ class _RenderGooSurface extends RenderProxyBox {
     return path;
   }
 
-  void _paintShadows(Canvas canvas, Path path, Rect bounds) {
+  void _paintShadows(
+    Canvas canvas,
+    Path path,
+    Rect bounds, {
+    RSuperellipse? pill,
+  }) {
     if (_shadows.isEmpty) {
       return;
     }
@@ -312,12 +322,22 @@ class _RenderGooSurface extends RenderProxyBox {
           ..addRect(bounds.inflate(reach))
           ..addPath(path, Offset.zero),
       );
+    // Impeller blurs a superellipse in closed form, a path offscreen.
     for (final shadow in _shadows) {
-      canvas.drawPath(path.shift(shadow.offset), shadow.toPaint());
+      if (pill != null) {
+        canvas.drawRSuperellipse(pill.shift(shadow.offset), shadow.toPaint());
+      } else {
+        canvas.drawPath(path.shift(shadow.offset), shadow.toPaint());
+      }
     }
     canvas.restore();
   }
 }
+
+RSuperellipse _pillOf(Rect rect) => RSuperellipse.fromRectAndRadius(
+  rect,
+  Radius.circular(rect.shortestSide / 2),
+);
 
 /// The outline of [pills], as gooGeometry in shaders/liquid_glass.frag blends
 /// their distances.
@@ -325,12 +345,7 @@ class _RenderGooSurface extends RenderProxyBox {
 Path gooOutline(List<Rect> pills, List<double> blends) {
   var outline = Path();
   for (final pill in pills) {
-    outline.addRSuperellipse(
-      RSuperellipse.fromRectAndRadius(
-        pill,
-        Radius.circular(pill.shortestSide / 2),
-      ),
-    );
+    outline.addRSuperellipse(_pillOf(pill));
   }
   for (var index = 1; index < pills.length; index++) {
     final neck = _neck(pills[index - 1], pills[index], blends[index - 1]);

@@ -25,15 +25,9 @@ final class HelperStartResponse {
 }
 
 final class HelperStopResponse {
-  final String sessionId;
   final bool stopped;
-  final String? reason;
 
-  const HelperStopResponse({
-    required this.sessionId,
-    required this.stopped,
-    this.reason,
-  });
+  const HelperStopResponse({required this.stopped});
 }
 
 final class HelperException implements Exception {
@@ -351,11 +345,7 @@ final class HelperClient {
         message: 'Helper returned an invalid stop response',
       );
     }
-    return HelperStopResponse(
-      sessionId: returnedSession as String,
-      stopped: stopped,
-      reason: reason as String?,
-    );
+    return HelperStopResponse(stopped: stopped);
   }
 
   Map<String, Object?> _responseMap(
@@ -557,6 +547,9 @@ final class HelperCoreLease implements CoreProcessLease {
 
   @override
   CoreProcessOwner get owner => CoreProcessOwner.helper;
+
+  @override
+  String? get crashHeadline => null;
 
   @override
   Future<CoreProcessStopResult> stop(Duration timeout) {

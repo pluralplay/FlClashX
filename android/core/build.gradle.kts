@@ -11,7 +11,7 @@ plugins {
 }
 
 android {
-    namespace = "com.follow.clash.core"
+    namespace = "com.follow.clashx.core"
     compileSdk = libs.versions.compileSdk.get().toInt()
     ndkVersion = libs.versions.ndkVersion.get()
 
@@ -150,7 +150,7 @@ abstract class GomobileBind : DefaultTask() {
                 "bind",
                 "-target=${targets.get().joinToString(",")}",
                 "-androidapi=${androidApi.get()}",
-                "-javapkg=com.follow.clash.core",
+                "-javapkg=com.follow.clashx.core",
                 "-tags=${tags.get()}",
                 "-ldflags=${ldflags.get()} -X=runtime.godebugDefault=${godebug.toString().trim()}",
                 "-o",
@@ -241,7 +241,8 @@ val bindCore =
         )
         targets.set(gomobileTargets)
         androidApi.set(libs.versions.minSdk.get().toInt())
-        tags.set(buildConfig.map { it["tags"].orEmpty() })
+        // Android builds with mihomo's cmfa tag: process and system DNS lookups go through the host app.
+        tags.set(buildConfig.map { it["android_tags"] ?: it["tags"].orEmpty() })
         ldflags.set(
             buildConfig.map { config ->
                 val flags = config["go_ldflags"].orEmpty().split(" ").filter { it.isNotEmpty() }

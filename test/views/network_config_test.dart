@@ -35,26 +35,29 @@ final _toggleCases = <_ToggleCase>[
     'TUN',
     const TUNItem(),
     (c) => c.read(patchClashConfigProvider).tun.enable,
+    initial: true,
   ),
   _ToggleCase(
     'allow bypass',
     const AllowBypassItem(),
     (c) => c.read(vpnSettingProvider).allowBypass,
-    initial: true,
   ),
   _ToggleCase(
     'vpn system proxy',
     const VpnSystemProxyItem(),
     (c) => c.read(vpnSettingProvider).systemProxy,
-    initial: true,
   ),
   _ToggleCase(
     'system proxy',
     const SystemProxyItem(),
     (c) => c.read(networkSettingProvider).systemProxy,
+  ),
+  _ToggleCase(
+    'ipv6',
+    const Ipv6Item(),
+    (c) => c.read(vpnSettingProvider).ipv6,
     initial: true,
   ),
-  _ToggleCase('ipv6', const Ipv6Item(), (c) => c.read(vpnSettingProvider).ipv6),
   _ToggleCase(
     'auto set system dns',
     const AutoSetSystemDnsItem(),

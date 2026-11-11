@@ -181,6 +181,33 @@ class $ProfilesTable extends Profiles
     requiredDuringInsert: false,
   ).withConverter<ProfileOverrides?>($ProfilesTable.$converteroverrides);
   @override
+  late final GeneratedColumnWithTypeConverter<Map<String, String>?, String>
+  providerHeaders =
+      GeneratedColumn<String>(
+        'provider_headers',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<Map<String, String>?>(
+        $ProfilesTable.$converterproviderHeadersn,
+      );
+  static const VerificationMeta _sendDeviceHeadersMeta = const VerificationMeta(
+    'sendDeviceHeaders',
+  );
+  @override
+  late final GeneratedColumn<bool> sendDeviceHeaders = GeneratedColumn<bool>(
+    'send_device_headers',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("send_device_headers" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     type,
@@ -199,6 +226,8 @@ class $ProfilesTable extends Profiles
     unfoldSet,
     order,
     overrides,
+    providerHeaders,
+    sendDeviceHeaders,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -298,6 +327,15 @@ class $ProfilesTable extends Profiles
         order.isAcceptableOrUnknown(data['order']!, _orderMeta),
       );
     }
+    if (data.containsKey('send_device_headers')) {
+      context.handle(
+        _sendDeviceHeadersMeta,
+        sendDeviceHeaders.isAcceptableOrUnknown(
+          data['send_device_headers']!,
+          _sendDeviceHeadersMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -387,6 +425,16 @@ class $ProfilesTable extends Profiles
           data['${effectivePrefix}overrides'],
         ),
       ),
+      providerHeaders: $ProfilesTable.$converterproviderHeadersn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}provider_headers'],
+        ),
+      ),
+      sendDeviceHeaders: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}send_device_headers'],
+      )!,
     );
   }
 
@@ -407,6 +455,12 @@ class $ProfilesTable extends Profiles
       const StringSetConverter();
   static TypeConverter<ProfileOverrides?, String?> $converteroverrides =
       const ProfileOverridesConverter();
+  static TypeConverter<Map<String, String>, String> $converterproviderHeaders =
+      const StringMapConverter();
+  static TypeConverter<Map<String, String>?, String?>
+  $converterproviderHeadersn = NullAwareTypeConverter.wrap(
+    $converterproviderHeaders,
+  );
 }
 
 class RawProfile extends DataClass implements Insertable<RawProfile> {
@@ -427,6 +481,8 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
   final Set<String> unfoldSet;
   final int? order;
   final ProfileOverrides? overrides;
+  final Map<String, String>? providerHeaders;
+  final bool sendDeviceHeaders;
   const RawProfile({
     required this.id,
     required this.type,
@@ -445,6 +501,8 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     required this.unfoldSet,
     this.order,
     this.overrides,
+    this.providerHeaders,
+    required this.sendDeviceHeaders,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -502,6 +560,12 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
         $ProfilesTable.$converteroverrides.toSql(overrides),
       );
     }
+    if (!nullToAbsent || providerHeaders != null) {
+      map['provider_headers'] = Variable<String>(
+        $ProfilesTable.$converterproviderHeadersn.toSql(providerHeaders),
+      );
+    }
+    map['send_device_headers'] = Variable<bool>(sendDeviceHeaders);
     return map;
   }
 
@@ -540,6 +604,10 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       overrides: overrides == null && nullToAbsent
           ? const Value.absent()
           : Value(overrides),
+      providerHeaders: providerHeaders == null && nullToAbsent
+          ? const Value.absent()
+          : Value(providerHeaders),
+      sendDeviceHeaders: Value(sendDeviceHeaders),
     );
   }
 
@@ -576,6 +644,10 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       unfoldSet: serializer.fromJson<Set<String>>(json['unfoldSet']),
       order: serializer.fromJson<int?>(json['order']),
       overrides: serializer.fromJson<ProfileOverrides?>(json['overrides']),
+      providerHeaders: serializer.fromJson<Map<String, String>?>(
+        json['providerHeaders'],
+      ),
+      sendDeviceHeaders: serializer.fromJson<bool>(json['sendDeviceHeaders']),
     );
   }
   @override
@@ -607,6 +679,10 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       'unfoldSet': serializer.toJson<Set<String>>(unfoldSet),
       'order': serializer.toJson<int?>(order),
       'overrides': serializer.toJson<ProfileOverrides?>(overrides),
+      'providerHeaders': serializer.toJson<Map<String, String>?>(
+        providerHeaders,
+      ),
+      'sendDeviceHeaders': serializer.toJson<bool>(sendDeviceHeaders),
     };
   }
 
@@ -628,6 +704,8 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     Set<String>? unfoldSet,
     Value<int?> order = const Value.absent(),
     Value<ProfileOverrides?> overrides = const Value.absent(),
+    Value<Map<String, String>?> providerHeaders = const Value.absent(),
+    bool? sendDeviceHeaders,
   }) => RawProfile(
     id: id ?? this.id,
     type: type ?? this.type,
@@ -653,6 +731,10 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     unfoldSet: unfoldSet ?? this.unfoldSet,
     order: order.present ? order.value : this.order,
     overrides: overrides.present ? overrides.value : this.overrides,
+    providerHeaders: providerHeaders.present
+        ? providerHeaders.value
+        : this.providerHeaders,
+    sendDeviceHeaders: sendDeviceHeaders ?? this.sendDeviceHeaders,
   );
   RawProfile copyWithCompanion(ProfilesCompanion data) {
     return RawProfile(
@@ -691,6 +773,12 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       unfoldSet: data.unfoldSet.present ? data.unfoldSet.value : this.unfoldSet,
       order: data.order.present ? data.order.value : this.order,
       overrides: data.overrides.present ? data.overrides.value : this.overrides,
+      providerHeaders: data.providerHeaders.present
+          ? data.providerHeaders.value
+          : this.providerHeaders,
+      sendDeviceHeaders: data.sendDeviceHeaders.present
+          ? data.sendDeviceHeaders.value
+          : this.sendDeviceHeaders,
     );
   }
 
@@ -713,7 +801,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           ..write('selectedMap: $selectedMap, ')
           ..write('unfoldSet: $unfoldSet, ')
           ..write('order: $order, ')
-          ..write('overrides: $overrides')
+          ..write('overrides: $overrides, ')
+          ..write('providerHeaders: $providerHeaders, ')
+          ..write('sendDeviceHeaders: $sendDeviceHeaders')
           ..write(')'))
         .toString();
   }
@@ -737,6 +827,8 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     unfoldSet,
     order,
     overrides,
+    providerHeaders,
+    sendDeviceHeaders,
   );
   @override
   bool operator ==(Object other) =>
@@ -758,7 +850,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           other.selectedMap == this.selectedMap &&
           other.unfoldSet == this.unfoldSet &&
           other.order == this.order &&
-          other.overrides == this.overrides);
+          other.overrides == this.overrides &&
+          other.providerHeaders == this.providerHeaders &&
+          other.sendDeviceHeaders == this.sendDeviceHeaders);
 }
 
 class ProfilesCompanion extends UpdateCompanion<RawProfile> {
@@ -779,6 +873,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
   final Value<Set<String>> unfoldSet;
   final Value<int?> order;
   final Value<ProfileOverrides?> overrides;
+  final Value<Map<String, String>?> providerHeaders;
+  final Value<bool> sendDeviceHeaders;
   const ProfilesCompanion({
     this.id = const Value.absent(),
     this.type = const Value.absent(),
@@ -797,6 +893,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     this.unfoldSet = const Value.absent(),
     this.order = const Value.absent(),
     this.overrides = const Value.absent(),
+    this.providerHeaders = const Value.absent(),
+    this.sendDeviceHeaders = const Value.absent(),
   });
   ProfilesCompanion.insert({
     this.id = const Value.absent(),
@@ -816,6 +914,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     required Set<String> unfoldSet,
     this.order = const Value.absent(),
     this.overrides = const Value.absent(),
+    this.providerHeaders = const Value.absent(),
+    this.sendDeviceHeaders = const Value.absent(),
   }) : type = Value(type),
        label = Value(label),
        url = Value(url),
@@ -842,6 +942,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Expression<String>? unfoldSet,
     Expression<int>? order,
     Expression<String>? overrides,
+    Expression<String>? providerHeaders,
+    Expression<bool>? sendDeviceHeaders,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -862,6 +964,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
       if (unfoldSet != null) 'unfold_set': unfoldSet,
       if (order != null) 'order': order,
       if (overrides != null) 'overrides': overrides,
+      if (providerHeaders != null) 'provider_headers': providerHeaders,
+      if (sendDeviceHeaders != null) 'send_device_headers': sendDeviceHeaders,
     });
   }
 
@@ -883,6 +987,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Value<Set<String>>? unfoldSet,
     Value<int?>? order,
     Value<ProfileOverrides?>? overrides,
+    Value<Map<String, String>?>? providerHeaders,
+    Value<bool>? sendDeviceHeaders,
   }) {
     return ProfilesCompanion(
       id: id ?? this.id,
@@ -903,6 +1009,8 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
       unfoldSet: unfoldSet ?? this.unfoldSet,
       order: order ?? this.order,
       overrides: overrides ?? this.overrides,
+      providerHeaders: providerHeaders ?? this.providerHeaders,
+      sendDeviceHeaders: sendDeviceHeaders ?? this.sendDeviceHeaders,
     );
   }
 
@@ -974,6 +1082,14 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
         $ProfilesTable.$converteroverrides.toSql(overrides.value),
       );
     }
+    if (providerHeaders.present) {
+      map['provider_headers'] = Variable<String>(
+        $ProfilesTable.$converterproviderHeadersn.toSql(providerHeaders.value),
+      );
+    }
+    if (sendDeviceHeaders.present) {
+      map['send_device_headers'] = Variable<bool>(sendDeviceHeaders.value);
+    }
     return map;
   }
 
@@ -996,7 +1112,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
           ..write('selectedMap: $selectedMap, ')
           ..write('unfoldSet: $unfoldSet, ')
           ..write('order: $order, ')
-          ..write('overrides: $overrides')
+          ..write('overrides: $overrides, ')
+          ..write('providerHeaders: $providerHeaders, ')
+          ..write('sendDeviceHeaders: $sendDeviceHeaders')
           ..write(')'))
         .toString();
   }
@@ -4730,6 +4848,8 @@ typedef $$ProfilesTableCreateCompanionBuilder =
       required Set<String> unfoldSet,
       Value<int?> order,
       Value<ProfileOverrides?> overrides,
+      Value<Map<String, String>?> providerHeaders,
+      Value<bool> sendDeviceHeaders,
     });
 typedef $$ProfilesTableUpdateCompanionBuilder =
     ProfilesCompanion Function({
@@ -4750,6 +4870,8 @@ typedef $$ProfilesTableUpdateCompanionBuilder =
       Value<Set<String>> unfoldSet,
       Value<int?> order,
       Value<ProfileOverrides?> overrides,
+      Value<Map<String, String>?> providerHeaders,
+      Value<bool> sendDeviceHeaders,
     });
 
 final class $$ProfilesTableReferences
@@ -4932,6 +5054,21 @@ class $$ProfilesTableFilterComposer
   get overrides => $composableBuilder(
     column: $table.overrides,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<
+    Map<String, String>?,
+    Map<String, String>,
+    String
+  >
+  get providerHeaders => $composableBuilder(
+    column: $table.providerHeaders,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<bool> get sendDeviceHeaders => $composableBuilder(
+    column: $table.sendDeviceHeaders,
+    builder: (column) => ColumnFilters(column),
   );
 
   Expression<bool> rulesRefs(
@@ -5128,6 +5265,16 @@ class $$ProfilesTableOrderingComposer
     column: $table.overrides,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get providerHeaders => $composableBuilder(
+    column: $table.providerHeaders,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get sendDeviceHeaders => $composableBuilder(
+    column: $table.sendDeviceHeaders,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ProfilesTableAnnotationComposer
@@ -5210,6 +5357,17 @@ class $$ProfilesTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<ProfileOverrides?, String> get overrides =>
       $composableBuilder(column: $table.overrides, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Map<String, String>?, String>
+  get providerHeaders => $composableBuilder(
+    column: $table.providerHeaders,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get sendDeviceHeaders => $composableBuilder(
+    column: $table.sendDeviceHeaders,
+    builder: (column) => column,
+  );
 
   Expression<T> rulesRefs<T extends Object>(
     Expression<T> Function($$RulesTableAnnotationComposer a) f,
@@ -5363,6 +5521,9 @@ class $$ProfilesTableTableManager
                 Value<Set<String>> unfoldSet = const Value.absent(),
                 Value<int?> order = const Value.absent(),
                 Value<ProfileOverrides?> overrides = const Value.absent(),
+                Value<Map<String, String>?> providerHeaders =
+                    const Value.absent(),
+                Value<bool> sendDeviceHeaders = const Value.absent(),
               }) => ProfilesCompanion(
                 id: id,
                 type: type,
@@ -5381,6 +5542,8 @@ class $$ProfilesTableTableManager
                 unfoldSet: unfoldSet,
                 order: order,
                 overrides: overrides,
+                providerHeaders: providerHeaders,
+                sendDeviceHeaders: sendDeviceHeaders,
               ),
           createCompanionCallback:
               ({
@@ -5402,6 +5565,9 @@ class $$ProfilesTableTableManager
                 required Set<String> unfoldSet,
                 Value<int?> order = const Value.absent(),
                 Value<ProfileOverrides?> overrides = const Value.absent(),
+                Value<Map<String, String>?> providerHeaders =
+                    const Value.absent(),
+                Value<bool> sendDeviceHeaders = const Value.absent(),
               }) => ProfilesCompanion.insert(
                 id: id,
                 type: type,
@@ -5420,6 +5586,8 @@ class $$ProfilesTableTableManager
                 unfoldSet: unfoldSet,
                 order: order,
                 overrides: overrides,
+                providerHeaders: providerHeaders,
+                sendDeviceHeaders: sendDeviceHeaders,
               ),
           withReferenceMapper: (p0) => p0
               .map(

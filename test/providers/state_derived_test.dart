@@ -94,6 +94,38 @@ void main() {
     );
   });
 
+  test('an overriding GLOBAL is alone in global mode and out of rule mode', () {
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => [
+            const Group(
+              name: 'Service',
+              type: GroupType.Selector,
+              hidden: false,
+            ),
+            Group(
+              name: GroupName.GLOBAL.name,
+              type: GroupType.Selector,
+              hidden: false,
+            ),
+          ],
+        );
+    container.read(globalOverrideProvider.notifier).value = true;
+    List<String> shown(Mode mode) {
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update((state) => state.copyWith(mode: mode));
+      return [
+        for (final group in container.read(currentGroupsStateProvider).value)
+          group.name,
+      ];
+    }
+
+    expect(shown(Mode.rule), ['Service']);
+    expect(shown(Mode.global), [GroupName.GLOBAL.name]);
+  });
+
   test('group derivation ignores a change of selection only', () {
     Group group(String now, String nestedNow) => Group(
       name: 'Visible',
@@ -139,7 +171,7 @@ void main() {
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith(mode: Mode.rule));
     container
-        .read(patchClashConfigProvider.notifier)
+        .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(testUrl: testUrl));
     container
         .read(delayDataSourceProvider.notifier)
@@ -170,7 +202,7 @@ void main() {
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith(mode: Mode.rule));
     container
-        .read(patchClashConfigProvider.notifier)
+        .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(testUrl: testUrl));
     container
         .read(proxiesStyleSettingProvider.notifier)
@@ -250,7 +282,7 @@ void main() {
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith(mode: Mode.rule));
     container
-        .read(patchClashConfigProvider.notifier)
+        .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(testUrl: testUrl));
     for (final node in nodes) {
       container
@@ -295,7 +327,7 @@ void main() {
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith(mode: Mode.rule));
     container
-        .read(patchClashConfigProvider.notifier)
+        .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(testUrl: testUrl));
     container
         .read(delayDataSourceProvider.notifier)
@@ -338,7 +370,7 @@ void main() {
         .read(patchClashConfigProvider.notifier)
         .update((state) => state.copyWith(mode: Mode.rule));
     container
-        .read(patchClashConfigProvider.notifier)
+        .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(testUrl: testUrl));
     container
         .read(proxiesStyleSettingProvider.notifier)
@@ -506,6 +538,7 @@ void main() {
     container
         .read(runTimeProvider.notifier)
         .update((_) => DateTime(2026).millisecondsSinceEpoch);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
     container
         .read(networkSettingProvider.notifier)
         .update(
@@ -567,6 +600,35 @@ void main() {
     container.read(currentSSIDProvider.notifier).update((_) => 'Office');
     expect(container.read(suspendProvider), isTrue);
     expect(container.read(proxyStateProvider).isStart, isFalse);
+  });
+
+  test('the VPN notification is titled with the service, not the profile '
+      'label', () async {
+    await AppLocalizations.load(const Locale('en'));
+    Profile profile(Map<String, String> headers) => Profile(
+      id: 7,
+      label: 'user-42',
+      type: ProfileType.url,
+      url: 'https://sub.example.com/link',
+      autoUpdateDuration: Duration.zero,
+      providerHeaders: headers,
+    );
+    for (final (headers, title) in [
+      (const {'flclashx-servicename': 'Example VPN'}, 'Example VPN'),
+      (const <String, String>{}, 'user-42'),
+    ]) {
+      final scoped = ProviderContainer(
+        overrides: [
+          profilesProvider.overrideWith(() => TestProfiles([profile(headers)])),
+        ],
+      );
+      addTearDown(scoped.dispose);
+      scoped.listen(currentProfileIdProvider, (_, _) {});
+      scoped.read(currentProfileIdProvider.notifier).value = 7;
+      scoped.listen(sharedStateProvider, (_, _) {});
+
+      expect(scoped.read(sharedStateProvider).currentProfileName, title);
+    }
   });
 
   test('safe mode keeps every host integration off', () async {
@@ -844,6 +906,42 @@ void main() {
     );
   });
 
+  test(
+    'exclusions that leave no route route nothing, not everything',
+    () async {
+      await AppLocalizations.load(const Locale('en'));
+      container.listen(sharedStateProvider, (_, _) {});
+      container
+          .read(networkSettingProvider.notifier)
+          .update((state) => state.copyWith(bypassPrivateRoute: false));
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              tun: state.tun.copyWith(
+                routeExcludeAddress: const ['0.0.0.0/0', '::/0'],
+              ),
+            ),
+          );
+      await container.read(vpnOptionsProvider.future);
+      var vpnOptions = container.read(sharedStateProvider).vpnOptions!;
+      expect(vpnOptions.routeAddress, isEmpty);
+      expect(vpnOptions.excludesAllRoutes, isTrue);
+
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              tun: state.tun.copyWith(routeExcludeAddress: []),
+            ),
+          );
+      await container.read(vpnOptionsProvider.future);
+      vpnOptions = container.read(sharedStateProvider).vpnOptions!;
+      expect(vpnOptions.routeAddress, isEmpty);
+      expect(vpnOptions.excludesAllRoutes, isFalse);
+    },
+  );
+
   test('only the route lists recompute the VPN routes', () async {
     final computed = <List<String>?>[];
     container.listen(
@@ -917,6 +1015,9 @@ void main() {
   test('local authentication withholds the VPN system proxy', () async {
     await AppLocalizations.load(const Locale('en'));
     container.listen(sharedStateProvider, (_, _) {});
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
     await container.read(vpnOptionsProvider.future);
     expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, true);
 
@@ -945,6 +1046,24 @@ void main() {
     await container.read(vpnOptionsProvider.future);
     expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, true);
     expect(container.read(updateParamsProvider).authentication, isEmpty);
+  });
+
+  test('androidsecure withholds the VPN system proxy', () async {
+    final scoped = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(TestProfiles.new),
+        androidSecureProvider.overrideWithValue(true),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    scoped.listen(sharedStateProvider, (_, _) {});
+    scoped
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+
+    await scoped.read(vpnOptionsProvider.future);
+
+    expect(scoped.read(sharedStateProvider).vpnOptions?.systemProxy, false);
   });
 
   test('the setup patch changes only with what a re-apply carries', () {

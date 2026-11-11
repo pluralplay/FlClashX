@@ -17,6 +17,19 @@ import '../../helpers/glyph_finders.dart';
 import '../../helpers/test_app.dart';
 import '../../helpers/test_profiles.dart';
 
+const _everyCard = [
+  DashboardWidget.currentOutbound,
+  DashboardWidget.networkSpeed,
+  DashboardWidget.outboundMode,
+  DashboardWidget.vpnButton,
+  DashboardWidget.networkTakeover,
+  DashboardWidget.intranetIp,
+  DashboardWidget.serviceStatus,
+  DashboardWidget.profiles,
+  DashboardWidget.proxyGroups,
+  DashboardWidget.connectionStats,
+];
+
 void main() {
   test('the window picks the density', () {
     DashboardDensity of(double width, double height) =>
@@ -45,6 +58,14 @@ void main() {
     globalState.container = container;
     container.listen(groupsProvider, (_, _) {});
   });
+
+  /// The phone layout lays out the saved cards, so the tests about it ask
+  /// for every card rather than the two of a fresh install.
+  void seedEveryCard() {
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(dashboardWidgets: _everyCard));
+  }
 
   void seedGroups(int count) {
     container.read(groupsProvider.notifier).value = [
@@ -196,16 +217,14 @@ void main() {
     await teardown(tester);
   });
 
-  testWidgets('the default window opens on four full columns beside the '
+  testWidgets('a large window opens on four full columns beside the '
       'expanded sidebar and a title bar', (tester) async {
+    const window = Size(1280, 880);
     const sidebar = 220.0;
     const titleBar = 32.0;
     await pumpDashboard(
       tester,
-      Size(
-        defaultWindowSize.width - sidebar,
-        defaultWindowSize.height - titleBar,
-      ),
+      Size(window.width - sidebar, window.height - titleBar),
     );
 
     expect(rectOf(tester, CurrentOutboundCard).height, 208);
@@ -296,6 +315,7 @@ void main() {
 
   testWidgets('a resize lays the cards out for the new width in its first '
       'frame, before the view size catches up', (tester) async {
+    seedEveryCard();
     await pumpDashboard(tester, const Size(1440, 900));
 
     tester.view.physicalSize = const Size(600, 800);
@@ -420,6 +440,7 @@ void main() {
 
   testWidgets('a narrow desktop window shows the phone cards in a centred '
       'column, takeover in place of the VPN', (tester) async {
+    seedEveryCard();
     await pumpDashboard(tester, const Size(620, 700));
 
     final card = rectOf(tester, CurrentOutboundCard);
@@ -434,6 +455,7 @@ void main() {
   });
 
   testWidgets('a phone shows the saved cards edge to edge', (tester) async {
+    seedEveryCard();
     await pumpDashboard(
       tester,
       const Size(400, 900),

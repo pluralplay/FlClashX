@@ -611,6 +611,8 @@ void main() {
     when(
       () => core.sideLoadExternalProvider(
         providerName: 'editable',
+        path: any(named: 'path'),
+        type: any(named: 'type'),
         data: any(named: 'data'),
       ),
     ).thenAnswer((_) async => '');
@@ -638,10 +640,95 @@ void main() {
     verify(
       () => core.sideLoadExternalProvider(
         providerName: 'editable',
+        path: file.path,
+        type: 'Proxy',
         data: 'payload:\n  - new\n',
       ),
     ).called(1);
     expect(find.byType(EditorPage), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 700));
+  });
+
+  testWidgets('a provider replaced while its editor was open is not saved '
+      'into', (tester) async {
+    final file = providerFile('replaced', 'payload:\n  - old\n');
+    final provider = _provider('replaced', path: file.path);
+    when(
+      () => core.sideLoadExternalProvider(
+        providerName: 'replaced',
+        path: file.path,
+        type: 'Proxy',
+        data: any(named: 'data'),
+      ),
+    ).thenThrow(
+      const CoreMethodException(
+        code: 'provider_replaced',
+        message: 'external provider was replaced',
+      ),
+    );
+    final container = containerFor(tester, [provider]);
+    await pump(tester, container);
+    final editor = await openEditor(tester, 'replaced');
+
+    editor.onSave!(
+      tester.element(find.byType(EditorPage)),
+      'replaced',
+      const EditorContent.text('payload:\n  - new\n'),
+    );
+    final tip = find.text(currentAppLocalizations.providerReplacedTip);
+    await pumpUntil(tester, tip);
+
+    expect(tip, findsOneWidget);
+    expect(file.readAsStringSync(), 'payload:\n  - old\n');
+    await tester.tap(find.text(currentAppLocalizations.confirm));
+    await pumpTransitions(tester);
+    expect(find.byType(EditorPage), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 700));
+  });
+
+  testWidgets('a save that lands under another route leaves it open', (
+    tester,
+  ) async {
+    final file = providerFile('covered', 'payload:\n');
+    final provider = _provider('covered', path: file.path);
+    final sideLoaded = Completer<String>();
+    when(
+      () => core.sideLoadExternalProvider(
+        providerName: 'covered',
+        path: any(named: 'path'),
+        type: any(named: 'type'),
+        data: any(named: 'data'),
+      ),
+    ).thenAnswer((_) => sideLoaded.future);
+    when(
+      () => core.getExternalProvider('covered'),
+    ).thenAnswer((_) async => provider);
+    when(
+      () => core.getProxies(),
+    ).thenAnswer((_) async => const ProxiesData(proxies: {}, all: []));
+
+    final container = containerFor(tester, [provider]);
+    await pump(tester, container);
+    final editor = await openEditor(tester, 'covered');
+    final editorContext = tester.element(find.byType(EditorPage));
+    final above = MaterialPageRoute<void>(builder: (_) => const Text('above'));
+    unawaited(Navigator.of(editorContext).push(above));
+    await pumpTransitions(tester);
+    const saved = 'payload:\n  - new\n';
+
+    editor.onSave!(editorContext, 'covered', const EditorContent.text(saved));
+    sideLoaded.complete('');
+    for (var i = 0; i < 20; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+
+    expect(file.readAsStringSync(), saved);
+    expect(above.isCurrent, isTrue);
+    expect(find.byType(EditorPage, skipOffstage: false), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 700));
   });
@@ -684,6 +771,8 @@ void main() {
     when(
       () => core.sideLoadExternalProvider(
         providerName: 'rejected',
+        path: any(named: 'path'),
+        type: any(named: 'type'),
         data: any(named: 'data'),
       ),
     ).thenAnswer((_) async => 'invalid payload');
@@ -732,6 +821,8 @@ void main() {
     verifyNever(
       () => core.sideLoadExternalProvider(
         providerName: any(named: 'providerName'),
+        path: any(named: 'path'),
+        type: any(named: 'type'),
         data: any(named: 'data'),
       ),
     );

@@ -22,9 +22,13 @@ class _RecordingListener with ServiceListener {
 
 class _RecordingStopListener with ServiceListener {
   var stops = 0;
+  var stopRequests = 0;
 
   @override
   void onServiceStopped() => stops++;
+
+  @override
+  void onServiceStopRequested() => stopRequests++;
 }
 
 class _ThrowingListener with ServiceListener {
@@ -120,6 +124,19 @@ void main() {
       expect(await Service().stop(), isFalse);
     });
 
+    test(
+      'a restart is its own command and reports the platform result',
+      () async {
+        mockChannel((call) async => call.method == 'restart');
+
+        expect(await Service().restart(), isTrue);
+        expect(calls.map((call) => call.method), ['restart']);
+
+        mockChannel((_) async => null);
+        expect(await Service().restart(), isFalse);
+      },
+    );
+
     test('an absent shutdown result is treated as success', () async {
       mockChannel((_) async => null);
 
@@ -144,7 +161,6 @@ void main() {
             localNetworkTip: 'localNetworkTip',
             currentProfileName: 'profile',
             stopText: 'stop',
-            onlyStatisticsProxy: false,
           ),
         ),
         isEmpty,
@@ -159,14 +175,14 @@ void main() {
         localNetworkTip: 'localNetworkTip',
         currentProfileName: 'profile',
         stopText: 'stop',
-        onlyStatisticsProxy: true,
+        showStopAction: false,
       );
 
       expect(await Service().syncState(state), 'ok');
 
       final sent = json.decode(calls.single.arguments as String);
       expect(sent['currentProfileName'], 'profile');
-      expect(sent['onlyStatisticsProxy'], isTrue);
+      expect(sent['showStopAction'], isFalse);
     });
   });
 
@@ -212,6 +228,15 @@ void main() {
       },
     );
 
+    test('a restart asks for a run the stop report can answer', () async {
+      await Service().stop();
+      await Service().restart();
+
+      await reportStopped(lastRevision());
+
+      expect(listener.stops, 1);
+    });
+
     test('a report older than the newest command is dropped', () async {
       await Service().start();
       final stale = lastRevision();
@@ -235,6 +260,28 @@ void main() {
       },
     );
 
+    test('a stop asked for while Flutter stopped the service reaches the '
+        'listeners, unless a newer command followed', () async {
+      Future<void> requestStop(Object? revision) =>
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .handlePlatformMessage(
+                channelName,
+                codec.encodeMethodCall(MethodCall('stopRequested', revision)),
+                null,
+              );
+      await Service().start();
+      await Service().stop();
+      final suspended = lastRevision();
+
+      await requestStop(suspended);
+      expect(listener.stopRequests, 1);
+      expect(listener.stops, 0);
+
+      await Service().start();
+      await requestStop(suspended);
+      expect(listener.stopRequests, 1);
+    });
+
     test('a throwing listener does not starve the next one', () async {
       final throwing = _ThrowingListener();
       Service().removeListener(listener);
@@ -247,6 +294,23 @@ void main() {
 
       expect(listener.stops, 1);
     });
+  });
+
+  test('keeps what Android says of the VPN Always-on demands', () async {
+    Future<void> report(Object? demanded) => TestDefaultBinaryMessengerBinding
+        .instance
+        .defaultBinaryMessenger
+        .handlePlatformMessage(
+          channelName,
+          codec.encodeMethodCall(MethodCall('vpnDemanded', demanded)),
+          null,
+        );
+
+    await report(true);
+    expect(Service().vpnDemandedBySystem, isTrue);
+
+    await report(false);
+    expect(Service().vpnDemandedBySystem, isFalse);
   });
 
   group('getRunTime', () {

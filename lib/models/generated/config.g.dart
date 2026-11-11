@@ -29,6 +29,10 @@ _AppSettingProps _$AppSettingPropsFromJson(
   autoRun: json['autoRun'] as bool? ?? false,
   openLogs: json['openLogs'] as bool? ?? false,
   closeConnections: json['closeConnections'] as bool? ?? true,
+  requestFeed:
+      $enumDecodeNullable(_$RequestFeedEnumMap, json['requestFeed']) ??
+      RequestFeed.live,
+  testUrl: json['testUrl'] as String? ?? defaultTestUrl,
   delayTestTimeout:
       (json['delayTestTimeout'] as num?)?.toInt() ?? defaultDelayTestTimeout,
   tabAnimation:
@@ -38,12 +42,13 @@ _AppSettingProps _$AppSettingPropsFromJson(
       ) ??
       TabAnimation.fade,
   floatingNavigationBar: json['floatingNavigationBar'] as bool? ?? true,
-  autoCheckUpdate: json['autoCheckUpdate'] as bool? ?? true,
+  autoCheckUpdate: json['autoCheckUpdate'] as bool? ?? false,
   sidebarExpanded:
       _readSidebarExpanded(json, 'sidebarExpanded') as bool? ?? true,
   acceptedDisclaimerVersion:
       (json['acceptedDisclaimerVersion'] as num?)?.toInt() ?? 0,
-  minimizeOnExit: json['minimizeOnExit'] as bool? ?? true,
+  minimizeOnExit: json['minimizeOnExit'] as bool? ?? false,
+  menuBarMode: json['menuBarMode'] as bool? ?? false,
   hidden: json['hidden'] as bool? ?? false,
   developerMode: json['developerMode'] as bool? ?? false,
   restoreStrategy:
@@ -52,11 +57,6 @@ _AppSettingProps _$AppSettingPropsFromJson(
   showTrayTitle: json['showTrayTitle'] as bool? ?? true,
   monochromeTrayIcon: json['monochromeTrayIcon'] as bool? ?? true,
   checkCertificate: json['checkCertificate'] as bool? ?? true,
-  userAgents:
-      (_readUserAgents(json, 'userAgents') as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList() ??
-      defaultUserAgents,
   filters:
       (json['filters'] as List<dynamic>?)
           ?.map((e) => Filter.fromJson(e as Map<String, dynamic>))
@@ -87,6 +87,17 @@ _AppSettingProps _$AppSettingPropsFromJson(
         ),
       ) ??
       const {},
+  subscriptionNotices:
+      (json['subscriptionNotices'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, (e as num).toInt()),
+      ) ??
+      const {},
+  ownedSettings:
+      (json['ownedSettings'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toSet() ??
+      const {},
+  appliedHeadersUpdate: json['appliedHeadersUpdate'] as String?,
 );
 
 Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
@@ -102,6 +113,8 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'autoRun': instance.autoRun,
       'openLogs': instance.openLogs,
       'closeConnections': instance.closeConnections,
+      'requestFeed': _$RequestFeedEnumMap[instance.requestFeed]!,
+      'testUrl': instance.testUrl,
       'delayTestTimeout': instance.delayTestTimeout,
       'tabAnimation': _$TabAnimationEnumMap[instance.tabAnimation]!,
       'floatingNavigationBar': instance.floatingNavigationBar,
@@ -109,13 +122,13 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'sidebarExpanded': instance.sidebarExpanded,
       'acceptedDisclaimerVersion': instance.acceptedDisclaimerVersion,
       'minimizeOnExit': instance.minimizeOnExit,
+      'menuBarMode': instance.menuBarMode,
       'hidden': instance.hidden,
       'developerMode': instance.developerMode,
       'restoreStrategy': _$RestoreStrategyEnumMap[instance.restoreStrategy]!,
       'showTrayTitle': instance.showTrayTitle,
       'monochromeTrayIcon': instance.monochromeTrayIcon,
       'checkCertificate': instance.checkCertificate,
-      'userAgents': instance.userAgents,
       'filters': instance.filters,
       'hideIp': instance.hideIp,
       'editorLineWrap': instance.editorLineWrap,
@@ -123,7 +136,15 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'serviceOrder': instance.serviceOrder,
       'disabledServices': instance.disabledServices,
       'tableColumnWidths': instance.tableColumnWidths,
+      'subscriptionNotices': instance.subscriptionNotices,
+      'ownedSettings': instance.ownedSettings.toList(),
+      'appliedHeadersUpdate': instance.appliedHeadersUpdate,
     };
+
+const _$RequestFeedEnumMap = {
+  RequestFeed.recent: 'recent',
+  RequestFeed.live: 'live',
+};
 
 const _$TabAnimationEnumMap = {
   TabAnimation.slide: 'slide',
@@ -143,6 +164,7 @@ const _$EditorFontSizeEnumMap = {
 
 const _$DashboardWidgetEnumMap = {
   DashboardWidget.currentOutbound: 'currentOutbound',
+  DashboardWidget.announcement: 'announcement',
   DashboardWidget.networkSpeed: 'networkSpeed',
   DashboardWidget.outboundMode: 'outboundMode',
   DashboardWidget.vpnButton: 'vpnButton',
@@ -219,9 +241,9 @@ Map<String, dynamic> _$WindowPropsToJson(_WindowProps instance) =>
 
 _VpnProps _$VpnPropsFromJson(Map<String, dynamic> json) => _VpnProps(
   enable: json['enable'] as bool? ?? true,
-  systemProxy: json['systemProxy'] as bool? ?? true,
-  ipv6: json['ipv6'] as bool? ?? false,
-  allowBypass: json['allowBypass'] as bool? ?? true,
+  systemProxy: json['systemProxy'] as bool? ?? false,
+  ipv6: json['ipv6'] as bool? ?? true,
+  allowBypass: json['allowBypass'] as bool? ?? false,
   dnsHijacking: json['dnsHijacking'] as bool? ?? false,
   accessControlProps: json['accessControlProps'] == null
       ? defaultAccessControlProps
@@ -256,7 +278,7 @@ Map<String, dynamic> _$AuthenticationPropsToJson(
 
 _NetworkProps _$NetworkPropsFromJson(Map<String, dynamic> json) =>
     _NetworkProps(
-      systemProxy: json['systemProxy'] as bool? ?? true,
+      systemProxy: json['systemProxy'] as bool? ?? false,
       bypassDomain:
           (json['bypassDomain'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -356,6 +378,9 @@ _ThemeProps _$ThemePropsFromJson(Map<String, dynamic> json) => _ThemeProps(
   themeMode:
       $enumDecodeNullable(_$ThemeModeEnumMap, json['themeMode']) ??
       ThemeMode.system,
+  style:
+      $enumDecodeNullable(_$ThemeStyleEnumMap, json['style']) ??
+      ThemeStyle.original,
   colorStyle:
       $enumDecodeNullable(
         _$ColorStyleEnumMap,
@@ -381,6 +406,7 @@ Map<String, dynamic> _$ThemePropsToJson(_ThemeProps instance) =>
       'primaryColor': instance.primaryColor,
       'primaryColors': instance.primaryColors,
       'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
+      'style': _$ThemeStyleEnumMap[instance.style]!,
       'colorStyle': _$ColorStyleEnumMap[instance.colorStyle]!,
       'pureBlack': instance.pureBlack,
       'sidebarBlur': instance.sidebarBlur,
@@ -393,6 +419,11 @@ const _$ThemeModeEnumMap = {
   ThemeMode.system: 'system',
   ThemeMode.light: 'light',
   ThemeMode.dark: 'dark',
+};
+
+const _$ThemeStyleEnumMap = {
+  ThemeStyle.original: 'original',
+  ThemeStyle.enhanced: 'enhanced',
 };
 
 const _$ColorStyleEnumMap = {

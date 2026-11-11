@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/native.dart';
@@ -262,6 +263,140 @@ void main() {
       );
     });
 
+    test('a profile id that is a path reaches no file outside', () async {
+      final outside = makeDir('legacy_outside');
+      writeFile(join(outside.path, 'secret.yaml'), 'secret: 1');
+      final escape = posix.relative(
+        join(outside.path, 'secret'),
+        from: join(source.path, 'profiles'),
+      );
+
+      final data = await migrateLegacyConfig(
+        configMap: legacyConfig(
+          profiles: [
+            {'id': escape, 'label': 'Escape', 'autoUpdateDuration': 0},
+            {'id': 'missing', 'label': 'Missing', 'autoUpdateDuration': 0},
+          ],
+        ),
+        sourcePath: source.path,
+        targetPath: target.path,
+      );
+
+      expect(data.profiles.map((profile) => profile.label), ['Missing']);
+      expect(Directory(join(target.path, 'profiles')).existsSync(), isFalse);
+      expect(
+        File(join(source.path, 'profiles', 'missing.yaml')).existsSync(),
+        isFalse,
+      );
+    });
+
+    test('carries a FlClashX 0.4 profile with its headers and rules', () async {
+      writeFile(
+        join(source.path, 'profiles', '1720000000000.yaml'),
+        'proxies: []',
+      );
+
+      final data = await migrateLegacyConfig(
+        configMap: legacyConfig(
+          profiles: [
+            {
+              'id': '1720000000000',
+              'label': 'Remna',
+              'url': 'https://sub.example.com/abc',
+              'autoUpdateDuration': 86400000000,
+              'autoUpdate': true,
+              'selectedMap': {'Auto': 'NL'},
+              'unfoldSet': ['Auto'],
+              'subscriptionInfo': {
+                'upload': 1,
+                'download': 2,
+                'total': 3,
+                'expire': 4,
+              },
+              'providerHeaders': {
+                'announce': 'Hi',
+                'flclashx-newboard': 'true',
+              },
+              'overrideData': {
+                'enable': true,
+                'rule': {
+                  'type': 'added',
+                  'overrideRules': [
+                    {'id': 'o1', 'value': 'DOMAIN,ignored.com,DIRECT'},
+                  ],
+                  'addedRules': [
+                    {'id': 'a1', 'value': 'DOMAIN,example.com,DIRECT'},
+                  ],
+                },
+              },
+            },
+            {
+              'id': '1720000000001',
+              'autoUpdateDuration': 0,
+              'overrideData': {
+                'enable': false,
+                'rule': {
+                  'type': 'added',
+                  'addedRules': [
+                    {'id': 'a2', 'value': 'DOMAIN,off.com,DIRECT'},
+                  ],
+                },
+              },
+            },
+          ],
+          extra: {
+            'currentProfileId': '1720000000000',
+            'appSetting': {
+              'newDashboard': true,
+              'dashboardWidgets': ['announce', 'metainfo', 'zashboardButton'],
+            },
+          },
+        ),
+        sourcePath: source.path,
+        targetPath: target.path,
+      );
+
+      final profile = data.profiles.first;
+      expect(profile.type, ProfileType.url);
+      expect(profile.label, 'Remna');
+      expect(profile.providerHeaders, {
+        'announce': 'Hi',
+        'flclashx-newboard': 'true',
+      });
+      expect(profile.selectedMap, {'Auto': 'NL'});
+      expect(profile.subscriptionInfo?.total, 3);
+      expect(profile.autoUpdateDuration, const Duration(days: 1));
+      expect(data.rules.map((rule) => rule.content), ['example.com']);
+      expect(data.rules.single.profileId, profile.id);
+      expect(data.configMap?['currentProfileId'], profile.id);
+      expect(
+        File(
+          join(target.path, 'profiles', '${profile.id}.yaml'),
+        ).readAsStringSync(),
+        'proxies: []',
+      );
+
+      final config = Config.realFromJson(data.configMap);
+      expect(config.themeProps.style, ThemeStyle.enhanced);
+      expect(config.appSettingProps.dashboardWidgets, [
+        DashboardWidget.currentOutbound,
+        DashboardWidget.announcement,
+        DashboardWidget.profiles,
+      ]);
+    });
+
+    test('keeps a FlClashX 0.4 config without the hero flag on the standard '
+        'page', () async {
+      final data = await migrateLegacyConfig(
+        configMap: legacyConfig(profiles: const []),
+        sourcePath: source.path,
+        targetPath: target.path,
+      );
+
+      final config = Config.realFromJson(data.configMap);
+      expect(config.themeProps.style, ThemeStyle.original);
+    });
+
     test('links added rules to the profile that declared them', () async {
       writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
 
@@ -491,9 +626,13 @@ void main() {
           autoUpdateDuration: Duration.zero,
         ).toCompanion(),
       ]);
-      await database.scriptsDao.setAll([
-        Script(id: 2, label: 'Script', lastUpdateTime: DateTime(2026)),
-      ]);
+      await database.scripts.put(
+        Script(
+          id: 2,
+          label: 'Script',
+          lastUpdateTime: DateTime(2026),
+        ).toCompanion(),
+      );
       await database.rulesDao.putRule(
         const Rule(id: 3, content: 'example.com', order: 'a'),
         profileId: 1,
@@ -647,6 +786,128 @@ void main() {
       },
     );
 
+    test(
+      'an entry whose bytes do not match its checksum is rejected',
+      () async {
+        final archivePath = join(root.path, 'archive', '$uniqueId.zip');
+        final encoder = ZipFileEncoder()..create(archivePath);
+        encoder.addArchiveFile(
+          ArchiveFile.string(configJsonName, json.encode({'version': 1})),
+        );
+        final profile = utf8.encode('proxies: GOOD-PROFILE-CONTENT');
+        encoder.addArchiveFile(
+          ArchiveFile.noCompress('profiles/1.yaml', profile.length, profile),
+        );
+        await encoder.close();
+        final bytes = File(archivePath).readAsBytesSync();
+        final at = latin1.decode(bytes).indexOf('GOOD');
+        bytes.setRange(at, at + 4, utf8.encode('BAD!'));
+        File(archivePath).writeAsBytesSync(bytes);
+
+        await expectLater(
+          restore(archivePath),
+          failsWith(BackupFailure.invalid),
+        );
+      },
+    );
+
+    test('an archive that inflates past the size limits is rejected', () async {
+      final previousEntry = maxBackupEntryBytes;
+      final previousTotal = maxBackupBytes;
+      addTearDown(() {
+        maxBackupEntryBytes = previousEntry;
+        maxBackupBytes = previousTotal;
+      });
+      final config = utf8.encode(json.encode({'version': 1}));
+      maxBackupBytes = 1 << 20;
+
+      maxBackupEntryBytes = 64;
+      await expectLater(
+        restore(
+          await zipOf({configJsonName: config, 'big': List.filled(65, 0)}),
+        ),
+        failsWith(BackupFailure.invalid),
+      );
+
+      maxBackupEntryBytes = 1 << 20;
+      maxBackupBytes = config.length + 64;
+      await expectLater(
+        restore(
+          await zipOf({
+            configJsonName: config,
+            'a': List.filled(40, 0),
+            'b': List.filled(40, 0),
+          }),
+        ),
+        failsWith(BackupFailure.invalid),
+      );
+    });
+
+    test(
+      'a deflated entry inflating past its declared size is rejected',
+      () async {
+        final previous = maxBackupEntryBytes;
+        addTearDown(() => maxBackupEntryBytes = previous);
+        maxBackupEntryBytes = 64 << 10;
+        final archivePath = await zipOf({
+          configJsonName: utf8.encode(json.encode({'version': 1})),
+          'bomb': List.filled(1 << 20, 0),
+        });
+        // The size fields of both headers claim 16 bytes for the 1 MiB entry.
+        final bytes = File(archivePath).readAsBytesSync();
+        final data = ByteData.sublistView(bytes);
+        for (var at = 0; at + 46 <= bytes.length; at++) {
+          final signature = data.getUint32(at, Endian.little);
+          final sizeAt = switch (signature) {
+            0x04034b50 => at + 22,
+            0x02014b50 => at + 24,
+            _ => null,
+          };
+          if (sizeAt != null &&
+              data.getUint32(sizeAt, Endian.little) == 1 << 20) {
+            data.setUint32(sizeAt, 16, Endian.little);
+          }
+        }
+        File(archivePath).writeAsBytesSync(bytes);
+
+        await expectLater(
+          restore(archivePath),
+          failsWith(BackupFailure.invalid),
+        );
+        expect(
+          File(join(staging.path, 'bomb')).lengthSync(),
+          lessThanOrEqualTo(maxBackupEntryBytes),
+        );
+      },
+    );
+
+    test('a link in the archive is passed over, not unpacked', () async {
+      final archivePath = await zipOf({
+        configJsonName: utf8.encode(json.encode({'version': 1})),
+        'link': utf8.encode('/etc/passwd'),
+      });
+      // archive writes no links, so the entry is marked one by hand: made on
+      // Unix, with the file type of a symbolic link in its attributes.
+      final bytes = File(archivePath).readAsBytesSync();
+      final data = ByteData.sublistView(bytes);
+      for (var at = 0; at + 50 <= bytes.length; at++) {
+        if (data.getUint32(at, Endian.little) == 0x02014b50 &&
+            utf8.decode(bytes.sublist(at + 46, at + 50)) == 'link') {
+          data.setUint16(at + 4, 3 << 8 | 20, Endian.little);
+          data.setUint32(at + 38, 0xA1FF << 16, Endian.little);
+        }
+      }
+      File(archivePath).writeAsBytesSync(bytes);
+
+      await restore(archivePath);
+
+      expect(File(join(staging.path, configJsonName)).existsSync(), isTrue);
+      expect(
+        FileSystemEntity.typeSync(join(staging.path, 'link')),
+        FileSystemEntityType.notFound,
+      );
+    });
+
     test('an archive without a config document is rejected', () async {
       final archivePath = await zipOf({'unrelated.txt': utf8.encode('x')});
 
@@ -700,6 +961,7 @@ void main() {
       expect(data.configMap?['version'], 1);
       expect(data.profiles, isEmpty);
       expect(data.scripts, isEmpty);
+      expect(data.includesTables, isFalse);
     });
   });
 }

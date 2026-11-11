@@ -68,6 +68,38 @@ void main() {
     expect(find.textContaining('suggest '), findsNothing);
   });
 
+  testWidgets('a read-only editor accepts no suggestion', (tester) async {
+    final (controller, popups) = await pumpWords(tester);
+    await typeText(tester, controller, 'al');
+    await settle(tester, 8);
+    final details = popups.last;
+    final index = details.suggestions.indexWhere((s) => s.label == 'alpha');
+
+    controller.readOnly = true;
+    details.onAccept(index);
+    await settle(tester, 4);
+
+    expect(controller.text, '${_document}al');
+  });
+
+  testWidgets('turning the editor read-only closes the popup', (tester) async {
+    final (controller, _) = await pumpWords(tester);
+    await typeText(tester, controller, 'al');
+    await settle(tester, 8);
+    expect(controller.suggestions, isNotEmpty);
+
+    await pumpEditor(
+      tester,
+      controller,
+      readOnly: true,
+      enableLocalSuggestions: true,
+      suggestionPopupBuilder: (context, details) => const SizedBox.shrink(),
+    );
+    await settle(tester, 4);
+
+    expect(controller.suggestions, isNull);
+  });
+
   testWidgets('arrow keys move the highlight that Enter accepts', (
     tester,
   ) async {

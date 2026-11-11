@@ -53,6 +53,7 @@ TrayState _trayState({
   Mode mode = Mode.rule,
   List<Group> groups = const [],
   Map<HotAction, HotKeyAction> hotKeys = const {},
+  bool globalModeAllowed = true,
 }) {
   return TrayState(
     mode: mode,
@@ -67,6 +68,7 @@ TrayState _trayState({
     monochromeTrayIcon: monochromeTrayIcon,
     safeMode: safeMode,
     hotKeys: hotKeys,
+    globalModeAllowed: globalModeAllowed,
   );
 }
 
@@ -169,8 +171,8 @@ void main() {
     final l10n = currentAppLocalizations;
     expect(labels, contains(l10n.show));
     expect(labels, contains(l10n.start));
-    expect(labels, contains(l10n.autoLaunch));
-    expect(labels, contains(l10n.copyEnvVar));
+    expect(labels, isNot(contains(l10n.autoLaunch)));
+    expect(labels, isNot(contains(l10n.copyEnvVar)));
     expect(labels, contains(l10n.exit));
     expect(labels, isNot(contains(l10n.tun)));
     expect(labels, isNot(contains(l10n.systemProxy)));
@@ -195,7 +197,6 @@ void main() {
       expect(labels, contains(l10n.stop));
       expect(labels, contains(l10n.tun));
       expect(labels, contains(l10n.systemProxy));
-      expect(labels, contains(l10n.copyEnvVar));
     });
 
     test('names the mode in the tooltip and ships the safe icon', () async {
@@ -203,7 +204,7 @@ void main() {
 
       final arguments = showCall()!.arguments as Map;
       final l10n = currentAppLocalizations;
-      expect(arguments['toolTip'], '$appName (${l10n.safeMode})');
+      expect(arguments['toolTip'], l10n.safeModeAppTitle(appName));
       final reps = ((arguments['icon'] as Map)['reps'] as List).cast<Map>();
       final base = reps.firstWhere((rep) => rep['scale'] == 1.0);
       expect(
@@ -223,6 +224,15 @@ void main() {
         .map((item) => item['label'])
         .toList();
     expect(checkedModes, contains(Intl.message(Mode.global.name)));
+  });
+
+  test('drops the mode choice when the panel forbids global mode', () async {
+    await update(_trayState(globalModeAllowed: false));
+
+    final labels = _labels(showCall());
+    for (final mode in Mode.values) {
+      expect(labels, isNot(contains(Intl.message(mode.name))));
+    }
   });
 
   test('sends icon, tooltip and menu in a single show call', () async {
@@ -301,6 +311,46 @@ void main() {
     expect(submenu['label'], 'Proxy');
     final children = (submenu['items'] as List).cast<Map<Object?, Object?>>();
     expect(children.map((item) => item['label']), contains('A'));
+  });
+
+  test('a group of thousands lists the first hundred and offers the rest '
+      'in the app', () async {
+    await update(
+      _trayState(
+        groups: [
+          Group(
+            name: 'Big',
+            type: GroupType.Selector,
+            all: [
+              for (var i = 0; i < 2000; i++) Proxy(name: 'P$i', type: 'Direct'),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final submenu = _items(
+      showCall(),
+    ).firstWhere((item) => item['type'] == 'submenu');
+    final children = (submenu['items'] as List).cast<Map<Object?, Object?>>();
+    final proxies = children.where((item) => item['type'] == 'checkbox');
+    expect(proxies, hasLength(trayProxyLimit));
+    expect(children.last['label'], 'More (1900)…');
+  });
+
+  test('a pick beyond the hundred takes the last place', () {
+    final group = Group(
+      name: 'Big',
+      type: GroupType.Selector,
+      all: [for (var i = 0; i < 300; i++) Proxy(name: 'P$i', type: 'Direct')],
+    );
+
+    final shown = group.trayProxies('P250');
+
+    expect(shown, hasLength(trayProxyLimit));
+    expect(shown.first.name, 'P0');
+    expect(shown.last.name, 'P250');
+    expect(group.trayProxies('P5').last.name, 'P99');
   });
 
   test('shows each bound hotkey dimmed beside its entry', () async {

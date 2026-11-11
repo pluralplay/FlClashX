@@ -53,7 +53,7 @@ class Database extends _$Database {
   Database([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 23;
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {
@@ -115,6 +115,12 @@ class Database extends _$Database {
           );
         }
         if (from < 21) {
+          await _addColumnIfMissing(m, profiles, profiles.providerHeaders);
+        }
+        if (from < 22) {
+          await _addColumnIfMissing(m, profiles, profiles.sendDeviceHeaders);
+        }
+        if (from < 23) {
           await _createTableIfMissing(m, ipQualities);
         }
       }),
@@ -413,16 +419,19 @@ class Database extends _$Database {
     List<ClashProvider> clashProviders = const [],
     List<CustomProxy> customProxies = const [],
     List<ProxyDialer> proxyDialers = const [],
+    List<IconSet> iconSets = const [],
     bool isOverride = false,
   }) async {
-    if (profiles.isEmpty &&
+    if (!isOverride &&
+        profiles.isEmpty &&
         scripts.isEmpty &&
         rules.isEmpty &&
         disabledRules.isEmpty &&
         proxyGroups.isEmpty &&
         clashProviders.isEmpty &&
         customProxies.isEmpty &&
-        proxyDialers.isEmpty) {
+        proxyDialers.isEmpty &&
+        iconSets.isEmpty) {
       return;
     }
     await transaction(() async {
@@ -438,6 +447,7 @@ class Database extends _$Database {
           clashProvidersDao.setAllWithBatch(b, clashProviders);
           // Rewriting profiles or custom proxies cascades into these.
           proxyDialersDao.setAllWithBatch(b, proxyDialers);
+          iconSetsDao.setAllWithBatch(b, iconSets);
           return;
         }
         profilesDao.putAllWithBatch(
@@ -450,6 +460,7 @@ class Database extends _$Database {
         customProxiesDao.putAllWithBatch(b, customProxies);
         clashProvidersDao.putAllWithBatch(b, clashProviders);
         proxyDialersDao.putAllWithBatch(b, proxyDialers);
+        iconSetsDao.putAllWithBatch(b, iconSets);
       });
       await _purgeOrphans();
     });
@@ -601,15 +612,6 @@ extension SimpleSelectStatementExt<T extends HasResultSet, D>
     final countExp = countAll();
     final query = addColumns([countExp]);
     return query.map((row) => row.read(countExp)!);
-  }
-}
-
-extension JoinedSelectStatementExt<T extends HasResultSet, D>
-    on JoinedSelectStatement<T, D> {
-  Selectable<int> get count {
-    final countExp = countAll();
-    addColumns([countExp]);
-    return map((row) => row.read(countExp)!);
   }
 }
 

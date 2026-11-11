@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 extension DashboardWidgetView on DashboardWidget {
   Widget get card => switch (this) {
     DashboardWidget.currentOutbound => const CurrentOutboundCard(),
+    DashboardWidget.announcement => const AnnouncementCard(),
     DashboardWidget.networkSpeed => const NetworkSpeedCard(),
     DashboardWidget.outboundMode => const OutboundModeCard(),
     DashboardWidget.vpnButton => const VpnCard(),
@@ -21,6 +22,7 @@ extension DashboardWidgetView on DashboardWidget {
 
   Glyph get glyph => switch (this) {
     DashboardWidget.currentOutbound => AppGlyphs.status,
+    DashboardWidget.announcement => AppGlyphs.info,
     DashboardWidget.networkSpeed => AppGlyphs.speed,
     DashboardWidget.outboundMode => AppGlyphs.split,
     DashboardWidget.vpnButton => AppGlyphs.vpn,
@@ -37,6 +39,7 @@ extension DashboardWidgetView on DashboardWidget {
     final appLocalizations = context.appLocalizations;
     return switch (this) {
       DashboardWidget.currentOutbound => appLocalizations.status,
+      DashboardWidget.announcement => appLocalizations.announcement,
       DashboardWidget.networkSpeed => appLocalizations.networkSpeed,
       DashboardWidget.outboundMode => appLocalizations.outboundMode,
       DashboardWidget.vpnButton => 'VPN',
@@ -60,6 +63,25 @@ extension DashboardWidgetView on DashboardWidget {
     };
   }
 
-  /// It holds the start button, which has nowhere else to go.
-  bool get removable => this != DashboardWidget.currentOutbound;
+  /// The status card holds the start button, which has nowhere else to go,
+  /// and the announcement comes and goes with the subscription.
+  bool get removable =>
+      this != DashboardWidget.currentOutbound &&
+      this != DashboardWidget.announcement;
+}
+
+/// The saved cards with the status card and, while the subscription sends
+/// one, the announcement; a card the list never placed goes on top.
+List<DashboardWidget> withFixedCards(
+  List<DashboardWidget> saved, {
+  required bool announcement,
+}) {
+  return [
+    if (announcement && !saved.contains(DashboardWidget.announcement))
+      DashboardWidget.announcement,
+    if (!saved.contains(DashboardWidget.currentOutbound))
+      DashboardWidget.currentOutbound,
+    for (final card in saved)
+      if (announcement || card != DashboardWidget.announcement) card,
+  ];
 }

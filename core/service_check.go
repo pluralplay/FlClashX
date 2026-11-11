@@ -112,7 +112,11 @@ var serviceCheckers = []serviceChecker{
 	{name: "spotify", check: checkSpotify},
 	{name: "tiktok", check: checkTikTok},
 	{name: "discord", check: checkDiscord},
-	{name: "bilibili", check: checkBilibili},
+	{name: "gosuslugi", check: checkReachableUntrusted("https://www.gosuslugi.ru/")},
+	{name: "sberbank", check: checkReachableUntrusted("https://online.sberbank.ru/CSAFront/index.do")},
+	{name: "vk", check: checkReachable("https://vk.com/")},
+	{name: "yandex", check: checkReachable("https://ya.ru/")},
+	{name: "kinopoisk", check: checkReachable("https://www.kinopoisk.ru/")},
 }
 
 func handleServiceCheck(params *ServiceCheckParams) []ServiceCheckItem {
@@ -238,14 +242,24 @@ func selectedCheckers(names []string) []serviceChecker {
 // checkReachable is the rule for a target with no unlock semantics of its own.
 func checkReachable(url string) func(serviceEnv) ServiceCheckItem {
 	return func(env serviceEnv) ServiceCheckItem {
-		result := env.get(url, 0)
-		item := itemFrom(result)
-		if item.Status != "" {
-			return item
-		}
-		item.Status = statusFromCode(result.StatusCode)
+		return reachableItem(env.get(url, 0))
+	}
+}
+
+// checkReachableUntrusted is checkReachable for a site on Russia's own root.
+func checkReachableUntrusted(url string) func(serviceEnv) ServiceCheckItem {
+	return func(env serviceEnv) ServiceCheckItem {
+		return reachableItem(env.send(probeRequest{url: url, insecure: true}))
+	}
+}
+
+func reachableItem(result *ProbeResult) ServiceCheckItem {
+	item := itemFrom(result)
+	if item.Status != "" {
 		return item
 	}
+	item.Status = statusFromCode(result.StatusCode)
+	return item
 }
 
 func itemFrom(result *ProbeResult) ServiceCheckItem {

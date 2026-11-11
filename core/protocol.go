@@ -15,26 +15,26 @@ import (
 type CoreMethod string
 
 const (
-	messageMethod                  CoreMethod = "message"
-	initClashMethod                CoreMethod = "initClash"
-	getIsInitMethod                CoreMethod = "getIsInit"
-	forceGcMethod                  CoreMethod = "forceGc"
-	shutdownMethod                 CoreMethod = "shutdown"
-	validateConfigMethod           CoreMethod = "validateConfig"
-	decryptConfigMethod            CoreMethod = "decryptConfig"
-	validateProxiesMethod          CoreMethod = "validateProxies"
-	validateFiltersMethod          CoreMethod = "validateFilters"
-	convertProxiesMethod           CoreMethod = "convertProxies"
-	encodeShareLinksMethod         CoreMethod = "encodeShareLinks"
-	decodeShareLinksMethod         CoreMethod = "decodeShareLinks"
-	updateConfigMethod             CoreMethod = "updateConfig"
-	getProxiesMethod               CoreMethod = "getProxies"
-	changeProxyMethod              CoreMethod = "changeProxy"
-	getTrafficMethod               CoreMethod = "getTraffic"
-	getTotalTrafficMethod          CoreMethod = "getTotalTraffic"
-	resetTrafficMethod             CoreMethod = "resetTraffic"
-	asyncTestDelayMethod           CoreMethod = "asyncTestDelay"
-	probeMethod                    CoreMethod = "probe"
+	messageMethod          CoreMethod = "message"
+	initClashMethod        CoreMethod = "initClash"
+	getIsInitMethod        CoreMethod = "getIsInit"
+	forceGcMethod          CoreMethod = "forceGc"
+	shutdownMethod         CoreMethod = "shutdown"
+	validateConfigMethod   CoreMethod = "validateConfig"
+	decryptConfigMethod    CoreMethod = "decryptConfig"
+	validateProxiesMethod  CoreMethod = "validateProxies"
+	validateFiltersMethod  CoreMethod = "validateFilters"
+	convertProxiesMethod   CoreMethod = "convertProxies"
+	encodeShareLinksMethod CoreMethod = "encodeShareLinks"
+	decodeShareLinksMethod CoreMethod = "decodeShareLinks"
+	updateConfigMethod     CoreMethod = "updateConfig"
+	getProxiesMethod       CoreMethod = "getProxies"
+	changeProxyMethod      CoreMethod = "changeProxy"
+	getTrafficMethod       CoreMethod = "getTraffic"
+	getTotalTrafficMethod  CoreMethod = "getTotalTraffic"
+	resetTrafficMethod     CoreMethod = "resetTraffic"
+	asyncTestDelayMethod   CoreMethod = "asyncTestDelay"
+
 	outboundIpMethod               CoreMethod = "outboundIp"
 	serviceCheckMethod             CoreMethod = "serviceCheck"
 	getConnectionsMethod           CoreMethod = "getConnections"
@@ -46,11 +46,13 @@ const (
 	getExternalProvidersMethod     CoreMethod = "getExternalProviders"
 	getExternalProviderMethod      CoreMethod = "getExternalProvider"
 	getMemoryStatsMethod           CoreMethod = "getMemoryStats"
+	getCoreVersionMethod           CoreMethod = "getCoreVersion"
 	updateGeoDataMethod            CoreMethod = "updateGeoData"
 	updateExternalProviderMethod   CoreMethod = "updateExternalProvider"
 	sideLoadExternalProviderMethod CoreMethod = "sideLoadExternalProvider"
 	startLogMethod                 CoreMethod = "startLog"
 	stopLogMethod                  CoreMethod = "stopLog"
+	setHostActiveMethod            CoreMethod = "setHostActive"
 	startListenerMethod            CoreMethod = "startListener"
 	stopListenerMethod             CoreMethod = "stopListener"
 	updateDnsMethod                CoreMethod = "updateDns"
@@ -66,6 +68,7 @@ const (
 	clearEffectMethod              CoreMethod = "clearEffect"
 	watchRouteMethod               CoreMethod = "watchRoute"
 	checkRoutesMethod              CoreMethod = "checkRoutes"
+	getTunFailedMethod             CoreMethod = "getTunFailed"
 )
 
 type MessageType string
@@ -81,6 +84,7 @@ const (
 	RouteChangedMessage   MessageType = "routeChanged"
 	DialerLoopMessage     MessageType = "dialerLoop"
 	RequestTrafficMessage MessageType = "requestTraffic"
+	TunFailedMessage      MessageType = "tunFailed"
 )
 
 type Message struct {
@@ -117,6 +121,12 @@ type ProfileBase struct {
 	Proxies     int               `json:"proxies"`
 	ProxyGroups int               `json:"proxy-groups"`
 	Rules       int               `json:"rules"`
+	// The keys the file itself names, top level and `tun.*`: the decoded
+	// config fills every other one with a default the host must not take
+	// for the profile's word.
+	Present []string `json:"present"`
+	// The profile's own GLOBAL group carries `flclashx-override: true`.
+	GlobalOverride bool `json:"global-override"`
 }
 
 type ProfileOutbounds struct {
@@ -157,12 +167,16 @@ type tunSchema struct {
 
 type SideLoadParams struct {
 	ProviderName string `json:"providerName"`
+	Path         string `json:"path"`
+	Type         string `json:"type"`
 	Data         string `json:"data"`
 }
 
+// The certificate policy comes with the request: a profile compiles its rule sets before any setup.
 type CompileRuleSetParams struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Name           string `json:"name"`
+	URL            string `json:"url"`
+	SkipCertVerify bool   `json:"skip-cert-verify"`
 }
 
 type RuleSetInfo struct {
@@ -197,30 +211,19 @@ type Delay struct {
 	Value int32  `json:"value"`
 }
 
-type ProbeParams struct {
-	Url       string            `json:"url"`
-	ProxyName string            `json:"proxy-name"`
-	Headers   map[string]string `json:"headers"`
-	Timeout   int64             `json:"timeout"`
-	MaxBody   int64             `json:"max-body"`
-}
-
 type ProbeResult struct {
-	StatusCode  int      `json:"status-code"`
-	Delay       int64    `json:"delay"`
-	Body        string   `json:"body"`
-	Url         string   `json:"url"`
-	Chains      []string `json:"chains"`
-	Rule        string   `json:"rule"`
-	RulePayload string   `json:"rule-payload"`
-	Error       string   `json:"error,omitempty"`
-	Message     string   `json:"message,omitempty"`
+	StatusCode int      `json:"status-code"`
+	Delay      int64    `json:"delay"`
+	Body       string   `json:"body"`
+	Url        string   `json:"url"`
+	Chains     []string `json:"chains"`
+
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
 
 	CoreEpoch    uint64 `json:"core-epoch"`
 	RouteVersion uint64 `json:"route-version"`
 
-	// Unexported, so it never reaches Dart: only the in-core checks read
-	// response headers, and ProbeResult is the shape the Dart side decodes.
 	header    http.Header
 	lowerBody string
 	hits      []RouteHit
@@ -255,9 +258,10 @@ type ProxiesData struct {
 }
 
 type nodeView struct {
-	Name         string `json:"name"`
-	Type         string `json:"type"`
-	ProviderName string `json:"provider-name,omitempty"`
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	ServerDescription string `json:"serverDescription,omitempty"`
+	ProviderName      string `json:"provider-name,omitempty"`
 }
 
 type GeoUpdateStatus struct {

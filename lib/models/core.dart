@@ -36,6 +36,10 @@ abstract class ProfileBase with _$ProfileBase {
     @Default(0) int proxies,
     @Default(0) @JsonKey(name: 'proxy-groups') int proxyGroups,
     @Default(0) int rules,
+
+    /// The keys the file names itself, top level and `tun.*`.
+    @Default([]) List<String> present,
+    @Default(false) @JsonKey(name: 'global-override') bool globalOverride,
   }) = _ProfileBase;
 
   factory ProfileBase.fromJson(Map<String, dynamic> json) =>
@@ -52,12 +56,11 @@ abstract class UpdateParams with _$UpdateParams {
     required FindProcessMode findProcessMode,
     required Mode mode,
     @JsonKey(name: 'log-level') required LogLevel logLevel,
-    bool? ipv6,
-    @JsonKey(name: 'tcp-concurrent') bool? tcpConcurrent,
-    @JsonKey(name: 'external-controller')
-    required ExternalControllerStatus externalController,
+    required bool ipv6,
+    @JsonKey(name: 'tcp-concurrent') required bool tcpConcurrent,
+    @JsonKey(name: 'external-controller') required String externalController,
     @Default('') String secret,
-    @JsonKey(name: 'unified-delay') bool? unifiedDelay,
+    @JsonKey(name: 'unified-delay') required bool unifiedDelay,
     @Default([]) List<String> authentication,
     @Default(false) @JsonKey(name: 'geo-auto-update') bool geoAutoUpdate,
     @Default(24) @JsonKey(name: 'geo-update-interval') int geoUpdateInterval,
@@ -84,6 +87,7 @@ abstract class VpnOptions with _$VpnOptions {
     required List<String> bypassDomain,
     required String stack,
     @Default([]) List<String> routeAddress,
+    @Default(false) bool excludesAllRoutes,
     @Default(0) int mtu,
     @Default('') String congestionController,
   }) = _VpnOptions;
@@ -93,6 +97,11 @@ abstract class VpnOptions with _$VpnOptions {
 }
 
 extension VpnOptionsExt on VpnOptions {
+  /// What the service runs: a VPN Always-on asked for keeps the tunnel's settings.
+  VpnOptions effectiveWhen({required bool vpnDemandedBySystem}) =>
+      (vpnDemandedBySystem && !enable ? copyWith(enable: true) : this)
+          .effective;
+
   /// Only what `ServiceController.start` and `VpnService.handleStart` read.
   VpnOptions get effective {
     if (!enable) {
@@ -221,38 +230,6 @@ abstract class Delay with _$Delay {
 }
 
 @freezed
-abstract class ProbeParams with _$ProbeParams {
-  const factory ProbeParams({
-    required String url,
-    @JsonKey(name: 'proxy-name') @Default('') String proxyName,
-    @Default({}) Map<String, String> headers,
-    required int timeout,
-    @JsonKey(name: 'max-body') @Default(0) int maxBody,
-  }) = _ProbeParams;
-
-  factory ProbeParams.fromJson(Map<String, Object?> json) =>
-      _$ProbeParamsFromJson(json);
-}
-
-@freezed
-abstract class ProbeResult with _$ProbeResult {
-  const factory ProbeResult({
-    @JsonKey(name: 'status-code') @Default(0) int statusCode,
-    @Default(0) int delay,
-    @Default('') String body,
-    @Default('') String url,
-    @Default([]) List<String> chains,
-    @Default('') String rule,
-    @JsonKey(name: 'rule-payload') @Default('') String rulePayload,
-    String? error,
-    String? message,
-  }) = _ProbeResult;
-
-  factory ProbeResult.fromJson(Map<String, Object?> json) =>
-      _$ProbeResultFromJson(json);
-}
-
-@freezed
 abstract class OutboundIpParams with _$OutboundIpParams {
   const factory OutboundIpParams({
     @JsonKey(name: 'proxy-name') @Default('') String proxyName,
@@ -332,12 +309,12 @@ extension CoreMemoryStatsExt on CoreMemoryStats {
 
 SubscriptionInfo? subscriptionInfoFormCore(Map<String, Object?>? json) {
   if (json == null) return null;
-  return SubscriptionInfo(
-    upload: (json['Upload'] as num?)?.toInt() ?? 0,
-    download: (json['Download'] as num?)?.toInt() ?? 0,
-    total: (json['Total'] as num?)?.toInt() ?? 0,
-    expire: (json['Expire'] as num?)?.toInt() ?? 0,
-  );
+  return SubscriptionInfo.fromJson({
+    'upload': json['Upload'],
+    'download': json['Download'],
+    'total': json['Total'],
+    'expire': json['Expire'],
+  });
 }
 
 @freezed

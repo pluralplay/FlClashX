@@ -4,16 +4,7 @@ use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::fs::{File, OpenOptions};
-#[cfg(all(
-    not(all(feature = "windows-service", target_os = "windows")),
-    not(target_os = "linux")
-))]
-use std::future::pending;
-#[cfg(not(any(
-    all(feature = "windows-service", target_os = "windows"),
-    target_os = "linux"
-)))]
-use std::future::Future;
+use std::future::{pending, Future};
 use std::io::{BufRead, Error, Read};
 #[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
@@ -21,9 +12,11 @@ use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::AsRawHandle;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use std::{io, thread};
+use tokio::sync::oneshot;
 use warp::http::StatusCode;
 use warp::{Filter, Rejection, Reply};
 #[cfg(windows)]
@@ -48,7 +41,7 @@ const CORE_PIPE_PREFIX: &str = r"\\.\pipe\FlClashCore_";
 const CORE_SOCKET_PREFIX: &str = "/tmp/FlClashSocket_";
 #[cfg(target_os = "linux")]
 const CORE_SOCKET_SUFFIX: &str = ".sock";
-const PROTOCOL_VERSION_HEADER: &str = "x-flclash-helper-protocol";
+const PROTOCOL_VERSION_HEADER: &str = "x-flclashx-helper-protocol";
 #[cfg(windows)]
 const PROTOCOL_VERSION: &str = "8";
 #[cfg(not(windows))]
@@ -59,6 +52,7 @@ const MAX_REQUEST_BODY_BYTES: u64 = 4096;
 const CORE_EXIT_TIMEOUT: Duration = Duration::from_millis(1500);
 const CORE_GRACEFUL_EXIT_TIMEOUT: Duration = Duration::from_millis(3000);
 const CORE_EXIT_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const SHUTDOWN_DRAIN_TIMEOUT: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
@@ -112,22 +106,65 @@ struct ErrorResponse {
     details: Option<ErrorDetails>,
 }
 
+fn wait_for_child_exit(child: &mut Child, timeout: Duration) -> Result<bool, Error> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if child.try_wait()?.is_some() {
+            return Ok(true);
+        }
+        if Instant::now() >= deadline {
+            return Ok(false);
+        }
+        thread::sleep(CORE_EXIT_POLL_INTERVAL);
+    }
+}
+
 struct ManagedCore {
     session_id: String,
     child: Child,
     #[cfg(windows)]
-    _job: CoreJob,
+    _job: Option<CoreJob>,
+}
+
+/// A Core its job refused, kept when it did not exit so that it stays owned
+/// and a later stop can try again, as for any Core whose exit is unconfirmed.
+#[cfg_attr(not(windows), allow(dead_code))]
+struct ConfinementFailed {
+    error: Error,
+    unconfirmed: Option<ManagedCore>,
+}
+
+impl std::fmt::Debug for ConfinementFailed {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.error.fmt(formatter)
+    }
 }
 
 impl ManagedCore {
-    fn adopt(session_id: String, child: Child) -> Result<Self, Error> {
+    fn adopt(session_id: String, child: Child) -> Result<Self, ConfinementFailed> {
         #[cfg(windows)]
-        let job = CoreJob::bind(&child)?;
+        let job = match CoreJob::bind(&child) {
+            Ok(job) => job,
+            // Dropping a Child leaves its process running, here outside a job.
+            Err(error) => {
+                let mut child = child;
+                let _ = child.kill();
+                let exited = matches!(wait_for_child_exit(&mut child, CORE_EXIT_TIMEOUT), Ok(true));
+                return Err(ConfinementFailed {
+                    error,
+                    unconfirmed: (!exited).then_some(Self {
+                        session_id,
+                        child,
+                        _job: None,
+                    }),
+                });
+            }
+        };
         Ok(Self {
             session_id,
             child,
             #[cfg(windows)]
-            _job: job,
+            _job: Some(job),
         })
     }
 
@@ -143,16 +180,7 @@ impl ManagedCore {
     }
 
     fn wait_for_exit(&mut self, timeout: Duration) -> Result<bool, Error> {
-        let deadline = Instant::now() + timeout;
-        loop {
-            if self.child.try_wait()?.is_some() {
-                return Ok(true);
-            }
-            if Instant::now() >= deadline {
-                return Ok(false);
-            }
-            thread::sleep(CORE_EXIT_POLL_INTERVAL);
-        }
+        wait_for_child_exit(&mut self.child, timeout)
     }
 
     /// Only the TUN device dies with the process; SIGTERM lets the Core remove
@@ -352,6 +380,8 @@ fn stop_decision(current: Option<&str>, requested: &str) -> StopDecision {
 static LOGS: Lazy<Mutex<VecDeque<String>>> =
     Lazy::new(|| Mutex::new(VecDeque::with_capacity(LOG_CAPACITY)));
 static MANAGED_CORE: Lazy<Mutex<Option<ManagedCore>>> = Lazy::new(|| Mutex::new(None));
+/// A request the bounded drain gave up on can still reach launch afterwards.
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 fn lock_surviving_poison<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
@@ -458,6 +488,13 @@ fn start(start_params: StartParams) -> warp::reply::Response {
 /// point must already be accepted: a rejected one has to leave it running.
 fn launch(start_params: StartParams) -> warp::reply::Response {
     let mut managed = lock_surviving_poison(&MANAGED_CORE);
+    if SHUTTING_DOWN.load(Ordering::SeqCst) {
+        return error_response(
+            "helperStopping",
+            "the Helper is shutting down",
+            StatusCode::SERVICE_UNAVAILABLE,
+        );
+    }
     if let Err(error) = release_managed_core(&mut managed) {
         log_message(format!(
             "Helper could not release the managed Core: {error}"
@@ -499,17 +536,21 @@ fn launch(start_params: StartParams) -> warp::reply::Response {
                     reap_exited_core(&session_id);
                 });
             }
-            *managed = match ManagedCore::adopt(start_params.session_id.clone(), child) {
-                Ok(core) => Some(core),
-                Err(error) => {
+            let core = match ManagedCore::adopt(start_params.session_id.clone(), child) {
+                Ok(core) => core,
+                Err(failed) => {
+                    let error = &failed.error;
                     log_message(format!("Helper could not confine the Core: {error}"));
-                    return error_response(
+                    let response = error_response(
                         "internalError",
                         format!("Core confinement failed: {error}"),
                         StatusCode::INTERNAL_SERVER_ERROR,
                     );
+                    *managed = failed.unconfirmed;
+                    return response;
                 }
             };
+            *managed = Some(core);
             json_response(
                 &StartResponse {
                     session_id: start_params.session_id,
@@ -771,7 +812,7 @@ pub(super) fn routes() -> impl Filter<Extract = (impl Reply,), Error = Infallibl
             let local_host = host.is_none_or(|host| {
                 host.parse::<warp::http::uri::Authority>()
                     .is_ok_and(|authority| {
-                        ["127.0.0.1", "localhost", "FlClashHelperService"]
+                        ["127.0.0.1", "localhost", "FlClashXHelperService"]
                             .iter()
                             .any(|host| authority.host().eq_ignore_ascii_case(host))
                     })
@@ -821,7 +862,65 @@ pub(super) fn ensure_core_sha256_configured() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// warp's graceful shutdown waits for every open request, so one a client
+/// never finishes would keep the Helper stopping, and the Core it releases
+/// afterwards running, for good.
+pub(super) fn bounded_shutdown<F>(
+    shutdown: F,
+) -> (impl Future<Output = ()> + Send + 'static, ShutdownDrain)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    bounded_shutdown_within(shutdown, SHUTDOWN_DRAIN_TIMEOUT)
+}
+
+fn bounded_shutdown_within<F>(
+    shutdown: F,
+    timeout: Duration,
+) -> (impl Future<Output = ()> + Send + 'static, ShutdownDrain)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    let (started, started_rx) = oneshot::channel();
+    let signal = async move {
+        shutdown.await;
+        let _ = started.send(());
+    };
+    (
+        signal,
+        ShutdownDrain {
+            started: started_rx,
+            timeout,
+        },
+    )
+}
+
+pub(super) struct ShutdownDrain {
+    started: oneshot::Receiver<()>,
+    timeout: Duration,
+}
+
+impl ShutdownDrain {
+    pub(super) async fn serve<S>(self, server: S)
+    where
+        S: Future<Output = ()>,
+    {
+        let timeout = self.timeout;
+        let deadline = async move {
+            match self.started.await {
+                Ok(()) => tokio::time::sleep(timeout).await,
+                Err(_) => pending::<()>().await,
+            }
+        };
+        tokio::select! {
+            () = server => {}
+            () = deadline => log_message("Helper stopped waiting for unfinished requests".to_string()),
+        }
+    }
+}
+
 pub(super) fn release_managed_core_on_shutdown() {
+    SHUTTING_DOWN.store(true, Ordering::SeqCst);
     let mut managed = lock_surviving_poison(&MANAGED_CORE);
     if let Err(error) = release_managed_core(&mut managed) {
         log_message(format!(
@@ -849,11 +948,12 @@ where
 {
     ensure_core_sha256_configured()?;
 
+    let (shutdown, drain) = bounded_shutdown(shutdown);
     let (_, server) = warp::serve(routes())
         .try_bind_with_graceful_shutdown(([127, 0, 0, 1], LISTEN_PORT), shutdown)
         .map_err(|error| anyhow::anyhow!("bind helper server: {error}"))?;
     on_started()?;
-    server.await;
+    drain.serve(server).await;
     release_managed_core_on_shutdown();
 
     Ok(())
@@ -944,7 +1044,7 @@ mod tests {
 
     #[tokio::test]
     async fn ping_returns_running_helper_path_for_verified_core() {
-        let response = ping_response(Ok(PathBuf::from("FlClashHelperService.exe")));
+        let response = ping_response(Ok(PathBuf::from("FlClashXHelperService.exe")));
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
@@ -955,7 +1055,7 @@ mod tests {
             warp::hyper::body::to_bytes(response.into_body())
                 .await
                 .unwrap(),
-            "FlClashHelperService.exe"
+            "FlClashXHelperService.exe"
         );
     }
 
@@ -1337,8 +1437,10 @@ mod tests {
 
     #[test]
     fn verifies_core_sha256_in_all_build_modes() {
-        let path =
-            std::env::temp_dir().join(format!("flclash-helper-core-sha256-{}", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "flclashx-helper-core-sha256-{}",
+            std::process::id()
+        ));
         let mut file = File::create(&path).unwrap();
         file.write_all(b"test").unwrap();
         drop(file);
@@ -1440,7 +1542,11 @@ mod tests {
                     .is_none());
             }
         }
-        for host in ["127.0.0.1:47890", "localhost:47890", "FlClashHelperService"] {
+        for host in [
+            "127.0.0.1:47890",
+            "localhost:47890",
+            "FlClashXHelperService",
+        ] {
             let response = warp::test::request()
                 .path("/logs")
                 .header("host", host)
@@ -1530,5 +1636,27 @@ mod tests {
         assert!(lock_surviving_poison(&LOGS)
             .iter()
             .any(|entry| entry == "helper still logs after poisoning"));
+    }
+
+    #[tokio::test]
+    async fn shutdown_stops_waiting_for_a_request_that_never_finishes() {
+        let (shutdown, drain) = bounded_shutdown_within(async {}, Duration::from_millis(20));
+        let server = async move {
+            shutdown.await;
+            pending::<()>().await;
+        };
+
+        tokio::time::timeout(Duration::from_secs(5), drain.serve(server))
+            .await
+            .expect("the drain outlived its deadline");
+    }
+
+    #[tokio::test]
+    async fn the_drain_deadline_starts_with_shutdown() {
+        let (_shutdown, drain) = bounded_shutdown_within(pending(), Duration::from_millis(20));
+
+        let served = tokio::time::timeout(Duration::from_millis(200), drain.serve(pending())).await;
+
+        assert!(served.is_err(), "the server ended before any shutdown");
     }
 }

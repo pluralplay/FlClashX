@@ -9,20 +9,20 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:material_ui/material_ui.dart';
 
-const appName = 'FlClash';
-const appHelperService = 'FlClashHelperService';
+const appName = 'FlClashX';
+const appHelperService = 'FlClashXHelperService';
 const coreManifestName = 'manifest.json';
 const browserUa =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const packageName = 'com.follow.clash';
+const packageName = 'com.follow.clashx';
 final unixSocketPath = '/tmp/FlClashSocket_${Random().nextInt(10000)}.sock';
 final windowsPipeName = '\\\\.\\pipe\\FlClashCore_${_randomPipeId()}';
 const helperPort = 47890;
 const helperPortKey =
     'SYSTEM\\CurrentControlSet\\Services\\$appHelperService\\Runtime';
 const helperPortValue = 'Port';
-const helperSocketPath = '/run/flclash/helper.sock';
-const helperProtocolVersionHeader = 'x-flclash-helper-protocol';
+const helperSocketPath = '/run/flclashx/helper.sock';
+const helperProtocolVersionHeader = 'x-flclashx-helper-protocol';
 final helperProtocolVersion = Platform.isWindows ? '8' : '6';
 const maxTextScale = 1.4;
 const minTextScale = 0.8;
@@ -31,7 +31,13 @@ const watchExecution = false;
 
 const safeModeBuild = bool.fromEnvironment('SAFE_MODE');
 
-const disclaimerVersion = 1;
+/// CI release tag with its `-pre.N`; empty locally, where pubspec stands in.
+const appVersionDefine = String.fromEnvironment('APP_VERSION');
+
+/// The mihomo release the core was linked with, for when it cannot be asked.
+const coreVersionDefine = String.fromEnvironment('CORE_VERSION');
+
+const disclaimerVersion = 2;
 
 String _randomPipeId() {
   final random = Random.secure();
@@ -76,6 +82,9 @@ const probeMoveSettleDuration = Duration(milliseconds: 300);
 
 const downloadTimeoutDuration = Duration(seconds: 20);
 
+/// Far past any subscription; a larger body is refused before it fills memory.
+const maxDownloadBytes = 64 << 20;
+
 /// A healthy source answers within a second; past this the outbound is down.
 const outboundIpTimeoutDuration = Duration(seconds: 6);
 
@@ -84,8 +93,6 @@ const outboundIpTimeoutDuration = Duration(seconds: 6);
 /// unresponsive. [budgetFactor] covers methods that spend it more than once.
 Duration coreGuardFor(int timeout, {int budgetFactor = 2}) =>
     Duration(milliseconds: timeout * budgetFactor) + const Duration(seconds: 5);
-
-Duration probeGuardDuration(ProbeParams params) => coreGuardFor(params.timeout);
 
 /// Kept in step with serviceSweepBudgetFactor in core/service_check.go.
 const serviceSweepBudgetFactor = 6;
@@ -118,13 +125,17 @@ const localhost = '127.0.0.1';
 const clashConfigKey = 'clash_config';
 const configKey = 'config';
 const systemDnsRecordKey = 'system_dns_record';
+const systemProxyAppliedKey = 'system_proxy_applied';
 const bootRecordKey = 'boot_record';
 const appliedConfigMd5Key = 'applied_config_md5';
-const defaultSystemDnsFallback = '223.5.5.5';
-const repository = 'chen08209/FlClash';
+const defaultSystemDnsFallback = '1.1.1.1';
+const repository = 'pluralplay/FlClashX';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
 const defaultTestUrl = 'https://www.gstatic.com/generate_204';
+const defaultExternalUi = 'ui';
+const defaultExternalUiUrl =
+    'https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip';
 
 const shareLinkSchemes = {
   'hysteria',
@@ -163,7 +174,7 @@ const proxiesListStoreKey = PageStorageKey<String>('proxies_list');
 const toolsStoreKey = PageStorageKey<String>('tools');
 const profilesStoreKey = PageStorageKey<String>('profiles');
 
-const defaultPrimaryColor = 0xFF007AFF;
+const defaultPrimaryColor = 0xFF03A9F4;
 
 const maxLogsLength = 5000;
 const maxRequestsLength = 2000;
@@ -178,6 +189,7 @@ const trafficSampleLength = 30;
 // macOS accent colors.
 const defaultPrimaryColors = [
   defaultPrimaryColor,
+  0xFF007AFF,
   0xFFCB30E0,
   0xFFFF2D55,
   0xFFFF383C,

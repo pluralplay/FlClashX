@@ -144,6 +144,7 @@ class _CodeForgeState extends State<CodeForge>
       _resetCursorBlink();
       if (widget.readOnly) {
         _closeImeConnection();
+        _controller.suggestionsNotifier.value = null;
       } else {
         _openImeConnection();
       }

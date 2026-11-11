@@ -5,6 +5,7 @@ import 'package:fl_clash/common/input_limits.dart';
 import 'package:fl_clash/ui/context.dart';
 import 'package:fl_clash/ui/dialog.dart';
 import 'package:fl_clash/ui/focus.dart';
+import 'package:fl_clash/ui/frosted_surface.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/inherited.dart';
 import 'package:fl_clash/ui/input.dart';
@@ -13,6 +14,8 @@ import 'package:fl_clash/ui/measure.dart';
 import 'package:fl_clash/ui/metrics.dart';
 import 'package:fl_clash/ui/models.dart';
 import 'package:fl_clash/ui/shape.dart';
+import 'package:fl_clash/ui/switch.dart';
+import 'package:fl_clash/ui/title_badge.dart';
 import 'package:fl_clash/ui/typography.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -26,7 +29,6 @@ import 'popup.dart';
 import 'scaffold.dart';
 import 'sheet.dart';
 import 'sortable.dart';
-import 'switch.dart';
 
 part 'list_row_separator.dart';
 part 'list_selected.dart';
@@ -64,12 +66,6 @@ final class _OpenAction extends _ListItemAction {
     this.onChanged,
     required this.forceFull,
   });
-}
-
-final class _NextAction extends _ListItemAction {
-  final Widget widget;
-
-  const _NextAction({required this.widget});
 }
 
 final class _OptionsAction<T> extends _ListItemAction {
@@ -157,22 +153,6 @@ class ListItem<T> extends StatelessWidget {
          onChanged: onChanged,
          forceFull: forceFull,
        ),
-       onTap = null;
-
-  ListItem.next({
-    super.key,
-    required this.title,
-    this.subtitle,
-    this.leading,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16),
-    this.trailing,
-    required Widget widget,
-    this.horizontalTitleGap,
-    this.color,
-    this.minTileHeight,
-    this.minVerticalPadding = listRowVerticalPadding,
-    this.tileTitleAlignment = ListTileTitleAlignment.center,
-  }) : _action = _NextAction(widget: widget),
        onTap = null;
 
   ListItem.options({
@@ -272,6 +252,7 @@ class ListItem<T> extends StatelessWidget {
     Widget? trailing,
     Widget? leading,
   }) {
+    final title = TitleBadge.wrap(context, this.title);
     if (position != null) {
       // OpenContainer reparents the closed tile out of the section's provider.
       return ItemPositionProvider(
@@ -330,14 +311,20 @@ class ListItem<T> extends StatelessWidget {
             },
           );
         }
+        final badge = TitleBadge.of(context);
         return OpenContainer<dynamic>(
           clipBehavior: Clip.none,
           closedBuilder: (context, action) {
-            return _buildListTile(
-              context,
-              position: position,
-              trailing: _pageTrailing,
-              onTap: action,
+            return TitleBadge(
+              badge: badge,
+              child: Builder(
+                builder: (context) => _buildListTile(
+                  context,
+                  position: position,
+                  trailing: _pageTrailing,
+                  onTap: action,
+                ),
+              ),
             );
           },
           onClosed: onChanged,
@@ -345,22 +332,7 @@ class ListItem<T> extends StatelessWidget {
             return child;
           },
         );
-      case final _NextAction nextDelegate:
-        final child = nextDelegate.widget;
 
-        return _buildListTile(
-          context,
-          position: position,
-          trailing: _pageTrailing,
-          onTap: () {
-            showExtend(
-              context,
-              builder: (_) {
-                return child;
-              },
-            );
-          },
-        );
       case final _OptionsAction options:
         final optionsDelegate = options as _OptionsAction<T>;
         PopupOpen? openMenu;
@@ -578,6 +550,7 @@ class ListFooter extends StatelessWidget {
   }
 }
 
+/// Parts two sections without a header between them.
 class ListSectionGap extends StatelessWidget {
   const ListSectionGap({super.key});
 
@@ -587,34 +560,28 @@ class ListSectionGap extends StatelessWidget {
   }
 }
 
-/// A section's rows alone, for a group under a header its caller lays out.
-Widget generateGroup(Iterable<Widget> items) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      ...items.mapIndexed<Widget>(
-        (index, item) => ItemPositionProvider(
-          position: ItemPosition.get(index, items.length),
-          child: item,
-        ),
-      ),
-    ],
-  );
-}
-
 Widget generateSection({
   String? title,
   required Iterable<Widget> items,
   List<IconButtonData> actions = const [],
   String? footer,
 }) {
+  final genItems = items.mapIndexed<Widget>(
+    (index, item) => ItemPositionProvider(
+      position: ItemPosition.get(index, items.length),
+      child: item,
+    ),
+  );
   return Column(
     children: [
-      if (items.isNotEmpty)
-        title != null
-            ? ListHeader(title: title, actions: actions)
-            : const ListSectionGap(),
-      generateGroup(items),
+      if (items.isNotEmpty && title != null)
+        ListHeader(title: title, actions: actions),
+      FrostedGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [...genItems],
+        ),
+      ),
       if (items.isNotEmpty && footer != null) ListFooter(text: footer),
     ],
   );

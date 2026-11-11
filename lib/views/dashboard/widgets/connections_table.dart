@@ -52,10 +52,10 @@ enum DashboardFeed {
   requests,
   dns;
 
-  PageLabel get page => switch (this) {
-    connections => PageLabel.connections,
-    requests => PageLabel.requests,
-    dns => PageLabel.dns,
+  String get label => switch (this) {
+    connections => currentAppLocalizations.liveConnections,
+    requests => PageLabel.requests.label,
+    dns => PageLabel.dns.label,
   };
 }
 
@@ -306,10 +306,10 @@ class _ConnectionsTableCardState extends ConsumerState<ConnectionsTableCard>
           outer: headerHeight / 2,
           inner: 8,
           background: DashboardColors.of(context).tone,
-          semanticLabel: feed.page.label,
+          semanticLabel: feed.label,
           onTap: () => _select(feed),
           builder: (foreground) => _FeedSegment(
-            label: feed.page.label,
+            label: feed.label,
             count: count,
             height: headerHeight,
             foreground: foreground,

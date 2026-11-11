@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:fl_clash/ui/context.dart';
 import 'package:fl_clash/ui/focus.dart';
+import 'package:fl_clash/ui/frosted_surface.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/liquid_glass.dart';
 import 'package:fl_clash/ui/measure.dart';
 import 'package:fl_clash/ui/metrics.dart';
 import 'package:fl_clash/ui/shape.dart';
@@ -13,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'fade_box.dart';
 import 'scaffold.dart';
 import 'text.dart';
+import 'title_badge.dart';
 
 class Info {
   final String label;
@@ -68,12 +71,15 @@ class InfoHeader extends StatelessWidget {
                 ],
                 Flexible(
                   flex: 1,
-                  child: TooltipText(
-                    text: Text(
-                      info.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.cardHeaderStyle,
+                  child: TitleBadge.wrap(
+                    context,
+                    TooltipText(
+                      text: Text(
+                        info.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.cardHeaderStyle,
+                      ),
                     ),
                   ),
                 ),
@@ -113,8 +119,12 @@ class CommonCard extends StatelessWidget {
     this.statesController,
     this.inert = false,
     this.fillsSelection = false,
+    this.frosts = true,
     required this.child,
   }) : isSelected = isSelected ?? false;
+
+  /// False for a group's row: panes side by side would part into tiles.
+  final bool frosts;
 
   /// Ignores presses in the enabled colors, so toggling it animates nothing.
   final bool inert;
@@ -180,10 +190,55 @@ class CommonCard extends StatelessWidget {
     return colorScheme.primary;
   }
 
+  /// On glass a card frosts, or over a frost fills; error and fill stay solid.
+  ({Color fill, ButtonLayerBuilder? builder}) _buildGlassBackground(
+    BuildContext context,
+    Color background,
+    OutlinedBorder shape,
+  ) {
+    if (!LiquidGlassScope.of(context) || isError || _filled) {
+      return (fill: background, builder: null);
+    }
+    if (FrostScope.maybeOf(context) case final frost?) {
+      return (fill: frost.fillOf(background), builder: null);
+    }
+    final quality = LiquidGlassScope.qualityOf(context);
+    if (!frosts) {
+      final opacity = LiquidGlassStyle.frostOpacity(quality);
+      return (
+        fill: background.withValues(alpha: background.a * opacity),
+        builder: null,
+      );
+    }
+    if (shape is! RoundedSuperellipseBorder) {
+      return (fill: background, builder: null);
+    }
+    final corners = shape.borderRadius.resolve(Directionality.of(context));
+    return (
+      fill: Colors.transparent,
+      builder: (context, states, child) => LiquidGlass(
+        style: LiquidGlassStyle.frost(background, quality),
+        borderRadius: corners,
+        pressed: states.contains(WidgetState.pressed),
+        child: FrostScope(
+          surface: background,
+          opacity: LiquidGlassStyle.frostOpacity(quality),
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildButton(BuildContext context, SurfaceLevel level) {
     final iconColor = _buildIconColor(context);
     final foregroundColor = _buildForegroundColor(context);
     final remote = RemoteFocusAdapter.isEnabledOf(context);
+    final shape = this.shape ?? AppShape.all(radius ?? AppCorner.md);
+    final glass = _buildGlassBackground(
+      context,
+      _buildBackgroundColor(context, level),
+      shape,
+    );
     return ValueListenableBuilder(
       valueListenable: FocusMovedByKey.instance,
       builder: (context, movedByKey, content) => FilledButton(
@@ -192,7 +247,7 @@ class CommonCard extends StatelessWidget {
         style:
             FilledButton.styleFrom(
               padding: padding ?? EdgeInsets.zero,
-              shape: shape ?? AppShape.all(radius ?? AppCorner.md),
+              shape: shape,
               iconSize: commonCardIconSize,
               iconColor: iconColor,
               foregroundColor: foregroundColor,
@@ -200,9 +255,8 @@ class CommonCard extends StatelessWidget {
               disabledForegroundColor: inert ? foregroundColor : null,
               elevation: 0,
             ).copyWith(
-              backgroundColor: WidgetStatePropertyAll(
-                _buildBackgroundColor(context, level),
-              ),
+              backgroundColor: WidgetStatePropertyAll(glass.fill),
+              backgroundBuilder: glass.builder,
               side: WidgetStateProperty.resolveWith(
                 (states) => _buildBorderSide(
                   context,

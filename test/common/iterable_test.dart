@@ -87,24 +87,6 @@ void main() {
     });
   });
 
-  group('ListExt.batch', () {
-    test('splits into batches', () {
-      final result = [1, 2, 3, 4, 5].batch(2);
-      expect(result, [
-        [1, 2],
-        [3, 4],
-        [5],
-      ]);
-    });
-
-    test('single batch when size >= length', () {
-      final result = [1, 2].batch(5);
-      expect(result, [
-        [1, 2],
-      ]);
-    });
-  });
-
   group('ListExt.copyAndPut', () {
     test('replaces matching element', () {
       final result = [1, 2, 3].copyAndPut(99, (e) => e == 2);
@@ -160,20 +142,6 @@ void main() {
 
     test('returns default for empty list', () {
       expect(<int>[].safeLast(0), 0);
-    });
-  });
-
-  group('ListExt.addOrRemove', () {
-    test('adds when not present', () {
-      final list = [1, 2, 3];
-      list.addOrRemove(4);
-      expect(list, [1, 2, 3, 4]);
-    });
-
-    test('removes when present', () {
-      final list = [1, 2, 3];
-      list.addOrRemove(2);
-      expect(list, [1, 3]);
     });
   });
 

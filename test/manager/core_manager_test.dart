@@ -79,12 +79,26 @@ class _ApplyRecordingSetupAction extends SetupAction {
   }
 }
 
+class _CrashRecordingCoreAction extends CoreAction {
+  final List<String> crashes = [];
+
+  @override
+  Future<void> restartAfterCrash(String reason) async => crashes.add(reason);
+}
+
 _MockCoreHandlerInterface _coreInterface() {
   final coreInterface = _MockCoreHandlerInterface();
   when(() => coreInterface.startLog()).thenAnswer((_) {});
   when(() => coreInterface.stopLog()).thenAnswer((_) {});
   return coreInterface;
 }
+
+List<String> _crashesOf(ProviderContainer container) =>
+    (container.read(coreActionProvider.notifier) as _CrashRecordingCoreAction)
+        .crashes;
+
+/// TUN is on by default, and authorizing it has no place in a test.
+const _tunOff = PatchClashConfig(tun: Tun(enable: false));
 
 Future<ProviderContainer> _pumpCoreManager(
   WidgetTester tester,
@@ -96,6 +110,7 @@ Future<ProviderContainer> _pumpCoreManager(
       coreHandlerProvider.overrideWithValue(
         CoreController.scoped(coreInterface),
       ),
+      patchClashConfigProvider.overrideWithBuild((_, _) => _tunOff),
       ...overrides,
     ],
   );
@@ -170,6 +185,7 @@ void main() {
         coreHandlerProvider.overrideWithValue(
           CoreController.scoped(coreInterface),
         ),
+        coreActionProvider.overrideWith(_CrashRecordingCoreAction.new),
       ],
     );
     addTearDown(container.dispose);
@@ -194,6 +210,7 @@ void main() {
 
     expect(container.read(coreStatusProvider), CoreStatus.disconnected);
     expect(transitions, [CoreStatus.disconnected]);
+    expect(_crashesOf(container), ['boom']);
     verifyNever(() => coreInterface.stop());
 
     await tester.pumpWidget(const SizedBox());
@@ -204,7 +221,13 @@ void main() {
     tester,
   ) async {
     final coreInterface = _coreInterface();
-    final container = await _pumpCoreManager(tester, coreInterface);
+    final container = await _pumpCoreManager(
+      tester,
+      coreInterface,
+      overrides: [
+        coreActionProvider.overrideWith(_CrashRecordingCoreAction.new),
+      ],
+    );
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
 
@@ -213,6 +236,7 @@ void main() {
 
     expect(container.read(coreStatusProvider), CoreStatus.disconnected);
     expect(find.text('boom'), findsOneWidget);
+    expect(_crashesOf(container), ['boom']);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -221,7 +245,13 @@ void main() {
     tester,
   ) async {
     final coreInterface = _coreInterface();
-    final container = await _pumpCoreManager(tester, coreInterface);
+    final container = await _pumpCoreManager(
+      tester,
+      coreInterface,
+      overrides: [
+        coreActionProvider.overrideWith(_CrashRecordingCoreAction.new),
+      ],
+    );
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
     final transitions = <CoreStatus>[];
@@ -237,6 +267,7 @@ void main() {
     expect(container.read(coreStatusProvider), CoreStatus.connecting);
     expect(transitions, isEmpty);
     expect(find.text('boom'), findsNothing);
+    expect(_crashesOf(container), isEmpty);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -362,7 +393,7 @@ void main() {
         .update((state) => state.copyWith(hosts: const {'a.test': '1.1.1.1'}));
     await tester.pump();
     container
-        .read(patchClashConfigProvider.notifier)
+        .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(testUrl: 'https://probe.test/204'));
     await tester.pump();
 

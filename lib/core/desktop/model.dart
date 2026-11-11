@@ -58,6 +58,10 @@ abstract interface class CoreProcessLease {
 
   int get pid;
 
+  /// The first line of the crash report the Core last wrote, when this side
+  /// can read its output; a Helper keeps that output in its own log.
+  String? get crashHeadline;
+
   Future<CoreProcessStopResult> stop(Duration timeout);
 }
 
@@ -86,6 +90,7 @@ final class DesktopCoreFailure implements Exception {
   final int? pid;
   final int? connectionGeneration;
   final Object? cause;
+  final String? crashHeadline;
   final StackTrace? stackTrace;
 
   const DesktopCoreFailure({
@@ -97,6 +102,7 @@ final class DesktopCoreFailure implements Exception {
     this.pid,
     this.connectionGeneration,
     this.cause,
+    this.crashHeadline,
     this.stackTrace,
   });
 
@@ -104,7 +110,8 @@ final class DesktopCoreFailure implements Exception {
   String toString() {
     return 'DesktopCoreFailure($code, $phase, revision: $revision, '
         'session: $sessionId, owner: $owner, pid: $pid, '
-        'generation: $connectionGeneration, cause: $cause)';
+        'generation: $connectionGeneration, cause: $cause, '
+        'crash: $crashHeadline)';
   }
 }
 
@@ -122,10 +129,7 @@ final class DesktopCoreIdle extends DesktopCoreState {
 }
 
 final class DesktopCoreStarting extends DesktopCoreState {
-  final int revision;
-  final String sessionId;
-
-  const DesktopCoreStarting({required this.revision, required this.sessionId});
+  const DesktopCoreStarting();
 
   @override
   DesktopCorePhase get phase => DesktopCorePhase.starting;
@@ -141,28 +145,21 @@ final class DesktopCoreRunning extends DesktopCoreState {
 }
 
 final class DesktopCoreStopping extends DesktopCoreState {
-  final int revision;
-  final DesktopCoreSession session;
-
-  const DesktopCoreStopping({required this.revision, required this.session});
+  const DesktopCoreStopping();
 
   @override
   DesktopCorePhase get phase => DesktopCorePhase.stopping;
 }
 
 final class DesktopCoreFailed extends DesktopCoreState {
-  final DesktopCoreFailure failure;
-
-  const DesktopCoreFailed(this.failure);
+  const DesktopCoreFailed();
 
   @override
   DesktopCorePhase get phase => DesktopCorePhase.failed;
 }
 
 final class DesktopCoreClosed extends DesktopCoreState {
-  final int revision;
-
-  const DesktopCoreClosed(this.revision);
+  const DesktopCoreClosed();
 
   @override
   DesktopCorePhase get phase => DesktopCorePhase.closed;

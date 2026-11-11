@@ -92,8 +92,8 @@ void main() {
       expect(sweeps.first.timeout, probeTimeoutDuration.inMilliseconds);
       final state = stateOf(scope);
       expect(state.entryOf(ServiceTarget.youtube).phase, ProbePhase.fresh);
-      expect(state.valueOf(ServiceTarget.youtube)?.node, 'HK-01');
-      expect(state.valueOf(ServiceTarget.claude)?.delay, 12);
+      expect(state.entryOf(ServiceTarget.youtube).value?.node, 'HK-01');
+      expect(state.entryOf(ServiceTarget.claude).value?.delay, 12);
     },
   );
 
@@ -144,21 +144,21 @@ void main() {
   test('checks through the direct outbound while the proxy is off', () async {
     final scope = container(proxied: false);
 
-    notifierOf(scope).watch(ServiceTarget.bilibili);
+    notifierOf(scope).watch(ServiceTarget.discord);
     await pumpEventQueue();
 
     expect(sweeps.single.proxyName, directOutbound);
-    expect(sweeps.single.names, ['bilibili']);
+    expect(sweeps.single.names, ['discord']);
   });
 
   test('does not ask the Core before the route has been read', () async {
     final scope = container(synced: false);
 
-    notifierOf(scope).watch(ServiceTarget.bilibili);
+    notifierOf(scope).watch(ServiceTarget.discord);
     await pumpEventQueue();
 
     verifyNever(() => core.serviceCheck(any()));
-    expect(stateOf(scope).isLoading(ServiceTarget.bilibili), isFalse);
+    expect(stateOf(scope).isLoading(ServiceTarget.discord), isFalse);
   });
 
   test('marks a target loading while its check is in flight', () async {
@@ -210,7 +210,7 @@ void main() {
       ['youtube'],
       ['claude'],
     ]);
-    expect(stateOf(scope).valueOf(ServiceTarget.claude), isNotNull);
+    expect(stateOf(scope).entryOf(ServiceTarget.claude).value, isNotNull);
   });
 
   testWidgets(
@@ -249,15 +249,15 @@ void main() {
     final scope = container();
     notifierOf(scope).watch(ServiceTarget.youtube);
     await tester.pump();
-    expect(stateOf(scope).valueOf(ServiceTarget.youtube), isNotNull);
+    expect(stateOf(scope).entryOf(ServiceTarget.youtube).value, isNotNull);
 
     scope.read(routeTrackerProvider.notifier).bumpHostEpoch();
 
-    expect(stateOf(scope).valueOf(ServiceTarget.youtube), isNull);
+    expect(stateOf(scope).entryOf(ServiceTarget.youtube).value, isNull);
     expect(stateOf(scope).isLoading(ServiceTarget.youtube), isTrue);
     await tester.pump(probeSettleDuration);
     expect(sweeps, hasLength(2));
-    expect(stateOf(scope).valueOf(ServiceTarget.youtube), isNotNull);
+    expect(stateOf(scope).entryOf(ServiceTarget.youtube).value, isNotNull);
     await tester.pump(probeThrottleDuration);
   });
 
@@ -298,14 +298,14 @@ void main() {
       final scope = container();
       scope.read(appSettingProvider.notifier).value = const AppSettingProps(
         serviceOrder: ['claude', 'google'],
-        disabledServices: ['github', 'bilibili'],
+        disabledServices: ['github', 'discord'],
       );
 
       expect(scope.read(enabledServiceTargetsProvider).map((t) => t.id), [
         'claude',
         'google',
         for (final target in ServiceTarget.values)
-          if (!['claude', 'google', 'github', 'bilibili'].contains(target.id))
+          if (!['claude', 'google', 'github', 'discord'].contains(target.id))
             target.id,
       ]);
     },

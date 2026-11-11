@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
@@ -64,6 +65,21 @@ class AppPath {
   String get corePath {
     return join(executableDirPath, 'FlClashCore$executableExtension');
   }
+
+  /// TUN elevates a copy outside the app. On macOS, App Management denies
+  /// changing the owner of a file inside a notarized bundle, even to root; on
+  /// Linux, every user of the machine runs the bundled Core, so each gets a
+  /// copy of their own.
+  Future<String> get privilegedCorePath async {
+    final bundle = basename(await homeDirPath);
+    if (Platform.isLinux) {
+      return join('/usr/local/lib', bundle, '$_userId', 'FlClashCore');
+    }
+    return join('/Library/Application Support', bundle, 'FlClashCore');
+  }
+
+  late final int _userId = DynamicLibrary.process()
+      .lookupFunction<Uint32 Function(), int Function()>('getuid')();
 
   String get helperPath {
     return join(executableDirPath, '$appHelperService$executableExtension');
@@ -163,6 +179,9 @@ class AppPath {
     final directory = await _tempDir.value;
     return directory.path;
   }
+
+  // android/app/src/main/res/xml/share_paths.xml lets other apps read here.
+  Future<String> get shareDirPath async => join(await tempPath, 'share');
 }
 
 final appPath = AppPath();

@@ -100,10 +100,11 @@ class _Stat extends StatelessWidget {
     return Expanded(
       child: Semantics(
         button: true,
-        label: feed.page.label,
+        label: feed.label,
         child: FocusRing(
           shape: shape,
           child: InkWell(
+            mouseCursor: clickableCursor,
             customBorder: shape,
             hoverColor: DashboardColors.of(context).tone,
             onTap: () => openDashboardFeed(context, feed),
@@ -115,7 +116,7 @@ class _Stat extends StatelessWidget {
                 children: [
                   count,
                   Text(
-                    feed.page.label,
+                    feed.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: DashboardText.label(context),

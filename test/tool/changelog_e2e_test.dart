@@ -65,6 +65,25 @@ void main() {
     expect(versions.single.date, '2026-01-02');
   });
 
+  test('a fork without the boundary tag starts at the last release commit', () {
+    commit('chore(release): v9.9.9');
+    commit('feat(d): fork feature');
+    final result =
+        ChangelogBuilder(
+          Git(workingDirectory: repo.path),
+          boundary: 'v9.9.9',
+        ).build(
+          pending: const PendingVersion(version: '9.9.10', date: '2026-01-03'),
+        );
+
+    final version = result.changelog.versions.single;
+    final texts = [
+      for (final group in version.groups)
+        for (final entry in group.entries) entry.text,
+    ];
+    expect(texts, ['Fork feature']);
+  });
+
   test('preserves frozen history before the first structured release', () {
     git(['checkout', '--quiet', '--orphan', 'frozen-history']);
     commit('chore: optimize commented policy');

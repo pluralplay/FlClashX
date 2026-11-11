@@ -17,6 +17,10 @@ Future<T> _decodeJSON<T>(String content) async {
   return json.decode(content);
 }
 
+Future<String> encodeJSONTask(Object? data) async {
+  return compute<Object?, String>(json.encode, data);
+}
+
 Future<String> encodeYamlTask<T>(T data) async {
   return compute<T, String>(_encodeYaml, data);
 }
@@ -112,6 +116,17 @@ Future<RealProfile> makeRealProfileTask(MakeRealProfileState data) async {
   return compute<MakeRealProfileState, RealProfile>(_makeRealProfileTask, data);
 }
 
+String _localPath(Object? value) {
+  if (value is! String || value.isEmpty) {
+    return '';
+  }
+  final rooted = value.startsWith('/') || value.startsWith(r'\\');
+  if (rooted || isAbsolute(value) || split(value).contains('..')) {
+    return '';
+  }
+  return value;
+}
+
 Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
   final rawConfig = Map.from(data.rawConfig);
   final realPatchConfig = data.realPatchConfig;
@@ -158,10 +173,8 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
     }
   }
 
-  rawConfig['external-controller'] =
-      data.safeMode || realPatchConfig.secret.isEmpty
-      ? ''
-      : realPatchConfig.externalController.value;
+  final controller = data.safeMode ? '' : realPatchConfig.externalController;
+  rawConfig['external-controller'] = controller;
   rawConfig['secret'] = realPatchConfig.secret;
   // mihomo serves the unix and pipe controllers without a secret, and the unix
   // one unlinks whatever sits at its path before opening it to everyone.
@@ -175,7 +188,15 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
       rawConfig['iptables'] = {'enable': false};
     }
   }
-  rawConfig['external-ui'] = '';
+  var externalUi = controller.isEmpty
+      ? ''
+      : _localPath(rawConfig['external-ui']);
+  if (controller.isNotEmpty && externalUi.isEmpty) {
+    externalUi = defaultExternalUi;
+    rawConfig['external-ui-url'] = defaultExternalUiUrl;
+  }
+  rawConfig['external-ui'] = externalUi;
+  rawConfig['external-ui-name'] = _localPath(rawConfig['external-ui-name']);
   switch (realPatchConfig.interfaceNameMode) {
     case InterfaceNameMode.clear:
       rawConfig['interface-name'] = '';
@@ -184,8 +205,9 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
     case InterfaceNameMode.custom:
       rawConfig['interface-name'] = realPatchConfig.interfaceName;
   }
-  rawConfig['external-ui-url'] = '';
-  rawConfig.addAll(realPatchConfig.generalOverrideJson);
+  rawConfig['tcp-concurrent'] = realPatchConfig.tcpConcurrent;
+  rawConfig['unified-delay'] = realPatchConfig.unifiedDelay;
+  rawConfig['ipv6'] = realPatchConfig.ipv6;
   rawConfig['log-level'] = realPatchConfig.logLevel.name;
   rawConfig['port'] = 0;
   rawConfig['socks-port'] = 0;
@@ -224,6 +246,7 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
     ];
   }
   rawConfig['tun'] = tun;
+  rawConfig['geodata-loader'] = realPatchConfig.geodataLoader.name;
   rawConfig['geo-auto-update'] = realPatchConfig.geoAutoUpdate;
   rawConfig['geo-update-interval'] = realPatchConfig.geoUpdateInterval;
   final snifferOverride = overrides.sniffer.overrideJson(
@@ -496,6 +519,30 @@ Future<MigrationData> _oldToNowTask(
   );
 }
 
+/// FlClashX 0.4 `overrideData`: only an enabled list reaches the profile.
+Map<String, Object?>? _overwriteOfOverrideData(Object? overrideData) {
+  if (overrideData is! Map || overrideData['enable'] != true) {
+    return null;
+  }
+  final rule = overrideData['rule'];
+  if (rule is! Map) {
+    return null;
+  }
+  final rules = rule['type'] == 'override'
+      ? rule['overrideRules']
+      : rule['addedRules'];
+  return {
+    'type': ExtendType.standard.name,
+    'standardOverwrite': {'addedRules': rules is List ? rules : const []},
+  };
+}
+
+bool _isPlainFileName(String name) =>
+    name.isNotEmpty &&
+    name != '.' &&
+    name != '..' &&
+    !name.contains(RegExp(r'[/\\]'));
+
 Future<MigrationData> migrateLegacyConfig({
   required Map<String, Object?> configMap,
   required String sourcePath,
@@ -517,8 +564,19 @@ Future<MigrationData> migrateLegacyConfig({
   configMap['davProps'] = configMap['dav'];
   final appSettingProps =
       configMap['appSetting'] as Map<String, dynamic>? ?? {};
-  appSettingProps['restoreStrategy'] = appSettingProps['recoveryStrategy'];
+  if (appSettingProps['recoveryStrategy'] != null) {
+    appSettingProps['restoreStrategy'] = appSettingProps['recoveryStrategy'];
+  }
   configMap['appSettingProps'] = appSettingProps;
+  // FlClashX 0.4 kept its hero page as a flag; here it is the theme style,
+  // and one without the flag keeps the standard page over the new default.
+  final themeProps = configMap['themeProps'] as Map<String, dynamic>? ?? {};
+  if (appSettingProps['newDashboard'] == true) {
+    themeProps['style'] = ThemeStyle.enhanced.name;
+  } else {
+    themeProps['style'] ??= ThemeStyle.original.name;
+  }
+  configMap['themeProps'] = themeProps;
   configMap['proxiesStyleProps'] = configMap['proxiesStyle'];
   List rawScripts = configMap['scripts'] as List<dynamic>? ?? [];
   if (rawScripts.isEmpty) {
@@ -557,11 +615,18 @@ Future<MigrationData> migrateLegacyConfig({
   final List<Profile> profiles = [];
   for (final rawProfile in rawProfiles) {
     final rawId = rawProfile['id'] as String?;
-    if (rawId == null) {
+    // The id names the profile's file in the backup.
+    if (rawId == null || !_isPlainFileName(rawId)) {
       continue;
     }
     final profileId = idMap.updateCacheValue(rawId, () => snowflake.id);
     rawProfile['id'] = profileId;
+    final legacyOverwrite = _overwriteOfOverrideData(
+      rawProfile['overrideData'],
+    );
+    if (legacyOverwrite != null && rawProfile['overwrite'] == null) {
+      rawProfile['overwrite'] = legacyOverwrite;
+    }
     final overwrite = rawProfile['overwrite'] as Map?;
     if (overwrite != null) {
       final standardOverwrite = overwrite['standardOverwrite'] as Map?;
@@ -603,7 +668,9 @@ Future<MigrationData> migrateLegacyConfig({
       targetPath,
       BackupEntries.profile(profileId),
     );
-    await sourceFile.safeCopy(targetFilePath);
+    if (await sourceFile.exists()) {
+      await sourceFile.safeCopy(targetFilePath);
+    }
     profiles.add(Profile.fromJson(rawProfile));
   }
   final currentProfileId = configMap['currentProfileId'];

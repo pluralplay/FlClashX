@@ -9,6 +9,19 @@ import 'package:material_ui/material_ui.dart';
 import '../../helpers/test_app.dart';
 import '../../helpers/test_profiles.dart';
 
+const _everyCard = [
+  DashboardWidget.currentOutbound,
+  DashboardWidget.networkSpeed,
+  DashboardWidget.outboundMode,
+  DashboardWidget.vpnButton,
+  DashboardWidget.networkTakeover,
+  DashboardWidget.intranetIp,
+  DashboardWidget.serviceStatus,
+  DashboardWidget.profiles,
+  DashboardWidget.proxyGroups,
+  DashboardWidget.connectionStats,
+];
+
 void main() {
   late ProviderContainer container;
 
@@ -51,6 +64,9 @@ void main() {
   testWidgets('the phone cards keep their scroll end while scrolling', (
     tester,
   ) async {
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(dashboardWidgets: _everyCard));
     final position = await pumpDashboard(
       tester,
       const Size(412, 700),

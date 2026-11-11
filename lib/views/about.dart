@@ -6,24 +6,45 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 @immutable
-class Contributor {
+class Person {
+  const Person({required this.avatar, required this.name, this.link});
+
   final String avatar;
   final String name;
-
-  const Contributor({required this.avatar, required this.name});
+  final String? link;
 }
+
+const _forkAuthors = [
+  Person(
+    avatar: 'assets/images/avatar/pluralplay.jpg',
+    name: 'pluralplay',
+    link: 'https://github.com/pluralplay',
+  ),
+];
+
+const _upstreamRepository = 'chen08209/FlClash';
+const _coreRepository = 'MetaCubeX/mihomo';
+const _telegram = 'https://t.me/flclashx';
+
+/// The running core's version when it answers, else the one this build was
+/// made with, else nothing.
+final coreVersionProvider = FutureProvider.autoDispose<String?>((ref) async {
+  String live = '';
+  if (ref.watch(coreStatusProvider) == CoreStatus.connected) {
+    try {
+      live = await ref.read(coreHandlerProvider).getCoreVersion();
+    } catch (_) {}
+  }
+  final version = live.isNotEmpty ? live : coreVersionDefine;
+  return version.isEmpty ? null : version;
+});
 
 class AboutView extends ConsumerWidget {
   const AboutView({super.key});
-
-  static const _contributors = [
-    Contributor(avatar: 'assets/images/avatar/june2.jpg', name: 'June2'),
-    Contributor(avatar: 'assets/images/avatar/arue.jpg', name: 'Arue'),
-  ];
 
   Future<void> _checkUpdate(BuildContext context, WidgetRef ref) async {
     if (ref.read(loadingProvider(LoadingTag.checkUpdate))) return;
@@ -83,6 +104,7 @@ class AboutView extends ConsumerWidget {
                 level: MessageLevel.success,
               );
             },
+            onEasterEgg: () => _showEasterEgg(context),
           ),
           const SizedBox(height: 8),
           generateSection(
@@ -95,65 +117,83 @@ class AboutView extends ConsumerWidget {
                 label: 'github.com/$repository',
               ),
               _buildLinkItem(
+                glyph: AppGlyphs.link,
+                title: appLocalizations.originalRepository,
+                url: 'https://github.com/$_upstreamRepository',
+                label: 'github.com/$_upstreamRepository',
+              ),
+              _buildLinkItem(
                 glyph: AppGlyphs.cpu,
                 title: appLocalizations.core,
-                url: 'https://github.com/chen08209/Clash.Meta/tree/FlClash',
-                label: 'github.com/chen08209/Clash.Meta',
+                url: 'https://github.com/$_coreRepository',
+                label: 'github.com/$_coreRepository',
               ),
               _buildLinkItem(
                 glyph: AppGlyphs.send,
                 title: 'Telegram',
-                url: 'https://t.me/FlClash',
-                label: 't.me/FlClash',
+                url: _telegram,
+                label: 't.me/flclashx',
               ),
             ],
           ),
           generateSection(
-            title: appLocalizations.otherContributors,
-            items: [
-              for (final contributor in _contributors)
-                ListItem(
-                  leading: CircleAvatar(
-                    foregroundImage: AssetImage(contributor.avatar),
-                  ),
-                  title: Text(contributor.name),
-                  subtitle: Text(appLocalizations.appIconDesign),
-                ),
-            ],
+            title: appLocalizations.forkAuthor,
+            items: const [_PeopleRow(people: _forkAuthors)],
           ),
         ],
       ),
     );
   }
+
+  void _showEasterEgg(BuildContext context) {
+    dialogs
+        .showMessage(
+          context: context,
+          title: 'REMNAFAMILY ONE LOVE',
+          message: const TextSpan(text: '❤️  TRY REMNAWAVE  ❤️'),
+          confirmText: 'docs.rw',
+          cancelable: true,
+        )
+        .then((open) {
+          if (open == true) {
+            dialogs.openUrl('https://docs.rw');
+          }
+        });
+  }
 }
 
-class _AboutHero extends StatelessWidget {
+class _AboutHero extends ConsumerWidget {
   final bool isCheckingUpdate;
   final VoidCallback onCheckUpdate;
   final VoidCallback onEnterDeveloperMode;
+  final VoidCallback onEasterEgg;
 
   const _AboutHero({
     required this.isCheckingUpdate,
     required this.onCheckUpdate,
     required this.onEnterDeveloperMode,
+    required this.onEasterEgg,
   });
 
   static const _logoSize = 96.0;
   static const _logoInset = 14.0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = context.colorScheme;
     final appLocalizations = context.appLocalizations;
+    final coreVersion = ref.watch(coreVersionProvider).value;
+    final raised = context.raisedSurfaceLevel.colorOf(colorScheme);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       child: Column(
         children: [
-          _DeveloperModeDetector(
+          _TapCounter(
             onEnterDeveloperMode: onEnterDeveloperMode,
+            onEasterEgg: onEasterEgg,
             child: DecoratedBox(
               decoration: ShapeDecoration(
-                color: context.raisedSurfaceLevel.colorOf(colorScheme),
+                color: raised,
                 shape: AppShape.all(AppCorner.fit(_logoSize)),
               ),
               child: Padding(
@@ -178,13 +218,19 @@ class _AboutHero extends StatelessWidget {
             alignment: WrapAlignment.center,
             children: [
               _Pill(
-                label: 'v${globalState.packageInfo.version}',
+                label: 'v${globalState.packageInfo.displayVersion}',
                 color: colorScheme.primary,
                 foregroundColor: colorScheme.onPrimary,
               ),
+              if (coreVersion != null)
+                _Pill(
+                  label: 'core: $coreVersion',
+                  color: colorScheme.secondaryContainer,
+                  foregroundColor: colorScheme.onSecondaryContainer,
+                ),
               _Pill(
                 label: 'GPL-3.0',
-                color: context.raisedSurfaceLevel.colorOf(colorScheme),
+                color: raised,
                 foregroundColor: colorScheme.onSurfaceVariant,
               ),
             ],
@@ -268,32 +314,107 @@ class _LinkBadge extends StatelessWidget {
   }
 }
 
-class _DeveloperModeDetector extends StatefulWidget {
+/// A row of avatars with names under them; a person with a link opens it.
+class _PeopleRow extends StatelessWidget {
+  const _PeopleRow({required this.people});
+
+  static const _avatarSize = 56.0;
+
+  final List<Person> people;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListItem(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      title: Wrap(
+        spacing: 16,
+        runSpacing: 12,
+        children: [
+          for (final person in people)
+            _Avatar(person: person, size: _avatarSize),
+        ],
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.person, required this.size});
+
+  final Person person;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final link = person.link;
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: size / 2,
+          foregroundImage: AssetImage(person.avatar),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          person.name,
+          style: AppTextStyle.caption1.of(context, emphasized: link != null),
+        ),
+      ],
+    );
+    if (link == null) {
+      return column;
+    }
+    return Tooltip(
+      message: link,
+      child: FocusRing(
+        shape: AppShape.md,
+        standsOff: true,
+        child: InkWell(
+          mouseCursor: clickableCursor,
+          customBorder: AppShape.md,
+          onTap: () => dialogs.openUrl(link),
+          child: Padding(padding: const EdgeInsets.all(4), child: column),
+        ),
+      ),
+    );
+  }
+}
+
+/// Five taps on the logo open developer mode; ten in a row find the egg.
+class _TapCounter extends StatefulWidget {
   final Widget child;
   final VoidCallback onEnterDeveloperMode;
+  final VoidCallback onEasterEgg;
 
-  const _DeveloperModeDetector({
+  const _TapCounter({
     required this.child,
     required this.onEnterDeveloperMode,
+    required this.onEasterEgg,
   });
 
   @override
-  State<_DeveloperModeDetector> createState() => _DeveloperModeDetectorState();
+  State<_TapCounter> createState() => _TapCounterState();
 }
 
-class _DeveloperModeDetectorState extends State<_DeveloperModeDetector> {
+class _TapCounterState extends State<_TapCounter> {
+  static const _developerTaps = 5;
+  static const _easterEggTaps = 10;
+
   int _counter = 0;
   Timer? _timer;
 
   void _handleTap() {
     _counter++;
-    if (_counter >= 5) {
+    _timer?.cancel();
+    if (_counter == _developerTaps) {
       widget.onEnterDeveloperMode();
-      _resetCounter();
-    } else {
-      _timer?.cancel();
-      _timer = Timer(const Duration(seconds: 1), _resetCounter);
     }
+    if (_counter >= _easterEggTaps) {
+      widget.onEasterEgg();
+      _resetCounter();
+      return;
+    }
+    _timer = Timer(const Duration(seconds: 1), _resetCounter);
   }
 
   void _resetCounter() {
@@ -310,6 +431,9 @@ class _DeveloperModeDetectorState extends State<_DeveloperModeDetector> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(onTap: _handleTap, child: widget.child);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: _handleTap, child: widget.child),
+    );
   }
 }

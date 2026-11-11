@@ -1,7 +1,10 @@
 package core
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/metacubex/mihomo/constant"
 	cp "github.com/metacubex/mihomo/constant/provider"
 	rp "github.com/metacubex/mihomo/rules/provider"
@@ -240,5 +244,70 @@ func TestHandleCompileRuleSetReportsAFailedRequest(t *testing.T) {
 	}
 	if details, _ := methodErr.Details.(map[string]any); details["statusCode"] != http.StatusNotFound {
 		t.Fatalf("details = %v, want the status code", methodErr.Details)
+	}
+}
+
+func TestAnMrsDeclaringMoreThanItHoldsIsRefusedBeforeItIsRead(t *testing.T) {
+	var ranges strings.Builder
+	if err := rp.ConvertToMrs([]byte("10.0.0.0/8\n"), cp.IPCIDR, cp.TextRule, &ranges); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkMrs([]byte(ranges.String()), cp.IPCIDR); err != nil {
+		t.Fatalf("a real ipcidr mrs was refused: %v", err)
+	}
+	var domains strings.Builder
+	if err := rp.ConvertToMrs([]byte("example.com\n"), cp.Domain, cp.TextRule, &domains); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkMrs([]byte(domains.String()), cp.Domain); err != nil {
+		t.Fatalf("a real domain mrs was refused: %v", err)
+	}
+
+	// A header asking for a terabyte of reserved data the file does not hold.
+	var plain bytes.Buffer
+	plain.Write(rp.MrsMagicBytes[:])
+	plain.WriteByte(cp.IPCIDR.Byte())
+	_ = binary.Write(&plain, binary.BigEndian, int64(1))
+	_ = binary.Write(&plain, binary.BigEndian, int64(1)<<40)
+	var packed bytes.Buffer
+	encoder, err := zstd.NewWriter(&packed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = encoder.Write(plain.Bytes())
+	_ = encoder.Close()
+
+	if _, _, err := compileRuleSet(packed.Bytes(), false); !errors.Is(err, errRuleSetInvalid) {
+		t.Fatalf("err = %v, want the mrs refused", err)
+	}
+}
+
+func TestAnMrsFrameAskingForAWindowPastTheBoundIsRefused(t *testing.T) {
+	var ranges strings.Builder
+	if err := rp.ConvertToMrs([]byte("10.0.0.0/8\n"), cp.IPCIDR, cp.TextRule, &ranges); err != nil {
+		t.Fatal(err)
+	}
+	decoder, err := zstd.NewReader(strings.NewReader(ranges.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := io.ReadAll(decoder)
+	decoder.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := maxMrsSize
+	maxMrsSize = 64 << 10
+	t.Cleanup(func() { maxMrsSize = previous })
+
+	// A frame declaring a 1 MiB window around one raw block of the real file.
+	frame := append([]byte{}, zstdMagic...)
+	frame = append(frame, 0x00, 10<<3)
+	block := uint32(1 | len(plain)<<3)
+	frame = append(frame, byte(block), byte(block>>8), byte(block>>16))
+	frame = append(frame, plain...)
+
+	if err := checkMrs(frame, cp.IPCIDR); err == nil {
+		t.Fatal("a window past the bound was decoded")
 	}
 }

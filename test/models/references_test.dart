@@ -4,7 +4,11 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:test/test.dart';
 
-final _source = File('core/Clash.Meta/config/config.go').readAsStringSync();
+import '../helpers/mihomo_source.dart';
+
+final _source = File(
+  '${mihomoSourceDir()}/config/config.go',
+).readAsStringSync();
 
 List<String> _firstArguments(String function) => [
   for (final match in RegExp(
@@ -173,6 +177,20 @@ void main() {
       expect(renamed.dnsProxies, {'New, Proxy;1'});
       expect(renamed.renamedProxies({'New, Proxy;1': 'Old'}), overrides);
     });
+
+    test(
+      'a proxy named past an encoded & is renamed where mihomo reads it',
+      () {
+        const server = 'https://1.1.1.1/dns-query#ecs=1.2.3.4/24%26Old';
+        const unrelated = 'https://1.1.1.1/dns-query#ecs=1.2.3.4%2F24%26Kept';
+
+        final renamed = renamedDnsServer(server, {'Old': 'New 1'});
+
+        expect(dnsServerProxies(renamed), ['New 1']);
+        expect(renamed, 'https://1.1.1.1/dns-query#ecs=1.2.3.4/24&New%201');
+        expect(renamedDnsServer(unrelated, {'Old': 'New'}), unrelated);
+      },
+    );
 
     test('a server written to the profile but turned off names nothing', () {
       final overrides = _serverSites['cfg.NameServer']!;

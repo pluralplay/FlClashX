@@ -29,5 +29,9 @@ abstract mixin class WindowListener {
 
   void onWindowActivate() {}
 
+  /// macOS: the zoom button was pressed; the window neither zooms nor goes
+  /// full screen on its own.
+  void onWindowZoom() {}
+
   void onWindowEvent(WindowEvent event) {}
 }

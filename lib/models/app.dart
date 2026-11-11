@@ -37,9 +37,3 @@ abstract class AppState with _$AppState {
     @Default(CoreStatus.connecting) CoreStatus coreStatus,
   }) = _AppState;
 }
-
-extension AppStateExt on AppState {
-  ViewMode get viewMode => getViewMode(viewSize.width);
-
-  bool get isStart => runTime != null;
-}

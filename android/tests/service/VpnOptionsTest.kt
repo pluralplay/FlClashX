@@ -1,10 +1,13 @@
-package com.follow.clash.service.models
+package com.follow.clashx.service.models
 
-import com.follow.clash.common.AccessControlMode
+import com.follow.clashx.common.AccessControlMode
+import com.google.gson.Gson
 import com.google.gson.JsonParser
 import java.net.Inet4Address
 import java.net.Inet6Address
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -141,6 +144,46 @@ class RouteAddressTest {
         assertThrows(IllegalArgumentException::class.java) {
             options.getIpv4RouteAddress()
         }
+    }
+}
+
+class RoutePlanTest {
+    @Test
+    fun `an empty route list routes both families by default`() {
+        val options = optionsWithRoutes(emptyList())
+
+        assertNull(options.ipv4Routes())
+        assertNull(options.ipv6Routes())
+    }
+
+    @Test
+    fun `an empty route list that exclusions emptied routes nothing`() {
+        val options = optionsWithRoutes(emptyList()).copy(excludesAllRoutes = true)
+
+        assertEquals(emptyList<CIDR>(), options.ipv4Routes())
+        assertEquals(emptyList<CIDR>(), options.ipv6Routes())
+    }
+
+    @Test
+    fun `a family missing from a listed route list gets no route`() {
+        val options = optionsWithRoutes(listOf("10.0.0.0/8"))
+
+        assertEquals(listOf("10.0.0.0/8".toCIDR()), options.ipv4Routes())
+        assertEquals(emptyList<CIDR>(), options.ipv6Routes())
+    }
+
+    @Test
+    fun `a route list that does not parse falls back to the default route`() {
+        assertNull(optionsWithRoutes(listOf("10.0.0.0")).ipv4Routes())
+    }
+
+    @Test
+    fun `options saved before the flag existed keep the default route`() {
+        val saved = Gson().toJson(optionsWithRoutes(emptyList()))
+            .replace(",\"excludesAllRoutes\":false", "")
+
+        assertFalse(saved.contains("excludesAllRoutes"))
+        assertNull(Gson().fromJson(saved, VpnOptions::class.java).ipv4Routes())
     }
 }
 

@@ -9,6 +9,7 @@ class _RecordingListener with CoreEventListener {
   final void Function()? onLoadedCallback;
   final List<String> loaded = [];
   final List<String> dialerLoops = [];
+  int tunFailures = 0;
   final List<Map<String, RequestTraffic>> requestTraffic = [];
 
   @override
@@ -20,6 +21,11 @@ class _RecordingListener with CoreEventListener {
   @override
   void onDialerLoop(String proxyName) {
     dialerLoops.add(proxyName);
+  }
+
+  @override
+  void onTunFailed() {
+    tunFailures++;
   }
 
   @override
@@ -75,6 +81,20 @@ void main() {
     await pumpEventQueue();
 
     expect(listener.dialerLoops, ['Front']);
+  });
+
+  test('a TUN the core could not open reaches the listeners', () async {
+    final listener = _RecordingListener();
+    coreEventManager.addListener(listener);
+    addTearDown(() => coreEventManager.removeListener(listener));
+
+    coreEventsFromData({
+      'type': 'tunFailed',
+      'data': null,
+    }).forEach(coreEventManager.sendEvent);
+    await pumpEventQueue();
+
+    expect(listener.tunFailures, 1);
   });
 
   test('the traffic of requests reaches the listeners by id', () async {

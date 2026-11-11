@@ -156,11 +156,14 @@ void main() {
     );
     await tester.pump();
 
-    final rule = tester.getCenter(find.text('DOMAIN-SUFFIX(example.com)'));
+    final rule = tester.getCenter(find.text('DOMAIN-SUFFIX'));
+    final payload = tester.getCenter(find.text('example.com'));
     final group = tester.getCenter(find.text('Group'));
     final node = tester.getCenter(find.text('Node'));
-    expect(rule.dx, lessThan(group.dx));
+    expect(rule.dx, lessThan(payload.dx));
+    expect(payload.dx, lessThan(group.dx));
     expect(group.dx, lessThan(node.dx));
+    expect(find.text('E'), findsOneWidget, reason: 'the host letter avatar');
     expect(find.text('example.com:443  5.6.7.8'), findsOneWidget);
     expect(find.text('chrome(1000)  ·  1.2.3.4:8080'), findsOneWidget);
     expect(tester.takeException(), isNull);

@@ -11,7 +11,7 @@ _SubscriptionInfo _$SubscriptionInfoFromJson(Map<String, dynamic> json) =>
       upload: (json['upload'] as num?)?.toInt() ?? 0,
       download: (json['download'] as num?)?.toInt() ?? 0,
       total: (json['total'] as num?)?.toInt() ?? 0,
-      expire: (json['expire'] as num?)?.toInt() ?? 0,
+      expire: json['expire'] == null ? 0 : _validExpire(json['expire'] as num),
     );
 
 Map<String, dynamic> _$SubscriptionInfoToJson(_SubscriptionInfo instance) =>
@@ -62,6 +62,12 @@ _Profile _$ProfileFromJson(Map<String, dynamic> json) => _Profile(
       : ProfileOverrides.safeFromJson(
           json['overrides'] as Map<String, Object?>,
         ),
+  providerHeaders:
+      (json['providerHeaders'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, e as String),
+      ) ??
+      const {},
+  sendDeviceHeaders: json['sendDeviceHeaders'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$ProfileToJson(_Profile instance) => <String, dynamic>{
@@ -82,6 +88,8 @@ Map<String, dynamic> _$ProfileToJson(_Profile instance) => <String, dynamic>{
   'matchTarget': instance.matchTarget,
   'order': instance.order,
   'overrides': instance.overrides,
+  'providerHeaders': instance.providerHeaders,
+  'sendDeviceHeaders': instance.sendDeviceHeaders,
 };
 
 const _$ProfileTypeEnumMap = {

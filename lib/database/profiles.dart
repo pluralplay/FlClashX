@@ -41,6 +41,12 @@ class Profiles extends Table {
   TextColumn get overrides =>
       text().map(const ProfileOverridesConverter()).nullable()();
 
+  TextColumn get providerHeaders =>
+      text().map(const StringMapConverter()).nullable()();
+
+  BoolColumn get sendDeviceHeaders =>
+      boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -109,12 +115,6 @@ class ProfilesDao extends DatabaseAccessor<Database> with _$ProfilesDaoMixin {
     _ => a.id.compareTo(b.id),
   };
 
-  Future<void> setAll(Iterable<Profile> profiles) async {
-    await batch((b) async {
-      setAllWithBatch(b, profiles);
-    });
-  }
-
   Future<void> putAll<T extends Table, D extends DataClass>(
     Iterable<Insertable<D>> items,
   ) async {
@@ -145,8 +145,6 @@ class ProfilesDao extends DatabaseAccessor<Database> with _$ProfilesDaoMixin {
   Future<Profile?> get(int id) => profiles
       .readable((row) => row.toProfile(), where: (t) => t.id.equals(id))
       .getSingleOrNull();
-
-  Selectable<String> fileNames() => ids().map((id) => '$id.yaml');
 
   void setAllWithBatch(Batch batch, Iterable<Profile> profiles) {
     final List<ProfilesCompanion> items = [];
@@ -180,6 +178,8 @@ extension RawProfilExt on RawProfile {
       matchTarget: matchTarget,
       order: order,
       overrides: overrides ?? const ProfileOverrides(),
+      providerHeaders: providerHeaders ?? const {},
+      sendDeviceHeaders: sendDeviceHeaders,
     );
   }
 }
@@ -204,6 +204,8 @@ extension ProfilesCompanionExt on Profile {
       matchTarget: Value(matchTarget),
       order: Value(order ?? this.order),
       overrides: Value(overrides),
+      providerHeaders: Value(providerHeaders.isEmpty ? null : providerHeaders),
+      sendDeviceHeaders: Value(sendDeviceHeaders),
     );
   }
 }

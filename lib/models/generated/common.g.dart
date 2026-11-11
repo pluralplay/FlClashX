@@ -197,20 +197,24 @@ _Group _$GroupFromJson(Map<String, dynamic> json) => _Group(
           .toList() ??
       const [],
   now: json['now'] as String?,
+  fixed: json['fixed'] as String?,
   hidden: json['hidden'] as bool?,
   testUrl: json['testUrl'] as String?,
   icon: json['icon'] as String? ?? '',
   name: json['name'] as String,
+  serverDescription: json['serverDescription'] as String?,
 );
 
 Map<String, dynamic> _$GroupToJson(_Group instance) => <String, dynamic>{
   'type': _$GroupTypeEnumMap[instance.type]!,
   'all': instance.all,
   'now': instance.now,
+  'fixed': instance.fixed,
   'hidden': instance.hidden,
   'testUrl': instance.testUrl,
   'icon': instance.icon,
   'name': instance.name,
+  'serverDescription': instance.serverDescription,
 };
 
 const _$GroupTypeEnumMap = {

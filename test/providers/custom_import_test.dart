@@ -459,6 +459,27 @@ ntp: {enable: true, dialer-proxy: Auto}
       expect(config.overrides.ntp.dialerProxy, 'Auto-01');
     });
 
+    test('points a group\'s selection and fallback at a moved proxy', () {
+      final config = _read(
+        '''
+proxies:
+  - {name: HK, type: ss, server: new.example.com, port: 443}
+proxy-groups:
+  - {name: Proxy, type: select, proxies: [HK], default-selected: HK, empty-fallback: HK}
+''',
+        _app(
+          proxies: [
+            {'name': 'HK', 'type': 'ss', 'server': 'old.example.com'},
+          ],
+        ),
+      );
+
+      final group = config.proxyGroups.single;
+      expect(group.proxies, ['HK-01']);
+      expect(group.defaultSelected, 'HK-01');
+      expect(group.emptyFallback, 'HK-01');
+    });
+
     test('moves a proxy, not a group, off another profile\'s groups', () {
       final config = _read('''
 proxies:

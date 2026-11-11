@@ -55,14 +55,12 @@ void main() {
       final profiles = await database.profilesDao.query().get();
       expect(profiles.map((profile) => profile.id), [2, 1]);
       expect(profiles.last, first);
-      expect(await database.profilesDao.fileNames().get(), [
-        '1.yaml',
-        '2.yaml',
-      ]);
       expect(await database.profiles.count.getSingle(), 2);
 
       final replacement = first.copyWith(label: 'Replaced', order: 0);
-      await database.profilesDao.setAll([replacement]);
+      await database.batch(
+        (b) => database.profilesDao.setAllWithBatch(b, [replacement]),
+      );
 
       expect(await database.profilesDao.query().get(), [replacement]);
       expect(await database.profiles.remove((table) => table.id.equals(1)), 1);
@@ -299,14 +297,15 @@ void main() {
 
       await database.scripts.put(first.toCompanion());
       expect(await database.scriptsDao.get(10).getSingle(), first);
-      expect(await database.scriptsDao.fileNames().get(), ['10.js']);
 
       await database.scripts.put(
         first.copyWith(label: 'Updated').toCompanion(),
       );
       expect((await database.scriptsDao.get(10).getSingle()).label, 'Updated');
 
-      await database.scriptsDao.setAll([second]);
+      await database.batch(
+        (b) => database.scriptsDao.setAllWithBatch(b, [second]),
+      );
       expect(await database.scriptsDao.query().get(), [second]);
       expect(await database.scriptsDao.get(10).getSingleOrNull(), null);
     },
@@ -442,8 +441,8 @@ void main() {
         ruleSet.copyWith(profileId: profile.id),
       ]);
       expect(
-        await database.rulesDao.profileRulesCount(profile.id).getSingle(),
-        2,
+        await database.rulesDao.queryProfileRules(profile.id).get(),
+        hasLength(2),
       );
       expect(
         (await database.rulesDao.queryAddedRules(profile.id).get()).map(
@@ -545,8 +544,8 @@ void main() {
     await database.rulesDao.delRules(rules.map((rule) => rule.id));
 
     expect(
-      await database.rulesDao.profileRulesCount(profile.id).getSingle(),
-      0,
+      await database.rulesDao.queryProfileRules(profile.id).get(),
+      isEmpty,
     );
   });
 
@@ -873,8 +872,8 @@ void main() {
       );
 
       expect(
-        await database.rulesDao.profileRulesCount(profile.id).getSingle(),
-        rules.length,
+        await database.rulesDao.queryProfileRules(profile.id).get(),
+        hasLength(rules.length),
       );
       expect(await database.rules.count.getSingle(), rules.length);
     },
@@ -1088,11 +1087,7 @@ void main() {
 
       final before = await database.iconRecordsDao.query('example.com');
       expect(before.map((record) => record.url), ['https://example.com/a.png']);
-      final record = await database.iconRecordsDao.get(
-        'https://example.com/a.png',
-      );
-      expect(record?.url, 'https://example.com/a.png');
-      expect(await database.iconRecordsDao.get('missing'), null);
+      expect(await database.iconRecordsDao.query('missing'), isEmpty);
       expect(await database.iconRecords.count.getSingle(), 2);
 
       await database.iconRecordsDao.del('https://example.com/a.png');
@@ -1135,12 +1130,12 @@ void main() {
     const maxAge = Duration(days: 3);
     const stale = IpQuality(
       ip: '203.0.113.1',
-      source: IpQualitySource.ipLocate,
+      source: IpQualitySource.ipInfo,
       type: IpType.hosting,
     );
     const current = IpQuality(
       ip: '203.0.113.2',
-      source: IpQualitySource.ipLocate,
+      source: IpQualitySource.ipInfo,
       type: IpType.residential,
       organization: 'Example Broadband',
       asn: 64500,

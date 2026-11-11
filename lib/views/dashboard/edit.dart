@@ -100,23 +100,25 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
         .read(appSettingProvider.notifier)
         .update(
           (state) => state.copyWith(
-            dashboardWidgets: _keepingOtherPlatforms(
-              state.dashboardWidgets,
-              shown,
-            ),
+            dashboardWidgets: _keepingHidden(state.dashboardWidgets, shown),
           ),
         );
   }
 
-  /// Cards this platform cannot show stay where they were among the rest.
-  List<DashboardWidget> _keepingOtherPlatforms(
+  /// Cards not shown here, for another platform or an announcement the
+  /// subscription stopped sending, stay where they were among the rest.
+  List<DashboardWidget> _keepingHidden(
     List<DashboardWidget> saved,
     List<DashboardWidget> shown,
   ) {
     final result = [...shown];
     var at = 0;
     for (final card in saved) {
-      if (card.platforms.contains(widget.platform)) {
+      final hidden =
+          !card.platforms.contains(widget.platform) ||
+          card == DashboardWidget.announcement &&
+              !widget.widgets.contains(card);
+      if (!hidden) {
         final index = result.indexOf(card);
         if (index != -1) at = index + 1;
       } else {
@@ -159,7 +161,9 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
     final shown = _shown;
     final addable = [
       for (final card in DashboardWidget.values)
-        if (card.platforms.contains(widget.platform) && !shown.contains(card))
+        if (card.removable &&
+            card.platforms.contains(widget.platform) &&
+            !shown.contains(card))
           card,
     ];
     final scale = DashboardDensityScope.scaleOf(context);

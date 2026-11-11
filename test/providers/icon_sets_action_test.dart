@@ -36,7 +36,7 @@ void main() {
     await AppLocalizations.load(const Locale('en'));
     globalState.packageInfo = PackageInfo(
       appName: 'FlClash',
-      packageName: 'com.follow.clash',
+      packageName: 'com.follow.clashx',
       version: '1.0.0',
       buildNumber: '1',
     );
@@ -58,7 +58,11 @@ void main() {
   setUp(() {
     final bindingOverrides = HttpOverrides.current;
     HttpOverrides.global = null;
-    addTearDown(() => HttpOverrides.global = bindingOverrides);
+    request.resetClient();
+    addTearDown(() {
+      HttpOverrides.global = bindingOverrides;
+      request.resetClient();
+    });
     held = null;
     testDatabase = db.Database(NativeDatabase.memory());
     db.database = testDatabase;

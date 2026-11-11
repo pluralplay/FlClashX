@@ -405,6 +405,72 @@ void main() {
     expect(tester.widget(card), same(before));
   });
 
+  testWidgets('a reorder leaves the focus on the proxy that had it', (
+    tester,
+  ) async {
+    Group ordered(List<int> order) => Group(
+      type: GroupType.Selector,
+      name: 'B',
+      all: [for (final i in order) Proxy(name: 'B-$i', type: 'ss')],
+    );
+    final state = _tabState([
+      _group('A'),
+      ordered([0, 1, 2]),
+    ]);
+    globalContainer.read(_tabStateProvider.notifier).set(state);
+    await pumpTabView(tester);
+    Focus.of(tester.element(find.text('B-0'))).requestFocus();
+    await tester.pump();
+
+    globalContainer
+        .read(_tabStateProvider.notifier)
+        .set(
+          _tabState([
+            _group('A'),
+            ordered([1, 0, 2]),
+          ]),
+        );
+    await tester.pump();
+
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(
+      focused.findAncestorWidgetOfExactType<ProxyCard>()?.proxy.name,
+      'B-0',
+    );
+  });
+
+  testWidgets('a group listing a proxy twice keeps every card across a '
+      'reorder', (tester) async {
+    Group listed(List<int> order) => Group(
+      type: GroupType.Selector,
+      name: 'B',
+      all: [for (final i in order) Proxy(name: 'B-$i', type: 'ss')],
+    );
+    globalContainer
+        .read(_tabStateProvider.notifier)
+        .set(
+          _tabState([
+            _group('A'),
+            listed([0, 1, 0]),
+          ]),
+        );
+    await pumpTabView(tester);
+
+    globalContainer
+        .read(_tabStateProvider.notifier)
+        .set(
+          _tabState([
+            _group('A'),
+            listed([1, 0, 0]),
+          ]),
+        );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProxyCard), findsNWidgets(3));
+    expect(find.text('B-0'), findsNWidgets(2));
+  });
+
   testWidgets('lays each tab out at the width its label takes', (tester) async {
     const names = ['A', '🚀 节点选择', 'Group with a long name'];
     globalContainer

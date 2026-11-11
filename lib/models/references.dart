@@ -72,16 +72,16 @@ String renamedDnsServer(String server, Map<String, String> names) {
   if (hash < 0) {
     return head;
   }
-  final parts = [
-    for (final part in server.substring(hash + 1).split('&'))
-      part.contains('=')
-          ? part
-          : switch (names[_decodedOrSelf(part)]) {
-              final String name => _fragmentName(name),
-              null => part,
-            },
+  // Split as dnsServerProxies reads it, so `%26Old` is renamed too.
+  final fragment = server.substring(hash + 1);
+  final parts = _decodedOrSelf(fragment).split('&');
+  final renamed = [
+    for (final part in parts) part.contains('=') ? part : names[part] ?? part,
   ];
-  return '$head#${parts.join('&')}';
+  if (const ListEquality<String>().equals(parts, renamed)) {
+    return '$head#$fragment';
+  }
+  return '$head#${renamed.map(_fragmentName).join('&')}';
 }
 
 List<String> _policyServers(String value) =>

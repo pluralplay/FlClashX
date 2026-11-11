@@ -3742,7 +3742,7 @@ as String,
 /// @nodoc
 mixin _$Group {
 
-@JsonKey(fromJson: GroupType.parse) GroupType get type; List<Proxy> get all; String? get now; bool? get hidden; String? get testUrl; String get icon; String get name;
+@JsonKey(fromJson: GroupType.parse) GroupType get type; List<Proxy> get all; String? get now; String? get fixed; bool? get hidden; String? get testUrl; String get icon; String get name; String? get serverDescription;
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -3756,20 +3756,20 @@ $GroupCopyWith<Group> get copyWith => _$GroupCopyWithImpl<Group>(this as Group, 
 @override
 bool operator ==(Object other) {
   final _this = this as Group;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Group&&(identical(other.type, _this.type) || other.type == _this.type)&&const DeepCollectionEquality().equals(other.all, _this.all)&&(identical(other.now, _this.now) || other.now == _this.now)&&(identical(other.hidden, _this.hidden) || other.hidden == _this.hidden)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.name, _this.name) || other.name == _this.name));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Group&&(identical(other.type, _this.type) || other.type == _this.type)&&const DeepCollectionEquality().equals(other.all, _this.all)&&(identical(other.now, _this.now) || other.now == _this.now)&&(identical(other.fixed, _this.fixed) || other.fixed == _this.fixed)&&(identical(other.hidden, _this.hidden) || other.hidden == _this.hidden)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.serverDescription, _this.serverDescription) || other.serverDescription == _this.serverDescription));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Group;
-  return Object.hash(runtimeType,_this.type,const DeepCollectionEquality().hash(_this.all),_this.now,_this.hidden,_this.testUrl,_this.icon,_this.name);
+  return Object.hash(runtimeType,_this.type,const DeepCollectionEquality().hash(_this.all),_this.now,_this.fixed,_this.hidden,_this.testUrl,_this.icon,_this.name,_this.serverDescription);
 }
 
 @override
 String toString() {
   final _this = this as Group;
-  return 'Group(type: ${_this.type}, all: ${_this.all}, now: ${_this.now}, hidden: ${_this.hidden}, testUrl: ${_this.testUrl}, icon: ${_this.icon}, name: ${_this.name})';
+  return 'Group(type: ${_this.type}, all: ${_this.all}, now: ${_this.now}, fixed: ${_this.fixed}, hidden: ${_this.hidden}, testUrl: ${_this.testUrl}, icon: ${_this.icon}, name: ${_this.name}, serverDescription: ${_this.serverDescription})';
 }
 
 
@@ -3780,7 +3780,7 @@ abstract mixin class $GroupCopyWith<$Res>  {
   factory $GroupCopyWith(Group value, $Res Function(Group) _then) = _$GroupCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, bool? hidden, String? testUrl, String icon, String name
+@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, String? fixed, bool? hidden, String? testUrl, String icon, String name, String? serverDescription
 });
 
 
@@ -3797,16 +3797,18 @@ class _$GroupCopyWithImpl<$Res>
 
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? fixed = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,Object? serverDescription = freezed,}) {
   return _then(Group(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as GroupType,all: null == all ? _self.all : all // ignore: cast_nullable_to_non_nullable
 as List<Proxy>,now: freezed == now ? _self.now : now // ignore: cast_nullable_to_non_nullable
+as String?,fixed: freezed == fixed ? _self.fixed : fixed // ignore: cast_nullable_to_non_nullable
 as String?,hidden: freezed == hidden ? _self.hidden : hidden // ignore: cast_nullable_to_non_nullable
 as bool?,testUrl: freezed == testUrl ? _self.testUrl : testUrl // ignore: cast_nullable_to_non_nullable
 as String?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,
+as String,serverDescription: freezed == serverDescription ? _self.serverDescription : serverDescription // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -3891,10 +3893,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  bool? hidden,  String? testUrl,  String icon,  String name)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Group() when $default != null:
-return $default(_that.type,_that.all,_that.now,_that.hidden,_that.testUrl,_that.icon,_that.name);case _:
+return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription);case _:
   return orElse();
 
 }
@@ -3912,10 +3914,10 @@ return $default(_that.type,_that.all,_that.now,_that.hidden,_that.testUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  bool? hidden,  String? testUrl,  String icon,  String name)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription)  $default,) {final _that = this;
 switch (_that) {
 case _Group():
-return $default(_that.type,_that.all,_that.now,_that.hidden,_that.testUrl,_that.icon,_that.name);case _:
+return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3932,10 +3934,10 @@ return $default(_that.type,_that.all,_that.now,_that.hidden,_that.testUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  bool? hidden,  String? testUrl,  String icon,  String name)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription)?  $default,) {final _that = this;
 switch (_that) {
 case _Group() when $default != null:
-return $default(_that.type,_that.all,_that.now,_that.hidden,_that.testUrl,_that.icon,_that.name);case _:
+return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription);case _:
   return null;
 
 }
@@ -3947,7 +3949,7 @@ return $default(_that.type,_that.all,_that.now,_that.hidden,_that.testUrl,_that.
 @JsonSerializable()
 
 class _Group implements Group {
-  const _Group({@JsonKey(fromJson: GroupType.parse) required this.type,  List<Proxy> all = const [], this.now, this.hidden, this.testUrl, this.icon = '', required this.name}): _all = all;
+  const _Group({@JsonKey(fromJson: GroupType.parse) required this.type,  List<Proxy> all = const [], this.now, this.fixed, this.hidden, this.testUrl, this.icon = '', required this.name, this.serverDescription}): _all = all;
   factory _Group.fromJson(Map<String, dynamic> json) => _$GroupFromJson(json);
 
 @override@JsonKey(fromJson: GroupType.parse) final  GroupType type;
@@ -3959,10 +3961,12 @@ class _Group implements Group {
 }
 
 @override final  String? now;
+@override final  String? fixed;
 @override final  bool? hidden;
 @override final  String? testUrl;
 @override@JsonKey() final  String icon;
 @override final  String name;
+@override final  String? serverDescription;
 
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
@@ -3977,18 +3981,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Group&&(identical(other.type, type) || other.type == type)&&const DeepCollectionEquality().equals(other.all, _all)&&(identical(other.now, now) || other.now == now)&&(identical(other.hidden, hidden) || other.hidden == hidden)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.name, name) || other.name == name));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Group&&(identical(other.type, type) || other.type == type)&&const DeepCollectionEquality().equals(other.all, _all)&&(identical(other.now, now) || other.now == now)&&(identical(other.fixed, fixed) || other.fixed == fixed)&&(identical(other.hidden, hidden) || other.hidden == hidden)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.name, name) || other.name == name)&&(identical(other.serverDescription, serverDescription) || other.serverDescription == serverDescription));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,type,const DeepCollectionEquality().hash(_all),now,hidden,testUrl,icon,name);
+    return Object.hash(runtimeType,type,const DeepCollectionEquality().hash(_all),now,fixed,hidden,testUrl,icon,name,serverDescription);
 }
 
 @override
 String toString() {
-    return 'Group(type: $type, all: $all, now: $now, hidden: $hidden, testUrl: $testUrl, icon: $icon, name: $name)';
+    return 'Group(type: $type, all: $all, now: $now, fixed: $fixed, hidden: $hidden, testUrl: $testUrl, icon: $icon, name: $name, serverDescription: $serverDescription)';
 }
 
 
@@ -3999,7 +4003,7 @@ abstract mixin class _$GroupCopyWith<$Res> implements $GroupCopyWith<$Res> {
   factory _$GroupCopyWith(_Group value, $Res Function(_Group) _then) = __$GroupCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, bool? hidden, String? testUrl, String icon, String name
+@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, String? fixed, bool? hidden, String? testUrl, String icon, String name, String? serverDescription
 });
 
 
@@ -4016,16 +4020,18 @@ class __$GroupCopyWithImpl<$Res>
 
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? fixed = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,Object? serverDescription = freezed,}) {
   return _then(_Group(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as GroupType,all: null == all ? _self._all : all // ignore: cast_nullable_to_non_nullable
 as List<Proxy>,now: freezed == now ? _self.now : now // ignore: cast_nullable_to_non_nullable
+as String?,fixed: freezed == fixed ? _self.fixed : fixed // ignore: cast_nullable_to_non_nullable
 as String?,hidden: freezed == hidden ? _self.hidden : hidden // ignore: cast_nullable_to_non_nullable
 as bool?,testUrl: freezed == testUrl ? _self.testUrl : testUrl // ignore: cast_nullable_to_non_nullable
 as String?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,
+as String,serverDescription: freezed == serverDescription ? _self.serverDescription : serverDescription // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -4845,276 +4851,6 @@ label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nulla
 as String,value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as String,validator: freezed == validator ? _self.validator : validator // ignore: cast_nullable_to_non_nullable
 as Validator?,
-  ));
-}
-
-
-}
-
-/// @nodoc
-mixin _$Result<T> {
-
- T? get data; ResultType get type; String get message;
-/// Create a copy of Result
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$ResultCopyWith<T, Result<T>> get copyWith => _$ResultCopyWithImpl<T, Result<T>>(this as Result<T>, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-  final _this = this as Result<T>;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Result<T>&&const DeepCollectionEquality().equals(other.data, _this.data)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.message, _this.message) || other.message == _this.message));
-}
-
-
-@override
-int get hashCode {
-  final _this = this as Result<T>;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.data),_this.type,_this.message);
-}
-
-@override
-String toString() {
-  final _this = this as Result<T>;
-  return 'Result<$T>(data: ${_this.data}, type: ${_this.type}, message: ${_this.message})';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class $ResultCopyWith<T,$Res>  {
-  factory $ResultCopyWith(Result<T> value, $Res Function(Result<T>) _then) = _$ResultCopyWithImpl;
-@useResult
-$Res call({
- T? data, ResultType type, String message
-});
-
-
-
-
-}
-/// @nodoc
-class _$ResultCopyWithImpl<T,$Res>
-    implements $ResultCopyWith<T, $Res> {
-  _$ResultCopyWithImpl(this._self, this._then);
-
-  final Result<T> _self;
-  final $Res Function(Result<T>) _then;
-
-/// Create a copy of Result
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? data = freezed,Object? type = null,Object? message = null,}) {
-  return _then(Result(
-data: freezed == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
-as T?,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
-as ResultType,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
-}
-
-
-/// Adds pattern-matching-related methods to [Result].
-extension ResultPatterns<T> on Result<T> {
-/// A variant of `map` that fallback to returning `orElse`.
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case final Subclass value:
-///     return ...;
-///   case _:
-///     return orElse();
-/// }
-/// ```
-
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _Result<T> value)?  $default,{required TResult orElse(),}){
-final _that = this;
-switch (_that) {
-case _Result() when $default != null:
-return $default(_that);case _:
-  return orElse();
-
-}
-}
-/// A `switch`-like method, using callbacks.
-///
-/// Callbacks receives the raw object, upcasted.
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case final Subclass value:
-///     return ...;
-///   case final Subclass2 value:
-///     return ...;
-/// }
-/// ```
-
-@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _Result<T> value)  $default,){
-final _that = this;
-switch (_that) {
-case _Result():
-return $default(_that);case _:
-  throw StateError('Unexpected subclass');
-
-}
-}
-/// A variant of `map` that fallback to returning `null`.
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case final Subclass value:
-///     return ...;
-///   case _:
-///     return null;
-/// }
-/// ```
-
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _Result<T> value)?  $default,){
-final _that = this;
-switch (_that) {
-case _Result() when $default != null:
-return $default(_that);case _:
-  return null;
-
-}
-}
-/// A variant of `when` that fallback to an `orElse` callback.
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case Subclass(:final field):
-///     return ...;
-///   case _:
-///     return orElse();
-/// }
-/// ```
-
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( T? data,  ResultType type,  String message)?  $default,{required TResult orElse(),}) {final _that = this;
-switch (_that) {
-case _Result() when $default != null:
-return $default(_that.data,_that.type,_that.message);case _:
-  return orElse();
-
-}
-}
-/// A `switch`-like method, using callbacks.
-///
-/// As opposed to `map`, this offers destructuring.
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case Subclass(:final field):
-///     return ...;
-///   case Subclass2(:final field2):
-///     return ...;
-/// }
-/// ```
-
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( T? data,  ResultType type,  String message)  $default,) {final _that = this;
-switch (_that) {
-case _Result():
-return $default(_that.data,_that.type,_that.message);case _:
-  throw StateError('Unexpected subclass');
-
-}
-}
-/// A variant of `when` that fallback to returning `null`
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case Subclass(:final field):
-///     return ...;
-///   case _:
-///     return null;
-/// }
-/// ```
-
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( T? data,  ResultType type,  String message)?  $default,) {final _that = this;
-switch (_that) {
-case _Result() when $default != null:
-return $default(_that.data,_that.type,_that.message);case _:
-  return null;
-
-}
-}
-
-}
-
-/// @nodoc
-
-
-class _Result<T> implements Result<T> {
-  const _Result({required this.data, required this.type, required this.message});
-  
-
-@override final  T? data;
-@override final  ResultType type;
-@override final  String message;
-
-/// Create a copy of Result
-/// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-_$ResultCopyWith<T, _Result<T>> get copyWith => __$ResultCopyWithImpl<T, _Result<T>>(this, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Result<T>&&const DeepCollectionEquality().equals(other.data, data)&&(identical(other.type, type) || other.type == type)&&(identical(other.message, message) || other.message == message));
-}
-
-
-@override
-int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(data),type,message);
-}
-
-@override
-String toString() {
-    return 'Result<$T>(data: $data, type: $type, message: $message)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class _$ResultCopyWith<T,$Res> implements $ResultCopyWith<T, $Res> {
-  factory _$ResultCopyWith(_Result<T> value, $Res Function(_Result<T>) _then) = __$ResultCopyWithImpl;
-@override @useResult
-$Res call({
- T? data, ResultType type, String message
-});
-
-
-
-
-}
-/// @nodoc
-class __$ResultCopyWithImpl<T,$Res>
-    implements _$ResultCopyWith<T, $Res> {
-  __$ResultCopyWithImpl(this._self, this._then);
-
-  final _Result<T> _self;
-  final $Res Function(_Result<T>) _then;
-
-/// Create a copy of Result
-/// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? data = freezed,Object? type = null,Object? message = null,}) {
-  return _then(_Result<T>(
-data: freezed == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
-as T?,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
-as ResultType,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,
   ));
 }
 

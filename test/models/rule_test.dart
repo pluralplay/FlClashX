@@ -330,4 +330,41 @@ void main() {
       );
     });
   });
+
+  test('duplicate rules take back their ids in order, in one pass', () {
+    final previous = [
+      for (var id = 0; id < 20000; id++)
+        Rule.parse('DOMAIN,a.com,DIRECT', id: id),
+    ];
+    final content = List.filled(20001, 'DOMAIN,a.com,DIRECT').join('\n');
+
+    final decoded = decodeRuleList(content, previous: previous);
+
+    expect(decoded.take(3).map((line) => line.rule.id), [0, 1, 2]);
+    expect(decoded[19999].rule.id, 19999);
+    expect(decoded.last.rule.id, isNot(anyOf(0, 19999)));
+  });
+
+  test('a checked rule list names the first line that cannot be saved', () {
+    final valid = checkRuleList((
+      content:
+          '- DOMAIN,a.com,DIRECT\n- SUB-RULE,(NETWORK,tcp),s\n- MATCH,DIRECT',
+      previous: const [],
+    ));
+    expect(valid.issue, isNull);
+    expect(valid.rules.map((rule) => rule.rawValue), [
+      'DOMAIN,a.com,DIRECT',
+      'MATCH,DIRECT',
+    ]);
+
+    final refused = checkRuleList((
+      content: '- DOMAIN,a.com,DIRECT\n- DST-PORT,abc,DIRECT',
+      previous: const [],
+    ));
+    expect(refused.issue?.line, 2);
+    expect(refused.issue?.rule?.saveIssue, RuleSaveIssue.payload);
+
+    final unreadable = checkRuleList((content: '- NOPE,x', previous: const []));
+    expect(unreadable.issue, (line: 1, rule: null));
+  });
 }

@@ -7,6 +7,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
 const _windowChannel = MethodChannel('window');
+const _screenChannel = MethodChannel(
+  'dev.leanflutter.plugins/screen_retriever',
+);
+
+/// A screen whose taskbar takes the bottom 40 pixels.
+Map<String, Object> _screen(double width, double height) => {
+  'id': 'screen',
+  'size': {'width': width, 'height': height},
+  'visiblePosition': {'dx': 0.0, 'dy': 0.0},
+  'visibleSize': {'width': width, 'height': height - 40},
+  'scaleFactor': 1.0,
+};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +49,7 @@ void main() {
             'isMaximized' => isMaximized,
             'isFullScreen' => isFullScreen,
             'isMinimized' => isMinimized,
+            'isPositionSupported' => true,
             'getBounds' => <String, double>{
               'x': bounds.left,
               'y': bounds.top,
@@ -198,6 +211,74 @@ void main() {
     },
   );
 
+  group('placing the window', () {
+    var screen = _screen(1366, 768);
+
+    setUp(() {
+      screen = _screen(1366, 768);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_screenChannel, (call) async {
+            return switch (call.method) {
+              'getPrimaryDisplay' => screen,
+              'getAllDisplays' => {
+                'displays': [screen],
+              },
+              _ => null,
+            };
+          });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_screenChannel, null);
+    });
+
+    List<Map<Object?, Object?>> bounds() => [
+      for (final call in methodCalls)
+        if (call.method == 'setBounds') call.arguments as Map<Object?, Object?>,
+    ];
+
+    test(
+      'a first window opens phone-wide at the top of a small screen',
+      () async {
+        await Window().placeWindow(const WindowProps());
+
+        expect(bounds(), [
+          {'width': defaultWindowSize.width, 'height': 728 * 0.9},
+          {'x': (1366 - defaultWindowSize.width) / 2, 'y': 0.0},
+        ]);
+      },
+    );
+
+    test('a window taller than the screen, with no place to go back to, is '
+        'cut to the screen and opens at its top', () async {
+      await Window().placeWindow(const WindowProps(width: 800, height: 1000));
+
+      expect(bounds(), [
+        {'width': 800.0, 'height': 728.0},
+        {'x': (1366 - 800) / 2, 'y': 0.0},
+      ]);
+    });
+
+    test(
+      'a work area below the minimum size lowers the minimum to fit',
+      () async {
+        screen = _screen(683, 404);
+
+        await Window().placeWindow(const WindowProps());
+
+        final minimum = methodCalls.lastWhere(
+          (call) => call.method == 'setMinimumSize',
+        );
+        expect(minimum.arguments, {'width': 380.0, 'height': 364 * 0.9});
+        expect(bounds().first, {
+          'width': defaultWindowSize.width,
+          'height': 364 * 0.9,
+        });
+      },
+    );
+  });
+
   group('restoredWindowPosition', () {
     const primary = Display(
       id: 'primary',
@@ -252,6 +333,19 @@ void main() {
       );
     });
 
+    test('rejects a window whose title bar is above every screen', () {
+      const props = WindowProps(width: 800, height: 1000, left: 100, top: -60);
+
+      expect(
+        restoredWindowPosition(
+          props,
+          displays: const [primary],
+          currentScale: 1,
+        ),
+        isNull,
+      );
+    });
+
     test('reads a position saved without a scale at the current one', () {
       const props = WindowProps(width: 800, height: 600, left: 100, top: 50);
 
@@ -288,7 +382,7 @@ void main() {
 
     test('leaves a margin of a small work area', () {
       final size = fittedWindowSize(const Size(1366, 728));
-      expect(size.width, closeTo(1366 * 0.9, 0.001));
+      expect(size.width, defaultWindowSize.width);
       expect(size.height, closeTo(728 * 0.9, 0.001));
     });
   });

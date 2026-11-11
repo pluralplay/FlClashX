@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/models/common.dart';
 import 'package:fl_clash/models/core.dart';
 import 'package:fl_clash/models/profile.dart';
@@ -429,9 +430,17 @@ Future<void> _sideLoadProvider(
   final path = provider.path;
   if (path == null) return;
   final data = _decodeProviderFile(bytes);
-  final message = await ref
-      .read(proxiesActionProvider.notifier)
-      .sideLoadExternalProvider(provider, data, showLoading: true);
+  final String message;
+  try {
+    message = await ref
+        .read(proxiesActionProvider.notifier)
+        .sideLoadExternalProvider(provider, data, showLoading: true);
+  } on CoreMethodException catch (error) {
+    // A subscription update or a profile switch can put another provider
+    // under this name while its editor is open.
+    if (error.code != 'provider_replaced') rethrow;
+    throw MessageException(currentAppLocalizations.providerReplacedTip);
+  }
   if (message.isNotEmpty) throw MessageException(message);
   await File(path).safeWriteAsBytes(bytes);
 }
@@ -457,7 +466,7 @@ class _EditProviderViewState extends ConsumerState<_EditProviderView> {
       return;
     }
     proxiesAction.updateGroupsDebounce();
-    if (context.mounted) {
+    if (context.mounted && ModalRoute.of(context)?.isCurrent == true) {
       Navigator.of(context).pop();
     }
   }
@@ -470,7 +479,7 @@ class _EditProviderViewState extends ConsumerState<_EditProviderView> {
     if (!res || !context.mounted) {
       return true;
     }
-    unawaited(_handleSave(context, content));
+    await _handleSave(context, content);
     return false;
   }
 

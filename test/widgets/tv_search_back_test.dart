@@ -110,7 +110,7 @@ void main() {
                 ),
               ),
               NavigationItem(
-                glyph: AppGlyphs.tools,
+                glyph: AppGlyphs.settings,
                 label: PageLabel.tools,
                 builder: (_) => const SizedBox.shrink(),
               ),

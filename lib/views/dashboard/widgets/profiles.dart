@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'dart:math' as math;
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
-import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/dashboard/layout.dart';
 import 'package:fl_clash/views/dashboard/style.dart';
@@ -36,11 +37,18 @@ DateTime? _expiryOf(Profile? profile) {
   return expire > 0 ? DateTime.fromMillisecondsSinceEpoch(expire * 1000) : null;
 }
 
-int _daysLeft(DateTime expiry) =>
-    math.max(0, expiry.difference(DateTime.now()).inDays);
-
-String _expiryText(BuildContext context, DateTime expiry) =>
-    context.appLocalizations.profileExpiresIn(expiry.show, _daysLeft(expiry));
+/// Counts down in days, then hours, then minutes, never reaching zero
+/// before the plan actually ends.
+String _timeLeftText(BuildContext context, Duration left) {
+  final appLocalizations = context.appLocalizations;
+  if (left.inDays >= 1) {
+    return appLocalizations.profileDaysFigure(left.inDays);
+  }
+  if (left.inHours >= 1) {
+    return appLocalizations.profileHoursFigure(left.inHours);
+  }
+  return appLocalizations.profileMinutesFigure(math.max(1, left.inMinutes));
+}
 
 void _openProfile(BuildContext context, Profile? profile) {
   switch (profile) {
@@ -55,18 +63,14 @@ void _openProfile(BuildContext context, Profile? profile) {
 
 const _nearlyUsedShare = 0.9;
 
-String _percentOf(double share) => '${(share * 100).round()}%';
+/// The name row already carries the way to other profiles, so the header
+/// keeps only the panel's two actions and gives them the room it saves.
+const _actionGlyphSize = 22.0;
 
-String _sourceOf(BuildContext context, ProfileType type) => switch (type) {
-  ProfileType.url => context.appLocalizations.remote,
-  ProfileType.file => context.appLocalizations.local,
-  ProfileType.custom => context.appLocalizations.custom,
-};
+const _soonDays = 7;
 
 class ProfilesCard extends ConsumerWidget {
   const ProfilesCard({super.key});
-
-  static const _soonDays = 7;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -75,41 +79,39 @@ class ProfilesCard extends ConsumerWidget {
     final compact = density.isCompact;
     final appLocalizations = context.appLocalizations;
     final profile = ref.watch(currentProfileProvider);
+    final offers = ref.watch(profileOffersProvider);
     final switchable = ref.watch(
       profilesProvider.select((profiles) => profiles.length > 1),
     );
     final usage = _usageOf(profile);
     final expiry = _expiryOf(profile);
-    final updatedAt = profile?.lastUpdateDate;
-    final label = DashboardText.label(context);
     final figure = mobile
         ? AppTextStyle.title3
         : (compact ? AppTextStyle.callout : AppTextStyle.headline);
     final name = mobile || !compact
         ? AppTextStyle.headline
         : AppTextStyle.callout;
-    final endText = switch ((profile, expiry)) {
-      (_, final expiry?) => appLocalizations.profileDaysLeft(_daysLeft(expiry)),
-      (final profile?, null) => _sourceOf(context, profile.type),
-      _ => null,
-    };
-    final Widget? end = switch ((endText, expiry)) {
-      (final text?, final expiry?) => Tooltip(
-        message: _expiryText(context, expiry),
-        child: Text(
-          text,
-          maxLines: 1,
-          style: _daysLeft(expiry) <= _soonDays
-              ? label.copyWith(color: DashboardColors.of(context).warn)
-              : label,
-        ),
-      ),
-      (final text?, null) => Text(text, maxLines: 1, style: label),
-      _ => null,
-    };
     final sync = profile != null && profile.type == ProfileType.url
         ? _SyncButton(profile: profile)
         : null;
+    final webPageUrl = profile?.headers.webPageUrl;
+    final webPage = webPageUrl == null
+        ? null
+        : DashboardIconButton(
+            glyph: AppGlyphs.globe,
+            tooltip: appLocalizations.website,
+            iconSize: _actionGlyphSize,
+            onPressed: () => dialogs.openUrl(webPageUrl),
+          );
+    final supportUrl = profile?.headers.supportUrl;
+    final support = supportUrl == null
+        ? null
+        : DashboardIconButton(
+            glyph: AppGlyphs.support,
+            tooltip: appLocalizations.support,
+            iconSize: _actionGlyphSize,
+            onPressed: () => dialogs.openUrl(supportUrl),
+          );
     final nameRow = Row(
       children: [
         Flexible(
@@ -143,69 +145,20 @@ class ProfilesCard extends ConsumerWidget {
           DashboardCardHeader(
             glyph: AppGlyphs.profiles,
             title: appLocalizations.profile,
-            chevron: mobile,
-            trailing: [
-              if (mobile)
-                ?sync
-              else
-                Transform.translate(
-                  offset: const Offset(8, 0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ?sync,
-                      DashboardIconButton(
-                        glyph: AppGlyphs.chevronForward,
-                        tooltip: appLocalizations.details(
-                          appLocalizations.profile,
-                        ),
-                        onPressed: () => _openProfile(context, profile),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+            trailing: [?webPage, ?support, ?sync],
           ),
           SizedBox(height: mobile ? 12 : 10),
-          if (compact && end != null)
-            DashboardCappedRow(spacing: _rowGap, start: nameRow, end: end)
-          else
-            nameRow,
-          if (profile != null && !compact)
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final time = updatedAt?.getLastUpdateTimeDesc(context);
-                final updated = time == null
-                    ? null
-                    : appLocalizations.profileUpdatedAt(time);
-                final fits =
-                    updated == null ||
-                    _widthOf(updated, label) +
-                            _rowGap +
-                            _widthOf(endText ?? '', label) <=
-                        constraints.maxWidth;
-                return Row(
-                  spacing: _rowGap,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        (fits ? updated : time) ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: label,
-                      ),
-                    ),
-                    ?end,
-                  ],
-                );
-              },
-            ),
-          if (profile != null) ...[
+          nameRow,
+          if (profile != null &&
+              (expiry != null || usage != null || offers.isNotEmpty)) ...[
             if (mobile) const SizedBox(height: 14) else const Spacer(),
-            if (usage != null)
-              _UsageMeter(usage: usage, figure: figure, gap: mobile ? 8 : 6)
-            else
-              _ConfigStats(figure: figure),
+            _PlanFigures(
+              expiry: expiry,
+              usage: usage,
+              offers: offers,
+              figure: figure,
+              gap: mobile ? 8 : 6,
+            ),
           ],
         ],
       ),
@@ -215,231 +168,286 @@ class ProfilesCard extends ConsumerWidget {
 
 const _rowGap = 12.0;
 
-double _widthOf(String text, TextStyle style) =>
-    globalState.measure.computeTextSize(Text(text, style: style)).width;
-
-class _SyncButton extends ConsumerWidget {
+/// Spins while the update runs and shows a green check for a moment once
+/// it went through.
+class _SyncButton extends ConsumerStatefulWidget {
   const _SyncButton({required this.profile});
+
+  static const doneDuration = Duration(seconds: 1);
+  static const switchDuration = Duration(milliseconds: 150);
 
   final Profile profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isUpdating = ref.watch(isUpdatingProvider(profile.updatingKey));
-    if (isUpdating) {
-      return const SizedBox.square(
-        dimension: 32,
-        child: Center(child: CommonCircleLoading(size: 18)),
-      );
-    }
-    return DashboardIconButton(
-      glyph: AppGlyphs.sync,
-      tooltip: context.appLocalizations.update,
-      onPressed: () => syncProfile(ref, profile),
-    );
-  }
+  ConsumerState<_SyncButton> createState() => _SyncButtonState();
 }
 
-class _ConfigStats extends ConsumerStatefulWidget {
-  const _ConfigStats({required this.figure});
-
-  final AppTextStyle figure;
+class _SyncButtonState extends ConsumerState<_SyncButton> {
+  Timer? _doneTimer;
 
   @override
-  ConsumerState<_ConfigStats> createState() => _ConfigStatsState();
-}
+  void dispose() {
+    _doneTimer?.cancel();
+    super.dispose();
+  }
 
-class _ConfigStatsState extends ConsumerState<_ConfigStats>
-    with ConfigCountsWatch<_ConfigStats> {
+  Future<void> _sync() async {
+    final done = await syncProfile(ref, widget.profile);
+    if (!done || !mounted) {
+      return;
+    }
+    setState(() {
+      _doneTimer?.cancel();
+      _doneTimer = Timer(_SyncButton.doneDuration, () {
+        if (mounted) {
+          setState(() => _doneTimer = null);
+        }
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    watchConfigCounts();
-    final providers = ref.watch(providersProvider);
     final appLocalizations = context.appLocalizations;
-    final stats = switch (configCounts) {
-      final counts? => profileStatsOf(counts, providers),
-      null => null,
-    };
-    final figure = DashboardText.figure(
-      context,
-      widget.figure,
-    ).copyWith(letterSpacing: 0);
-    final label = DashboardText.label(context);
-    Widget item(int? value, String name) => Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (value != null)
-          Text(dashboardCount(value), maxLines: 1, style: figure)
-        else if (configCountsFailed)
-          Text('—', maxLines: 1, style: figure)
-        else
-          SkeletonText(width: widget.figure.size * 1.5, style: figure),
-        Text(name, maxLines: 1, style: label),
-      ],
+    final isUpdating = ref.watch(
+      isUpdatingProvider(widget.profile.updatingKey),
     );
-    return LayoutBuilder(
-      // The minimum width lets spaceBetween spread the row inside FittedBox.
-      builder: (context, constraints) => FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: AlignmentDirectional.centerStart,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: constraints.maxWidth),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            spacing: 16,
-            children: [
-              item(stats?.groups, appLocalizations.proxyGroup),
-              item(stats?.proxies, appLocalizations.proxies),
-              item(stats?.rules, appLocalizations.rules),
-            ],
-          ),
-        ),
-      ),
+    final done = _doneTimer != null;
+    final Widget child = isUpdating
+        ? const SizedBox.square(
+            key: ValueKey('updating'),
+            dimension: 32,
+            child: Center(child: CommonCircleLoading(size: 18)),
+          )
+        : DashboardIconButton(
+            key: ValueKey(done),
+            glyph: done ? AppGlyphs.check : AppGlyphs.sync,
+            tooltip: appLocalizations.update,
+            iconSize: _actionGlyphSize,
+            color: done ? context.colorScheme.success : null,
+            onPressed: _sync,
+          );
+    return AnimatedSwitcher(
+      duration: context.motionDuration(_SyncButton.switchDuration),
+      switchInCurve: Curves.easeInOut,
+      switchOutCurve: Curves.easeInOut,
+      child: child,
     );
   }
 }
 
-class _UsageMeter extends StatelessWidget {
-  const _UsageMeter({
+/// How long the plan runs and how much of it is left, the traffic on a
+/// bar under them.
+class _PlanFigures extends StatelessWidget {
+  const _PlanFigures({
+    required this.expiry,
     required this.usage,
+    required this.offers,
     required this.figure,
     required this.gap,
   });
 
-  final _Usage usage;
+  final DateTime? expiry;
+  final _Usage? usage;
+  final List<ProfileOffer> offers;
   final AppTextStyle figure;
   final double gap;
 
   @override
   Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final colors = DashboardColors.of(context);
+    final expiry = this.expiry;
+    final usage = this.usage;
+    final left = expiry?.difference(DateTime.now());
+    final expired = left != null && left.isNegative;
+    final soon = left != null && left.inDays <= _soonDays;
+    final nearlyUsed = usage != null && usage.share >= _nearlyUsedShare;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final percent = DashboardText.figure(
-              context,
-              figure,
-            ).copyWith(letterSpacing: 0);
-            final unit = DashboardText.unit(context, AppTextStyle.footnote);
-            final used = ' ${context.appLocalizations.usedShort}';
-            final traffic =
-                '${dashboardTraffic(usage.used)} / ${dashboardTraffic(usage.total)}';
-            final trafficStyle = AppTextStyle.footnote
-                .of(context)
-                .toTabular
-                .copyWith(color: context.colorScheme.onSurfaceVariant);
-            final showUnit =
-                _widthOf(_percentOf(usage.share), percent) +
-                    _widthOf(used, unit) +
-                    _rowGap +
-                    _widthOf(traffic, trafficStyle) <=
-                constraints.maxWidth;
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              spacing: _rowGap,
-              children: [
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: _percentOf(usage.share), style: percent),
-                      if (showUnit) TextSpan(text: used, style: unit),
-                    ],
-                  ),
+        if (expiry != null || usage != null)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: _rowGap,
+            children: [
+              Expanded(
+                child: _Figure(
+                  value: left == null
+                      ? appLocalizations.profileNoExpiry
+                      : expired
+                      ? appLocalizations.profileExpired
+                      : _timeLeftText(context, left),
+                  label: expiry == null
+                      ? null
+                      : appLocalizations.profileUntil(expiry.showDate),
+                  tone: expired || soon ? colors.warn : null,
+                  figure: figure,
                 ),
-                Expanded(
-                  child: Text(
-                    traffic,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: trafficStyle,
-                  ),
+              ),
+              Expanded(
+                child: _Figure(
+                  value: usage == null
+                      ? appLocalizations.profileTrafficUnlimited
+                      : dashboardTraffic(math.max(0, usage.total - usage.used)),
+                  label: usage == null
+                      ? null
+                      : appLocalizations.profileLeftOfTotal(
+                          dashboardTraffic(usage.total),
+                        ),
+                  tone: nearlyUsed ? colors.warn : null,
+                  figure: figure,
+                  end: true,
                 ),
-              ],
-            );
-          },
-        ),
-        SizedBox(height: gap),
-        SizedBox(
-          height: 12,
-          child: CustomPaint(
-            painter: _WavyProgressPainter(
-              value: usage.share,
-              active: usage.share >= _nearlyUsedShare
-                  ? DashboardColors.of(context).warn
-                  : context.colorScheme.primary,
-              track: DashboardColors.of(context).tone2,
-            ),
+              ),
+            ],
           ),
-        ),
+        if (usage != null) ...[
+          SizedBox(height: gap),
+          _UsageBar(
+            value: usage.share,
+            active: nearlyUsed ? colors.warn : context.colorScheme.primary,
+            track: colors.tone2,
+          ),
+        ],
+        if (offers.isNotEmpty) ...[
+          SizedBox(height: gap + 4),
+          Row(
+            spacing: 8,
+            children: [
+              for (final offer in offers)
+                Expanded(child: _OfferButton(offer: offer)),
+            ],
+          ),
+        ],
       ],
     );
   }
 }
 
-/// The M3 Expressive wavy linear indicator: a wave up to [value], a gap,
-/// then a flat track ending in a stop dot.
-class _WavyProgressPainter extends CustomPainter {
-  const _WavyProgressPainter({
+/// The panel's link to renew or top up, behind the external link prompt,
+/// filled like the start button.
+class _OfferButton extends StatelessWidget {
+  const _OfferButton({required this.offer});
+
+  final ProfileOffer offer;
+
+  static const height = 32.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final colorScheme = context.colorScheme;
+    final label = switch (offer.kind) {
+      ProfileOfferKind.buyPlan => appLocalizations.buyPlan,
+      ProfileOfferKind.buyTraffic => appLocalizations.buyTraffic,
+    };
+    return SizedBox(
+      height: height,
+      child: FilledButton(
+        onPressed: () => dialogs.openUrl(offer.url),
+        style: FilledButton.styleFrom(
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: const Size(0, height),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+          textStyle: AppTextStyle.footnote.of(context, emphasized: true),
+        ),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  const _Figure({
+    required this.value,
+    required this.label,
+    required this.tone,
+    required this.figure,
+    this.end = false,
+  });
+
+  final String value;
+  final String? label;
+  final Color? tone;
+  final AppTextStyle figure;
+  final bool end;
+
+  @override
+  Widget build(BuildContext context) {
+    final alignment = end
+        ? AlignmentDirectional.centerEnd
+        : AlignmentDirectional.centerStart;
+    final label = this.label;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: end
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: DashboardText.figure(
+              context,
+              figure,
+              color: tone,
+            ).copyWith(letterSpacing: 0),
+          ),
+        ),
+        if (label != null)
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: end ? TextAlign.end : TextAlign.start,
+            style: DashboardText.label(context),
+          ),
+      ],
+    );
+  }
+}
+
+/// A pill track with the used share filled from the start.
+class _UsageBar extends StatelessWidget {
+  const _UsageBar({
     required this.value,
     required this.active,
     required this.track,
   });
-
-  static const _stroke = 4.0;
-  static const _amplitude = 3.0;
-  static const _wavelength = 12.0;
-  static const _gap = 6.0;
-  static const _stop = 4.0;
 
   final double value;
   final Color active;
   final Color track;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final mid = size.height / 2;
-    const start = _stroke / 2;
-    final end = size.width - _stroke / 2;
-    final split = start + (end - start) * value;
-    final paint = Paint()
-      ..strokeWidth = _stroke
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    if (value > 0) {
-      final wave = Path()..moveTo(start, mid);
-      for (var x = start; x <= split; x += 1) {
-        wave.lineTo(
-          x,
-          mid + _amplitude * math.sin((x - start) / _wavelength * 2 * math.pi),
-        );
-      }
-      canvas.drawPath(wave, paint..color = active);
-    }
-    final trackStart = value > 0 ? split + _gap + _stroke : start;
-    if (trackStart < end - _stop) {
-      canvas.drawLine(
-        Offset(trackStart, mid),
-        Offset(end - _stop - _gap, mid),
-        paint..color = track,
-      );
-    }
-    if (value < 1) {
-      canvas.drawCircle(
-        Offset(end - _stop / 2, mid),
-        _stop / 2,
-        Paint()..color = active,
-      );
-    }
+  Widget build(BuildContext context) {
+    return ClipRSuperellipse(
+      borderRadius: AppRadius.full,
+      child: SizedBox(
+        height: 6,
+        child: ColoredBox(
+          color: track,
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FractionallySizedBox(
+              widthFactor: value.clamp(0, 1),
+              heightFactor: 1,
+              child: ClipRSuperellipse(
+                borderRadius: AppRadius.full,
+                child: ColoredBox(color: active),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(_WavyProgressPainter oldDelegate) =>
-      oldDelegate.value != value ||
-      oldDelegate.active != active ||
-      oldDelegate.track != track;
 }

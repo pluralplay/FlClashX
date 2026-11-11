@@ -1,8 +1,10 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -412,5 +414,33 @@ func TestTraceValue(t *testing.T) {
 	}
 	if got := traceValue(body, "colo"); got != "" {
 		t.Errorf("colo = %q, want empty", got)
+	}
+}
+
+func TestCheckReachableUntrustedTrustsAnUnknownRoot(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	withProbeProxies(t, "node-a")
+	env := serviceEnv{ctx: context.Background(), proxyName: "node-a", timeout: 2 * time.Second}
+
+	if item := checkReachableUntrusted(server.URL)(env); item.Status != serviceAvailable {
+		t.Errorf("untrusted check = %+v, want available", item)
+	}
+	if item := checkReachable(server.URL)(env); item.Status != serviceFailed {
+		t.Errorf("plain check = %+v, want failed on the unknown root", item)
+	}
+}
+
+func TestRussianServicesAreRegistered(t *testing.T) {
+	names := map[string]bool{}
+	for _, checker := range serviceCheckers {
+		names[checker.name] = true
+	}
+	for _, name := range []string{"gosuslugi", "sberbank", "vk", "yandex", "kinopoisk"} {
+		if !names[name] {
+			t.Errorf("%s has no checker", name)
+		}
 	}
 }

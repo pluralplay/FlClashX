@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
@@ -158,6 +160,38 @@ void main() {
     await save(tester);
 
     expect(saved().last, const Filter(label: 'Broken', regex: 'hk'));
+  });
+
+  testWidgets('an edit made while the regex is checked is what gets saved', (
+    tester,
+  ) async {
+    await pumpView(tester);
+    final answers = <Completer<List<String>>>[];
+    when(() => core.validateFilters(any())).thenAnswer((_) {
+      final answer = Completer<List<String>>();
+      answers.add(answer);
+      return answer.future;
+    });
+
+    await tester.tap(find.byTooltip(currentAppLocalizations.add));
+    await tester.pumpAndSettle();
+    await tester.enterText(dialogField(0), 'First');
+    await tester.enterText(dialogField(1), 'hk');
+    await tester.tap(
+      find.widgetWithText(TextButton, currentAppLocalizations.save),
+    );
+    await tester.pump();
+    await tester.enterText(dialogField(0), 'Second');
+    await tester.enterText(dialogField(1), 'jp');
+    answers.single.complete(['']);
+    await tester.pump();
+
+    expect(answers, hasLength(2));
+    verify(() => core.validateFilters(['jp'])).called(1);
+    answers.last.complete(['']);
+    await tester.pumpAndSettle();
+
+    expect(saved().last, const Filter(label: 'Second', regex: 'jp'));
   });
 
   testWidgets('editing keeps its own label and its place', (tester) async {

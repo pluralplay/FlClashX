@@ -51,14 +51,6 @@ class ScriptsDao extends DatabaseAccessor<Database> with _$ScriptsDaoMixin {
     return query.map((row) => row.read(scripts.id)!);
   }
 
-  Selectable<String> fileNames() => ids().map((id) => '$id.js');
-
-  Future<void> setAll(Iterable<Script> scripts) async {
-    await batch((b) async {
-      await setAllWithBatch(b, scripts);
-    });
-  }
-
   void putAllWithBatch(Batch batch, Iterable<Script> scripts) {
     batch.insertAllOnConflictUpdate(
       this.scripts,

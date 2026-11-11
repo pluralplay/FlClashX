@@ -93,6 +93,7 @@ _Proxy _$ProxyFromJson(Map<String, dynamic> json) => _Proxy(
   name: json['name'] as String,
   type: json['type'] as String,
   now: json['now'] as String?,
+  serverDescription: json['serverDescription'] as String?,
   providerName: json['provider-name'] as String?,
 );
 
@@ -100,6 +101,7 @@ Map<String, dynamic> _$ProxyToJson(_Proxy instance) => <String, dynamic>{
   'name': instance.name,
   'type': instance.type,
   'now': instance.now,
+  'serverDescription': instance.serverDescription,
   'provider-name': instance.providerName,
 };
 
@@ -272,7 +274,7 @@ Map<String, dynamic> _$SnifferConfigToJson(_SnifferConfig instance) =>
     };
 
 _Tun _$TunFromJson(Map<String, dynamic> json) => _Tun(
-  enable: json['enable'] as bool? ?? false,
+  enable: json['enable'] as bool? ?? true,
   device: json['device'] as String? ?? appName,
   stack: $enumDecodeNullable(_$TunStackEnumMap, json['stack']) ?? TunStack.mips,
   routeAddress:
@@ -291,6 +293,16 @@ _Tun _$TunFromJson(Map<String, dynamic> json) => _Tun(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  includePackage:
+      (json['include-package'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
+  excludePackage:
+      (json['exclude-package'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$TunToJson(_Tun instance) => <String, dynamic>{
@@ -301,6 +313,8 @@ Map<String, dynamic> _$TunToJson(_Tun instance) => <String, dynamic>{
   'mtu': instance.mtu,
   'congestion-controller': instance.congestionController,
   'route-exclude-address': instance.routeExcludeAddress,
+  'include-package': instance.includePackage,
+  'exclude-package': instance.excludePackage,
 };
 
 const _$TunStackEnumMap = {
@@ -356,7 +370,7 @@ _Dns _$DnsFromJson(Map<String, dynamic> json) => _Dns(
       (json['default-nameserver'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ??
-      const ['114.114.114.114', '223.5.5.5', '8.8.8.8', '1.0.0.1'],
+      const ['8.8.8.8', '1.1.1.1'],
   enhancedMode:
       $enumDecodeNullable(_$DnsModeEnumMap, json['enhanced-mode']) ??
       DnsMode.redirHost,
@@ -383,7 +397,10 @@ _Dns _$DnsFromJson(Map<String, dynamic> json) => _Dns(
       (json['nameserver'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ??
-      const ['https://doh.pub/dns-query', 'tls://223.5.5.5:853'],
+      const [
+        'https://dns.google/dns-query',
+        'https://cloudflare-dns.com/dns-query',
+      ],
   fallback:
       (json['fallback'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
@@ -871,14 +888,14 @@ _PatchClashConfig _$PatchClashConfigFromJson(Map<String, dynamic> json) =>
       logLevel:
           $enumDecodeNullable(_$LogLevelEnumMap, json['log-level']) ??
           LogLevel.error,
-      ipv6: json['ipv6'] as bool? ?? false,
+      ipv6: json['ipv6'] as bool? ?? true,
       findProcessMode:
           $enumDecodeNullable(
             _$FindProcessModeEnumMap,
             json['find-process-mode'],
             unknownValue: FindProcessMode.off,
           ) ??
-          FindProcessMode.off,
+          FindProcessMode.always,
       interfaceNameMode:
           $enumDecodeNullable(
             _$InterfaceNameModeEnumMap,
@@ -919,12 +936,7 @@ _PatchClashConfig _$PatchClashConfigFromJson(Map<String, dynamic> json) =>
           $enumDecodeNullable(_$GeodataLoaderEnumMap, json['geodata-loader']) ??
           GeodataLoader.memconservative,
       globalUa: json['global-ua'] as String?,
-      externalController:
-          $enumDecodeNullable(
-            _$ExternalControllerStatusEnumMap,
-            json['external-controller'],
-          ) ??
-          ExternalControllerStatus.close,
+      externalController: json['external-controller'] as String? ?? '',
       secret: json['secret'] as String? ?? '',
       hosts:
           (json['hosts'] as Map<String, dynamic>?)?.map(
@@ -933,10 +945,6 @@ _PatchClashConfig _$PatchClashConfigFromJson(Map<String, dynamic> json) =>
           const {},
       geoAutoUpdate: json['geo-auto-update'] as bool? ?? false,
       geoUpdateInterval: (json['geo-update-interval'] as num?)?.toInt() ?? 24,
-      testUrl: json['test-url'] as String? ?? defaultTestUrl,
-      generalOverrideKeys: json['general-override-keys'] == null
-          ? const {}
-          : _generalOverrideKeysFromJson(json['general-override-keys'] as List),
     );
 
 Map<String, dynamic> _$PatchClashConfigToJson(_PatchClashConfig instance) =>
@@ -972,16 +980,11 @@ Map<String, dynamic> _$PatchClashConfigToJson(_PatchClashConfig instance) =>
       'geox-url': _geoXUrlToJson(instance.geoXUrl),
       'geodata-loader': _$GeodataLoaderEnumMap[instance.geodataLoader]!,
       'global-ua': instance.globalUa,
-      'external-controller':
-          _$ExternalControllerStatusEnumMap[instance.externalController]!,
+      'external-controller': instance.externalController,
       'secret': instance.secret,
       'hosts': instance.hosts,
       'geo-auto-update': instance.geoAutoUpdate,
       'geo-update-interval': instance.geoUpdateInterval,
-      'test-url': instance.testUrl,
-      'general-override-keys': instance.generalOverrideKeys
-          .map((e) => _$GeneralOverrideKeyEnumMap[e]!)
-          .toList(),
     };
 
 const _$ModeEnumMap = {
@@ -1000,6 +1003,7 @@ const _$LogLevelEnumMap = {
 
 const _$FindProcessModeEnumMap = {
   FindProcessMode.always: 'always',
+  FindProcessMode.strict: 'strict',
   FindProcessMode.off: 'off',
 };
 
@@ -1012,17 +1016,4 @@ const _$InterfaceNameModeEnumMap = {
 const _$GeodataLoaderEnumMap = {
   GeodataLoader.standard: 'standard',
   GeodataLoader.memconservative: 'memconservative',
-};
-
-const _$ExternalControllerStatusEnumMap = {
-  ExternalControllerStatus.close: '',
-  ExternalControllerStatus.open: '127.0.0.1:9090',
-};
-
-const _$GeneralOverrideKeyEnumMap = {
-  GeneralOverrideKey.testUrl: 'test-url',
-  GeneralOverrideKey.unifiedDelay: 'unified-delay',
-  GeneralOverrideKey.tcpConcurrent: 'tcp-concurrent',
-  GeneralOverrideKey.ipv6: 'ipv6',
-  GeneralOverrideKey.geodataLoader: 'geodata-loader',
 };

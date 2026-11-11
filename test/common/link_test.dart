@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/link.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -37,6 +38,29 @@ void main() {
     await emit('flclash://install-config?url=https://example.com/a.yaml');
 
     expect(received, ['https://example.com/a.yaml']);
+  });
+
+  test('the log names the link without the subscription secrets', () async {
+    final printed = <String>[];
+    final original = debugPrint;
+    debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+    addTearDown(() => debugPrint = original);
+    await listen();
+    const url =
+        'https://user:FAKE_PASS@example.com/FAKE_PATH_SECRET/sub'
+        '?token=FAKE_BEARER_TOKEN';
+
+    await emit('flclash://install-config?url=${Uri.encodeComponent(url)}');
+
+    expect(received, [url]);
+    final log = printed.join('\n');
+    expect(
+      log,
+      contains('onAppLink: flclash://install-config for example.com'),
+    );
+    expect(log, isNot(contains('FAKE_PASS')));
+    expect(log, isNot(contains('FAKE_PATH_SECRET')));
+    expect(log, isNot(contains('FAKE_BEARER_TOKEN')));
   });
 
   test('an install-config link without a url is ignored', () async {

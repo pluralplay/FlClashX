@@ -127,6 +127,13 @@ class CoreLib extends CoreHandlerInterface {
     return serviceStopped;
   }
 
+  // One command, so the service cannot let the start adopt the run the stop
+  // had yet to end.
+  @override
+  Future<bool> restartListener() async {
+    return await _service?.restart() ?? false;
+  }
+
   @override
   Future<T?> invokeMethod<T>({
     required CoreMethod method,

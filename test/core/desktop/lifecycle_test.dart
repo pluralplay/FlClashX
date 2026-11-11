@@ -420,6 +420,23 @@ void main() {
     await lifecycle.close();
   });
 
+  test('a crash carries the headline of the report the Core wrote', () async {
+    final transport = FakeDesktopCoreTransport();
+    final launcher = FakeLauncher(owner: CoreProcessOwner.direct, pid: 42);
+    final lifecycle = _createLifecycle(
+      transport: transport,
+      resolver: MutableLauncherResolver(launcher),
+    );
+    await _startConnected(lifecycle, transport, launcher, pid: 42);
+    final crash = lifecycle.crashEvents.first;
+
+    launcher.lease.crashHeadline = 'fatal error: concurrent map writes';
+    transport.disconnect(1);
+
+    expect((await crash).crashHeadline, 'fatal error: concurrent map writes');
+    await lifecycle.close();
+  });
+
   test(
     'unexpected disconnect cleans one session and emits one crash',
     () async {
@@ -724,6 +741,60 @@ void main() {
 
       await expectLater(start, throwsA(isA<DesktopCoreFailure>()));
       expect(launcher.lease.stopCount, 1);
+      await lifecycle.close();
+    },
+  );
+
+  test('a launch slower than the connection timeout still connects', () async {
+    final transport = FakeDesktopCoreTransport();
+    final launcher = FakeLauncher(owner: CoreProcessOwner.helper, pid: 42)
+      ..startGate = Completer<void>();
+    final lifecycle = DesktopCoreLifecycle(
+      transportFactory: () => transport,
+      launcherResolver: MutableLauncherResolver(launcher),
+      sessionIdFactory: () => _sessionId,
+      timeouts: const DesktopCoreTimeouts(
+        ready: Duration(seconds: 1),
+        connection: Duration(milliseconds: 50),
+        disconnection: Duration(seconds: 1),
+      ),
+    );
+
+    final start = lifecycle.start();
+    transport.ready();
+    await launcher.started;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    launcher.startGate!.complete();
+    transport.connect(pid: 42, generation: 1);
+
+    await start;
+    expect(lifecycle.state, isA<DesktopCoreRunning>());
+    await _closeRunning(lifecycle, transport, launcher.lease, 1);
+  });
+
+  test(
+    'a Core that drops before its launch is answered is not adopted',
+    () async {
+      final transport = FakeDesktopCoreTransport();
+      final launcher = FakeLauncher(owner: CoreProcessOwner.helper, pid: 42)
+        ..startGate = Completer<void>();
+      final lifecycle = _createLifecycle(
+        transport: transport,
+        resolver: MutableLauncherResolver(launcher),
+      );
+
+      final start = lifecycle.start();
+      transport.ready();
+      await launcher.started;
+      transport
+        ..connect(pid: 42, generation: 1)
+        ..disconnect(1);
+      await pumpEventQueue();
+      launcher.startGate!.complete();
+
+      await expectLater(start, throwsA(_hasCode('unexpected_disconnect')));
+      expect(launcher.lease.stopCount, 1);
+      expect(lifecycle.state, isNot(isA<DesktopCoreRunning>()));
       await lifecycle.close();
     },
   );

@@ -133,28 +133,6 @@ class _ProxiesListViewState extends ConsumerState<ProxiesListView> {
     );
   }
 
-  void _scrollToGroupSelected(String groupName) {
-    final cardType = ref.read(proxiesListStateProvider).proxyCardType;
-    final proxies = ref
-        .read(proxiesListStateProvider)
-        .groups
-        .getGroup(groupName)
-        ?.all;
-    if (proxies == null) {
-      return;
-    }
-    final rowOffset = selectedRowOffset(
-      proxies: proxies,
-      selectedProxyName: ref.read(selectedProxyNameProvider(groupName)),
-      columns: _columns,
-      rowExtent: getRowExtent(cardType),
-    );
-    if (rowOffset == null) {
-      return;
-    }
-    animateScrollTo(_controller, _getGroupOffset(groupName) + rowOffset);
-  }
-
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
@@ -209,7 +187,6 @@ class _ProxiesListViewState extends ConsumerState<ProxiesListView> {
                 cardType: cardType,
                 gap: gap,
                 onChange: _handleChange,
-                onScrollToSelected: _scrollToGroupSelected,
               );
               return CommonScrollBar(
                 controller: _controller,
@@ -290,7 +267,6 @@ class _GroupSliver extends ConsumerStatefulWidget {
     required this.cardType,
     required this.gap,
     required this.onChange,
-    required this.onScrollToSelected,
   });
 
   final Group group;
@@ -298,7 +274,6 @@ class _GroupSliver extends ConsumerStatefulWidget {
   final ProxyCardType cardType;
   final double gap;
   final void Function(String groupName) onChange;
-  final void Function(String groupName) onScrollToSelected;
 
   @override
   ConsumerState<_GroupSliver> createState() => _GroupSliverState();
@@ -348,23 +323,46 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
     }
   }
 
-  Widget _buildRow(BuildContext context, List<Proxy> proxies) {
+  // A delay sort reorders the cards, and a card keyed by its proxy keeps its
+  // focus and state instead of handing them to whichever lands in its place.
+  // mihomo lets a group list a proxy twice, so a key counts the name's repeats.
+  List<(Proxy, ValueKey<(String, int)>)> _keyedProxies() {
+    final seen = <String, int>{};
+    return [
+      for (final proxy in widget.group.all)
+        (
+          proxy,
+          ValueKey((
+            proxy.name,
+            seen.update(proxy.name, (count) => count + 1, ifAbsent: () => 0),
+          )),
+        ),
+    ];
+  }
+
+  Widget _buildCard(Proxy proxy, Key? key) {
     final group = widget.group;
+    return ProxyCard(
+      testUrl: group.testUrl,
+      type: widget.cardType,
+      groupType: group.type,
+      key: key,
+      proxy: proxy,
+      groupName: group.name,
+    );
+  }
+
+  Widget _buildRow(
+    BuildContext context,
+    List<(Proxy, ValueKey<(String, int)>)> proxies,
+  ) {
     final cardType = widget.cardType;
-    final groupName = group.name;
     final children = proxies
         .map<Widget>(
-          (proxy) => Flexible(
+          (keyed) => Flexible(
             child: SizedBox(
               height: getItemHeight(cardType),
-              child: ProxyCard(
-                testUrl: group.testUrl,
-                type: cardType,
-                groupType: group.type,
-                key: ValueKey('$groupName.${proxy.name}'),
-                proxy: proxy,
-                groupName: groupName,
-              ),
+              child: _buildCard(keyed.$1, keyed.$2),
             ),
           ),
         )
@@ -383,14 +381,37 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
     );
   }
 
+  /// The rows of [_buildRow] laid out as one grid, so a card moving to
+  /// another row keeps its element.
   Widget _buildRows(double extent) {
-    final rows = widget.group.all.chunks(widget.columns).toList();
-    return SliverFixedExtentList(
-      itemExtent: extent,
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => _buildRow(context, rows[index]),
-        childCount: rows.length,
-        addAutomaticKeepAlives: false,
+    final keyed = _keyedProxies();
+    final indexOf = {
+      for (final (index, (_, key)) in keyed.indexed) key.value: index,
+    };
+    return SliverPadding(
+      padding: const EdgeInsets.only(
+        left: _headerInset,
+        right: _headerInset,
+        bottom: proxyGridSpacing,
+      ),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: widget.columns,
+          mainAxisSpacing: proxyGridSpacing,
+          crossAxisSpacing: 8,
+          mainAxisExtent: extent - proxyGridSpacing,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => SurfaceScope(
+            key: keyed[index].$2,
+            level: context.raisedSurfaceLevel,
+            child: _buildCard(keyed[index].$1, null),
+          ),
+          childCount: keyed.length,
+          addAutomaticKeepAlives: false,
+          findChildIndexCallback: (key) =>
+              key is ValueKey<(String, int)> ? indexOf[key.value] : null,
+        ),
       ),
     );
   }
@@ -398,7 +419,7 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
   /// The card reaches up behind the header's rounded bottom corners, so the
   /// two read as one while the rows unfold or fold.
   Widget _buildUnfoldingRows(double extent, ShapeDecoration decoration) {
-    final rows = widget.group.all.chunks(widget.columns).toList();
+    final rows = _keyedProxies().chunks(widget.columns).toList();
     final visible = min(
       rows.length.toDouble(),
       MediaQuery.sizeOf(context).height / extent,
@@ -483,7 +504,6 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
         enterAnimated: false,
         floating: floating,
         lift: lift,
-        onScrollToSelected: widget.onScrollToSelected,
         key: ValueKey(groupName),
         isExpand: isExpand,
         unfolded: unfolded,
@@ -497,6 +517,13 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
         slivers: [_buildPinnedHeader(isExpand, buildHeader), ?rows],
       ),
     );
+  }
+
+  /// Over a panel backdrop the cover takes the app bar's scrim, so it blends
+  /// with the picture instead of cutting a solid band through it.
+  Color _coverColorOf(BuildContext context) {
+    final page = context.surfaceLevel.colorOf(context.colorScheme);
+    return PageBackdropScope.of(context)?.scrimOf(page) ?? page;
   }
 
   /// Rounds the header and lifts it as its own rows scroll under it, and lets
@@ -535,7 +562,7 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
                   1.0,
                 ),
                 isExpand ? constraints.overlap : 0.0,
-                context.surfaceLevel.colorOf(context.colorScheme),
+                _coverColorOf(context),
               );
         if (header != null && state == headerState) {
           return header!;
@@ -552,13 +579,16 @@ class _GroupSliverState extends ConsumerState<_GroupSliver>
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                Positioned(
-                  top: -cover,
-                  left: 0,
-                  right: 0,
-                  height: cover + listHeaderHeight / 2,
-                  child: ColoredBox(color: pageColor),
-                ),
+                // At rest nothing lies under it, and a cover would show square
+                // behind its corners over a translucent page.
+                if (floating > 0)
+                  Positioned(
+                    top: -cover,
+                    left: 0,
+                    right: 0,
+                    height: cover + listHeaderHeight / 2,
+                    child: ColoredBox(color: pageColor),
+                  ),
                 buildHeader(floating: floating, lift: lift),
               ],
             ),
@@ -573,7 +603,6 @@ class ListHeader extends ConsumerWidget {
   final Group group;
 
   final Function(String groupName) onChange;
-  final Function(String groupName) onScrollToSelected;
   final bool isExpand;
 
   /// Whether the rows have settled under the header, squaring its bottom.
@@ -595,7 +624,6 @@ class ListHeader extends ConsumerWidget {
     this.lift = 0,
     required this.group,
     required this.onChange,
-    required this.onScrollToSelected,
     required this.isExpand,
     required this.unfolded,
   });
@@ -625,17 +653,18 @@ class ListHeader extends ConsumerWidget {
               child: Row(
                 children: [
                   _GroupIcon(src: group.icon, name: groupName),
-                  Flexible(child: _GroupSummary(groupName: groupName)),
+                  Flexible(
+                    child: _GroupSummary(
+                      groupName: groupName,
+                      description: group.serverDescription,
+                    ),
+                  ),
                 ],
               ),
             ),
             _GroupActions(
               isExpand: isExpand,
               isDelayTesting: isDelayTesting,
-              groupType: group.type.name,
-              onScrollToSelected: () {
-                onScrollToSelected(groupName);
-              },
               onDelayTest: () {
                 ref
                     .read(proxiesActionProvider.notifier)
@@ -756,9 +785,10 @@ class _GroupIcon extends ConsumerWidget {
 }
 
 class _GroupSummary extends StatelessWidget {
-  const _GroupSummary({required this.groupName});
+  const _GroupSummary({required this.groupName, required this.description});
 
   final String groupName;
+  final String? description;
 
   @override
   Widget build(BuildContext context) {
@@ -773,27 +803,31 @@ class _GroupSummary extends StatelessWidget {
           style: AppTextStyle.callout.of(context, emphasized: true),
         ),
         const SizedBox(height: 2),
-        Flexible(flex: 1, child: _SelectedProxyName(groupName: groupName)),
+        Flexible(
+          flex: 1,
+          child: _GroupSubtitle(groupName: groupName, description: description),
+        ),
       ],
     );
   }
 }
 
-class _SelectedProxyName extends ConsumerWidget {
-  const _SelectedProxyName({required this.groupName});
+class _GroupSubtitle extends ConsumerWidget {
+  const _GroupSubtitle({required this.groupName, required this.description});
 
   final String groupName;
+  final String? description;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final proxyName = ref
-        .watch(selectedProxyNameProvider(groupName))
-        .takeFirstValid([]);
-    if (proxyName.isEmpty) {
+    final subtitle =
+        description ??
+        ref.watch(selectedProxyNameProvider(groupName)).takeFirstValid([]);
+    if (subtitle.isEmpty) {
       return const SizedBox.shrink();
     }
     return EmojiText(
-      proxyName,
+      subtitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: AppTextStyle.caption1.of(context, emphasized: true).toLight,
@@ -805,16 +839,12 @@ class _GroupActions extends StatelessWidget {
   const _GroupActions({
     required this.isExpand,
     required this.isDelayTesting,
-    required this.groupType,
-    required this.onScrollToSelected,
     required this.onDelayTest,
     required this.onToggle,
   });
 
   final bool isExpand;
   final bool isDelayTesting;
-  final String groupType;
-  final VoidCallback onScrollToSelected;
   final VoidCallback onDelayTest;
   final VoidCallback onToggle;
 
@@ -824,32 +854,13 @@ class _GroupActions extends StatelessWidget {
       size: TonalButtonSize.compact,
       child: Row(
         children: [
-          if (isExpand)
-            TonalButtonGroup(
-              size: TonalButtonSize.compact,
-              children: [
-                IconButton(
-                  tooltip: context.appLocalizations.scrollToSelected,
-                  onPressed: onScrollToSelected,
-                  iconSize: 19,
-                  icon: const GlyphIcon(AppGlyphs.locate),
-                ),
-                IconButton(
-                  tooltip: context.appLocalizations.delayTest,
-                  onPressed: isDelayTesting ? null : onDelayTest,
-                  icon: isDelayTesting
-                      ? CommonCircleLoading(size: TonalButtonSize.compact.icon)
-                      : const GlyphIcon(AppGlyphs.bolt),
-                ),
-              ],
-            )
-          else
-            Text(
-              groupType,
-              style: AppTextStyle.caption1
-                  .of(context, emphasized: true)
-                  .toLight,
-            ),
+          IconButton(
+            tooltip: context.appLocalizations.delayTest,
+            onPressed: isDelayTesting ? null : onDelayTest,
+            icon: isDelayTesting
+                ? CommonCircleLoading(size: TonalButtonSize.compact.icon)
+                : const GlyphIcon(AppGlyphs.bolt),
+          ),
           const SizedBox(width: 6),
           ElasticPress(
             child: IconButton(

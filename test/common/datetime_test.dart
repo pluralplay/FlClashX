@@ -13,19 +13,11 @@ void main() {
       );
     });
 
-    test('isBeforeSecure keeps null as false and non-null as true', () {
-      final dateTime = DateTime(2026, 5, 27);
-
-      expect(dateTime.isBeforeSecure(null), isFalse);
-      expect(dateTime.isBeforeSecure(DateTime(2026, 5, 26)), isTrue);
-      expect(dateTime.isBeforeSecure(DateTime(2026, 5, 28)), isTrue);
-    });
-
     test('formats date, full datetime, and time slices', () {
       final dateTime = DateTime(2026, 5, 27, 14, 3, 9);
 
       expect(dateTime.show, '2026-05-27');
-      expect(dateTime.showFull, '2026-05-27 14:03:09');
+      expect(dateTime.showFull, '27-05-2026 14:03:09');
       expect(dateTime.showTime, ' 14:03:09');
     });
 
@@ -36,7 +28,10 @@ void main() {
       );
 
       expect(parsed.isUtc, isTrue);
-      expect(parsed.showFull, local.toString().substring(0, 19));
+      expect(
+        parsed.showFull,
+        '${local.showDate} ${local.toString().substring(11, 19)}',
+      );
       expect(parsed.show, local.toString().substring(0, 10));
     });
 

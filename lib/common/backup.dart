@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:io' as io show ZLibDecoder;
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart';
@@ -147,7 +148,7 @@ Future<MigrationData> readBackupArchive({
   }
   final databaseFile = File(join(stagingDirPath, backupDatabaseName));
   if (!await databaseFile.exists()) {
-    return MigrationData(configMap: configMap);
+    return MigrationData(configMap: configMap, includesTables: false);
   }
   final schemaVersion = await _readSchemaVersion(databaseFile);
   final database = Database(
@@ -185,6 +186,7 @@ Future<MigrationData> readBackupArchive({
       database.clashProvidersDao.query().get(),
       database.customProxiesDao.query().get(),
       database.proxyDialers.readable((row) => row.toProxyDialer()).get(),
+      database.iconSetsDao.query().get(),
     ]);
     return MigrationData(
       configMap: configMap,
@@ -196,42 +198,155 @@ Future<MigrationData> readBackupArchive({
       clashProviders: results[5].cast<ClashProvider>(),
       customProxies: results[6].cast<CustomProxy>(),
       proxyDialers: results[7].cast<ProxyDialer>(),
+      iconSets: results[8].cast<IconSet>(),
     );
   } finally {
     await database.close();
   }
 }
 
+/// Far above a profile set with its providers and icons, and far below a full
+/// disk: a backup is untrusted, and it is unpacked before anything checks it.
+@visibleForTesting
+int maxBackupEntryBytes = 256 << 20;
+
+@visibleForTesting
+int maxBackupBytes = 1 << 30;
+
+/// The size an archive declares can lie, so what it inflates to is counted.
+final class _BoundedOutput extends OutputFileStream {
+  _BoundedOutput(String path, this.limit)
+    : super.withFileHandle(FileHandle(path, mode: FileAccess.write));
+
+  final int limit;
+
+  void _grow(int count) {
+    if (length + count > limit) {
+      throw const BackupException(BackupFailure.invalid);
+    }
+  }
+
+  @override
+  void writeByte(int value) {
+    _grow(1);
+    super.writeByte(value);
+  }
+
+  @override
+  void writeBytes(List<int> bytes, {int? length}) {
+    _grow(length ?? bytes.length);
+    super.writeBytes(bytes, length: length);
+  }
+}
+
+/// archive inflates a whole entry in memory before it writes any of it, so a
+/// deflated entry is fed through zlib a slice at a time and the output bound
+/// sees each piece as it comes.
+void _unpack(ZipFile file, OutputStream output) {
+  final compressed = file.getStream(decompress: false);
+  if (file.compressionMethod == CompressionType.none) {
+    output.writeStream(compressed);
+    return;
+  }
+  if (file.compressionMethod != CompressionType.deflate) {
+    throw const BackupException(BackupFailure.invalid);
+  }
+  final inflater = io.ZLibDecoder(
+    raw: true,
+  ).startChunkedConversion(_OutputSink(output));
+  while (!compressed.isEOS) {
+    final slice = compressed.length < _inflateSlice
+        ? compressed.length
+        : _inflateSlice;
+    inflater.add(compressed.readBytes(slice).toUint8List());
+  }
+  inflater.close();
+}
+
+const _inflateSlice = 64 << 10;
+
+final class _OutputSink implements Sink<List<int>> {
+  _OutputSink(this.output);
+
+  final OutputStream output;
+
+  @override
+  void add(List<int> data) => output.writeBytes(data);
+
+  @override
+  void close() {}
+}
+
+Future<int> _crc32Of(String path) async {
+  var crc = 0;
+  await for (final chunk in File(path).openRead()) {
+    crc = getCrc32(chunk, crc);
+  }
+  return crc;
+}
+
+/// archive checks no entry's CRC, and a damaged profile would otherwise
+/// replace the good one on restore.
 Future<void> _extract(String archivePath, String stagingDirPath) async {
   await Directory(stagingDirPath).create(recursive: true);
   final input = InputFileStream(archivePath);
   try {
-    final Archive archive;
+    // ZipDecoder inflates a Unix link's whole target to read it, before any
+    // bound, so the directory is read here and links, which a backup never
+    // holds, are passed over.
+    final directory = ZipDirectory();
     try {
-      archive = ZipDecoder().decodeStream(input);
+      directory.read(input);
     } on Exception {
       throw const BackupException(BackupFailure.invalid);
     }
-    for (final file in archive.files) {
-      if (!file.isFile) {
+    var remaining = maxBackupBytes;
+    final seen = <String>{};
+    for (final header in directory.fileHeaders) {
+      final file = header.file;
+      final name = file?.filename ?? '';
+      if (file == null ||
+          name.endsWith('/') ||
+          name.endsWith('\\') ||
+          _isUnixLink(header) ||
+          !seen.add(name)) {
         continue;
       }
-      final outPath = _stagedEntryPath(stagingDirPath, file.name);
+      final outPath = _stagedEntryPath(stagingDirPath, name);
       if (outPath == null) {
         continue;
       }
+      final limit = remaining < maxBackupEntryBytes
+          ? remaining
+          : maxBackupEntryBytes;
+      final size = file.uncompressedSize;
+      if (size > limit) {
+        throw const BackupException(BackupFailure.invalid);
+      }
       await Directory(dirname(outPath)).create(recursive: true);
-      final output = OutputFileStream(outPath);
+      final output = _BoundedOutput(outPath, limit);
       try {
-        file.writeContent(output);
+        _unpack(file, output);
+      } on BackupException {
+        rethrow;
+      } on Exception {
+        throw const BackupException(BackupFailure.invalid);
       } finally {
         await output.close();
+      }
+      remaining -= output.length;
+      if (output.length != size || await _crc32Of(outPath) != file.crc32) {
+        throw const BackupException(BackupFailure.invalid);
       }
     }
   } finally {
     await input.close();
   }
 }
+
+bool _isUnixLink(ZipFileHeader header) =>
+    header.versionMadeBy >> 8 == 3 &&
+    (header.externalFileAttributes >> 16) & 0xf000 == 0xa000;
 
 /// `posix.normalize` collapses `a/../b`, but a name that starts with `../`
 /// normalizes to itself and an absolute one stays absolute, so either would

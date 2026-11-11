@@ -11,7 +11,7 @@ IpQuality _quality(
 }) {
   return IpQuality(
     ip: '203.0.113.9',
-    source: IpQualitySource.ipLocate,
+    source: IpQualitySource.ipInfo,
     type: type,
     isProxy: isProxy,
     isVpn: isVpn,

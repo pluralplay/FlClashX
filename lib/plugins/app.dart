@@ -15,6 +15,7 @@ class App {
   late MethodChannel methodChannel;
   Function()? onExit;
   Function()? onPackagesChanged;
+  void Function(VpnRefusal refusal)? onVpnPermissionDenied;
   final floatingKeyboard = ValueNotifier(false);
 
   App._internal() {
@@ -29,6 +30,11 @@ class App {
           onPackagesChanged?.call();
         case 'floatingImeChanged':
           floatingKeyboard.value = call.arguments as bool;
+        case 'vpnPermissionDenied':
+          final refusal = VpnRefusal.values.asNameMap()[call.arguments];
+          if (refusal != null) {
+            onVpnPermissionDenied?.call(refusal);
+          }
         default:
           throw MissingPluginException();
       }
@@ -42,6 +48,10 @@ class App {
 
   Future<bool?> moveTaskToBack() async {
     return methodChannel.invokeMethod<bool>('moveTaskToBack');
+  }
+
+  Future<String?> getAndroidId() async {
+    return methodChannel.invokeMethod<String>('getAndroidId');
   }
 
   Future<List<Package>> getPackages() async {
@@ -74,15 +84,6 @@ class App {
           'requestLocalNetworkPermission',
         ) ??
         false;
-  }
-
-  Future<List<String>> getChinaPackageNames() async {
-    final packageNamesString = await methodChannel.invokeMethod<String>(
-      'getChinaPackageNames',
-    );
-    final List<dynamic> packageNamesRaw =
-        await packageNamesString?.decodeJson<List<dynamic>>() ?? [];
-    return packageNamesRaw.map((e) => e.toString()).toList();
   }
 
   final Map<String, ImageProvider?> _packageIcons = {};
@@ -137,6 +138,17 @@ class App {
     return methodChannel.invokeMethod<bool>('tip', {'message': '$message'});
   }
 
+  /// A vibration that grows from barely felt to full strength over [duration].
+  Future<void> riseVibration(Duration duration) async {
+    await methodChannel.invokeMethod<bool>('riseVibration', {
+      'durationMs': duration.inMilliseconds,
+    });
+  }
+
+  Future<void> stopVibration() async {
+    await methodChannel.invokeMethod<bool>('stopVibration');
+  }
+
   Future<bool?> initShortcuts() async {
     return methodChannel.invokeMethod<bool>('initShortcuts', {
       'start': currentAppLocalizations.start,
@@ -154,6 +166,17 @@ class App {
   Future<bool?> openAppSettings() async {
     if (!Platform.isAndroid) return false;
     return methodChannel.invokeMethod<bool>('openAppSettings');
+  }
+
+  Future<bool?> openVpnSettings() async {
+    return methodChannel.invokeMethod<bool>('openVpnSettings');
+  }
+
+  Future<void> shareFile(String path, {required String mimeType}) async {
+    await methodChannel.invokeMethod<bool>('shareFile', {
+      'path': path,
+      'mimeType': mimeType,
+    });
   }
 
   Future<AppExitInfo?> getLastExitInfo() async {

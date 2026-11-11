@@ -32,6 +32,7 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
   }
 
   void add(Log value) {
+    fileLogger.write(value);
     if (!ref.mounted) {
       return;
     }
@@ -318,6 +319,16 @@ class Groups extends _$Groups with AutoDisposeNotifierMixin {
   @override
   List<Group> build() {
     return [];
+  }
+}
+
+/// The current profile's own GLOBAL carries `flclashx-override`: global mode
+/// shows that group alone and rule mode leaves it out.
+@Riverpod(keepAlive: true)
+class GlobalOverride extends _$GlobalOverride with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
   }
 }
 

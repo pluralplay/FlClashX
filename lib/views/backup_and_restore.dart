@@ -476,7 +476,8 @@ class _WebDAVFormState extends ConsumerState<WebDAVForm> {
             ),
           ],
         ),
-        if (widget.dav != null)
+        if (widget.dav != null) ...[
+          const ListSectionGap(),
           generateSection(
             items: [
               FormRow(
@@ -486,6 +487,7 @@ class _WebDAVFormState extends ConsumerState<WebDAVForm> {
               ),
             ],
           ),
+        ],
       ],
     );
   }

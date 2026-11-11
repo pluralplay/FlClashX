@@ -43,7 +43,10 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  Future<void> pumpVpnManager(WidgetTester tester) async {
+  Future<void> pumpVpnManager(
+    WidgetTester tester, {
+    bool vpnDemandedBySystem = false,
+  }) async {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -56,7 +59,12 @@ void main() {
           ],
           supportedLocales: AppLocalizations.delegate.supportedLocales,
           builder: (_, child) {
-            return StatusManager(child: VpnManager(child: child!));
+            return StatusManager(
+              child: VpnManager(
+                isVpnDemandedBySystem: () => vpnDemandedBySystem,
+                child: child!,
+              ),
+            );
           },
           home: const SizedBox(),
         ),
@@ -113,6 +121,10 @@ void main() {
     tester,
   ) async {
     await pumpVpnManager(tester);
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+    await settle(tester);
     startService();
 
     container
@@ -148,6 +160,37 @@ void main() {
       await tester.pump();
     }
     expect(tip(), findsOneWidget);
+    await drainTimers(tester);
+  });
+
+  testWidgets(
+    'a VPN Always-on runs asks for a restart on a proxy-only setting',
+    (tester) async {
+      await pumpVpnManager(tester, vpnDemandedBySystem: true);
+      updateVpn((state) => state.copyWith(enable: false));
+      await settle(tester);
+      startService();
+
+      updateVpn((state) => state.copyWith(ipv6: !state.ipv6));
+      await settle(tester);
+
+      expect(tip(), findsOneWidget);
+      await drainTimers(tester);
+    },
+  );
+
+  testWidgets('a proxy-only run asks nothing for a tunnel setting', (
+    tester,
+  ) async {
+    await pumpVpnManager(tester);
+    updateVpn((state) => state.copyWith(enable: false));
+    await settle(tester);
+    startService();
+
+    updateVpn((state) => state.copyWith(ipv6: !state.ipv6));
+    await settle(tester);
+
+    expect(tip(), findsNothing);
     await drainTimers(tester);
   });
 

@@ -93,17 +93,47 @@ class System {
   }
 
   @visibleForTesting
-  static String macOSElevationShell(String corePath) {
-    final path = _shellEscape(corePath);
-    return 'chown root:admin $path && chmod 4750 $path';
+  static String macOSElevationShell(String corePath, String privilegedPath) {
+    final dir = _shellEscape(File(privilegedPath).parent.path);
+    // A planted symlink or ACL would let someone other than root swap the Core.
+    return 'dir=$dir && { [ ! -L "\$dir" ] || rm -f "\$dir"; } && '
+        'mkdir -p "\$dir" && chown root:wheel "\$dir" && '
+        'chmod -N "\$dir" && chmod 755 "\$dir" && '
+        'install -S -o root -g admin -m 4750 '
+        '${_shellEscape(corePath)} ${_shellEscape(privilegedPath)}';
   }
 
+  /// Linux clears setuid on a chown, even by root, and the copy may be the
+  /// Core running now, so it is staged and renamed over the old one. Anyone
+  /// else able to write above the copy could swap the staged file before it
+  /// turns setuid, so every directory on its resolved path must be root's
+  /// alone; a symlink there would leave the check to its target.
+  ///
+  /// The setuid bit runs the copy as root for whoever may execute it, and the
+  /// user's group may hold others, so the copy sits in a directory only that
+  /// user may enter: theirs, readable and searchable by them alone, given to
+  /// them once the copy is in place.
   @visibleForTesting
-  static String linuxElevationShell(String corePath) {
-    final path = _shellEscape(corePath);
-    return 'group=\$(id -g "\${PKEXEC_UID:-\$SUDO_UID}") && '
-        'chown "root:\$group" $path && '
-        'chmod 4750 $path';
+  static String linuxElevationShell(String corePath, String privilegedPath) {
+    final file = File(privilegedPath);
+    final dir = _shellEscape(file.parent.path);
+    final name = _shellEscape(file.uri.pathSegments.last);
+    return 'dir=$dir && uid="\${dir##*/}" && group=\$(id -g "\$uid") && '
+        'app="\${dir%/*}" && base="\${app%/*}" && mkdir -p "\$base" && '
+        'base=\$(readlink -f "\$base") && app="\$base/\${app##*/}" && '
+        'dir="\$app/\$uid" && p="\$base" && while [ -n "\$p" ]; do '
+        '{ [ ! -L "\$p" ] && [ "\$(stat -c %u "\$p")" = 0 ] && '
+        '[ \$((0\$(stat -c %a "\$p") & 022)) = 0 ]; } || exit 1; '
+        'p="\${p%/*}"; done && '
+        '{ [ ! -L "\$app" ] || rm -f "\$app"; } && mkdir -p "\$app" && '
+        'chown root:root "\$app" && chmod 755 "\$app" && '
+        'staged=\$(mktemp "\$app/.FlClashCore.XXXXXX") && '
+        '{ cat ${_shellEscape(corePath)} > "\$staged" && '
+        'chown "root:\$group" "\$staged" && '
+        'rm -rf "\$dir" && mkdir -m 700 "\$dir" && '
+        'mv -f "\$staged" "\$dir"/$name && chmod 4750 "\$dir"/$name && '
+        'chown "\$uid:\$group" "\$dir" && chmod 500 "\$dir" || '
+        '{ rm -f "\$staged"; exit 1; }; }';
   }
 
   Future<bool> _isInAdminGroup() async {
@@ -133,27 +163,43 @@ class System {
     if (hasHelperService) {
       return await helperClient.readiness() == HelperReadiness.ready;
     }
-    if (system.isMacOS) {
-      final result = await runProcess(
-        'stat',
-        statArguments(appPath.corePath, isMacOS: true),
-      );
-      return isPrivilegedStatOutput(
-        result.stdout.toString(),
-        ownerPrefix: 'root:admin',
-      );
-    }
-    if (system.isLinux) {
-      final result = await runProcess(
-        'stat',
-        statArguments(appPath.corePath, isMacOS: false),
-      );
-      return isPrivilegedStatOutput(
-        result.stdout.toString(),
-        ownerPrefix: 'root:',
-      );
+    if (system.isMacOS || system.isLinux) {
+      return _isElevatedCopy(await appPath.privilegedCorePath);
     }
     return true;
+  }
+
+  Future<String> launchableCorePath() async {
+    if ((isMacOS || isLinux && !hasHelperService) && !safeModeBuild) {
+      final privileged = await appPath.privilegedCorePath;
+      if (await _isElevatedCopy(privileged)) return privileged;
+    }
+    return appPath.corePath;
+  }
+
+  /// An app update leaves the old copy behind; only a byte-for-byte match counts.
+  /// A missing `stat` or `cmp` counts as no copy, so the bundled Core still runs.
+  Future<bool> _isElevatedCopy(String path) async {
+    try {
+      final result = await runProcess(
+        'stat',
+        statArguments(path, isMacOS: isMacOS),
+      );
+      if (!isPrivilegedStatOutput(
+        result.stdout.toString(),
+        ownerPrefix: isMacOS ? 'root:admin' : 'root:',
+      )) {
+        return false;
+      }
+      final compared = await runProcess('cmp', ['-s', appPath.corePath, path]);
+      return compared.exitCode == 0;
+    } on ProcessException catch (error) {
+      commonPrint.log(
+        'Elevated Core check failed: $error',
+        logLevel: LogLevel.warning,
+      );
+      return false;
+    }
   }
 
   static const _inheritedAclPermissions =
@@ -233,13 +279,25 @@ class System {
         );
         return AuthorizeCode.error;
       }
-      final shell = macOSElevationShell(appPath.corePath);
+      final shell = macOSElevationShell(
+        appPath.corePath,
+        await appPath.privilegedCorePath,
+      );
       final arguments = [
         '-e',
-        'do shell script "$shell" with administrator privileges',
+        'on run argv',
+        '-e',
+        'do shell script (item 1 of argv) with administrator privileges',
+        '-e',
+        'end run',
+        shell,
       ];
       final result = await runProcess('osascript', arguments);
       if (result.exitCode != 0) {
+        commonPrint.log(
+          'TUN authorization failed: ${result.stderr.toString().trim()}',
+          logLevel: LogLevel.error,
+        );
         return AuthorizeCode.error;
       }
       return AuthorizeCode.success;
@@ -247,11 +305,20 @@ class System {
       final elevated = await linuxElevation.elevate([
         '/bin/sh',
         '-c',
-        linuxElevationShell(appPath.corePath),
+        linuxElevationShell(appPath.corePath, await appPath.privilegedCorePath),
       ]);
       return elevated ? AuthorizeCode.success : AuthorizeCode.error;
     }
     return AuthorizeCode.error;
+  }
+
+  Future<void> openDirectory(String path) async {
+    final command = isWindows
+        ? 'explorer'
+        : isMacOS
+        ? 'open'
+        : 'xdg-open';
+    await runProcess(command, [path]);
   }
 
   Future<void> back() async {

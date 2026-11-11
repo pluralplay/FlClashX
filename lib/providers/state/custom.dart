@@ -402,12 +402,22 @@ String linkProxyName(Map<String, dynamic> definition) {
 String _numberedName(String base, int index) =>
     '$base-${index.toString().padLeft(2, '0')}';
 
+/// Where each base name left off in a batch's [Set] of taken names: a batch
+/// only adds to it, so the numbers below are already taken, and a paste of
+/// many links sharing one name stays linear.
+final _nextNumbers = Expando<Map<String, int>>();
+
 String freeProxyName(String base, Set<String> taken) {
-  var name = base;
-  for (var index = 1; !taken.add(name); index++) {
-    name = _numberedName(base, index);
+  if (taken.add(base)) {
+    return base;
   }
-  return name;
+  final next = _nextNumbers[taken] ??= {};
+  var index = next[base] ?? 1;
+  while (!taken.add(_numberedName(base, index))) {
+    index++;
+  }
+  next[base] = index + 1;
+  return _numberedName(base, index);
 }
 
 final _numberSuffix = RegExp(r'-\d{2,}$');

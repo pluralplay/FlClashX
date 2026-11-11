@@ -22,6 +22,7 @@ class _FakeService implements Service {
   bool shutdownResult = true;
   bool startResult = true;
   bool stopResult = true;
+  bool restartResult = true;
   CoreMethodResponse? Function(CoreMethodCall call)? onInvokeMethod;
 
   final invokedCalls = <CoreMethodCall>[];
@@ -54,6 +55,12 @@ class _FakeService implements Service {
   Future<bool> stop() async {
     calls.add('stop');
     return stopResult;
+  }
+
+  @override
+  Future<bool> restart() async {
+    calls.add('restart');
+    return restartResult;
   }
 
   @override
@@ -252,6 +259,17 @@ void main() {
 
       expect(await lib.stopListener(), isTrue);
       expect(service.calls, ['stop', 'invokeMethod:stopListener']);
+    });
+
+    test('a listener restart is one service command', () async {
+      await lib.start();
+      service.calls.clear();
+
+      expect(await lib.restartListener(), isTrue);
+      expect(service.calls, ['restart']);
+
+      service.restartResult = false;
+      expect(await lib.restartListener(), isFalse);
     });
   });
 

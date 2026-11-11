@@ -9,6 +9,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/core.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/ip_quality.dart';
 import 'package:fl_clash/providers/route_state.dart';
 import 'package:fl_clash/providers/routed_probe.dart';
@@ -28,6 +29,7 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/glyph_finders.dart';
 import '../../helpers/test_app.dart';
+import '../../helpers/test_profiles.dart';
 
 class _MockCore extends Mock implements CoreHandlerInterface {}
 
@@ -50,8 +52,8 @@ ServiceCheckItem _item(
 );
 
 OutboundIpResult _address(String ip, String country) => OutboundIpResult(
-  url: 'https://www.cloudflare.com/cdn-cgi/trace',
-  body: 'ip=$ip\nloc=$country\n',
+  url: 'http://ip-api.com/json',
+  body: '{"query":"$ip","countryCode":"$country"}',
   coreEpoch: 1,
   routeVersion: 1,
 );
@@ -95,6 +97,7 @@ void main() {
       locale: locale,
       overrides: [
         viewSizeProvider.overrideWithBuild((_, _) => const Size(400, 800)),
+        profilesProvider.overrideWith(() => TestProfiles([])),
         appSettingProvider.overrideWithBuild((_, _) => settings),
         runTimeProvider.overrideWithBuild((_, _) => started ? 1 : null),
         routeTrackerProvider.overrideWithBuild(
@@ -457,7 +460,7 @@ void main() {
 
   const quality = IpQuality(
     ip: '203.0.113.7',
-    source: IpQualitySource.ipApiIs,
+    source: IpQualitySource.ipInfo,
     type: IpType.residential,
     organization: 'Example Broadband',
     asn: 64500,

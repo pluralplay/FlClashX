@@ -33,6 +33,21 @@ String? networkErrorMessage(Object error, AppLocalizations appLocalizations) {
   return failure == null ? null : _messageOf(failure, appLocalizations);
 }
 
+/// A failure a later attempt may not see: the route or the name service
+/// still coming up, a timeout, or a server that is busy for the moment.
+bool isTransientNetworkError(Object error) {
+  final failure = _failureOf(error) ?? _fromTransport(error);
+  return switch (failure) {
+    _Failure(kind: _Kind.timeout || _Kind.hostLookup || _Kind.connection) =>
+      true,
+    _Failure(kind: _Kind.httpStatus, :final statusCode?) =>
+      statusCode == HttpStatus.requestTimeout ||
+          statusCode == HttpStatus.tooManyRequests ||
+          statusCode >= HttpStatus.internalServerError,
+    _ => false,
+  };
+}
+
 /// Bare socket and timeout exceptions are left alone: outside an HTTP request
 /// they come from the local Core or Helper channel, where "check your network"
 /// would send the user the wrong way.

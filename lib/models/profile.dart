@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'clash_config.dart';
+import 'provider_headers.dart';
 
 part 'generated/profile.freezed.dart';
 part 'generated/profile.g.dart';
@@ -13,13 +15,19 @@ part 'generated/profile.g.dart';
 typedef ValidateConfig =
     Future<String> Function(String path, String ageSecretKey);
 
+/// Past DateTime's last moment, 8.64e15 ms, an expiry would throw where shown.
+const _maxExpireSeconds = 8640000000000;
+
+int _validExpire(num seconds) =>
+    seconds > 0 && seconds <= _maxExpireSeconds ? seconds.toInt() : 0;
+
 @freezed
 abstract class SubscriptionInfo with _$SubscriptionInfo {
   const factory SubscriptionInfo({
     @Default(0) int upload,
     @Default(0) int download,
     @Default(0) int total,
-    @Default(0) int expire,
+    @JsonKey(fromJson: _validExpire) @Default(0) int expire,
   }) = _SubscriptionInfo;
 
   factory SubscriptionInfo.fromJson(Map<String, Object?> json) =>
@@ -40,7 +48,7 @@ abstract class SubscriptionInfo with _$SubscriptionInfo {
       upload: map['upload'] ?? 0,
       download: map['download'] ?? 0,
       total: map['total'] ?? 0,
-      expire: map['expire'] ?? 0,
+      expire: _validExpire(map['expire'] ?? 0),
     );
   }
 
@@ -82,12 +90,22 @@ abstract class Profile with _$Profile {
     @Default(ProfileOverrides())
     @JsonKey(fromJson: ProfileOverrides.safeFromJson)
     ProfileOverrides overrides,
+
+    /// The subscription's response headers, lower-cased, see [providerHeaderNames].
+    @Default({}) Map<String, String> providerHeaders,
+
+    /// Whether downloads carry the device id headers a panel binds by.
+    @Default(true) bool sendDeviceHeaders,
   }) = _Profile;
 
   factory Profile.fromJson(Map<String, Object?> json) =>
       _$ProfileFromJson(json);
 
-  factory Profile.normal({String? label, String url = ''}) {
+  factory Profile.normal({
+    String? label,
+    String url = '',
+    bool sendDeviceHeaders = true,
+  }) {
     final id = snowflake.id;
     return Profile(
       type: url.isEmpty ? ProfileType.file : ProfileType.url,
@@ -95,6 +113,7 @@ abstract class Profile with _$Profile {
       url: url,
       id: id,
       autoUpdateDuration: defaultUpdateDuration,
+      sendDeviceHeaders: sendDeviceHeaders,
     );
   }
 
@@ -136,13 +155,9 @@ extension ProfilesExt on List<Profile> {
 }
 
 extension ProfileExtension on Profile {
-  bool get realAutoUpdate => type == ProfileType.url && autoUpdate;
-
   String get realLabel => label.takeFirstValid([defaultLabel]);
 
   String get defaultLabel => url.webUri?.host ?? id.toString();
-
-  String get fileName => '$id.yaml';
 
   String get exportFileName {
     final label = realLabel;
@@ -155,18 +170,33 @@ extension ProfileExtension on Profile {
 
   String get updatingKey => 'profile_$id';
 
-  Future<Profile?> checkAndUpdateAndCopy({
-    required ValidateConfig validate,
-  }) async {
-    if (type != ProfileType.url) {
-      return null;
-    }
-    final mFile = await _getFile(false);
-    if (await mFile.exists()) {
-      return null;
-    }
-    return update(validate: validate);
-  }
+  // In milliseconds: an interval a panel sent may pass DateTime's last moment.
+  bool? get isAutoUpdateDue => switch (lastUpdateDate) {
+    null => null,
+    final last =>
+      last.millisecondsSinceEpoch + autoUpdateDuration.inMilliseconds <
+          DateTime.now().millisecondsSinceEpoch,
+  };
+
+  /// The database keeps [lastUpdateDate] only to the second.
+  ({
+    String url,
+    String ageSecretKey,
+    bool sendDeviceHeaders,
+    int? lastUpdateSeconds,
+  })
+  get fileRevision => (
+    url: url,
+    ageSecretKey: ageSecretKey,
+    sendDeviceHeaders: sendDeviceHeaders,
+    lastUpdateSeconds: switch (lastUpdateDate) {
+      final date? => date.millisecondsSinceEpoch ~/ 1000,
+      null => null,
+    },
+  );
+
+  Future<bool> get isMissingFile async =>
+      type == ProfileType.url && !await (await _getFile(false)).exists();
 
   Future<File> _getFile([bool autoCreate = true]) async {
     final path = await appPath.getProfilePath(id.toString());
@@ -182,36 +212,158 @@ extension ProfileExtension on Profile {
     return _getFile();
   }
 
-  Future<Profile> update({required ValidateConfig validate}) async {
-    final response = await request.getFileResponseForUrl(url);
+  /// Downloads from [url], then from the panel's fallback hosts in order; a
+  /// hard failure of [url] moves the profile onto the host that answered.
+  Future<Profile> update({
+    required ValidateConfig validate,
+    SubscriptionFetch? fetch,
+    DeviceHeaders? deviceHeaders,
+    bool Function()? isCurrent,
+  }) async {
+    fetch ??= request.getFileResponseForUrl;
+    final sent = sendDeviceHeaders
+        ? await (deviceHeaders ?? deviceIdentity.headers)()
+        : const <String, String>{};
+    final Object firstError;
+    final StackTrace firstTrace;
+    try {
+      return await _updateFrom(
+        url,
+        validate,
+        fetch,
+        sent,
+        downloadTimeoutDuration,
+        isCurrent,
+      );
+    } on ProfileUpdateSupersededException {
+      rethrow;
+    } catch (error, trace) {
+      firstError = error;
+      firstTrace = trace;
+    }
+    final fallbacks = headers.fallbackUrlsOf(Uri.tryParse(url) ?? Uri());
+    if (fallbacks.isEmpty) {
+      Error.throwWithStackTrace(firstError, firstTrace);
+    }
+    final failure = hostFailureOf(firstError);
+    commonPrint.log(
+      'subscription host failed (${failure.name}): ${compactError(firstError)}',
+      logLevel: LogLevel.warning,
+    );
+    for (final fallback in fallbacks) {
+      try {
+        final updated = await _updateFrom(
+          fallback.toString(),
+          validate,
+          fetch,
+          sent,
+          fallbackTimeoutDuration,
+          isCurrent,
+        );
+        commonPrint.log(
+          'subscription served by ${fallback.host}'
+          '${failure == HostFailure.hard ? ', profile moved there' : ''}',
+        );
+        return failure == HostFailure.hard
+            ? updated.copyWith(url: fallback.toString())
+            : updated;
+      } on ProfileUpdateSupersededException {
+        rethrow;
+      } catch (error) {
+        commonPrint.log(
+          'fallback ${fallback.host} failed: ${compactError(error)}',
+          logLevel: LogLevel.warning,
+        );
+      }
+    }
+    Error.throwWithStackTrace(firstError, firstTrace);
+  }
+
+  Future<Profile> _updateFrom(
+    String url,
+    ValidateConfig validate,
+    SubscriptionFetch fetch,
+    Map<String, String> headers,
+    Duration timeout,
+    bool Function()? isCurrent,
+  ) async {
+    final response = await fetch(url, timeout: timeout, headers: headers);
     final disposition = response.headers.value('content-disposition');
     final userinfo = response.headers.value('subscription-userinfo');
+    final providerHeaders = providerHeadersOf(response.headers.map);
     return copyWith(
       label: label.takeFirstValid([
+        ProviderHeaders(providerHeaders).title,
         getFileNameForDisposition(disposition),
         defaultLabel,
       ]),
       subscriptionInfo: SubscriptionInfo.formHString(userinfo),
+      providerHeaders: providerHeaders,
+      autoUpdateDuration:
+          ProviderHeaders(providerHeaders).updateInterval ?? autoUpdateDuration,
     ).saveFile(
-      decompressUnlabeled(response.data ?? Uint8List(0)),
+      await decompressDownload(response.data ?? Uint8List(0)),
       validate: validate,
+      isCurrent: isCurrent,
     );
   }
 
+  /// The publishing rename is sync, so nothing runs between [isCurrent] and it.
   Future<Profile> saveFile(
     Uint8List bytes, {
     required ValidateConfig validate,
+    bool Function()? isCurrent,
   }) async {
-    final path = await appPath.tempFilePath;
-    final tempFile = File(path);
-    await tempFile.safeWriteAsBytes(bytes);
-    final message = await validate(path, ageSecretKey);
-    if (message.isNotEmpty) {
-      throw MessageException(message);
+    final target = await _getFile(false);
+    final staging = File('${target.path}.$uniqueId.tmp');
+    try {
+      await staging.safeWriteAsBytes(bytes);
+      final message = await validate(staging.path, ageSecretKey);
+      if (message.isNotEmpty) {
+        throw MessageException(message);
+      }
+      if (isCurrent != null && !isCurrent()) {
+        throw const ProfileUpdateSupersededException();
+      }
+      staging.renameSync(target.path);
+    } catch (_) {
+      await staging.safeDelete();
+      rethrow;
     }
-    final mFile = await file;
-    await tempFile.copy(mFile.path);
-    await tempFile.safeDelete();
     return copyWith(lastUpdateDate: DateTime.now());
   }
+}
+
+typedef SubscriptionFetch =
+    Future<Response<Uint8List>> Function(
+      String url, {
+      Duration timeout,
+      Map<String, String> headers,
+    });
+
+typedef DeviceHeaders = Future<Map<String, String>> Function();
+
+const fallbackTimeoutDuration = Duration(seconds: 10);
+
+const providerHeaderNames = {
+  'announce',
+  'support-url',
+  'profile-title',
+  'profile-web-page-url',
+  'profile-update-interval',
+  'x-hwid-max-devices-reached',
+  'x-hwid-not-supported',
+};
+
+const providerHeaderPrefix = 'flclashx-';
+
+/// The subscription's own headers, keys lower-cased, first value kept.
+Map<String, String> providerHeadersOf(Map<String, List<String>> headers) {
+  return {
+    for (final MapEntry(:key, :value) in headers.entries)
+      if (value.isNotEmpty)
+        if (providerHeaderNames.contains(key.toLowerCase()) ||
+            key.toLowerCase().startsWith(providerHeaderPrefix))
+          key.toLowerCase(): value.first,
+  };
 }

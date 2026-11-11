@@ -85,18 +85,10 @@ uniform sampler2D uTexture;
 
 out vec4 fragColor;
 
-const vec3 kLuma = vec3(0.2126, 0.7152, 0.0722);
+#include "liquid_glass_frost.glsl"
+
 const float kTau = 6.28318530718;
 const float kTurns = 64.0;
-// Fewer taps leave a swirl over sharp text; 64 leave a faint one at 3x, too
-// fine to see. A count taken from a uniform costs as much as 96 constant taps,
-// so a narrower frost takes a constant count of its own, its taps no further
-// apart than 64 leave those of the widest.
-const int kFrostTaps = 64;
-const float kGoldenAngle = 2.39996322973;
-// 1.2 times the engine's kernel reach of (sigma - 0.5) * sqrt(3) pixels, which
-// on a Vogel disc fits its blur best.
-const float kFrostReach = 2.07846096908;
 // Measured on iOS 27: the width of the dark line in dp and the most it takes
 // off a channel of the backdrop.
 const float kLine = 0.67;
@@ -112,23 +104,6 @@ const float kPartReach = 10.0;
 const float kPartHold = 7.0;
 // Measured on iOS 27 controls: how far in dp the highlight's tail reaches.
 const float kRimTail = 4.5;
-// A frost this wide in dp reads the backdrop's luma once, as a haze does.
-const float kSteadyFrost = 8.0;
-
-vec4 veiled(vec4 color) {
-  return color * (1.0 - uVeil.a) + vec4(uVeil.rgb * uVeil.a, uVeil.a);
-}
-
-vec4 texel(vec2 pixel) {
-  return texture(
-    uTexture,
-    clamp(pixel, uClamp.xy, min(uClamp.zw, uSize - 0.5)) / uSize
-  );
-}
-
-vec4 sampleGlass(vec2 point) {
-  return texel((point - uSample.xy) / uSample.zw);
-}
 
 vec4 sampleHaze(vec2 point) {
   vec2 pixel = (point - uHazeSample.xy) / uHazeSample.zw;
@@ -136,56 +111,6 @@ vec4 sampleHaze(vec2 point) {
     uTexture,
     clamp(pixel, uHazeClamp.xy, min(uHazeClamp.zw, uSize - 0.5)) / uSize
   );
-}
-
-#define FROST_DISC(taps)                                                     \
-  float decay = exp(-falloff / float(taps));                                  \
-  float weight = sqrt(decay);                                                 \
-  vec2 turn = vec2(cos(kGoldenAngle), sin(kGoldenAngle));                     \
-  vec2 ray = vec2(1.0, 0.0);                                                  \
-  vec4 sum = vec4(0.0);                                                       \
-  float total = 0.0;                                                          \
-  for (int i = 0; i < taps; i++) {                                            \
-    float spread = sqrt((float(i) + 0.5) / float(taps));                      \
-    sum += texel(center + ray * reach * spread) * weight;                     \
-    total += weight;                                                          \
-    weight *= decay;                                                          \
-    ray = vec2(ray.x * turn.x - ray.y * turn.y, ray.x * turn.y + ray.y * turn.x); \
-  }                                                                           \
-  return sum / total;
-
-vec4 frostDisc16(vec2 center, vec2 reach, float falloff) {
-  FROST_DISC(16)
-}
-
-vec4 frostDisc32(vec2 center, vec2 reach, float falloff) {
-  FROST_DISC(32)
-}
-
-vec4 frostDisc64(vec2 center, vec2 reach, float falloff) {
-  FROST_DISC(kFrostTaps)
-}
-
-// The engine's Gaussian of a frost sigma in device pixels, past what the
-// texture holds, read on a Vogel disc.
-vec4 sampleFrosted(vec2 point, float frost) {
-  vec2 sigma = frost / uSample.zw;
-  sigma = sqrt(max(sigma * sigma - uTexels.y * uTexels.y, vec2(0.0)));
-  vec2 reach = max(sigma - 0.5, 0.0) * kFrostReach;
-  if (reach.x <= 0.0 || reach.y <= 0.0) {
-    return sampleGlass(point);
-  }
-  vec2 ratio = reach / sigma;
-  float falloff = 0.5 * ratio.x * ratio.y;
-  vec2 center = (point - uSample.xy) / uSample.zw;
-  float widest = max(sigma.x, sigma.y);
-  if (widest <= 2.0) {
-    return frostDisc16(center, reach, falloff);
-  }
-  if (widest <= 3.5) {
-    return frostDisc32(center, reach, falloff);
-  }
-  return frostDisc64(center, reach, falloff);
 }
 
 // Its taps sit a frost sigma apart, so that a glyph passing under one point
@@ -498,27 +423,12 @@ void main() {
   base = veiled(base);
   float alpha = base.a;
   vec3 color = base.rgb / max(alpha, 1e-4);
-  color = mix(vec3(dot(color, kLuma)), color, uOptics.y) * uOptics.z;
+  color = graded(color);
   color *= 1.0 - uLight.z * abs(normal.x) * exp(-inset / kEndShade);
 
-  float clash = 0.0;
-  if (uGlow.w != 0.0) {
-    vec4 behind = sampleBehind(halfSize)
-        + sampleBehind(halfSize * vec2(0.4, 0.6))
-        + sampleBehind(halfSize * vec2(1.6, 0.6))
-        + sampleBehind(halfSize * vec2(0.4, 1.4))
-        + sampleBehind(halfSize * vec2(1.6, 1.4));
-    behind = veiled(behind * 0.2);
-    float behindLuma = dot(behind.rgb / max(behind.a, 1e-4), kLuma);
-    clash = clamp(
-      (sign(uGlow.w) * (dot(uTint.rgb, kLuma) - behindLuma) - 0.3) / 0.5,
-      0.0,
-      1.0
-    );
-  }
-  float cover = uTint.a + (1.0 - uTint.a) * clash * abs(uGlow.w);
-  float coverage = alpha * (1.0 - cover) + cover;
-  vec3 glass = color * alpha * (1.0 - cover) + uTint.rgb * cover;
+  vec4 tint = tinted(color, alpha, halfSize);
+  vec3 glass = tint.rgb;
+  float coverage = tint.a;
 
   // iOS lights the top and bottom of its glass, just inside the line, and on
   // its tab bar fades that around the rounded ends with the normal's upward
@@ -556,10 +466,7 @@ void main() {
     coverage = mix(coverage, under.a, line);
   }
 
-  vec2 toGlow = point - uGlow.xy;
-  float reach = max(uGlowSpread.x * uGlowSpread.x, 1.0);
-  glass += uGlow.z * coverage
-      * mix(exp(-dot(toGlow, toGlow) / reach), 1.0, uGlowSpread.y);
+  glass += glowAt(point, coverage);
 
   // A pixel the rim crosses takes the bands it covers, as the rasterizer
   // weighs the rest by its coverage.

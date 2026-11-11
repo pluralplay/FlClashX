@@ -116,6 +116,7 @@ class _EditorCompletionPopupState extends State<EditorCompletionPopup> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: _suggestionItemGap / 2),
       child: InkWell(
+        mouseCursor: clickableCursor,
         canRequestFocus: false,
         customBorder: _suggestionItemShape,
         splashColor: Colors.transparent,

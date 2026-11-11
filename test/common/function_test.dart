@@ -143,18 +143,6 @@ void main() {
       throttler.call('tag', () => calls++, duration: window, fire: true);
       expect(calls, 2);
     });
-
-    test('cancel releases the tag without running the callback', () async {
-      final throttler = Throttler();
-      var calls = 0;
-
-      throttler.call('tag', () => calls++, duration: window);
-      throttler.cancel('tag');
-      await Future<void>.delayed(window * 2);
-
-      expect(calls, 0);
-      expect(throttler.call('tag', () {}, duration: window), isFalse);
-    });
   });
 
   group('SerialTaskScheduler', () {

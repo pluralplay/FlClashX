@@ -504,6 +504,7 @@ class _OutboundIpLine extends StatelessWidget {
     return Tooltip(
       message: context.appLocalizations.outboundIp,
       child: InkWell(
+        mouseCursor: clickableCursor,
         onTap: () => showIpQualitySheet(context, ip: ip.ip),
         customBorder: AppShape.xs,
         hoverColor: Colors.transparent,

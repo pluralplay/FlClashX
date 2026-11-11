@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"maps"
 	"net/http"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
@@ -410,6 +412,82 @@ func TestTheOutermostLoadBalancerStandsAsTheExit(t *testing.T) {
 	}
 	if got := resolveExit("example.com:443", "Proxy"); got != want {
 		t.Errorf("resolved exit = %q, want %q", got, want)
+	}
+}
+
+func balanceOverProvider(t *testing.T, name string, pd cp.ProxyProvider) constant.Proxy {
+	t.Helper()
+	group, err := outboundgroup.NewLoadBalance(
+		outboundgroup.GroupCommonOption{Name: name},
+		outboundgroup.LoadBalanceOption{Strategy: "round-robin"},
+		namedProxy("COMPATIBLE"),
+		[]cp.ProxyProvider{pd},
+	)
+	if err != nil {
+		t.Fatalf("NewLoadBalance: %v", err)
+	}
+	return adapter.NewProxy(group)
+}
+
+func TestALoadBalancerExitMovesWithItsProviderMembers(t *testing.T) {
+	recordRoutes(t)
+	subscription := newCachingProvider("subscription", "node-a", "node-b")
+	balance := balanceOverProvider(t, "Balance", subscription)
+	outer := selectorOver(t, "Proxy", balance)
+	tunnel.UpdateProxies(
+		map[string]constant.Proxy{"Proxy": outer, "Balance": balance},
+		map[string]cp.ProxyProvider{"subscription": subscription},
+	)
+	t.Cleanup(func() { tunnel.UpdateProxies(nil, nil) })
+
+	hits := [][]RouteHit{{{Host: "example.com:443", Proxy: "Proxy", Exit: resolveExit("example.com:443", "Proxy")}}}
+	if got := exitOfChains([]string{"node-a", "Balance", "Proxy"}); got != hits[0][0].Exit {
+		t.Fatalf("exit of the tracked chain = %q, want the resolved %q", got, hits[0][0].Exit)
+	}
+
+	subscription.setProxies("node-a", "node-b")
+	if check := handleCheckRoutes(&CheckRoutesParams{Routes: hits}); !slices.Equal(check.Held, []bool{true}) {
+		t.Errorf("held = %v after a refresh with the same nodes, want it to hold", check.Held)
+	}
+
+	subscription.setProxies("node-c", "node-d")
+	if check := handleCheckRoutes(&CheckRoutesParams{Routes: hits}); !slices.Equal(check.Held, []bool{false}) {
+		t.Errorf("held = %v after the refresh replaced the nodes, want it to fall", check.Held)
+	}
+	if got, want := exitOfChains([]string{"node-c", "Balance", "Proxy"}), resolveExit("example.com:443", "Proxy"); got != want {
+		t.Errorf("exit of the tracked chain = %q, want the resolved %q", got, want)
+	}
+}
+
+func TestALoadBalancerExitMovesWithAMemberGroupPick(t *testing.T) {
+	recordRoutes(t)
+	nested := selectorGroup(t, "Nested", "HK-01", "HK-02")
+	balance := balanceOver(t, "Balance", nested, namedProxy("JP-01"))
+	outer := selectorOver(t, "Proxy", balance)
+	tunnel.UpdateProxies(map[string]constant.Proxy{"Proxy": outer, "Balance": balance, "Nested": nested}, nil)
+	t.Cleanup(func() { tunnel.UpdateProxies(nil, nil) })
+
+	hits := [][]RouteHit{{{Host: "example.com:443", Proxy: "Proxy", Exit: resolveExit("example.com:443", "Proxy")}}}
+	handleChangeProxy(&ChangeProxyParams{GroupName: "Nested", ProxyName: "HK-02"})
+	if check := handleCheckRoutes(&CheckRoutesParams{Routes: hits}); !slices.Equal(check.Held, []bool{false}) {
+		t.Errorf("held = %v after a member group switched, want it to fall", check.Held)
+	}
+}
+
+func TestALatticeOfNestedLoadBalancersIsNamedQuickly(t *testing.T) {
+	previous, current := namedProxy("node-a"), namedProxy("node-b")
+	for i := range 40 {
+		previous, current = current, balanceOver(t, fmt.Sprintf("Balance-%d", i), previous, current)
+	}
+	done := make(chan string, 1)
+	go func() { done <- exitName(current) }()
+	select {
+	case name := <-done:
+		if name == "" {
+			t.Error("the outermost balancer has no exit name")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("naming 40 nested balancers that share members did not finish")
 	}
 }
 

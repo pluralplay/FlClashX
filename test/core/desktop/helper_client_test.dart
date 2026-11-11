@@ -129,9 +129,7 @@ void main() {
 
     final response = await client.stop(_sessionId);
 
-    expect(response.sessionId, _sessionId);
     expect(response.stopped, isTrue);
-    expect(response.reason, isNull);
   });
 
   test('stop rejects an unknown unconfirmed reason', () async {
@@ -371,7 +369,7 @@ void main() {
     final adapter = _ResponseAdapter((options) {
       expect(options.queryParameters, {'coreSha256': _coreSha256});
       return ResponseBody.fromString(
-        r'C:\Program Files\FlClash\FlClashHelperService.exe',
+        r'C:\Program Files\FlClash\FlClashXHelperService.exe',
         200,
         headers: {
           helperProtocolVersionHeader: [helperProtocolVersion],
@@ -382,7 +380,7 @@ void main() {
     final client = _client(
       adapter,
       expectedHelperPath: () =>
-          r'C:\Program Files\FlClash\FlClashHelperService.exe',
+          r'C:\Program Files\FlClash\FlClashXHelperService.exe',
     );
 
     expect(await client.readiness(), HelperReadiness.ready);

@@ -2,7 +2,9 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:fl_clash/common/iterable.dart';
+import 'package:fl_clash/ui/backdrop.dart';
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/keyboard.dart';
 import 'package:fl_clash/ui/l10n.dart';
@@ -57,6 +59,10 @@ class CommonScaffold extends StatefulWidget {
   final List<IconButtonData> iconActions;
   final List<CommonPopupMenuItem> menuItems;
 
+  /// Keeps every icon action in the bar, in one group with search; the page
+  /// puts the rest in [menuItems] itself.
+  final bool groupActions;
+
   /// Answers a form: last in the bar, and in a form sheet the filled default
   /// at its foot beside cancel, where SwiftUI sets one on macOS.
   final IconButtonData? confirmationAction;
@@ -94,6 +100,7 @@ class CommonScaffold extends StatefulWidget {
     this.primaryAction,
     this.iconActions = const [],
     this.menuItems = const [],
+    this.groupActions = false,
     this.confirmationAction,
     this.onKeywordsUpdate,
     this.resizeToAvoidBottomInset,
@@ -592,6 +599,7 @@ class CommonScaffoldState extends State<CommonScaffold>
     final atFoot = form.pop?.atFoot == true;
     final fold = _foldBarActions(
       hasLead: lead != null,
+      maxButtons: widget.groupActions ? null : _maxBarButtons,
       primary: primaryAction,
       icons: [
         if (widget.canSort)
@@ -603,7 +611,9 @@ class CommonScaffoldState extends State<CommonScaffold>
       menuItems: widget.menuItems,
     );
     final shown = [?lead, ...fold.shown];
-    final grouped = shown.length > 1 ? shown.take(_maxGroupedActions) : null;
+    final grouped = shown.length < 2
+        ? null
+        : shown.take(widget.groupActions ? shown.length : _maxGroupedActions);
     final actions = [
       if (grouped != null)
         TonalButtonGroup(
@@ -741,12 +751,14 @@ class CommonScaffoldState extends State<CommonScaffold>
     );
   }
 
+  Color get _pageColor =>
+      widget.backgroundColor ?? SurfaceLevel.page.colorOf(context.colorScheme);
+
   Widget _buildFloatingHeader(Widget appBar) {
     final top = MediaQuery.paddingOf(context).top;
+    final backdrop = PageBackdropScope.of(context);
     return FloatingHeader(
-      backgroundColor:
-          widget.backgroundColor ??
-          SurfaceLevel.page.colorOf(context.colorScheme),
+      backgroundColor: backdrop?.scrimOf(_pageColor) ?? _pageColor,
       fadeStart: top / (top + pageToolbarHeight),
       overhang: _headerOverhang,
       child: appBar,
@@ -954,28 +966,39 @@ class CommonScaffoldState extends State<CommonScaffold>
         : body;
     if (!isCompact) {
       final docked = form.dockedSearch;
-      return AppBarInsetScope(
-        child: Scaffold(
-          appBar: appBar,
-          extendBodyBehindAppBar: barFloats,
-          body: _BodyScope(
-            child: docked == null
-                ? content
-                : Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      content,
-                      if (!_sorting)
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: _buildDockedSearch(docked),
-                        ),
-                    ],
-                  ),
-          ),
-          resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-          backgroundColor: widget.backgroundColor,
+      final backdrop = PageBackdropScope.of(context);
+      final scaffold = Scaffold(
+        appBar: appBar,
+        extendBodyBehindAppBar: barFloats,
+        body: _BodyScope(
+          child: docked == null
+              ? content
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    content,
+                    if (!_sorting)
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: _buildDockedSearch(docked),
+                      ),
+                  ],
+                ),
         ),
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+        backgroundColor: backdrop == null
+            ? widget.backgroundColor
+            : Colors.transparent,
+      );
+      return AppBarInsetScope(
+        child: backdrop == null
+            ? scaffold
+            : Stack(
+                children: [
+                  PageBackdrop(scope: backdrop, page: _pageColor),
+                  scaffold,
+                ],
+              ),
       );
     }
     final sheetBody = FloatingHeaderBody(
@@ -2037,6 +2060,7 @@ class _SelectionButtons {
 ({List<IconButtonData> shown, List<CommonPopupMenuItem> overflow})
 _foldBarActions({
   required bool hasLead,
+  int? maxButtons = _maxBarButtons,
   IconButtonData? primary,
   List<IconButtonData> icons = const [],
   IconButtonData? confirmation,
@@ -2046,10 +2070,11 @@ _foldBarActions({
   final foldable = [?primary, ...icons];
   final fixed =
       (hasLead ? 1 : 0) + widgetCount + (confirmation == null ? 0 : 1);
-  if (fixed + foldable.length + (menuItems.isEmpty ? 0 : 1) <= _maxBarButtons) {
+  if (maxButtons == null ||
+      fixed + foldable.length + (menuItems.isEmpty ? 0 : 1) <= maxButtons) {
     return (shown: [...foldable, ?confirmation], overflow: menuItems);
   }
-  final slots = _maxBarButtons - 1 - fixed;
+  final slots = maxButtons - 1 - fixed;
   final kept = foldable.take(slots < 0 ? 0 : slots).toList();
   bool isKept(IconButtonData data) => kept.any((it) => identical(it, data));
   return (
@@ -2305,6 +2330,7 @@ class _TitleMenuButton extends StatelessWidget {
     // No ink: the padding it needs would move the title off its place in the
     // bar, and a press turns the title into its menu at once.
     return InkWell(
+      mouseCursor: clickableCursor,
       onTap: onPressed,
       customBorder: AppShape.sm,
       hoverColor: Colors.transparent,

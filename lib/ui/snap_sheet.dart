@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/frosted_surface.dart';
+import 'package:fl_clash/ui/liquid_glass.dart';
 import 'package:fl_clash/ui/scroll_behavior.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:fl_clash/ui/surface.dart';
@@ -383,8 +385,6 @@ class _SheetModel extends ChangeNotifier {
   }
 
   double get minHeight => _stops.first;
-
-  double get maxHeight => _stops.last;
 
   double get height => _heightIn(_stops);
 
@@ -821,6 +821,7 @@ class _SnapSheetState extends State<_SnapSheet>
   Widget build(BuildContext context) {
     final route = widget.route;
     final sheetColor = SurfaceLevel.page.colorOf(context.colorScheme);
+    final glass = LiquidGlassScope.of(context);
     final theme = Theme.of(context);
     Widget content = route.builder(context, _scrollController);
     if (route.fitsContent) {
@@ -838,26 +839,26 @@ class _SnapSheetState extends State<_SnapSheet>
         onVerticalDragEnd: (details) =>
             _model.dragEnd(-(details.primaryVelocity ?? 0)),
         onVerticalDragCancel: () => _model.dragEnd(0),
-        child: ClipRSuperellipse(
-          borderRadius: AppRadius.top(AppCorner.xxl),
+        child: FrostedSheet(
+          color: sheetColor,
+          radius: AppRadius.top(AppCorner.xxl),
           child: Theme(
-            data: theme.copyWith(scaffoldBackgroundColor: sheetColor),
-            child: Material(
-              color: sheetColor,
-              child: _SheetContent(
-                model: _model,
-                child: _WithoutKeyboard(
-                  child: SheetProvider(
-                    type: SheetType.bottomSheet,
-                    child: SheetOverhangScope(
-                      overhang: _model.lift,
-                      fitsContent: route.fitsContent,
-                      child: SheetDismissScope(
-                        handler: route._dismissHandler,
-                        child: SheetScrollScope(
-                          createController: _createScrollController,
-                          child: content,
-                        ),
+            data: theme.copyWith(
+              scaffoldBackgroundColor: glass ? Colors.transparent : sheetColor,
+            ),
+            child: _SheetContent(
+              model: _model,
+              child: _WithoutKeyboard(
+                child: SheetProvider(
+                  type: SheetType.bottomSheet,
+                  child: SheetOverhangScope(
+                    overhang: _model.lift,
+                    fitsContent: route.fitsContent,
+                    child: SheetDismissScope(
+                      handler: route._dismissHandler,
+                      child: SheetScrollScope(
+                        createController: _createScrollController,
+                        child: content,
                       ),
                     ),
                   ),

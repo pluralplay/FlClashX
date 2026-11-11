@@ -4,6 +4,7 @@ import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/dashboard/layout.dart';
 import 'package:fl_clash/views/dashboard/style.dart';
+import 'package:fl_clash/widgets/managed_setting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_new_shapes/material_new_shapes.dart';
 import 'package:material_ui/material_ui.dart';
@@ -77,14 +78,23 @@ class _TakeoverRow extends ConsumerWidget {
             ),
           )
         : appLocalizations.enabled;
-    void change(bool value) => systemProxy
-        ? ref
-              .read(networkSettingProvider.notifier)
-              .update((state) => state.copyWith(systemProxy: value))
-        : ref
-              .read(patchClashConfigProvider.notifier)
-              .update((state) => state.copyWith.tun(enable: value));
-    return DashboardSwitchRow(
+    Future<void> change(bool value) async {
+      if (systemProxy) {
+        ref
+            .read(networkSettingProvider.notifier)
+            .update((state) => state.copyWith(systemProxy: value));
+        return;
+      }
+      if (await ref
+          .read(managedSettingsActionProvider.notifier)
+          .confirmTakeOver('clash.tun.enable')) {
+        ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith.tun(enable: value));
+      }
+    }
+
+    final row = DashboardSwitchRow(
       glyph: systemProxy ? AppGlyphs.shuffle : AppGlyphs.vpn,
       title: title,
       subtitle: metrics.subtitle
@@ -103,6 +113,14 @@ class _TakeoverRow extends ConsumerWidget {
       onTap: () => change(!value),
       onChanged: change,
     );
+    return systemProxy
+        ? row
+        : ManagedSetting(
+            settingKey: 'clash.tun.enable',
+            dimsWhenLocked: false,
+            showsLock: false,
+            child: row,
+          );
   }
 }
 

@@ -51,6 +51,9 @@ return `null`.
 | `isEffectSupported` | `effect: String` | bool | See effects below. False for anything `setEffect` would silently not draw. |
 | `setEffect` | `effect: String, tint: int?` ARGB`, brightness: "light" \| "dark" \| null` | null | `unsupported` error when `isEffectSupported` is false. `brightness` picks the light or dark material; null follows the system. |
 | `startDragging` | - | null | Begins a window move from the current pointer press. |
+| `setMenuBarMode` | `value: bool` | null | macOS: moves the Flutter view into a popover under the status item (see Runner hooks) and the app out of the Dock, or back into its window. `show`, `hide` and `isVisible` then speak of the popover. |
+| `isMenuBarMode` | - | bool | macOS; false elsewhere. |
+| `togglePopover` | - | null | macOS, in menu bar mode: opens the popover, or closes it when shown. `unsupported` otherwise. |
 
 ### Events
 
@@ -58,7 +61,7 @@ return `null`.
 
 `close`, `focus`, `blur`, `show`, `hide`, `maximize`, `unmaximize`,
 `minimize`, `restore`, `geometry-changed`, `enter-full-screen`,
-`leave-full-screen`, `should-terminate`, `activate`.
+`leave-full-screen`, `should-terminate`, `activate`, `zoom`.
 
 - `geometry-changed` fires once the window's position or size has settled,
   whether the user or `setBounds` changed it. Each platform coalesces the raw
@@ -77,6 +80,10 @@ return `null`.
   `applicationShouldTerminate`.
 - `activate` is raised by the runner when another launch, or a Dock reopen,
   asks the running instance to show its window. Nothing is shown natively.
+- `zoom` (macOS) replaces the zoom button's own work: the window never
+  enters full screen (`fullScreenNone`) and `windowShouldZoom` refuses the
+  zoom, so Dart decides what the button does. In menu bar mode the popover
+  raises `show` and `hide` as it opens and closes.
 
 ### Window style
 
@@ -206,4 +213,6 @@ the same table; they have no application caller today.
 - Linux: `window_plugin_activate()` from `window/window_plugin.h`.
 - macOS: `WindowPlugin.instance?.handleShouldTerminate()`,
   `WindowPlugin.instance?.handleReopen()`, and `NSWindow.hiddenWindowAtLaunch()`
-  for `MainFlutterWindow.order(_:relativeTo:)`.
+  for `MainFlutterWindow.order(_:relativeTo:)`. The menu bar popover hangs
+  from the view the `tray.statusButton` notification carries, which the tray
+  plugin posts with its status item's button; nothing in the runner wires it.

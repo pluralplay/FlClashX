@@ -9,7 +9,6 @@ void main() {
   test('an offset is looked up in the very list it was measured from', () {
     const offsets = GroupOffsets([], []);
 
-    expect(offsets.isEmpty, isTrue);
     expect(offsets.offsetOf('anything'), 0);
   });
 

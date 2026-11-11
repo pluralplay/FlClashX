@@ -1,9 +1,12 @@
 import 'package:fl_clash/manager/theme_manager.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../helpers/test_profiles.dart';
 
 void main() {
   testWidgets('following the system picks up a font scale changed while the '
@@ -12,6 +15,7 @@ void main() {
     double? scaled;
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [profilesProvider.overrideWith(TestProfiles.new)],
         child: MaterialApp(
           home: ThemeManager(
             child: Builder(

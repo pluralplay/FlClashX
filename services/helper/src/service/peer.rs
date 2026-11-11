@@ -1,5 +1,6 @@
 use crate::service::hub::{
-    ensure_core_sha256_configured, log_message, release_managed_core_on_shutdown, routes,
+    bounded_shutdown, ensure_core_sha256_configured, log_message, release_managed_core_on_shutdown,
+    routes,
 };
 use crate::service::owner::{client_pid, same_sid, TcpConnection};
 
@@ -34,7 +35,7 @@ use windows_sys::Win32::System::Threading::{
 const AF_INET: u32 = 2;
 /// Hyper-V and WinNAT reserve ranges that can cover any fixed port; only admins
 /// write this volatile key under the service's own, and a reboot clears it.
-const PORT_KEY: &str = r"SYSTEM\CurrentControlSet\Services\FlClashHelperService\Runtime";
+const PORT_KEY: &str = r"SYSTEM\CurrentControlSet\Services\FlClashXHelperService\Runtime";
 const PORT_VALUE: &str = "Port";
 const TABLE_ATTEMPTS: usize = 5;
 const ACCEPT_RETRY_DELAY: Duration = Duration::from_secs(1);
@@ -287,8 +288,9 @@ where
         owner_sid,
         retry: None,
     };
-    warp::serve(routes())
-        .serve_incoming_with_graceful_shutdown(incoming, shutdown)
+    let (shutdown, drain) = bounded_shutdown(shutdown);
+    drain
+        .serve(warp::serve(routes()).serve_incoming_with_graceful_shutdown(incoming, shutdown))
         .await;
     drop(published);
     release_managed_core_on_shutdown();

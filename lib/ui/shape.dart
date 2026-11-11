@@ -29,7 +29,6 @@ abstract final class AppCorner {
 }
 
 abstract final class AppRadius {
-  static const BorderRadius none = BorderRadius.zero;
   static const BorderRadius xs = BorderRadius.all(
     Radius.circular(AppCorner.xs),
   );

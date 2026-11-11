@@ -5,6 +5,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/proxies/card.dart';
 import 'package:fl_clash/views/proxies/list.dart';
+import 'package:fl_clash/views/proxies/proxies.dart';
 import 'package:fl_clash/widgets/widgets.dart' hide ListHeader;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +43,7 @@ void main() {
     List<Group>? groups,
     Set<String> unfoldSet = const {'G0', 'G1', 'G2'},
     ValueListenable<Brightness>? brightness,
+    Widget list = const ProxiesListView(),
   }) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
@@ -82,7 +84,7 @@ void main() {
             ),
           ),
           child: brightness == null
-              ? const ProxiesListView()
+              ? list
               : ValueListenableBuilder(
                   valueListenable: brightness,
                   builder: (_, brightness, child) => Theme(
@@ -114,15 +116,6 @@ void main() {
       )
       .first;
 
-  Future<void> revealHeaderOf(WidgetTester tester, String groupName) async {
-    await tester.scrollUntilVisible(
-      actionOf(groupName, 'Scroll to selected'),
-      200,
-      scrollable: scrollable(),
-    );
-    await tester.pumpAndSettle();
-  }
-
   ShapeDecoration surfaceOf(WidgetTester tester, String groupName) =>
       tester
               .widget<DecoratedBox>(
@@ -136,25 +129,11 @@ void main() {
               .decoration
           as ShapeDecoration;
 
-  testWidgets('scroll to selected lands the row under the pinned header', (
-    tester,
-  ) async {
-    await pumpList(tester, selectedMap: {'G1': 'G1-25'});
-    await revealHeaderOf(tester, 'G1');
-
-    await tester.tap(actionOf('G1', 'Scroll to selected'));
-    await tester.pumpAndSettle();
-
-    final header = tester.getRect(headerOf('G1'));
-    final card = tester.getRect(find.byKey(const ValueKey('G1.G1-25')).first);
-    expect(card.top, header.bottom);
-  });
-
   testWidgets('folding a group leaves the cards of the others as they were', (
     tester,
   ) async {
     await pumpList(tester);
-    final card = find.byKey(const ValueKey('G0.G0-0')).first;
+    final card = find.byKey(const ValueKey(('G0-0', 0))).first;
     final before = tester.widget(card);
 
     container.read(proxiesActionProvider.notifier).updateCurrentUnfoldSet({
@@ -236,12 +215,37 @@ void main() {
     expect(surfaceOf(tester, 'G0').shadows, isNull);
   });
 
-  testWidgets('a folded pinned header takes the page color of a new theme', (
-    tester,
-  ) async {
+  testWidgets('the proxies page draws no glass with glass on', (tester) async {
+    await pumpList(
+      tester,
+      list: const LiquidGlassScope(enabled: true, child: ProxiesView()),
+    );
+
+    expect(find.byType(ProxiesListView), findsOneWidget);
+    expect(find.byType(LiquidGlass), findsNothing);
+  });
+
+  testWidgets('a header covers nothing at rest, so no square shows behind '
+      'its corners', (tester) async {
+    await pumpList(tester, unfoldSet: const {});
+
+    final header = find.ancestor(
+      of: headerOf('G0'),
+      matching: find.byType(PinnedHeaderSliver),
+    );
+    expect(
+      find.descendant(of: header, matching: find.byType(ColoredBox)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a pinned header over its rows takes the page color of a new '
+      'theme', (tester) async {
     final brightness = ValueNotifier(Brightness.light);
     addTearDown(brightness.dispose);
-    await pumpList(tester, unfoldSet: const {}, brightness: brightness);
+    await pumpList(tester, brightness: brightness);
+    tester.state<ScrollableState>(scrollable()).position.jumpTo(200);
+    await tester.pump();
 
     brightness.value = Brightness.dark;
     await tester.pumpAndSettle();
@@ -311,19 +315,6 @@ void main() {
     expect(tester.getRect(headerOf('G2')).top, first.top);
   });
 
-  testWidgets('scroll to selected stays put without a selection', (
-    tester,
-  ) async {
-    await pumpList(tester);
-    await revealHeaderOf(tester, 'G1');
-    final before = tester.getRect(headerOf('G1'));
-
-    await tester.tap(actionOf('G1', 'Scroll to selected'));
-    await tester.pumpAndSettle();
-
-    expect(tester.getRect(headerOf('G1')), before);
-  });
-
   testWidgets('a group name too long for its header stays on one line', (
     tester,
   ) async {
@@ -342,6 +333,58 @@ void main() {
     await tester.pump();
 
     expect(_RecordingProxiesAction.tested, ['G0']);
+  });
+
+  testWidgets('a collapsed group still carries its delay test button', (
+    tester,
+  ) async {
+    await pumpList(tester, unfoldSet: const {});
+
+    expect(actionOf('G0', 'Delay test'), findsOneWidget);
+    await tester.tap(actionOf('G0', 'Delay test'));
+    await tester.pump();
+
+    expect(_RecordingProxiesAction.tested, ['G0']);
+  });
+
+  testWidgets('a nested group reads as the host it resolves to, not its type', (
+    tester,
+  ) async {
+    const sub = Group(
+      type: GroupType.Selector,
+      name: 'Sub',
+      all: [
+        Proxy(name: 'Host A', type: 'ss'),
+        Proxy(name: 'Host B', type: 'ss'),
+      ],
+    );
+    const parent = Group(
+      type: GroupType.Selector,
+      name: 'G0',
+      all: [Proxy(name: 'Sub', type: 'Selector')],
+    );
+    await pumpList(
+      tester,
+      groups: [parent, sub],
+      selectedMap: {'Sub': 'Host A'},
+      unfoldSet: const {'G0'},
+    );
+
+    final subCard = find.byKey(const ValueKey(('Sub', 0))).first;
+    expect(
+      find.descendant(
+        of: subCard,
+        matching: find.text('Host A', findRichText: true),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: subCard,
+        matching: find.text('Selector', findRichText: true),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('a group under test spins its button and ignores taps', (

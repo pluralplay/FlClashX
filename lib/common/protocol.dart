@@ -4,7 +4,7 @@ import 'package:win32_registry/win32_registry.dart';
 
 import 'print.dart';
 
-const protocolSchemes = ['clash', 'clashmeta', 'flclash'];
+const protocolSchemes = ['clash', 'clashmeta', 'flclash', 'flclashx', 'clashx'];
 
 class ProtocolRegistrationPlan {
   final String scheme;

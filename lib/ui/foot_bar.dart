@@ -2,6 +2,7 @@ import 'package:fl_clash/ui/context.dart';
 import 'package:fl_clash/ui/inherited.dart';
 import 'package:fl_clash/ui/liquid_glass.dart';
 import 'package:fl_clash/ui/navigation_dock.dart';
+import 'package:fl_clash/ui/outer_shadow.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:fl_clash/ui/surface.dart';
 import 'package:material_ui/material_ui.dart';
@@ -47,18 +48,23 @@ class FloatingFootBar extends StatelessWidget {
               _margin,
               _margin + context.bottomInset,
             ),
-            child: LiquidGlassScope.of(context)
+            child: LiquidGlassScope.dockOf(context)
                 ? LiquidGlass(
                     style: LiquidGlassStyle.pill(colorScheme),
                     child: content,
                   )
-                : DecoratedBox(
-                    decoration: ShapeDecoration(
-                      color: level.colorOf(colorScheme),
-                      shape: AppShape.full,
+                : CustomPaint(
+                    painter: SurfaceShadowPainter(
+                      corners: AppRadius.full,
                       shadows: dockShadows(colorScheme),
                     ),
-                    child: content,
+                    child: DecoratedBox(
+                      decoration: ShapeDecoration(
+                        color: level.colorOf(colorScheme),
+                        shape: AppShape.full,
+                      ),
+                      child: content,
+                    ),
                   ),
           ),
         ),

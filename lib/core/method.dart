@@ -29,7 +29,6 @@ enum CoreMethod {
   getTotalTraffic,
   resetTraffic,
   asyncTestDelay,
-  probe,
   outboundIp,
   serviceCheck,
   getConnections,
@@ -44,16 +43,19 @@ enum CoreMethod {
   updateExternalProvider,
   sideLoadExternalProvider,
   startLog,
+  setHostActive,
   stopLog,
   startListener,
   stopListener,
   getMemoryStats,
+  getCoreVersion,
   crash,
   setupConfig,
   clearEffect,
   updateDns,
   watchRoute,
   checkRoutes,
+  getTunFailed,
 }
 
 class CoreMethodCall {

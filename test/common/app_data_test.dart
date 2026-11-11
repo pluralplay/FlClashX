@@ -51,4 +51,29 @@ void main() {
     );
     expect(profilesDir.parent.existsSync(), isFalse);
   });
+
+  test(
+    'a reset empties the home directory but keeps the instance lock',
+    () async {
+      await mockPreferences();
+      final homePath = await appPath.homeDirPath;
+      final lock = File(await appPath.lockFilePath)..writeAsStringSync('pid');
+      final config = File(join(homePath, 'config.yaml'))
+        ..writeAsStringSync('a');
+      final logs = Directory(join(homePath, 'logs'))
+        ..createSync(recursive: true);
+      File(join(logs.path, 'FlClashX_2026-10-20.log')).writeAsStringSync('log');
+      final previous = db.database;
+      db.database = db.Database(
+        LazyDatabase(() async => throw const FileSystemException('corrupt')),
+      );
+      addTearDown(() => db.database = previous);
+
+      await resetAppData();
+
+      expect(lock.existsSync(), isTrue);
+      expect(config.existsSync(), isFalse);
+      expect(logs.existsSync(), isFalse);
+    },
+  );
 }

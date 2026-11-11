@@ -172,6 +172,8 @@ final class FakeProcessLease implements CoreProcessLease {
   final int pid;
 
   CoreProcessStopResult stopResult;
+  @override
+  String? crashHeadline;
   Completer<void>? stopGate;
   final Completer<void> _stopStarted = Completer<void>();
   int stopCount = 0;

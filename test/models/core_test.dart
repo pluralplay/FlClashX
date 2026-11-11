@@ -229,6 +229,21 @@ void main() {
       expect(provider.subscriptionInfo!.expire, 1700000000);
     });
 
+    test('an expiry past the last date there is reads as none', () {
+      final provider = ExternalProvider.fromJson({
+        'name': 'TestProvider',
+        'type': 'Proxy',
+        'count': 1,
+        'vehicle-type': 'HTTP',
+        'update-at': '2024-01-01T00:00:00.000Z',
+        'subscription-info': {'Total': 1000, 'Expire': 8640000000001},
+      });
+
+      expect(provider.subscriptionInfo!.total, 1000);
+      expect(provider.subscriptionInfo!.expire, 0);
+      expect(() => provider.subscriptionInfo!.expireDate, returnsNormally);
+    });
+
     test('updatingKey uses provider_ prefix', () {
       final provider = ExternalProvider(
         name: 'MyProvider',

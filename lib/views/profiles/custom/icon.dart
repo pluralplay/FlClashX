@@ -544,48 +544,56 @@ class _IconTile extends StatelessWidget {
         onTap: onPressed,
         onLongPress: onLongPress,
         onSecondaryTap: onLongPress,
-        child: Column(
-          spacing: _iconLabelGap,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Material(
-                  color: context.raisedSurfaceLevel.colorOf(colorScheme),
-                  shape: AppShape.md,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    customBorder: AppShape.md,
-                    onTap: onPressed,
-                    onLongPress: onLongPress,
-                    child: SizedBox.square(
-                      dimension: _iconPlateSize,
-                      child: Center(
-                        child: SizedBox.square(
-                          dimension: _iconSize,
-                          child: IconTheme.merge(
-                            data: const IconThemeData(size: _iconSize),
-                            child: CommonTargetIcon(src: icon.url),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Column(
+            spacing: _iconLabelGap,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Material(
+                    color: context.raisedSurfaceLevel.colorOf(colorScheme),
+                    shape: AppShape.md,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      mouseCursor: clickableCursor,
+                      customBorder: AppShape.md,
+                      onTap: onPressed,
+                      onLongPress: onLongPress,
+                      child: SizedBox.square(
+                        dimension: _iconPlateSize,
+                        child: Center(
+                          child: SizedBox.square(
+                            dimension: _iconSize,
+                            child: IconTheme.merge(
+                              data: const IconThemeData(size: _iconSize),
+                              child: CommonTargetIcon(src: icon.url),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                if (isSelected)
-                  const Positioned(top: -4, right: -4, child: SelectionBadge()),
-              ],
-            ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: AppTextStyle.footnote
-                  .of(context)
-                  .copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-          ],
+                  if (isSelected)
+                    const Positioned(
+                      top: -4,
+                      right: -4,
+                      child: SelectionBadge(),
+                    ),
+                ],
+              ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTextStyle.footnote
+                    .of(context)
+                    .copyWith(color: colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );

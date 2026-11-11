@@ -3,11 +3,14 @@ package core
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"maps"
 	"slices"
 	"sync"
 	"time"
 
+	"github.com/metacubex/mihomo/adapter/outboundgroup"
+	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/tunnel"
 )
@@ -66,12 +69,12 @@ func routeStamp() (epoch, version uint64) {
 
 func readPicks() (map[string]string, map[string]uint32) {
 	picks := map[string]string{}
-	for name, proxy := range tunnel.AllProxies() {
+	for name, proxy := range allProxies() {
 		if group, ok := adapterAs[pickableGroup](proxy); ok {
 			picks[name] = group.Now()
 		}
 	}
-	providers := tunnel.ProvidersSnapshot()
+	providers := tunnel.Providers()
 	versions := make(map[string]uint32, len(providers))
 	for name, p := range providers {
 		versions[name] = p.Version()
@@ -82,7 +85,7 @@ func readPicks() (map[string]string, map[string]uint32) {
 // mihomo swaps in a new strategy each time a rule set, manually or on its
 // interval, loads new content.
 func readRuleSets() map[string]any {
-	providers := tunnel.RuleProvidersSnapshot()
+	providers := tunnel.RuleProviders()
 	ruleSets := make(map[string]any, len(providers))
 	for name, p := range providers {
 		ruleSets[name] = p.Strategy()
@@ -229,6 +232,68 @@ func handleCheckRoutes(params *CheckRoutesParams) *RouteCheck {
 	return &RouteCheck{CoreEpoch: epoch, RouteVersion: version, Held: held}
 }
 
+// Stock mihomo keeps its matcher private, so this follows it; a rule into a
+// sub-rule set cannot be followed from outside and reads as unresolved.
+func resolveRoute(metadata *constant.Metadata) (constant.Proxy, error) {
+	proxies := tunnel.Proxies()
+	switch tunnel.Mode() {
+	case tunnel.Direct:
+		return proxies["DIRECT"], nil
+	case tunnel.Global:
+		return proxies["GLOBAL"], nil
+	}
+	resolved := false
+	if node, ok := resolver.DefaultHosts.Search(metadata.Host, false); ok {
+		metadata.DstIP, _ = node.RandIP()
+		resolved = true
+	}
+	helper := constant.RuleMatchHelper{
+		ResolveIP: func() {
+			if resolved || metadata.Host == "" || metadata.Resolved() {
+				return
+			}
+			resolved = true
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				resolver.DefaultDNSTimeout,
+			)
+			defer cancel()
+			if ip, err := resolver.ResolveIP(ctx, metadata.Host); err == nil {
+				metadata.DstIP = ip
+			}
+		},
+		FindProcess: func() {},
+		CheckPassRule: func(name string) bool {
+			adapter, ok := proxies[name]
+			return ok && adapter.Type() == constant.Pass
+		},
+	}
+rules:
+	for _, rule := range tunnel.Rules() {
+		matched, name := rule.Match(metadata, helper)
+		if !matched {
+			continue
+		}
+		if rule.RuleType() == constant.SubRules {
+			return nil, fmt.Errorf("%s routes through sub-rules", metadata.Host)
+		}
+		adapter, ok := proxies[name]
+		if !ok {
+			continue
+		}
+		for hop := adapter; hop != nil; hop = hop.Unwrap(metadata, false) {
+			switch hop.Type() {
+			case constant.Pass:
+				continue rules
+			case constant.Rematch:
+				return nil, fmt.Errorf("%s rematches", metadata.Host)
+			}
+		}
+		return adapter, nil
+	}
+	return proxies["DIRECT"], nil
+}
+
 func resolveExit(host string, proxyName string) string {
 	metadata, err := probeMetadata(host)
 	if proxyName != "" {
@@ -237,7 +302,7 @@ func resolveExit(host string, proxyName string) string {
 	if err != nil {
 		return ""
 	}
-	proxy, err := tunnel.ResolveRoute(metadata)
+	proxy, err := resolveRoute(metadata)
 	if err != nil {
 		return ""
 	}
@@ -245,13 +310,21 @@ func resolveExit(host string, proxyName string) string {
 }
 
 func exitThrough(proxy constant.Proxy, metadata *constant.Metadata) string {
+	return exitNames{}.through(proxy, metadata)
+}
+
+// Balancers nested in balancers are named once per walk by group name: a
+// lattice of shared ones would otherwise be read once per path through it.
+type exitNames map[string]string
+
+func (names exitNames) through(proxy constant.Proxy, metadata *constant.Metadata) string {
 	for proxy != nil {
 		if proxy.Type() == constant.LoadBalance {
-			return exitName(proxy)
+			return names.of(proxy)
 		}
 		next := proxy.Unwrap(metadata, false)
 		if next == nil {
-			return exitName(proxy)
+			return names.of(proxy)
 		}
 		proxy = next
 	}
@@ -264,7 +337,7 @@ func exitOfChains(chains []string) string {
 	if len(chains) == 0 {
 		return ""
 	}
-	proxies := tunnel.AllProxies()
+	proxies := allProxies()
 	for _, name := range slices.Backward(chains[1:]) {
 		if proxy := proxies[name]; proxy != nil && proxy.Type() == constant.LoadBalance {
 			return exitName(proxy)
@@ -279,5 +352,30 @@ func exitOfChains(chains []string) string {
 // A load balancer spreads connections without the route moving, so it is the
 // exit; the server counts since a provider can swap the node behind a name.
 func exitName(proxy constant.Proxy) string {
-	return fmt.Sprintf("%q %s %s", proxy.Name(), proxy.Type(), proxy.Addr())
+	return exitNames{}.of(proxy)
+}
+
+func (names exitNames) of(proxy constant.Proxy) string {
+	if proxy.Type() != constant.LoadBalance {
+		return fmt.Sprintf("%q %s %s", proxy.Name(), proxy.Type(), proxy.Addr())
+	}
+	if name, ok := names[proxy.Name()]; ok {
+		return name
+	}
+	names[proxy.Name()] = ""
+	name := fmt.Sprintf("%q %s %016x", proxy.Name(), proxy.Type(), names.memberDigest(proxy))
+	names[proxy.Name()] = name
+	return name
+}
+
+// Of the groups exitThrough unwraps, none reads the metadata a chain lacks.
+func (names exitNames) memberDigest(balancer constant.Proxy) uint64 {
+	digest := fnv.New64a()
+	if group, ok := adapterAs[outboundgroup.ProxyGroup](balancer); ok {
+		for _, member := range group.Proxies() {
+			_, _ = digest.Write([]byte(names.through(member, nil)))
+			_, _ = digest.Write([]byte{0})
+		}
+	}
+	return digest.Sum64()
 }

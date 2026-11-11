@@ -1,8 +1,6 @@
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/common.dart';
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart' show NumberFormat;
-import 'package:material_ui/material_ui.dart';
 
 /// Pinned to English so every locale reads K and M, never 万 or тыс.
 final _compactFormat = NumberFormat.compact(locale: 'en');
@@ -47,21 +45,5 @@ extension NumExt on num {
       value: size.toStringAsFixed(0),
       unit: ' ${units[unitIndex].name}',
     );
-  }
-}
-
-extension DoubleExt on double {
-  bool moreOrEqual(double value) {
-    return this > value || (value - this).abs() < precisionErrorTolerance;
-  }
-}
-
-extension OffsetExt on Offset {
-  double getCrossAxisOffset(Axis direction) {
-    return direction == Axis.vertical ? dx : dy;
-  }
-
-  double getMainAxisOffset(Axis direction) {
-    return direction == Axis.vertical ? dy : dx;
   }
 }

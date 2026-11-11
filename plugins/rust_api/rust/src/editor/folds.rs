@@ -117,9 +117,12 @@ fn scan_line(line: RopeSlice, tab_size: usize) -> Option<(usize, bool)> {
     last.map(|ch| (indent, ch == ':'))
 }
 
+// The editor asks while it paints, so a bracket whose pair lies further away
+// than this goes unmatched rather than stall the frame on a large document.
+const MAX_BRACKET_SCAN: usize = 100_000;
+
 pub fn find_matching_bracket(rope: &Rope, target_offset: usize) -> Option<usize> {
-    let len = rope.len_chars();
-    if target_offset >= len {
+    if target_offset >= rope.len_chars() {
         return None;
     }
 
@@ -136,34 +139,27 @@ pub fn find_matching_bracket(rope: &Rope, target_offset: usize) -> Option<usize>
     };
 
     let mut depth = 1;
+    let mut step = |ch: char| {
+        if ch == start_ch {
+            depth += 1;
+        } else if ch == matcher {
+            depth -= 1;
+        }
+        depth == 0
+    };
 
     if search_forward {
-        for (i, ch) in rope.chars_at(target_offset + 1).enumerate() {
-            let idx = target_offset + 1 + i;
-            if idx >= len {
-                break;
-            }
-            if ch == start_ch {
-                depth += 1;
-            } else if ch == matcher {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(idx);
-                }
+        let mut chars = rope.chars_at(target_offset + 1);
+        for distance in 1..=MAX_BRACKET_SCAN {
+            if step(chars.next()?) {
+                return Some(target_offset + distance);
             }
         }
     } else {
-        let mut idx = target_offset;
-        while idx > 0 {
-            idx -= 1;
-            let ch = rope.char(idx);
-            if ch == start_ch {
-                depth += 1;
-            } else if ch == matcher {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(idx);
-                }
+        let mut chars = rope.chars_at(target_offset);
+        for distance in 1..=MAX_BRACKET_SCAN {
+            if step(chars.prev()?) {
+                return Some(target_offset - distance);
             }
         }
     }
@@ -203,6 +199,29 @@ mod tests {
     fn a_line_with_both_keeps_the_smaller_fold() {
         assert_eq!(folds("f(a,\n  b:\n    c\n  d)\n"), [(0, 3), (1, 2)]);
         assert_eq!(folds("x: {\n  a: 1\n}\n"), [(0, 2)]);
+    }
+
+    #[test]
+    fn a_bracket_finds_its_pair_in_either_direction() {
+        let rope = Rope::from_str("a { b [ c ] { } } (");
+        assert_eq!(find_matching_bracket(&rope, 2), Some(16));
+        assert_eq!(find_matching_bracket(&rope, 16), Some(2));
+        assert_eq!(find_matching_bracket(&rope, 10), Some(6));
+        assert_eq!(find_matching_bracket(&rope, 18), None);
+        assert_eq!(find_matching_bracket(&rope, 0), None);
+    }
+
+    #[test]
+    fn a_pair_past_the_scan_limit_goes_unmatched() {
+        let near = format!("{{{}}}", " ".repeat(MAX_BRACKET_SCAN - 1));
+        let rope = Rope::from_str(&near);
+        assert_eq!(find_matching_bracket(&rope, 0), Some(MAX_BRACKET_SCAN));
+        assert_eq!(find_matching_bracket(&rope, MAX_BRACKET_SCAN), Some(0));
+
+        let far = format!("{{{}}}", " ".repeat(MAX_BRACKET_SCAN));
+        let rope = Rope::from_str(&far);
+        assert_eq!(find_matching_bracket(&rope, 0), None);
+        assert_eq!(find_matching_bracket(&rope, MAX_BRACKET_SCAN + 1), None);
     }
 
     #[test]

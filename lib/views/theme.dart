@@ -29,17 +29,41 @@ class ThemeView extends StatelessWidget {
         children: [
           const ThemeLivePreview(),
           const SizedBox(height: 16),
-          const _ThemeModeItem(),
+          const ManagedSettingsHint(keys: themePageKeys),
+          const ManagedSetting(
+            settingKey: 'view.app.board',
+            child: _ThemeStyleItem(),
+          ),
           const SizedBox(height: 16),
-          const _PureBlackItem(),
+          const ManagedSetting(
+            settingKey: 'view.app.theme',
+            child: _ThemeModeItem(),
+          ),
           const SizedBox(height: 16),
-          const _PrimaryColorItem(),
+          const ManagedSetting(
+            settingKey: 'view.app.black',
+            child: _PureBlackItem(),
+          ),
           const SizedBox(height: 16),
-          const _NavigationBarItem(),
+          const ManagedSetting(
+            settingKey: 'view.app.color',
+            child: _PrimaryColorItem(),
+          ),
           const SizedBox(height: 16),
-          const _TabAnimationItem(),
+          const ManagedSetting(
+            settingKey: 'view.app.navbar',
+            child: _NavigationBarItem(),
+          ),
           const SizedBox(height: 16),
-          const _LiquidGlassItem(),
+          const ManagedSetting(
+            settingKey: 'view.app.tabs',
+            child: _TabAnimationItem(),
+          ),
+          const SizedBox(height: 16),
+          const ManagedSetting(
+            settingKey: 'view.app.glass',
+            child: _LiquidGlassItem(),
+          ),
           const SizedBox(height: 16),
           if (system.isMacOS || system.isWindows) ...const [
             _SidebarBlurItem(),
@@ -52,6 +76,109 @@ class ThemeView extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ThemeStyleItem extends ConsumerWidget {
+  const _ThemeStyleItem();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appLocalizations = context.appLocalizations;
+    final style = ref.watch(
+      themeSettingProvider.select((state) => state.style),
+    );
+    final colorScheme = context.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PreviewChoiceGroup<ThemeStyle>(
+          info: Info(
+            label: appLocalizations.themeStyle,
+            glyph: AppGlyphs.dashboard,
+          ),
+          value: style,
+          choices: [
+            PreviewChoice(
+              value: ThemeStyle.original,
+              label: appLocalizations.themeStyleOriginal,
+              pictogram: MiniScreenThumb(
+                screen: MiniScreen(
+                  colorScheme: colorScheme,
+                  floatingBar: ref.watch(_floatingBarProvider),
+                  liquidGlass: ref.watch(_liquidGlassProvider),
+                ),
+              ),
+            ),
+            PreviewChoice(
+              value: ThemeStyle.enhanced,
+              label: appLocalizations.themeStyleEnhanced,
+              pictogram: MiniScreenThumb(
+                screen: CustomPaint(painter: _HeroSketch(colorScheme)),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            ref
+                .read(themeSettingProvider.notifier)
+                .update((state) => state.copyWith(style: value));
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 8, 32, 0),
+          child: Text(
+            appLocalizations.themeStyleDesc,
+            style: AppTextStyle.footnote
+                .of(context)
+                .copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The hero page in miniature: logo, name, plan card, server row and the
+/// connect pill.
+class _HeroSketch extends CustomPainter {
+  const _HeroSketch(this.colorScheme);
+
+  final ColorScheme colorScheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.width / 20;
+    final card = SurfaceLevel.card.colorOf(colorScheme);
+    final text = colorScheme.onSurface.withValues(alpha: 0.72);
+    final faint = colorScheme.onSurfaceVariant.withValues(alpha: 0.16);
+    Rect at(double x, double y, double w, double h) =>
+        Rect.fromLTWH(x * unit, y * unit, w * unit, h * unit);
+    void fill(Rect rect, Color color, ShapeBorder shape) {
+      canvas.drawPath(shape.getOuterPath(rect), Paint()..color = color);
+    }
+
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = SurfaceLevel.page.colorOf(colorScheme),
+    );
+    fill(at(7, 4, 6, 6), colorScheme.primary, AppShape.lg);
+    fill(at(5.5, 11.5, 9, 1.2), text, AppShape.full);
+    fill(at(1.5, 14.5, 17, 6.5), card, AppShape.md);
+    fill(at(3, 16, 6, 1), text, AppShape.full);
+    fill(at(3, 18.5, 14, 1), faint, AppShape.full);
+    fill(at(3, 18.5, 8, 1), colorScheme.primary, AppShape.full);
+    fill(at(1.5, 22.5, 17, 4.5), card, AppShape.md);
+    fill(
+      at(3, 23.5, 2.5, 2.5),
+      colorScheme.primary.withValues(alpha: 0.6),
+      AppShape.circle,
+    );
+    fill(at(6.5, 24, 6, 1), text, AppShape.full);
+    fill(at(1.5, 29, 17, 3.2), colorScheme.primary, AppShape.full);
+  }
+
+  @override
+  bool shouldRepaint(_HeroSketch oldDelegate) =>
+      oldDelegate.colorScheme != colorScheme;
 }
 
 class _ThemeModeItem extends ConsumerWidget {
@@ -274,18 +401,23 @@ class _PrimaryColorItem extends ConsumerWidget {
                 onDelete: (color) => _handleDelete(context, ref, color),
                 onAdd: () => _handleAdd(context, ref),
               ),
-              generateGroup([
-                ListItem<ColorStyle>.options(
-                  title: Text(appLocalizations.colorStyle),
-                  options: ColorStyle.values,
-                  value: themeColors.colorStyle,
-                  textBuilder: (style) => style.label,
-                  onChanged: (style) => _update(
-                    ref,
-                    (state) => state.copyWith(colorStyle: style),
-                  ),
+              TitleBadge(
+                badge: null,
+                child: generateSection(
+                  items: [
+                    ListItem<ColorStyle>.options(
+                      title: Text(appLocalizations.colorStyle),
+                      options: ColorStyle.values,
+                      value: themeColors.colorStyle,
+                      textBuilder: (style) => style.label,
+                      onChanged: (style) => _update(
+                        ref,
+                        (state) => state.copyWith(colorStyle: style),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
+              ),
             ],
           ),
         ),
@@ -433,6 +565,7 @@ class _ColorSwatchState extends State<_ColorSwatch> {
           shape: AppShape.circle,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
+            mouseCursor: clickableCursor,
             customBorder: AppShape.circle,
             onTap: widget.onPressed,
             onFocusChange: (value) => setState(() => _focused = value),
@@ -548,6 +681,7 @@ class _AddColorButton extends StatelessWidget {
             shape: AppShape.circle,
             clipBehavior: Clip.antiAlias,
             child: InkWell(
+              mouseCursor: clickableCursor,
               customBorder: AppShape.circle,
               onTap: onPressed,
               child: Center(
@@ -771,39 +905,31 @@ class _LiquidGlassItem extends ConsumerWidget {
   }
 }
 
-class _SidebarBlurItem extends StatelessWidget {
+class _SidebarBlurItem extends ConsumerWidget {
   const _SidebarBlurItem();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InfoHeader(
-          info: Info(label: appLocalizations.sidebar, glyph: AppGlyphs.blur),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              generateGroup([
-                ConfigToggleItem(
-                  title: (l) => l.backgroundBlur,
-                  selector: themeSettingProvider.select(
-                    (state) => state.sidebarBlur,
-                  ),
-                  onChanged: (ref, value) => ref
-                      .read(themeSettingProvider.notifier)
-                      .update((state) => state.copyWith(sidebarBlur: value)),
-                ),
-              ]),
-              ListFooter(text: appLocalizations.sidebarBlurDesc),
-            ],
-          ),
-        ),
-      ],
+    final sidebarBlur = ref.watch(
+      themeSettingProvider.select((state) => state.sidebarBlur),
+    );
+    return ListItem.toggle(
+      leading: const GlyphIcon(AppGlyphs.blur),
+      horizontalTitleGap: 12,
+      title: Text(
+        appLocalizations.backgroundBlur,
+        style: AppTextStyle.subheadline
+            .of(context, emphasized: true)
+            .copyWith(color: context.colorScheme.onSurfaceVariant),
+      ),
+      subtitle: Text(appLocalizations.sidebarBlurDesc),
+      value: sidebarBlur,
+      onChanged: (value) {
+        ref
+            .read(themeSettingProvider.notifier)
+            .update((state) => state.copyWith(sidebarBlur: value));
+      },
     );
   }
 }
@@ -855,7 +981,12 @@ class _FontFamilyItem extends ConsumerWidget {
       color: cardColor,
       shape: AppShape.lg,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(customBorder: AppShape.lg, onTap: onTap, child: preview),
+      child: InkWell(
+        mouseCursor: clickableCursor,
+        customBorder: AppShape.lg,
+        onTap: onTap,
+        child: preview,
+      ),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

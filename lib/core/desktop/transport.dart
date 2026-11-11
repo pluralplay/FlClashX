@@ -296,18 +296,21 @@ final class IpcCoreTransport implements DesktopCoreTransport {
     if (failure != null) {
       return Future.error(failure.error, failure.stackTrace);
     }
+    // Timed out on the stream, the wait also ends its subscription, which a
+    // timeout on the resulting future would leave listening.
     return events
-        .firstWhere(
+        .where(
           (event) => event is TransportConnected || event is TransportFailed,
         )
+        .timeout(timeout)
+        .first
         .then<TransportConnected>((event) {
           if (event case TransportConnected()) {
             return event;
           }
           final failure = event as TransportFailed;
           Error.throwWithStackTrace(failure.error, failure.stackTrace);
-        })
-        .timeout(timeout);
+        });
   }
 
   @override

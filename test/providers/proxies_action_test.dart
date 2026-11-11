@@ -24,6 +24,17 @@ import '../helpers/test_profiles.dart';
 
 class MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
 
+class _AppliedSetupAction extends SetupAction {
+  static var applied = true;
+  static var pushCount = 0;
+
+  @override
+  Future<bool> inputsApplied() async => applied;
+
+  @override
+  int get pushes => pushCount;
+}
+
 const _testUrl = 'http://delay.test';
 
 Group _group(String name, List<Proxy> all) =>
@@ -41,10 +52,38 @@ final _delayKey = delayTestKey(_testUrl, 'HK-01');
 
 ProviderContainer _delayContainer(ProviderContainer Function() build) {
   final container = build();
-  container.read(patchClashConfigProvider.notifier).value =
-      const PatchClashConfig(testUrl: _testUrl);
+  container.read(appSettingProvider.notifier).value = const AppSettingProps(
+    testUrl: _testUrl,
+  );
   return container;
 }
+
+ProxiesData _fallbackData({required String fixed}) => ProxiesData(
+  all: const ['Auto', 'Proxy'],
+  proxies: Map<String, dynamic>.from({
+    'Auto': Map<String, dynamic>.from({
+      'name': 'Auto',
+      'type': 'Fallback',
+      'now': 'HK-01',
+      'fixed': fixed,
+      'all': ['HK-01', 'HK-02'],
+    }),
+    'Proxy': Map<String, dynamic>.from({
+      'name': 'Proxy',
+      'type': 'Selector',
+      'now': 'HK-01',
+      'all': ['HK-01', 'HK-02'],
+    }),
+    'HK-01': Map<String, dynamic>.from({'name': 'HK-01', 'type': 'ss'}),
+    'HK-02': Map<String, dynamic>.from({'name': 'HK-02', 'type': 'ss'}),
+  }),
+);
+
+const _pinnedProfile = Profile(
+  id: 1,
+  autoUpdateDuration: Duration.zero,
+  selectedMap: {'Auto': 'HK-02', 'Proxy': 'HK-02'},
+);
 
 ExternalProvider _provider(String name, {int count = 1}) => ExternalProvider(
   name: name,
@@ -68,14 +107,24 @@ void main() {
     await AppLocalizations.load(const Locale('en'));
   });
 
-  setUp(() => reset(core));
+  setUp(() {
+    reset(core);
+    _AppliedSetupAction.applied = true;
+    _AppliedSetupAction.pushCount = 0;
+  });
 
-  ProviderContainer buildContainer({Profile? profile}) {
+  ProviderContainer buildContainer({
+    Profile? profile,
+    List<Profile> others = const [],
+  }) {
     final container = ProviderContainer(
       overrides: [
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
-        profilesProvider.overrideWith(() => TestProfiles([?profile])),
+        profilesProvider.overrideWith(
+          () => TestProfiles([?profile, ...others]),
+        ),
         currentProfileIdProvider.overrideWithBuild((_, _) => profile?.id),
+        setupActionProvider.overrideWith(_AppliedSetupAction.new),
       ],
     );
     addTearDown(container.dispose);
@@ -92,7 +141,102 @@ void main() {
     return container;
   }
 
+  group('the first group of a profile just added', () {
+    final profile = Profile.normal(label: 'P');
+
+    void answerTwoGroups() {
+      when(core.getProxies).thenAnswer(
+        (_) async => ProxiesData(
+          all: const ['Proxy', 'Auto'],
+          proxies: Map<String, dynamic>.from({
+            for (final name in ['Proxy', 'Auto'])
+              name: Map<String, dynamic>.from({
+                'name': name,
+                'type': 'Selector',
+                'hidden': false,
+                'now': 'HK-01',
+                'all': ['HK-01'],
+              }),
+            'HK-01': Map<String, dynamic>.from({'name': 'HK-01', 'type': 'ss'}),
+          }),
+        ),
+      );
+    }
+
+    test(
+      'opens once its groups arrive, then stays as the user leaves it',
+      () async {
+        answerTwoGroups();
+        final container = buildContainer(profile: profile);
+        final action = actionOf(container);
+        action.unfoldFirstGroupOnce(profile.id);
+
+        await action.updateGroups();
+        expect(container.read(unfoldSetProvider), {'Proxy'});
+
+        action.updateCurrentUnfoldSet({});
+        await action.updateGroups();
+        expect(container.read(unfoldSetProvider), isEmpty);
+      },
+    );
+
+    test('a profile that was not just added keeps its groups folded', () async {
+      answerTwoGroups();
+      final container = buildContainer(profile: profile);
+
+      await actionOf(container).updateGroups();
+
+      expect(container.read(unfoldSetProvider), isEmpty);
+    });
+
+    test('only a new profile is marked, not an edit of one', () async {
+      answerTwoGroups();
+      final container = buildContainer(profile: profile);
+      container.listen(currentProfileIdProvider, (_, _) {});
+      final profiles = container.read(profilesActionProvider.notifier);
+
+      profiles.putProfile(profile.copyWith(label: 'Renamed'));
+      await actionOf(container).updateGroups();
+      expect(container.read(unfoldSetProvider), isEmpty);
+
+      final added = Profile.normal(label: 'Added');
+      profiles.putProfile(added);
+      container.read(currentProfileIdProvider.notifier).value = added.id;
+      await actionOf(container).updateGroups();
+      expect(container.read(unfoldSetProvider), {'Proxy'});
+    });
+  });
+
   group('updateGroups', () {
+    test('a refresh that a later one overtook leaves its groups', () async {
+      ProxiesData oneGroup(String name) => ProxiesData(
+        all: [name],
+        proxies: Map<String, dynamic>.from({
+          name: Map<String, dynamic>.from({
+            'name': name,
+            'type': 'Selector',
+            'now': 'HK-01',
+            'all': ['HK-01'],
+          }),
+          'HK-01': Map<String, dynamic>.from({'name': 'HK-01', 'type': 'ss'}),
+        }),
+      );
+      final stale = Completer<ProxiesData>();
+      final answers = [stale.future, Future.value(oneGroup('Current'))];
+      when(core.getProxies).thenAnswer((_) => answers.removeAt(0));
+      final container = buildContainer();
+      final action = actionOf(container);
+
+      final first = action.updateGroups();
+      await action.updateGroups();
+      stale.complete(oneGroup('Stale'));
+      await first;
+
+      expect(container.read(groupsProvider).map((group) => group.name), [
+        'Current',
+      ]);
+    });
+
     test('publishes the groups derived from core proxy data', () async {
       when(core.getProxies).thenAnswer(
         (_) async => ProxiesData(
@@ -175,6 +319,151 @@ void main() {
         verify(core.getProxies).called(3);
       },
     );
+
+    test('drops a pin the Core no longer holds', () async {
+      when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+      final container = buildContainer(profile: _pinnedProfile);
+
+      await actionOf(container).updateGroups();
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Auto': '',
+        'Proxy': 'HK-02',
+      });
+    });
+
+    test('keeps a pin the Core still holds', () async {
+      when(
+        core.getProxies,
+      ).thenAnswer((_) async => _fallbackData(fixed: 'HK-02'));
+      final container = buildContainer(profile: _pinnedProfile);
+
+      await actionOf(container).updateGroups();
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        _pinnedProfile.selectedMap,
+      );
+    });
+
+    test('never takes a pin back from the Core', () async {
+      when(
+        core.getProxies,
+      ).thenAnswer((_) async => _fallbackData(fixed: 'HK-02'));
+      final container = buildContainer(
+        profile: _pinnedProfile.copyWith(selectedMap: const {'Auto': ''}),
+      );
+
+      await actionOf(container).updateGroups();
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {'Auto': ''});
+    });
+
+    test('a read that overlapped a config push changes no pins', () async {
+      final data = Completer<ProxiesData>();
+      when(core.getProxies).thenAnswer((_) => data.future);
+      final container = buildContainer(profile: _pinnedProfile);
+
+      final reading = actionOf(container).updateGroups();
+      _AppliedSetupAction.pushCount++;
+      data.complete(_fallbackData(fixed: ''));
+      await reading;
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        _pinnedProfile.selectedMap,
+      );
+    });
+
+    test('leaves the pins alone until the Core runs this profile', () async {
+      _AppliedSetupAction.applied = false;
+      when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+      final container = buildContainer(profile: _pinnedProfile);
+
+      await actionOf(container).updateGroups();
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        _pinnedProfile.selectedMap,
+      );
+    });
+
+    test('a read that outlives a profile switch changes no pins', () async {
+      final data = Completer<ProxiesData>();
+      when(core.getProxies).thenAnswer((_) => data.future);
+      final other = _pinnedProfile.copyWith(id: 2);
+      final container = buildContainer(
+        profile: _pinnedProfile,
+        others: [other],
+      );
+
+      container.listen(currentProfileIdProvider, (_, _) {});
+      final reading = actionOf(container).updateGroups();
+      container.read(currentProfileIdProvider.notifier).value = 2;
+      data.complete(_fallbackData(fixed: ''));
+      await reading;
+
+      expect(
+        container.read(currentProfileProvider)?.selectedMap,
+        other.selectedMap,
+      );
+    });
+
+    test(
+      'a change still out keeps its pin when an earlier one settles',
+      () async {
+        final answers = [
+          Completer<ChangeProxyResult>(),
+          Completer<ChangeProxyResult>(),
+        ];
+        var call = 0;
+        when(
+          () => core.changeProxy(any()),
+        ).thenAnswer((_) => answers[call++].future);
+        when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+        final container = buildContainer(
+          profile: _pinnedProfile.copyWith(selectedMap: const {}),
+        );
+        final action = actionOf(container);
+
+        final first = action.changeProxy(groupName: 'Auto', proxyName: 'HK-01');
+        final second = action.changeProxy(
+          groupName: 'Auto',
+          proxyName: 'HK-02',
+        );
+        answers[0].complete(const ChangeProxyResult());
+        await first;
+        await action.updateGroups();
+        answers[1].complete(const ChangeProxyResult());
+        await second;
+
+        expect(container.read(currentProfileProvider)?.selectedMap, {
+          'Auto': 'HK-02',
+        });
+      },
+    );
+
+    test('keeps a pin the Core has not taken yet', () async {
+      final answer = Completer<ChangeProxyResult>();
+      when(() => core.changeProxy(any())).thenAnswer((_) => answer.future);
+      when(core.getProxies).thenAnswer((_) async => _fallbackData(fixed: ''));
+      final container = buildContainer(
+        profile: _pinnedProfile.copyWith(selectedMap: const {}),
+      );
+      final action = actionOf(container);
+
+      final switching = action.changeProxy(
+        groupName: 'Auto',
+        proxyName: 'HK-02',
+      );
+      final reading = action.updateGroups();
+      answer.complete(const ChangeProxyResult());
+      await (switching, reading).wait;
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Auto': 'HK-02',
+      });
+    });
 
     test('a core status change alone does not clear the groups', () {
       final container = buildContainer();
@@ -345,9 +634,321 @@ void main() {
         expect(container.read(currentProfileProvider)?.selectedMap, {
           'Proxy': 'HK-00',
         });
-        debouncer.cancel((FunctionTag.changeProxy, 'Proxy'));
+        debouncer.cancel((FunctionTag.changeProxy, 1, 'Proxy'));
       },
     );
+
+    test(
+      'a pick made before a profile switch stays with its profile',
+      () async {
+        const other = Profile(
+          id: 2,
+          autoUpdateDuration: Duration.zero,
+          selectedMap: {'Proxy': 'HK-00'},
+        );
+        final container = buildContainer(
+          profile: _selectedProfile('HK-00'),
+          others: [other],
+        );
+
+        container.listen(currentProfileIdProvider, (_, _) {});
+        actionOf(container).changeProxyDebounce('Proxy', 'HK-01');
+        container.read(currentProfileIdProvider.notifier).value = other.id;
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+
+        verifyNever(() => core.changeProxy(any()));
+        final profiles = container.read(profilesProvider);
+        expect(profiles.getProfile(1)?.selectedMap, {'Proxy': 'HK-01'});
+        expect(profiles.getProfile(2)?.selectedMap, {'Proxy': 'HK-00'});
+      },
+    );
+
+    test('a switch failing after a later one leaves the later pick', () async {
+      final firstAnswer = Completer<ChangeProxyResult>();
+      when(
+        () => core.changeProxy(
+          const ChangeProxyParams(groupName: 'Proxy', proxyName: 'HK-01'),
+        ),
+      ).thenAnswer((_) => firstAnswer.future);
+      final container = buildContainer(profile: _selectedProfile('HK-00'));
+      final action = actionOf(container);
+
+      final first = action.changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+      await action.changeProxy(groupName: 'Proxy', proxyName: 'HK-02');
+      firstAnswer.completeError(StateError('timed out'));
+      await first;
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Proxy': 'HK-02',
+      });
+    });
+
+    group('two picks still waiting on the Core', () {
+      late Map<String, Completer<ChangeProxyResult>> answers;
+      late ProviderContainer container;
+
+      setUp(() {
+        answers = {
+          for (final name in ['HK-01', 'HK-02'])
+            name: Completer<ChangeProxyResult>(),
+        };
+        when(() => core.changeProxy(any())).thenAnswer(
+          (invocation) =>
+              answers[(invocation.positionalArguments.single
+                          as ChangeProxyParams)
+                      .proxyName]!
+                  .future,
+        );
+        container = buildContainer(profile: _selectedProfile('HK-00'));
+      });
+
+      Future<Map<String, String>?> settle(List<(String, bool)> outcomes) async {
+        final action = actionOf(container);
+        final first = action.changeProxy(
+          groupName: 'Proxy',
+          proxyName: 'HK-01',
+        );
+        final second = action.changeProxy(
+          groupName: 'Proxy',
+          proxyName: 'HK-02',
+        );
+        for (final (name, accepted) in outcomes) {
+          if (accepted) {
+            answers[name]!.complete(const ChangeProxyResult());
+          } else {
+            answers[name]!.completeError(StateError('timed out'));
+          }
+          await pumpEventQueue();
+        }
+        await Future.wait([first, second]);
+        return container.read(currentProfileProvider)?.selectedMap;
+      }
+
+      test(
+        'both failing, the later first, leave the pick the Core runs',
+        () async {
+          expect(await settle([('HK-02', false), ('HK-01', false)]), {
+            'Proxy': 'HK-00',
+          });
+        },
+      );
+
+      test(
+        'both failing, the earlier first, leave the pick the Core runs',
+        () async {
+          expect(await settle([('HK-01', false), ('HK-02', false)]), {
+            'Proxy': 'HK-00',
+          });
+        },
+      );
+
+      test('an earlier pick accepted after the later failed is kept', () async {
+        expect(await settle([('HK-02', false), ('HK-01', true)]), {
+          'Proxy': 'HK-01',
+        });
+      });
+
+      test('a later pick accepted after the earlier failed is kept', () async {
+        expect(await settle([('HK-01', false), ('HK-02', true)]), {
+          'Proxy': 'HK-02',
+        });
+      });
+    });
+
+    test('a debounced pick failing after the one before it failed leaves the '
+        'pick the Core runs', () async {
+      final first = Completer<ChangeProxyResult>();
+      when(() => core.changeProxy(any())).thenAnswer((invocation) {
+        final params =
+            invocation.positionalArguments.single as ChangeProxyParams;
+        return params.proxyName == 'HK-01'
+            ? first.future
+            : Future.error(StateError('timed out'));
+      });
+      final container = buildContainer(profile: _selectedProfile('HK-00'));
+      final action = actionOf(container);
+
+      final sent = action.changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+      action.changeProxyDebounce('Proxy', 'HK-02');
+      first.completeError(StateError('timed out'));
+      await sent;
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      verify(
+        () => core.changeProxy(
+          const ChangeProxyParams(groupName: 'Proxy', proxyName: 'HK-02'),
+        ),
+      ).called(1);
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Proxy': 'HK-00',
+      });
+    });
+
+    test('a debounced pick failing after the one before it went through rolls '
+        'back to that one', () async {
+      final first = Completer<ChangeProxyResult>();
+      when(() => core.changeProxy(any())).thenAnswer((invocation) {
+        final params =
+            invocation.positionalArguments.single as ChangeProxyParams;
+        return params.proxyName == 'HK-01'
+            ? first.future
+            : Future.error(StateError('timed out'));
+      });
+      final container = buildContainer(profile: _selectedProfile('HK-00'));
+      final action = actionOf(container);
+
+      final sent = action.changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+      action.changeProxyDebounce('Proxy', 'HK-02');
+      first.complete(const ChangeProxyResult());
+      await sent;
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Proxy': 'HK-01',
+      });
+    });
+
+    group('a switch whose answer was lost', () {
+      const lost = CoreMethodException(code: 'no_response', message: 'lost');
+
+      ProxiesData running(String now) => ProxiesData(
+        all: const ['Proxy'],
+        proxies: Map<String, dynamic>.from({
+          'Proxy': Map<String, dynamic>.from({
+            'name': 'Proxy',
+            'type': 'Selector',
+            'now': now,
+            'all': ['HK-00', 'HK-01'],
+          }),
+        }),
+      );
+
+      test('stands when the Core runs it', () async {
+        when(() => core.changeProxy(any())).thenThrow(lost);
+        when(core.getProxies).thenAnswer((_) async => running('HK-01'));
+        when(core.resetConnections).thenAnswer((_) async => true);
+        when(core.closeConnections).thenAnswer((_) async => true);
+        final container = buildContainer(profile: _selectedProfile('HK-00'));
+
+        await actionOf(
+          container,
+        ).changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+
+        expect(container.read(currentProfileProvider)?.selectedMap, {
+          'Proxy': 'HK-01',
+        });
+      });
+
+      test('rolls back when the Core does not', () async {
+        when(() => core.changeProxy(any())).thenThrow(lost);
+        when(core.getProxies).thenAnswer((_) async => running('HK-00'));
+        final container = buildContainer(profile: _selectedProfile('HK-00'));
+
+        await actionOf(
+          container,
+        ).changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+
+        expect(container.read(currentProfileProvider)?.selectedMap, {
+          'Proxy': 'HK-00',
+        });
+      });
+
+      ProxiesData testing({required String now, required String fixed}) =>
+          ProxiesData(
+            all: const ['Proxy'],
+            proxies: Map<String, dynamic>.from({
+              'Proxy': Map<String, dynamic>.from({
+                'name': 'Proxy',
+                'type': 'URLTest',
+                'now': now,
+                'fixed': fixed,
+                'all': ['HK-00', 'HK-01'],
+              }),
+            }),
+          );
+
+      test('a cleared pin stands once the Core holds none', () async {
+        when(() => core.changeProxy(any())).thenThrow(lost);
+        when(
+          core.getProxies,
+        ).thenAnswer((_) async => testing(now: 'HK-00', fixed: ''));
+        when(core.resetConnections).thenAnswer((_) async => true);
+        when(core.closeConnections).thenAnswer((_) async => true);
+        final container = buildContainer(profile: _selectedProfile('HK-00'));
+
+        await actionOf(
+          container,
+        ).changeProxy(groupName: 'Proxy', proxyName: '');
+
+        expect(container.read(currentProfileProvider)?.selectedMap, {
+          'Proxy': '',
+        });
+      });
+
+      test('a pin is not taken for one when the group only tested its way '
+          'to that node', () async {
+        when(() => core.changeProxy(any())).thenThrow(lost);
+        when(
+          core.getProxies,
+        ).thenAnswer((_) async => testing(now: 'HK-01', fixed: ''));
+        final container = buildContainer(profile: _selectedProfile('HK-00'));
+
+        await actionOf(
+          container,
+        ).changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+
+        expect(container.read(currentProfileProvider)?.selectedMap, {
+          'Proxy': 'HK-00',
+        });
+      });
+    });
+
+    test('a switch made directly, from the tray say, drops an older pick '
+        'still in its debounce', () async {
+      when(
+        () => core.changeProxy(any()),
+      ).thenAnswer((_) async => const ChangeProxyResult());
+      final container = buildContainer(profile: _selectedProfile('HK-00'));
+      final action = actionOf(container);
+
+      action.changeProxyDebounce('Proxy', 'HK-01');
+      await action.changeProxy(groupName: 'Proxy', proxyName: 'HK-02');
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      verifyNever(
+        () => core.changeProxy(
+          const ChangeProxyParams(groupName: 'Proxy', proxyName: 'HK-01'),
+        ),
+      );
+      expect(container.read(currentProfileProvider)?.selectedMap, {
+        'Proxy': 'HK-02',
+      });
+    });
+
+    test('a failed switch rolls back the profile it was made in', () async {
+      const other = Profile(
+        id: 2,
+        autoUpdateDuration: Duration.zero,
+        selectedMap: {'Proxy': 'HK-05'},
+      );
+      final container = buildContainer(
+        profile: _selectedProfile('HK-00'),
+        others: [other],
+      );
+      container.listen(currentProfileIdProvider, (_, _) {});
+      when(() => core.changeProxy(any())).thenAnswer((_) async {
+        container.read(currentProfileIdProvider.notifier).value = other.id;
+        throw StateError('core down');
+      });
+
+      await actionOf(
+        container,
+      ).changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
+
+      final profiles = container.read(profilesProvider);
+      expect(profiles.getProfile(1)?.selectedMap, {'Proxy': 'HK-00'});
+      expect(profiles.getProfile(2)?.selectedMap, {'Proxy': 'HK-05'});
+    });
   });
 
   group('proxyDelayTest', () {
@@ -688,6 +1289,28 @@ void main() {
       expect(container.read(pendingDelayTestsProvider), isEmpty);
     });
 
+    test('stops the run once a Core goes silent past the RPC guard', () async {
+      var calls = 0;
+      when(() => core.asyncTestDelay(_testUrl, any(), any())).thenAnswer((
+        _,
+      ) async {
+        calls++;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        return null;
+      });
+      final container = _delayContainer(buildContainer);
+      actionOf(container).silentCoreAfter = const Duration(milliseconds: 10);
+      final proxies = List.generate(
+        maxConcurrentDelayTests * 3,
+        (index) => Proxy(name: 'HK-$index', type: 'ss'),
+      );
+
+      await actionOf(container).delayTest(proxies);
+
+      expect(calls, maxConcurrentDelayTests);
+      expect(container.read(pendingDelayTestsProvider), isEmpty);
+    });
+
     test('a proxy that answers nothing leaves the rest of the run', () async {
       var calls = 0;
       when(() => core.asyncTestDelay(_testUrl, any(), any())).thenAnswer((
@@ -900,6 +1523,8 @@ void main() {
       when(
         () => core.sideLoadExternalProvider(
           providerName: 'rules',
+          path: '',
+          type: 'Proxy',
           data: 'payload',
         ),
       ).thenAnswer((_) => release.future);
@@ -927,7 +1552,12 @@ void main() {
 
     test('surfaces the core message and skips the refresh', () async {
       when(
-        () => core.sideLoadExternalProvider(providerName: 'rules', data: 'bad'),
+        () => core.sideLoadExternalProvider(
+          providerName: 'rules',
+          path: any(named: 'path'),
+          type: any(named: 'type'),
+          data: 'bad',
+        ),
       ).thenAnswer((_) async => 'invalid payload');
       final container = buildContainer();
 

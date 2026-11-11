@@ -348,6 +348,76 @@ void main() {
     expect(disabledConfig['skip-auth-prefixes'], isEmpty);
   });
 
+  test('makeRealProfileTask keeps the dashboard the profile names', () async {
+    MakeRealProfileState state(Map<String, dynamic> rawConfig) =>
+        MakeRealProfileState(
+          profilesPath: '/profiles',
+          profileId: 13,
+          rawConfig: rawConfig,
+          realPatchConfig: const PatchClashConfig(
+            externalController: defaultExternalController,
+          ),
+          appendSystemDns: false,
+          proxyGroups: const [],
+          rules: const [],
+          addedRules: const [],
+          defaultUA: 'FlClash-Test',
+        );
+    const url = 'https://ui.example/dist.zip';
+
+    final kept = loadYaml(
+      (await makeRealProfileTask(
+        state({
+          'external-ui': 'ui',
+          'external-ui-name': 'zashboard',
+          'external-ui-url': url,
+        }),
+      )).yaml,
+    );
+    expect(kept['external-ui'], 'ui');
+    expect(kept['external-ui-name'], 'zashboard');
+    expect(kept['external-ui-url'], url);
+
+    for (final path in ['/srv/ui', '../ui', r'\\host\ui', 'ui/../../x']) {
+      final dropped = loadYaml(
+        (await makeRealProfileTask(
+          state({'external-ui': path, 'external-ui-name': path}),
+        )).yaml,
+      );
+      expect(dropped['external-ui'], defaultExternalUi, reason: path);
+      expect(dropped['external-ui-url'], defaultExternalUiUrl, reason: path);
+      expect(dropped['external-ui-name'], '', reason: path);
+    }
+  });
+
+  test('makeRealProfileTask ships zashboard with an open controller', () async {
+    MakeRealProfileState state(PatchClashConfig config) => MakeRealProfileState(
+      profilesPath: '/profiles',
+      profileId: 15,
+      rawConfig: const {'external-ui-url': 'https://ui.example/dist.zip'},
+      realPatchConfig: config,
+      appendSystemDns: false,
+      proxyGroups: const [],
+      rules: const [],
+      addedRules: const [],
+      defaultUA: 'FlClash-Test',
+    );
+
+    final open = loadYaml(
+      (await makeRealProfileTask(
+        state(const PatchClashConfig(externalController: '127.0.0.1:9091')),
+      )).yaml,
+    );
+    expect(open['external-ui'], defaultExternalUi);
+    expect(open['external-ui-url'], defaultExternalUiUrl);
+
+    final closed = loadYaml(
+      (await makeRealProfileTask(state(const PatchClashConfig()))).yaml,
+    );
+    expect(closed['external-ui'], '');
+    expect(closed['external-ui-url'], 'https://ui.example/dist.zip');
+  });
+
   test('makeRealProfileTask overrides DNS and explicit custom data', () async {
     final result = await makeRealProfileTask(
       const MakeRealProfileState(
@@ -518,7 +588,7 @@ void main() {
 
       final open = await build(
         const PatchClashConfig(
-          externalController: ExternalControllerStatus.open,
+          externalController: defaultExternalController,
           secret: 'from-the-app',
         ),
       );
@@ -528,11 +598,10 @@ void main() {
       final closed = await build(const PatchClashConfig());
       expect(closed['secret'], '');
       final missingSecret = await build(
-        const PatchClashConfig(
-          externalController: ExternalControllerStatus.open,
-        ),
+        const PatchClashConfig(externalController: '0.0.0.0:9091'),
       );
-      expect(missingSecret['external-controller'], '');
+      expect(missingSecret['external-controller'], '0.0.0.0:9091');
+      expect(missingSecret['secret'], '');
     },
   );
 
@@ -564,7 +633,7 @@ void main() {
               'ntp': {'enable': true, 'write-to-system': true},
             },
             realPatchConfig: const PatchClashConfig(
-              externalController: ExternalControllerStatus.open,
+              externalController: defaultExternalController,
               secret: 'from-the-app',
             ),
             appendSystemDns: false,

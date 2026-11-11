@@ -11,11 +11,6 @@ part 'generated/config.freezed.dart';
 part 'generated/config.g.dart';
 
 const defaultBypassDomain = [
-  '*zhihu.com',
-  '*zhimg.com',
-  '*jd.com',
-  '100ime-iat-api.xfyun.cn',
-  '*360buyimg.com',
   'localhost',
   '*.local',
   '127.*',
@@ -29,8 +24,6 @@ const defaultBypassDomain = [
   '172.31.*',
   '192.168.*',
 ];
-
-const defaultUserAgents = ['clash-verge/v2.4.2', 'ClashforWindows/0.19.23'];
 
 const defaultFilters = [
   Filter(
@@ -111,15 +104,7 @@ final List<HotKeyAction> defaultHotKeyActions = system.isWindows
 
 const List<DashboardWidget> defaultDashboardWidgets = [
   DashboardWidget.currentOutbound,
-  DashboardWidget.networkSpeed,
-  DashboardWidget.outboundMode,
-  DashboardWidget.vpnButton,
-  DashboardWidget.networkTakeover,
-  DashboardWidget.intranetIp,
-  DashboardWidget.serviceStatus,
   DashboardWidget.profiles,
-  DashboardWidget.proxyGroups,
-  DashboardWidget.connectionStats,
 ];
 
 /// A phone starts without the VPN switch and the diagnostic cards, which stay
@@ -147,6 +132,10 @@ const _legacyDefaultDashboardWidgets = {
 /// The run time has no replacement: it moved onto the current outbound card,
 /// as did the outbound IP, whose card became the intranet one.
 const _legacyDashboardWidgets = {
+  'announce': DashboardWidget.announcement,
+  'metainfo': DashboardWidget.profiles,
+  'serviceInfo': DashboardWidget.profiles,
+  'changeServerButton': DashboardWidget.currentOutbound,
   'networkDetection': DashboardWidget.intranetIp,
   'outboundModeV2': DashboardWidget.outboundMode,
   'systemProxyButton': DashboardWidget.networkTakeover,
@@ -158,10 +147,21 @@ const _legacyDashboardWidgets = {
 };
 
 const _retiredDashboardWidgets = {
+  'zashboardButton',
   'runTime',
   'overrideDnsButton',
   'overrideNtpButton',
 };
+
+List<DashboardWidget> dashboardWidgetsNamed(Iterable<String> names) {
+  final byName = {
+    for (final widget in DashboardWidget.values)
+      widget.name.toLowerCase(): widget,
+  };
+  return {
+    for (final name in names) ?byName[name.trim().toLowerCase()],
+  }.toList();
+}
 
 /// The current outbound card cannot be removed: a list without it predates it.
 List<DashboardWidget> dashboardWidgetsFromJson(
@@ -211,21 +211,6 @@ Object? _readTabAnimation(Map<dynamic, dynamic> json, String key) {
   };
 }
 
-Object? _readUserAgents(Map<dynamic, dynamic> json, String key) {
-  if (json.containsKey(key)) {
-    return json[key];
-  }
-  final legacy = json['customUserAgent'];
-  if (legacy is! String) {
-    return null;
-  }
-  final custom = legacy.trim();
-  if (custom.isEmpty || defaultUserAgents.contains(custom)) {
-    return null;
-  }
-  return [...defaultUserAgents, custom];
-}
-
 @freezed
 abstract class Filter with _$Filter {
   const factory Filter({required String label, required String regex}) =
@@ -248,26 +233,26 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(false) bool autoRun,
     @Default(false) bool openLogs,
     @Default(true) bool closeConnections,
+    @Default(RequestFeed.live) RequestFeed requestFeed,
+    @Default(defaultTestUrl) String testUrl,
     @Default(defaultDelayTestTimeout) int delayTestTimeout,
     @Default(TabAnimation.fade)
     @JsonKey(readValue: _readTabAnimation)
     TabAnimation tabAnimation,
     @Default(true) bool floatingNavigationBar,
-    @Default(true) bool autoCheckUpdate,
+    @Default(false) bool autoCheckUpdate,
     @Default(true)
     @JsonKey(readValue: _readSidebarExpanded)
     bool sidebarExpanded,
     @Default(0) int acceptedDisclaimerVersion,
-    @Default(true) bool minimizeOnExit,
+    @Default(false) bool minimizeOnExit,
+    @Default(false) bool menuBarMode,
     @Default(false) bool hidden,
     @Default(false) bool developerMode,
     @Default(RestoreStrategy.compatible) RestoreStrategy restoreStrategy,
     @Default(true) bool showTrayTitle,
     @Default(true) bool monochromeTrayIcon,
     @Default(true) bool checkCertificate,
-    @Default(defaultUserAgents)
-    @JsonKey(readValue: _readUserAgents)
-    List<String> userAgents,
     @Default(defaultFilters) List<Filter> filters,
     @Default(false) bool hideIp,
     @Default(false) bool editorLineWrap,
@@ -275,6 +260,11 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default([]) List<String> serviceOrder,
     @Default([]) List<String> disabledServices,
     @Default({}) Map<String, Map<String, double>> tableColumnWidths,
+    @Default({}) Map<String, int> subscriptionNotices,
+    @Default({}) Set<String> ownedSettings,
+
+    /// The profile update whose panel headers the settings last took.
+    String? appliedHeadersUpdate,
   }) = _AppSettingProps;
 
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>
@@ -316,6 +306,38 @@ extension AccessControlPropsExt on AccessControlProps {
     AccessControlMode.acceptSelected => copyWith(acceptList: value),
     AccessControlMode.rejectSelected => copyWith(rejectList: value),
   };
+
+  /// The profile's app lists always bound the tunnel and the picked apps
+  /// only narrow them; Android's VPN allows apps or disallows them, never both.
+  AccessControlProps withPackages({
+    required List<String> include,
+    required List<String> exclude,
+  }) {
+    if (include.isEmpty && exclude.isEmpty) {
+      return this;
+    }
+    final accepting = enable && mode == AccessControlMode.acceptSelected;
+    final rejecting = enable && mode == AccessControlMode.rejectSelected;
+    if (include.isEmpty && !accepting) {
+      return copyWith(
+        enable: true,
+        mode: AccessControlMode.rejectSelected,
+        rejectList: {if (rejecting) ...rejectList, ...exclude}.toList(),
+      );
+    }
+    final picked = acceptList.toSet();
+    final excluded = {...exclude, if (rejecting) ...rejectList};
+    return copyWith(
+      enable: true,
+      mode: AccessControlMode.acceptSelected,
+      acceptList: {
+        for (final name in include.isEmpty ? acceptList : include)
+          if (!excluded.contains(name) &&
+              (!accepting || include.isEmpty || picked.contains(name)))
+            name,
+      }.toList(),
+    );
+  }
 }
 
 @freezed
@@ -334,7 +356,8 @@ abstract class WindowProps with _$WindowProps {
 
 /// Four dashboard columns at full density beside the expanded sidebar, with
 /// room for the Windows and Linux title bar.
-const defaultWindowSize = Size(1280, 880);
+/// Below maxMobileWidth, so a fresh install opens in the phone layout.
+const defaultWindowSize = Size(450, 900);
 
 extension WindowPropsExt on WindowProps {
   Size? get savedSize {
@@ -349,9 +372,9 @@ extension WindowPropsExt on WindowProps {
 abstract class VpnProps with _$VpnProps {
   const factory VpnProps({
     @Default(true) bool enable,
-    @Default(true) bool systemProxy,
-    @Default(false) bool ipv6,
-    @Default(true) bool allowBypass,
+    @Default(false) bool systemProxy,
+    @Default(true) bool ipv6,
+    @Default(false) bool allowBypass,
     @Default(false) bool dnsHijacking,
     @Default(defaultAccessControlProps) AccessControlProps accessControlProps,
   }) = _VpnProps;
@@ -382,7 +405,7 @@ extension AuthenticationPropsExt on AuthenticationProps {
 @freezed
 abstract class NetworkProps with _$NetworkProps {
   const factory NetworkProps({
-    @Default(true) bool systemProxy,
+    @Default(false) bool systemProxy,
     @Default(defaultBypassDomain) List<String> bypassDomain,
     @Default(true) bool bypassPrivateRoute,
     @Default(true) bool autoSetSystemDns,
@@ -473,6 +496,7 @@ abstract class ThemeProps with _$ThemeProps {
     int? primaryColor,
     @Default(defaultPrimaryColors) List<int> primaryColors,
     @Default(ThemeMode.system) ThemeMode themeMode,
+    @Default(ThemeStyle.original) ThemeStyle style,
     @Default(ColorStyle.vivid)
     @JsonKey(readValue: _readColorStyle)
     ColorStyle colorStyle,
@@ -524,7 +548,7 @@ abstract class Config with _$Config {
 
   factory Config.strictFromJson(Map<String, Object?> json) =>
       _withLegacyOverrideDns(
-        _$ConfigFromJson(_withLegacyTestUrl(_withLegacyRouteMode(json))),
+        _$ConfigFromJson(_withLegacyRouteMode(json)),
         json,
       );
 
@@ -555,26 +579,6 @@ Config _withLegacyOverrideDns(Config config, Map<String, Object?> json) {
         )
       : <DnsOverrideKey>{};
   return config.copyWith.patchClashConfig(dnsOverrideKeys: keys);
-}
-
-/// The test URL moved from the app settings into the general overrides.
-Map<String, Object?> _withLegacyTestUrl(Map<String, Object?> json) {
-  final app = json['appSettingProps'];
-  final testUrl = app is Map ? app['testUrl'] : null;
-  final clash = json['patchClashConfig'] ?? const <String, Object?>{};
-  if (testUrl is! String ||
-      testUrl.isEmpty ||
-      clash is! Map ||
-      clash.containsKey(GeneralOverrideKey.testUrl.path)) {
-    return json;
-  }
-  return {
-    ...json,
-    'patchClashConfig': {
-      ...Map<String, Object?>.from(clash),
-      GeneralOverrideKey.testUrl.path: testUrl,
-    },
-  };
 }
 
 Map<String, Object?> _withLegacyRouteMode(Map<String, Object?> json) {

@@ -241,17 +241,11 @@ void main() {
       expect(
         _labels(
           _complete(
-            'nameserver:\n  - https://dns.al|',
+            'nameserver:\n  - https://dns.go|',
             schema: EditorSchema.dns,
           ),
         ),
-        ['https://dns.alidns.com/dns-query'],
-      );
-      expect(
-        _labels(
-          _complete('name: a\ntype: vless\nfl|', schema: EditorSchema.proxy),
-        ),
-        ['flow'],
+        ['https://dns.google/dns-query'],
       );
     });
 

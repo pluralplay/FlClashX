@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:fl_clash/ui/context.dart';
+import 'package:fl_clash/ui/cursor.dart';
 import 'package:fl_clash/ui/liquid_glass.dart';
 import 'package:fl_clash/ui/shape.dart';
 import 'package:fl_clash/ui/surface.dart';
@@ -329,6 +330,7 @@ class _CommonSwitchState extends State<CommonSwitch>
       );
     }
     return InkResponse(
+      mouseCursor: clickableCursor,
       onTapDown: (_) => _handlePress(),
       onTap: _handleRelease,
       onTapCancel: _handleCancel,

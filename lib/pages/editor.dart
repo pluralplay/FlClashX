@@ -319,17 +319,26 @@ class _EditorPageState extends ConsumerState<EditorPage>
   }
 
   Future<bool> _handlePop(BuildContext context) async {
+    if (_saving) {
+      return false;
+    }
     final onPop = widget.onPop;
     _commitComposing();
     if (onPop == null || !_isDirty) {
       return true;
     }
-    final res = await onPop(
-      context,
-      _titleController.text,
-      _EditedContent(_editor!.controller!),
-    );
-    return res && context.mounted;
+    // A save picked in onPop's dialog runs inside it.
+    setState(() => _saving = true);
+    try {
+      final res = await onPop(
+        context,
+        _titleController.text,
+        _EditedContent(_editor!.controller!),
+      );
+      return res && context.mounted;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -355,7 +364,7 @@ class _EditorPageState extends ConsumerState<EditorPage>
           child: CommonScaffold(
             titleWidget: _EditorTitleField(
               controller: _titleController,
-              enabled: widget.titleEditable,
+              enabled: widget.titleEditable && !_saving,
             ),
             iconActions: [
               IconButtonData(
@@ -377,12 +386,16 @@ class _EditorPageState extends ConsumerState<EditorPage>
               CommonPopupMenuItem(
                 glyph: AppGlyphs.undo,
                 label: appLocalizations.undo,
-                onPressed: _barState.canUndo ? _undoController.undo : null,
+                onPressed: _barState.canUndo && !_saving
+                    ? _undoController.undo
+                    : null,
               ),
               CommonPopupMenuItem(
                 glyph: AppGlyphs.redo,
                 label: appLocalizations.redo,
-                onPressed: _barState.canRedo ? _undoController.redo : null,
+                onPressed: _barState.canRedo && !_saving
+                    ? _undoController.redo
+                    : null,
               ),
               CommonPopupMenuItem(
                 glyph: AppGlyphs.textSize,
@@ -423,7 +436,7 @@ class _EditorPageState extends ConsumerState<EditorPage>
                 document: _document,
                 language: widget.language,
                 schema: widget.schema,
-                readOnly: readOnly,
+                readOnly: readOnly || _saving,
                 undoController: _undoController,
                 showsLoading: routeSettled,
                 onReady: _handleReady,

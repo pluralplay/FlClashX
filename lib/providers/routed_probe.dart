@@ -43,8 +43,6 @@ class RoutedProbeState<K, V> {
   ProbeEntry<V> entryOf(K target) =>
       entries[target] ?? ProbeEntry<V>(phase: ProbePhase.empty);
 
-  V? valueOf(K target) => entries[target]?.value;
-
   bool isLoading(K target) => entryOf(target).isLoading;
 
   @override

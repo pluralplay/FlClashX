@@ -1,8 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
+import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/path.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/desktop/model.dart';
 import 'package:fl_clash/core/interface.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
@@ -17,9 +24,84 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:riverpod/riverpod.dart';
 
+import '../helpers/app_paths.dart';
+import '../helpers/setup_actions.dart';
 import '../helpers/test_profiles.dart';
 
 class _MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
+
+const _oldUrl = 'https://sub.example.com/old';
+const _newUrl = 'https://sub.example.com/new';
+
+/// Answers [_newUrl] at once and [_oldUrl] only when [answer] is called.
+class _HeldFetch {
+  final started = Completer<void>();
+  final _response = Completer<Response<Uint8List>>();
+
+  Future<Response<Uint8List>> call(
+    String url, {
+    Duration timeout = downloadTimeoutDuration,
+    Map<String, String> headers = const {},
+  }) {
+    if (url != _oldUrl) {
+      return Future.value(_answer(url, 'proxies: [] # new'));
+    }
+    started.complete();
+    return _response.future;
+  }
+
+  void answer(String body) => _response.complete(_answer(_oldUrl, body));
+
+  static Response<Uint8List> _answer(String url, String body) => Response(
+    requestOptions: RequestOptions(path: url),
+    statusCode: 200,
+    data: Uint8List.fromList(utf8.encode(body)),
+  );
+}
+
+typedef _HeldDownload = ({
+  Profile profile,
+  _HeldFetch fetch,
+  ProviderContainer container,
+  ProfilesAction action,
+  ApplyRecordingSetupAction setupAction,
+});
+
+Future<_HeldDownload> _holdDownload() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  await AppLocalizations.load(const Locale('en'));
+  final root = await Directory.systemTemp.createTemp('profiles_action_');
+  addTearDown(() => root.delete(recursive: true));
+  await useAppPaths(root);
+  final profile = Profile.normal(
+    label: 'Sub',
+    url: _oldUrl,
+    sendDeviceHeaders: false,
+  );
+  final core = _MockCoreHandlerInterface();
+  when(() => core.validateConfig(any())).thenAnswer((_) async => '');
+  when(() => core.clearEffect(any())).thenAnswer((_) async => '');
+  final setupAction = ApplyRecordingSetupAction();
+  final container = ProviderContainer(
+    overrides: [
+      currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+      profilesProvider.overrideWith(() => TestProfiles([profile])),
+      coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+      setupActionProvider.overrideWith(() => setupAction),
+    ],
+  );
+  addTearDown(container.dispose);
+  final fetch = _HeldFetch();
+  final action = container.read(profilesActionProvider.notifier)
+    ..fetch = fetch.call;
+  return (
+    profile: profile,
+    fetch: fetch,
+    container: container,
+    action: action,
+    setupAction: setupAction,
+  );
+}
 
 void main() {
   group('ProfilesAction', () {
@@ -50,6 +132,142 @@ void main() {
       final profile = container.read(profilesProvider).getProfile(original.id);
       expect(profile?.label, edited.label);
       expect(profile?.url, edited.url);
+    });
+
+    group('a download held open while', () {
+      late _HeldDownload held;
+
+      Future<List<String>> profileFiles() async {
+        final directory = Directory(await appPath.profilesPath);
+        if (!await directory.exists()) {
+          return const [];
+        }
+        return [
+          await for (final entity in directory.list())
+            entity.path.split(Platform.pathSeparator).last,
+        ];
+      }
+
+      Future<String> saved() async => (await held.profile.file).readAsString();
+
+      setUp(() async {
+        held = await _holdDownload();
+      });
+
+      test('a request for a new source leaves the file to it', () async {
+        final next = held.profile.copyWith(url: _newUrl);
+
+        final stale = held.action.updateProfile(held.profile);
+        await held.fetch.started.future;
+        await held.action.updateProfile(next);
+        expect(held.setupAction.applyCount, 1);
+
+        held.fetch.answer('proxies: [] # old');
+        await stale;
+
+        final profile = held.container.read(profilesProvider).single;
+        expect(profile.url, next.url);
+        expect(await saved(), 'proxies: [] # new');
+        expect(held.setupAction.applyCount, 1);
+        expect(await profileFiles(), ['${held.profile.id}.yaml']);
+      });
+
+      test('a file saved by hand is kept with its settings', () async {
+        final pending = held.action.updateProfile(held.profile);
+        await held.fetch.started.future;
+        final edited = await held.profile
+            .copyWith(autoUpdate: false)
+            .saveFile(
+              Uint8List.fromList(utf8.encode('proxies: [] # by hand')),
+              validate: (_, _) async => '',
+            );
+        held.container.read(profilesProvider.notifier).put(edited);
+
+        held.fetch.answer('proxies: [] # stale');
+        await pending;
+
+        final profile = held.container.read(profilesProvider).single;
+        expect(profile.autoUpdate, isFalse);
+        expect(profile.lastUpdateDate, edited.lastUpdateDate);
+        expect(profile.subscriptionInfo, isNull);
+        expect(await saved(), 'proxies: [] # by hand');
+        expect(held.setupAction.applyCount, 0);
+      });
+
+      test('a source edit retires it but a label edit does not', () async {
+        final pending = held.action.updateProfile(held.profile);
+        await held.fetch.started.future;
+        held.container
+            .read(profilesProvider.notifier)
+            .put(
+              held.profile.copyWith(
+                label: 'Renamed',
+                ageSecretKey: 'AGE-SECRET-KEY-1FAKE',
+              ),
+            );
+
+        held.fetch.answer('proxies: [] # stale');
+        await pending;
+
+        final profile = held.container.read(profilesProvider).single;
+        expect(profile.label, 'Renamed');
+        expect(profile.lastUpdateDate, isNull);
+        expect(await profileFiles(), isEmpty);
+        expect(held.setupAction.applyCount, 0);
+      });
+
+      test('a label edit alone lets it land', () async {
+        final pending = held.action.updateProfile(held.profile);
+        await held.fetch.started.future;
+        held.container
+            .read(profilesProvider.notifier)
+            .put(held.profile.copyWith(label: 'Renamed'));
+
+        held.fetch.answer('proxies: [] # landed');
+        await pending;
+
+        final profile = held.container.read(profilesProvider).single;
+        expect(profile.label, 'Renamed');
+        expect(profile.lastUpdateDate, isNotNull);
+        expect(await saved(), 'proxies: [] # landed');
+        expect(held.setupAction.applyCount, 1);
+      });
+
+      test('its date read back to the second lets it land', () async {
+        final pending = held.action.updateProfile(
+          held.profile.copyWith(
+            lastUpdateDate: DateTime(2026, 10, 27, 12, 0, 0, 345, 678),
+          ),
+        );
+        await held.fetch.started.future;
+        held.container
+            .read(profilesProvider.notifier)
+            .put(
+              held.profile.copyWith(lastUpdateDate: DateTime(2026, 10, 27, 12)),
+            );
+
+        held.fetch.answer('proxies: [] # landed');
+        await pending;
+
+        expect(await saved(), 'proxies: [] # landed');
+        expect(held.setupAction.applyCount, 1);
+      });
+
+      test('its deletion leaves no file behind', () async {
+        held.container.listen(currentProfileIdProvider, (_, _) {});
+        held.container.read(currentProfileIdProvider.notifier).value = null;
+
+        final pending = held.action.updateProfile(held.profile);
+        await held.fetch.started.future;
+        await held.action.deleteProfile(held.profile.id);
+
+        held.fetch.answer('proxies: [] # stale');
+        await pending;
+
+        expect(held.container.read(profilesProvider), isEmpty);
+        expect(await profileFiles(), isEmpty);
+        expect(held.setupAction.applyCount, 0);
+      });
     });
 
     test('updates selection and inserts the first profile', () {
@@ -111,7 +329,7 @@ void main() {
   group('ScriptsAction', () {
     ProviderContainer scriptsContainer(
       Profile profile,
-      _ApplyRecordingSetupAction setupAction,
+      ApplyRecordingSetupAction setupAction,
     ) {
       final container = ProviderContainer(
         overrides: [
@@ -138,7 +356,7 @@ void main() {
         extendType: ExtendType.script,
         scriptId: 1,
       );
-      final setupAction = _ApplyRecordingSetupAction();
+      final setupAction = ApplyRecordingSetupAction();
       final container = scriptsContainer(profile, setupAction);
       final action = container.read(scriptsActionProvider.notifier);
 
@@ -166,7 +384,7 @@ void main() {
           extendType: ExtendType.script,
           scriptId: 1,
         );
-        final setupAction = _ApplyRecordingSetupAction();
+        final setupAction = ApplyRecordingSetupAction();
         final container = scriptsContainer(profile, setupAction);
         final remote = script(1, url: 'bad-url');
 
@@ -262,6 +480,69 @@ void main() {
   });
 
   group('CoreAction', () {
+    test('an embedded core is stopped, shut down and started again', () async {
+      final core = _MockCoreHandlerInterface();
+      when(() => core.shutdown()).thenAnswer((_) async => true);
+      final container = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+          coreActionProvider.overrideWith(
+            () => _TestCoreAction()..embedded = true,
+          ),
+          setupActionProvider.overrideWith(_TestSetupAction.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(runTimeProvider.notifier).value = 0;
+      final coreAction =
+          container.read(coreActionProvider.notifier) as _TestCoreAction;
+      final setupAction =
+          container.read(setupActionProvider.notifier) as _TestSetupAction;
+
+      await coreAction.restartCore();
+
+      verify(() => core.shutdown()).called(1);
+      expect(coreAction.lifecycleRestartCount, 1);
+      expect(setupAction.runningCalls, [(false, false), (true, true)]);
+      expect(setupAction.applyProfileCount, 0);
+    });
+
+    test(
+      'a stop made while an embedded core shuts down keeps it off',
+      () async {
+        final core = _MockCoreHandlerInterface();
+        final shutdown = Completer<bool>();
+        when(() => core.shutdown()).thenAnswer((_) => shutdown.future);
+        final container = ProviderContainer(
+          overrides: [
+            initProvider.overrideWithBuild((_, _) => true),
+            commonActionProvider.overrideWith(_RaceCommonAction.new),
+            coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+            coreActionProvider.overrideWith(
+              () => _TestCoreAction()..embedded = true,
+            ),
+            setupActionProvider.overrideWith(_RestartSetupAction.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        final coreAction =
+            container.read(coreActionProvider.notifier) as _TestCoreAction;
+        final setupAction =
+            container.read(setupActionProvider.notifier) as _RestartSetupAction;
+        await setupAction.setRunning(true);
+
+        final restart = coreAction.restartCore();
+        await Future<void>.delayed(Duration.zero);
+        await setupAction.setRunning(false);
+        shutdown.complete(true);
+        await restart;
+
+        expect(container.read(isStartProvider), isFalse);
+        expect(setupAction.transitions.last, isFalse);
+        expect(setupAction.applyProfileCount, 1);
+      },
+    );
+
     test(
       'clears the DNS cache on a network change only while connected',
       () async {
@@ -331,6 +612,76 @@ void main() {
         expect(setupAction.applyProfileCount, 0);
       },
     );
+
+    test('a stop confirmed mid-restart keeps the proxy off', () async {
+      final container = ProviderContainer(
+        overrides: [
+          initProvider.overrideWithBuild((_, _) => true),
+          commonActionProvider.overrideWith(_RaceCommonAction.new),
+          coreActionProvider.overrideWith(_TestCoreAction.new),
+          setupActionProvider.overrideWith(_RestartSetupAction.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      final coreAction =
+          container.read(coreActionProvider.notifier) as _TestCoreAction;
+      final setupAction =
+          container.read(setupActionProvider.notifier) as _RestartSetupAction;
+      await setupAction.setRunning(true);
+      final restartCompleter = Completer<CoreLifecycleResult>();
+      coreAction.restartCompleter = restartCompleter;
+
+      final restart = coreAction.restartCore();
+      await Future<void>.delayed(Duration.zero);
+      await setupAction.setRunning(false);
+      expect(container.read(isStartProvider), isFalse);
+
+      restartCompleter.complete(_restartResult);
+      await restart;
+
+      expect(setupAction.transitions, [true, false]);
+      expect(container.read(isStartProvider), isFalse);
+      expect(setupAction.applyProfileCount, 1);
+    });
+
+    test('a stop rolled back mid-restart keeps the proxy off', () async {
+      final container = ProviderContainer(
+        overrides: [
+          initProvider.overrideWithBuild((_, _) => true),
+          commonActionProvider.overrideWith(_RaceCommonAction.new),
+          coreActionProvider.overrideWith(_TestCoreAction.new),
+          setupActionProvider.overrideWith(_RestartSetupAction.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      final coreAction =
+          container.read(coreActionProvider.notifier) as _TestCoreAction;
+      final setupAction =
+          container.read(setupActionProvider.notifier) as _RestartSetupAction;
+      await setupAction.setRunning(true);
+      final restartCompleter = Completer<CoreLifecycleResult>();
+      coreAction.restartCompleter = restartCompleter;
+
+      final restart = coreAction.restartCore();
+      await Future<void>.delayed(Duration.zero);
+      setupAction.coreRunningError = const CoreMethodException(
+        code: 'transport_disconnected',
+        message: 'Core transport disconnected',
+      );
+      await expectLater(
+        setupAction.setRunning(false),
+        throwsA(isA<CoreMethodException>()),
+      );
+      expect(container.read(isStartProvider), isTrue);
+      setupAction.coreRunningError = null;
+
+      restartCompleter.complete(_restartResult);
+      await restart;
+
+      expect(setupAction.transitions, [true, false, false]);
+      expect(container.read(isStartProvider), isFalse);
+      expect(setupAction.applyProfileCount, 1);
+    });
 
     test(
       'a rejected setup while running reports restartCore as unsuccessful',
@@ -536,6 +887,245 @@ void main() {
 
       expect(coreAction.initCoreCount, 1);
       expect(container.read(coreStatusProvider), CoreStatus.connected);
+    });
+
+    group('after a crash', () {
+      late List<String> printed;
+      late ProviderContainer container;
+      late _TestCoreAction coreAction;
+      late _TestSetupAction setupAction;
+
+      setUp(() {
+        printed = [];
+        final original = debugPrint;
+        debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+        addTearDown(() => debugPrint = original);
+        container = ProviderContainer(
+          overrides: [
+            coreActionProvider.overrideWith(_TestCoreAction.new),
+            setupActionProvider.overrideWith(_TestSetupAction.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(runTimeProvider.notifier).value = 0;
+        coreAction =
+            container.read(coreActionProvider.notifier) as _TestCoreAction;
+        setupAction =
+            container.read(setupActionProvider.notifier) as _TestSetupAction;
+      });
+
+      Future<void> crashAfter(Duration uptime, String reason) {
+        coreAction.now = coreAction.now.add(uptime);
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        return coreAction.restartAfterCrash(reason);
+      }
+
+      test('answers a crash during the first init and keeps the status the '
+          'restart set', () async {
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        final start = coreAction.startCore();
+        await pumpEventQueue();
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+
+        coreAction.initCompleter = null;
+        await crashAfter(Duration.zero, 'boom');
+        init.completeError(StateError('the Core is gone'));
+        await start;
+
+        expect(coreAction.lifecycleRestartCount, 1);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+      });
+
+      test('restarts the Core with the run it had', () async {
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 1);
+        expect(setupAction.runningCalls, [(true, true)]);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+        expect(printed, contains(contains('boom')));
+      });
+
+      test('leaves a Core that fell within 5 s of two restarts in a row '
+          'down and logs why', () async {
+        await crashAfter(Duration.zero, 'first');
+        await crashAfter(const Duration(seconds: 4), 'second');
+        await crashAfter(const Duration(seconds: 4), 'third');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+        expect(printed.last, allOf(contains('5s'), contains('third')));
+      });
+
+      test('restarts a Core that outlived the window again', () async {
+        await crashAfter(Duration.zero, 'first');
+        await crashAfter(const Duration(seconds: 4), 'second');
+        await crashAfter(const Duration(seconds: 6), 'third');
+
+        expect(coreAction.lifecycleRestartCount, 3);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+      });
+
+      test(
+        'answers a crash that came while the restart was under way',
+        () async {
+          final init = Completer<void>();
+          coreAction.initCompleter = init;
+          final first = crashAfter(Duration.zero, 'first');
+          await pumpEventQueue();
+          expect(container.read(coreStatusProvider), CoreStatus.connected);
+
+          coreAction.initCompleter = null;
+          await crashAfter(const Duration(seconds: 1), 'second');
+          init.complete();
+          await first;
+
+          expect(coreAction.lifecycleRestartCount, 2);
+          expect(container.read(coreStatusProvider), CoreStatus.connected);
+        },
+      );
+
+      test('relaunches a Core that fell during a restart already under '
+          'way', () async {
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        final userRestart = coreAction.restartCore();
+        await pumpEventQueue();
+
+        coreAction.initCompleter = null;
+        final recovery = crashAfter(const Duration(seconds: 1), 'boom');
+        init.complete();
+        await userRestart;
+        await recovery;
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+      });
+
+      (ProviderContainer, _TestCoreAction, _RestartSetupAction) realRun() {
+        final container = ProviderContainer(
+          overrides: [
+            initProvider.overrideWithBuild((_, _) => true),
+            commonActionProvider.overrideWith(_RaceCommonAction.new),
+            coreActionProvider.overrideWith(_TestCoreAction.new),
+            setupActionProvider.overrideWith(_RestartSetupAction.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        return (
+          container,
+          container.read(coreActionProvider.notifier) as _TestCoreAction,
+          container.read(setupActionProvider.notifier) as _RestartSetupAction,
+        );
+      }
+
+      test('restores the run a crash during the restart rolled back', () async {
+        final (container, coreAction, setupAction) = realRun();
+        await setupAction.setRunning(true);
+        setupAction.crashOnNextApply = () {
+          container.read(coreStatusProvider.notifier).value =
+              CoreStatus.disconnected;
+          unawaited(coreAction.restartAfterCrash('during restore'));
+        };
+
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        await coreAction.restartAfterCrash('boom');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(setupAction.transitions, [true, true, false, true]);
+        expect(container.read(isStartProvider), isTrue);
+      });
+
+      test('keeps a stop made while the Core was being restarted', () async {
+        final (container, coreAction, setupAction) = realRun();
+        await setupAction.setRunning(true);
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        final recovery = coreAction.restartAfterCrash('boom');
+        await pumpEventQueue();
+
+        await setupAction.setRunning(false);
+        coreAction.initCompleter = null;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        unawaited(coreAction.restartAfterCrash('second'));
+        init.complete();
+        await recovery;
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(isStartProvider), isFalse);
+      });
+
+      test('keeps a stop that the crash itself rolled back', () async {
+        final (container, coreAction, setupAction) = realRun();
+        await setupAction.setRunning(true);
+        final init = Completer<void>();
+        coreAction.initCompleter = init;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        final recovery = coreAction.restartAfterCrash('boom');
+        await pumpEventQueue();
+
+        setupAction.coreRunningError = Exception('Core is gone');
+        await expectLater(setupAction.setRunning(false), throwsException);
+        expect(container.read(isStartProvider), isTrue);
+        setupAction.coreRunningError = null;
+        coreAction.initCompleter = null;
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+        unawaited(coreAction.restartAfterCrash('second'));
+        init.completeError(StateError('Core is gone'));
+        await recovery;
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(isStartProvider), isFalse);
+      });
+
+      test('a crash during a restart counts however long it took', () async {
+        var slowCrashes = 0;
+        coreAction.onInit = () {
+          if (slowCrashes == 2) {
+            return;
+          }
+          slowCrashes++;
+          coreAction.now = coreAction.now.add(const Duration(seconds: 10));
+          container.read(coreStatusProvider.notifier).value =
+              CoreStatus.disconnected;
+          unawaited(coreAction.restartAfterCrash('slow $slowCrashes'));
+        };
+
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(printed.last, contains('slow 2'));
+      });
+
+      test('stops once the app exit has closed the Core', () async {
+        coreAction.restartError = const DesktopCoreFailure(
+          code: 'lifecycle_closed',
+          phase: DesktopCorePhase.closed,
+          revision: 3,
+        );
+
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 1);
+        expect(printed, isNot(contains(contains('leaving it down'))));
+      });
+
+      test('a restart that fails counts as one that fell', () async {
+        coreAction.restartError = StateError('no core binary');
+
+        await crashAfter(Duration.zero, 'boom');
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+        expect(printed.last, contains('no core binary'));
+      });
     });
   });
 
@@ -764,6 +1354,48 @@ void main() {
     );
 
     test(
+      'a TUN the Core could not open relaunches it on the next enable, once',
+      () async {
+        TestWidgetsFlutterBinding.ensureInitialized();
+        await AppLocalizations.load(const Locale('en'));
+        late _AuthorizationSetupAction setupAction;
+        late _RestartRecordingCoreAction coreAction;
+        final container = ProviderContainer(
+          overrides: [
+            setupActionProvider.overrideWith(() {
+              setupAction = _AuthorizationSetupAction([
+                AuthorizeCode.none,
+                AuthorizeCode.none,
+              ]);
+              return setupAction;
+            }),
+            coreActionProvider.overrideWith(() {
+              coreAction = _RestartRecordingCoreAction();
+              return coreAction;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+        final patch = container.read(patchClashConfigProvider.notifier);
+        patch.update((state) => state.copyWith.tun(enable: true));
+        container.read(setupActionProvider);
+        container.read(coreActionProvider);
+
+        setupAction.tunStillFailed = true;
+        await setupAction.tunFailed();
+        setupAction.tunStillFailed = false;
+        patch.update((state) => state.copyWith.tun(enable: true));
+        await setupAction.updateConfig();
+
+        expect(coreAction.restartCount, 1);
+        container.read(authorizedTunEnableProvider.notifier).value =
+            TunAuthorizationState.none;
+        expect(await setupAction.requestAdmin(true), isTrue);
+        expect(setupAction.authorizationRequestCount, 2);
+      },
+    );
+
+    test(
       'a config Core rejects on the handoff path reports failure, not success',
       () async {
         late _AuthorizationSetupAction setupAction;
@@ -792,6 +1424,87 @@ void main() {
 
         expect(coreAction.restartCount, 1);
         expect(succeeded, isFalse);
+      },
+    );
+
+    test(
+      'a restart whose restore is newly authorized launches the Core again',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentProfileProvider.overrideWithValue(null),
+            coreActionProvider.overrideWith(_TestCoreAction.new),
+            setupActionProvider.overrideWith(
+              () => _HandoffSetupAction([AuthorizeCode.success]),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith.tun(enable: true));
+        final coreAction =
+            container.read(coreActionProvider.notifier) as _TestCoreAction;
+        final setupAction =
+            container.read(setupActionProvider.notifier) as _HandoffSetupAction;
+        final statuses = <CoreStatus>[];
+        container.listen(
+          coreStatusProvider,
+          (_, next) => statuses.add(next),
+          fireImmediately: true,
+        );
+
+        final restarted = await coreAction.restartCore().timeout(
+          const Duration(seconds: 5),
+        );
+
+        expect(restarted, isTrue);
+        expect(setupAction.authorizationRequestCount, 1);
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(setupAction.applyCount, 2);
+        expect(statuses.skipWhile((status) => status != CoreStatus.connected), [
+          CoreStatus.connected,
+          CoreStatus.connecting,
+          CoreStatus.connected,
+        ]);
+      },
+    );
+
+    test(
+      'a relaunch that fails after a new authorization reopens it',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentProfileProvider.overrideWithValue(null),
+            coreActionProvider.overrideWith(_TestCoreAction.new),
+            setupActionProvider.overrideWith(
+              () => _HandoffSetupAction([AuthorizeCode.success]),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith.tun(enable: true));
+        final coreAction =
+            container.read(coreActionProvider.notifier) as _TestCoreAction;
+        container.read(setupActionProvider.notifier);
+        coreAction.onInit = () {
+          coreAction.restartError = _restartFailure;
+        };
+
+        await expectLater(
+          coreAction.restartCore().timeout(const Duration(seconds: 5)),
+          throwsA(same(_restartFailure)),
+        );
+        await pumpEventQueue();
+
+        expect(coreAction.lifecycleRestartCount, 2);
+        expect(
+          container.read(authorizedTunEnableProvider),
+          TunAuthorizationState.none,
+        );
+        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
       },
     );
 
@@ -886,15 +1599,28 @@ void main() {
 }
 
 class _TestCoreAction extends CoreAction {
+  bool embedded = false;
   int lifecycleRestartCount = 0;
+
+  @override
+  bool get coreIsEmbedded => embedded;
   int initCoreCount = 0;
+  Completer<void>? initCompleter;
+  void Function()? onInit;
   Completer<CoreLifecycleResult>? restartCompleter;
   Completer<CoreLifecycleResult>? startCompleter;
   CoreLifecycleResult startResult = _restartResult;
+  Object? restartError;
+  DateTime now = DateTime(2026, 11, 3);
+
+  @override
+  DateTime currentTime() => now;
 
   @override
   Future<void> initCore() async {
     initCoreCount++;
+    onInit?.call();
+    await initCompleter?.future;
   }
 
   @override
@@ -905,16 +1631,11 @@ class _TestCoreAction extends CoreAction {
   @override
   Future<CoreLifecycleResult> restartLifecycle() {
     lifecycleRestartCount++;
+    final error = restartError;
+    if (error != null) {
+      return Future.error(error);
+    }
     return restartCompleter?.future ?? Future.value(_restartResult);
-  }
-}
-
-class _ApplyRecordingSetupAction extends SetupAction {
-  int applyCount = 0;
-
-  @override
-  void applyProfileDebounce({bool silence = false, bool force = false}) {
-    applyCount++;
   }
 }
 
@@ -930,14 +1651,18 @@ class _MemoryScripts extends Scripts {
 
 class _TestSetupAction extends SetupAction {
   int setRunningCount = 0;
+  final List<(bool, bool)> runningCalls = [];
   int applyProfileCount = 0;
   bool setRunningResult = true;
   Completer<void>? firstApplyStarted;
   Completer<void>? firstApplyCompleter;
-
   @override
   Future<bool> setRunning(bool running, {bool initialize = false}) async {
     setRunningCount++;
+    runningCalls.add((running, initialize));
+    if (!running) {
+      ref.read(runTimeProvider.notifier).value = null;
+    }
     return setRunningResult;
   }
 
@@ -966,7 +1691,7 @@ class _RestartRecordingCoreAction extends CoreAction {
   bool restartResult = true;
 
   @override
-  Future<bool> restartCore() async {
+  Future<bool> restartCore({bool? running}) async {
     restartCount++;
     return restartResult;
   }
@@ -974,7 +1699,7 @@ class _RestartRecordingCoreAction extends CoreAction {
 
 class _FailingRestartCoreAction extends CoreAction {
   @override
-  Future<bool> restartCore() async {
+  Future<bool> restartCore({bool? running}) async {
     throw _restartFailure;
   }
 }
@@ -988,6 +1713,11 @@ class _AuthorizationSetupAction extends SetupAction {
 
   _AuthorizationSetupAction(this.authorizationResults, {this.pending});
 
+  bool tunStillFailed = false;
+
+  @override
+  Future<bool> confirmTunFailed() async => tunStillFailed;
+
   @override
   Future<AuthorizeCode> authorizeCore() async {
     final index = authorizationRequestCount++;
@@ -996,6 +1726,30 @@ class _AuthorizationSetupAction extends SetupAction {
       return pending.future;
     }
     return authorizationResults[index];
+  }
+}
+
+/// Only its first apply runs for real: the one that meets the authorization.
+class _HandoffSetupAction extends _AuthorizationSetupAction {
+  _HandoffSetupAction(super.authorizationResults);
+
+  int applyCount = 0;
+
+  @override
+  Future<bool> applyProfile({
+    bool silence = false,
+    bool force = false,
+    Future<void> Function()? preloadInvoke,
+  }) {
+    applyCount++;
+    if (applyCount > 1) {
+      return Future.value(true);
+    }
+    return super.applyProfile(
+      silence: silence,
+      force: force,
+      preloadInvoke: preloadInvoke,
+    );
   }
 }
 
@@ -1050,5 +1804,42 @@ class _RaceCommonAction extends CommonAction {
   @override
   Future<void> updateTraffic() async {
     updateTrafficCount++;
+  }
+}
+
+class _RestartSetupAction extends SetupAction {
+  final transitions = <bool>[];
+  int applyProfileCount = 0;
+  Exception? coreRunningError;
+  void Function()? crashOnNextApply;
+
+  @override
+  void applyProfileDebounce({bool silence = false, bool force = false}) {}
+
+  @override
+  Future<bool> setCoreRunning(bool running) async {
+    transitions.add(running);
+    final error = coreRunningError;
+    if (error != null) {
+      throw error;
+    }
+    return true;
+  }
+
+  @override
+  void resetCoreTraffic() {}
+
+  @override
+  Future<bool> applyProfile({
+    bool silence = false,
+    bool force = false,
+    Future<void> Function()? preloadInvoke,
+  }) async {
+    applyProfileCount++;
+    await preloadInvoke?.call();
+    final crash = crashOnNextApply;
+    crashOnNextApply = null;
+    crash?.call();
+    return crash == null;
   }
 }

@@ -55,7 +55,7 @@ void main() {
     test('default value has enable true', () {
       final value = container.read(vpnSettingProvider);
       expect(value.enable, true);
-      expect(value.systemProxy, true);
+      expect(value.systemProxy, false);
     });
 
     test('can update state', () {
@@ -69,7 +69,7 @@ void main() {
   group('NetworkSetting provider', () {
     test('default values', () {
       final value = container.read(networkSettingProvider);
-      expect(value.systemProxy, true);
+      expect(value.systemProxy, false);
       expect(value.bypassDomain, defaultBypassDomain);
     });
 
@@ -189,7 +189,7 @@ void main() {
       expect(config.appSettingProps.onlyStatisticsProxy, false);
       expect(config.windowProps.width, 0);
       expect(config.vpnProps.enable, true);
-      expect(config.networkProps.systemProxy, true);
+      expect(config.networkProps.systemProxy, false);
       expect(config.currentProfileId, null);
       expect(config.hotKeyActions, isEmpty);
       expect(config.patchClashConfig, const PatchClashConfig());
@@ -213,7 +213,7 @@ void main() {
   });
 
   group('writeConfig', () {
-    test('never leaves a restored open controller without a secret', () {
+    test('restores an open controller with the secret it was given', () {
       final ref = container.read(Provider<Ref>((ref) => ref));
 
       writeConfig(
@@ -221,12 +221,14 @@ void main() {
         const Config(
           themeProps: ThemeProps(),
           patchClashConfig: PatchClashConfig(
-            externalController: ExternalControllerStatus.open,
+            externalController: '127.0.0.1:9091',
           ),
         ),
       );
 
-      expect(container.read(patchClashConfigProvider).secret, hasLength(32));
+      final restored = container.read(patchClashConfigProvider);
+      expect(restored.externalController, '127.0.0.1:9091');
+      expect(restored.secret, isEmpty);
     });
   });
 

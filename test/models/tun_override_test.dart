@@ -5,6 +5,8 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:test/test.dart';
 
+import '../helpers/mihomo_source.dart';
+
 ProfileOverrides _decode(Map<String, Object?> json) {
   return ProfileOverrides.fromJson(
     jsonDecode(jsonEncode(json)) as Map<String, Object?>,
@@ -13,7 +15,9 @@ ProfileOverrides _decode(Map<String, Object?> json) {
 
 void main() {
   test('every TunOverrideKey is a key of the core TUN section', () {
-    final source = File('core/Clash.Meta/config/config.go').readAsStringSync();
+    final source = File(
+      '${mihomoSourceDir()}/config/config.go',
+    ).readAsStringSync();
     final body = RegExp(
       'type RawTun struct {([^}]*)}',
     ).firstMatch(source)!.group(1)!;

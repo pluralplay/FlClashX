@@ -81,7 +81,6 @@ void main() {
         ChangelogType.unknown,
       );
       expect(changelog.versions.single.visibleGroups, isEmpty);
-      expect(changelog.versions.single.isEmpty, isTrue);
     });
 
     test('reports an unsupported schema version', () {

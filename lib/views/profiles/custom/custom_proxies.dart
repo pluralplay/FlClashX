@@ -1583,8 +1583,10 @@ class _ProxyValuesView extends ConsumerWidget {
     required this.itemMaxLength,
   });
 
+  // An imported proxy can repeat a value, as `alpn: [h2, h2]`, which would
+  // key two rows alike; a repeat means nothing in these lists.
   List<String> _valuesOf(WidgetRef ref) =>
-      ref.read(customProxyProvider).stringsOf(path);
+      ref.read(customProxyProvider).stringsOf(path).toSet().toList();
 
   void _save(WidgetRef ref, List<String> values) {
     ref
@@ -1624,7 +1626,9 @@ class _ProxyValuesView extends ConsumerWidget {
       title: title,
       idOf: (value) => value,
       itemsOf: (ref) => ref.watch(
-        customProxyProvider.select((state) => state.stringsOf(path)),
+        customProxyProvider.select(
+          (state) => state.stringsOf(path).toSet().toList(),
+        ),
       ),
       itemBuilder:
           (

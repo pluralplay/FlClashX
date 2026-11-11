@@ -18,6 +18,7 @@ const double _atlasStep = 32;
 const double _levelReach = 2.5;
 const double _heldFrostShare = 0.9;
 // Offsets into a pane's mapping, in the order of the shader's uniforms.
+const _heldFrost = 9;
 const _hazeSample = 10;
 const _hazeShare = 18;
 const _veilColor = 19;
@@ -459,10 +460,14 @@ class _LiquidGlassHostLayer extends ContainerLayer {
         snapshots++;
         keptBands += kept;
       }
+      final shading = <_Shading>[];
       for (final entry in members) {
         entry.atlas = atlas;
-        _publish(entry, atlas);
+        if (_publish(entry, atlas) case final job?) {
+          shading.add(job);
+        }
       }
+      _shade(shading);
     }
     while (_atlases.length > levels) {
       _atlases.removeLast().image.dispose();
@@ -760,11 +765,48 @@ class _LiquidGlassHostLayer extends ContainerLayer {
     return (atlas: image, taken: true, kept: kept);
   }
 
-  void _publish(_Behind entry, ui.Image atlas) {
+  /// Shades each job in a region of its own with a texel of gutter, which the
+  /// shader fills as it clamps reads to the slot, as the full shader would.
+  static void _shade(List<_Shading> shading) {
+    if (shading.isEmpty) {
+      return;
+    }
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final frames = <Offset>[];
+    var top = 1.0;
+    var width = 0.0;
+    for (final job in shading) {
+      final shift = job.texels.topLeft - Offset(1, top);
+      final [left, up, scaleX, scaleY] = job.sample;
+      final frame = Offset(left + shift.dx * scaleX, up + shift.dy * scaleY);
+      frames.add(frame);
+      job.shader
+        ..setFloat(2, frame.dx)
+        ..setFloat(3, frame.dy)
+        ..setFloat(4, scaleX)
+        ..setFloat(5, scaleY);
+      canvas.drawRect(
+        (Offset(1, top) & job.texels.size).inflate(1),
+        Paint()..shader = job.shader,
+      );
+      top += job.texels.height + 2;
+      width = math.max(width, job.texels.width + 2);
+    }
+    final picture = recorder.endRecording();
+    final shaded = picture.toImageSync(width.ceil(), (top - 1).ceil());
+    picture.dispose();
+    for (final (index, job) in shading.indexed) {
+      job.finish(shaded, frames[index]);
+    }
+    shaded.dispose();
+  }
+
+  _Shading? _publish(_Behind entry, ui.Image atlas) {
     final pane = entry.pane;
     final storage = entry.toHost.storage;
     final haze = entry.haze;
-    pane._captureFrom(
+    return pane._captureFrom(
       _pass,
       atlas,
       [

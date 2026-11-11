@@ -91,11 +91,3 @@ func UpdateDns(value string) {
 func ResetNetwork() {
 	core.ResetNetwork()
 }
-
-func GetTraffic(onlyStatisticsProxy bool) string {
-	return core.GetTraffic(onlyStatisticsProxy)
-}
-
-func GetTotalTraffic(onlyStatisticsProxy bool) string {
-	return core.GetTotalTraffic(onlyStatisticsProxy)
-}

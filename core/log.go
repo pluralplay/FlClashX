@@ -2,7 +2,9 @@ package core
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -29,11 +31,21 @@ type logPump struct {
 
 func (pump *logPump) run() {
 	for event := range pump.subscription {
+		event = forwardedLog(event)
 		if pump.stopped.Load() || event.LogLevel < log.Level() {
 			continue
 		}
 		sendMessage(LogMessage, event)
 	}
+}
+
+// mihomo logs its controller closing for the next config at error level, and
+// the app shows every error to the user.
+func forwardedLog(event log.Event) log.Event {
+	if event.LogLevel == log.ERROR && strings.HasSuffix(event.Payload, http.ErrServerClosed.Error()) {
+		event.LogLevel = log.INFO
+	}
+	return event
 }
 
 func (pump *logPump) stop() {

@@ -2,9 +2,23 @@ import Cocoa
 import FlutterMacOS
 
 public class TrayPlugin: NSObject, FlutterPlugin {
+    /// Posted with the status item's button as the object when one appears,
+    /// and with nil when it goes, for a popover to hang from.
+    public static let statusButtonNotification = Notification.Name("tray.statusButton")
+
+    /// The status item's button while one is shown.
+    public private(set) static var statusButton: NSView? {
+        didSet {
+            NotificationCenter.default.post(name: statusButtonNotification, object: statusButton)
+        }
+    }
+
     private var channel: FlutterMethodChannel!
     private var statusItem: TrayStatusItem?
     private var menu: TrayMenu?
+    private var clickActivates = false
+    private var isMenuOpen = false
+    private var menuSelection: Int?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "tray", binaryMessenger: registrar.messenger)
@@ -24,6 +38,9 @@ public class TrayPlugin: NSObject, FlutterPlugin {
             result(true)
         case "openMenu":
             result(openMenu())
+        case "setClickActivates":
+            clickActivates = (call.arguments as? [String: Any])?["value"] as? Bool ?? false
+            result(true)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -51,7 +68,7 @@ public class TrayPlugin: NSObject, FlutterPlugin {
             menu = TrayMenu(
                 items: items,
                 onSelect: { [weak self] id in
-                    self?.channel.invokeMethod("onMenuItemSelected", arguments: ["id": id])
+                    self?.select(id)
                 },
                 onClose: { [weak self] in
                     self?.statusItem?.closeMenu()
@@ -73,24 +90,50 @@ public class TrayPlugin: NSObject, FlutterPlugin {
     private func hide() {
         statusItem?.remove()
         statusItem = nil
+        Self.statusButton = nil
         menu = nil
     }
 
+    // The Dock stays hidden for good if the process exits before the menu has posted the end of its tracking.
     private func openMenu() -> Bool {
         guard let statusItem = statusItem, let menu = menu else {
             return false
         }
+        isMenuOpen = true
         statusItem.openMenu(menu)
+        isMenuOpen = false
+        if let id = menuSelection {
+            menuSelection = nil
+            sendSelection(id)
+        }
         return true
     }
 
+    private func select(_ id: Int) {
+        if isMenuOpen {
+            menuSelection = id
+        } else {
+            sendSelection(id)
+        }
+    }
+
+    private func sendSelection(_ id: Int) {
+        channel.invokeMethod("onMenuItemSelected", arguments: ["id": id])
+    }
+
     private func makeStatusItem() -> TrayStatusItem? {
-        guard let item = TrayStatusItem(onMenuRequested: { [weak self] in
-            self?.channel.invokeMethod("onMenuRequested", arguments: nil)
+        guard let item = TrayStatusItem(onClick: { [weak self] primary in
+            guard let self else { return }
+            if primary && self.clickActivates {
+                self.channel.invokeMethod("onIconActivated", arguments: nil)
+            } else {
+                self.channel.invokeMethod("onMenuRequested", arguments: nil)
+            }
         }) else {
             return nil
         }
         statusItem = item
+        Self.statusButton = item.statusItem.button
         return item
     }
 

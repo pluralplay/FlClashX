@@ -56,6 +56,12 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
         ref.read(proxiesActionProvider.notifier).updateGroupsDebounce();
       }
     });
+    // A provider nobody listens to is paused and would miss the updates.
+    ref.listenManual(appVisibleProvider, (_, visible) {
+      ref.read(coreHandlerProvider).setHostActive(visible);
+    });
+    ref.listenManual(profileHeadersActionProvider, (_, _) {});
+    ref.listenManual(profileSettingsActionProvider, (_, _) {});
     ref.listenManual(suspendProvider, (prev, next) {
       if (prev != next) {
         ref.read(setupActionProvider.notifier).syncSuspend();

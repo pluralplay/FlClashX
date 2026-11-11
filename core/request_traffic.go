@@ -106,7 +106,7 @@ func runRequestTrafficWatch() {
 	ticker := time.NewTicker(requestTrafficInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		if !hasEventListener() {
+		if !hostWantsEvents() {
 			currentRequestTraffic.clear()
 			return
 		}

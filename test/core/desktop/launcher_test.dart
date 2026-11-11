@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fl_clash/core/desktop/launcher.dart';
@@ -57,6 +58,36 @@ void main() {
     expect(result.exitConfirmed, isFalse);
   });
 
+  test('direct lease keeps the headline of the crash report the Core last '
+      'wrote', () async {
+    final stderr = StreamController<List<int>>();
+    final process = _FakeProcess(
+      pid: 42,
+      exitCode: Completer<int>().future,
+      stderr: stderr.stream,
+    );
+    final launcher = DirectCoreLauncher(
+      startProcess: (_, _) async => process,
+      corePath: 'FlClashCore',
+    );
+    final lease = await launcher.start(
+      sessionId: '0123456789abcdef0123456789abcdef',
+      address: 'test-address',
+    );
+
+    stderr.add(utf8.encode('[ERROR] recovered '));
+    stderr.add(utf8.encode('panic: boom\n'));
+    await pumpEventQueue();
+    expect(lease.crashHeadline, isNull);
+
+    stderr.add(utf8.encode('SIGA'));
+    stderr.add(utf8.encode('BRT: abort\nPC=0x1 m=0 sigcode=0\n\n'));
+    stderr.add(utf8.encode('goroutine 1 gp=0x1 m=0 [running]:\n'));
+    await pumpEventQueue();
+    expect(lease.crashHeadline, 'SIGABRT: abort');
+    await stderr.close();
+  });
+
   test('direct lease rechecks exit after an unconfirmed timeout', () async {
     final exitCode = Completer<int>();
     final process = _FakeProcess(pid: 42, exitCode: exitCode.future);
@@ -89,11 +120,15 @@ class _FakeProcess implements Process {
   final Stream<List<int>> stdout = const Stream.empty();
 
   @override
-  final Stream<List<int>> stderr = const Stream.empty();
+  final Stream<List<int>> stderr;
 
   bool killed = false;
 
-  _FakeProcess({required this.pid, required this.exitCode});
+  _FakeProcess({
+    required this.pid,
+    required this.exitCode,
+    this.stderr = const Stream.empty(),
+  });
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {

@@ -286,7 +286,7 @@ void main() {
     expect(container.read(currentProfileProvider)!.selectedMap, {
       'Media': 'US-01',
     });
-    debouncer.cancel((FunctionTag.changeProxy, 'Media'));
+    debouncer.cancel((FunctionTag.changeProxy, 1, 'Media'));
   });
 
   testWidgets('the sheet searches apart from the proxies page', (tester) async {

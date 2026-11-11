@@ -9,10 +9,8 @@ class DashboardColors {
     required this.card,
     required this.tone,
     required this.tone2,
-    required this.track,
     required this.thumb,
     required this.series2,
-    required this.ok,
     required this.okContainer,
     required this.onOkContainer,
     required this.warn,
@@ -28,13 +26,11 @@ class DashboardColors {
       card: card,
       tone: SurfaceLevel.block.colorOf(colorScheme),
       tone2: SurfaceLevel.inset.colorOf(colorScheme),
-      track: colorScheme.surfaceContainerHighest,
       thumb: colorScheme.outline,
       series2: Color.alphaBlend(
         colorScheme.primary.withValues(alpha: 0.45),
         card,
       ),
-      ok: colorScheme.success,
       okContainer: colorScheme.successContainer,
       onOkContainer: colorScheme.onSuccessContainer,
       warn: colorScheme.warning,
@@ -49,10 +45,8 @@ class DashboardColors {
   final Color tone;
 
   final Color tone2;
-  final Color track;
   final Color thumb;
   final Color series2;
-  final Color ok;
   final Color okContainer;
   final Color onOkContainer;
   final Color warn;

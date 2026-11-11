@@ -6,10 +6,15 @@ GroupsState currentGroupsState(Ref ref) {
     patchClashConfigProvider.select((state) => state.mode),
   );
   final groups = ref.watch(groupsProvider);
+  final globalOverride = ref.watch(globalOverrideProvider);
+  bool isGlobal(Group group) => group.name == GroupName.GLOBAL.name;
   final shown = switch (mode) {
     Mode.direct => const <Group>[],
+    Mode.global when globalOverride => groups.where(isGlobal),
     Mode.global => groups,
-    Mode.rule => groups.where((item) => item.hidden == false),
+    Mode.rule => groups.where(
+      (item) => item.hidden == false && !(globalOverride && isGlobal(item)),
+    ),
   };
   return GroupsState(value: shown.map(_withoutSelection).toList());
 }
@@ -30,6 +35,11 @@ bool _hasSelection(Proxy proxy) => proxy.now?.isNotEmpty ?? false;
 ProxyState proxyState(Ref ref) {
   final suspend = ref.watch(suspendProvider);
   final isStart = ref.watch(runTimeProvider.select((state) => state != null));
+  // A crash keeps the run on, so a Core restart resumes it, but until then
+  // nothing listens on the port the proxy would send traffic to.
+  final coreAlive = ref.watch(
+    coreStatusProvider.select((status) => status != CoreStatus.disconnected),
+  );
   final systemProxySelector = ref.watch(
     networkSettingProvider.select(
       (state) => SystemProxySelectorState(
@@ -42,7 +52,7 @@ ProxyState proxyState(Ref ref) {
     patchClashConfigProvider.select((state) => state.mixedPort),
   );
   return ProxyState(
-    isStart: suspend ? false : isStart,
+    isStart: !suspend && isStart && coreAlive,
     systemProxy: systemProxySelector.systemProxy,
     bassDomain: systemProxySelector.bypassDomain,
     port: mixedPort,
@@ -179,9 +189,7 @@ bool currentGroupDelayTesting(Ref ref) {
 
 @riverpod
 String realTestUrl(Ref ref, [String? testUrl]) {
-  final currentTestUrl = ref.watch(
-    patchClashConfigProvider.select((state) => state.testUrl),
-  );
+  final currentTestUrl = ref.watch(appSettingProvider).testUrl;
   return testUrl.takeFirstValid([currentTestUrl]);
 }
 

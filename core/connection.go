@@ -2,22 +2,29 @@ package core
 
 import (
 	"github.com/metacubex/mihomo/component/resolver"
-	"github.com/metacubex/mihomo/dns"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 )
 
 func handleGetTraffic(onlyStatisticsProxy bool) Traffic {
-	up, down := statistic.DefaultManager.NowTraffic(onlyStatisticsProxy)
+	if onlyStatisticsProxy {
+		up, down := proxiedTrafficNow()
+		return Traffic{Up: up, Down: down}
+	}
+	up, down := statistic.DefaultManager.Now()
 	return Traffic{Up: up, Down: down}
 }
 
 func handleGetTotalTraffic(onlyStatisticsProxy bool) Traffic {
-	up, down := statistic.DefaultManager.TotalTraffic(onlyStatisticsProxy)
+	if onlyStatisticsProxy {
+		return Traffic{Up: proxiedTraffic.up.Load(), Down: proxiedTraffic.down.Load()}
+	}
+	up, down := statistic.DefaultManager.Total()
 	return Traffic{Up: up, Down: down}
 }
 
 func handleResetTraffic() {
 	statistic.DefaultManager.ResetStatistic()
+	resetProxiedTraffic()
 }
 
 func handleGetConnections() *statistic.Snapshot {
@@ -51,7 +58,8 @@ func handleResetConnections() bool {
 func handleClearDnsCache() {
 	configMu.Lock()
 	defer configMu.Unlock()
-	dns.ClearAll()
+	resolver.ClearCache()
+	resolver.ResetConnection()
 }
 
 // A connection that went out over a network the device has left hangs until

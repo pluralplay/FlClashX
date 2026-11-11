@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -5,6 +7,7 @@ import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/dashboard/layout.dart';
 import 'package:fl_clash/views/dashboard/style.dart';
+import 'package:fl_clash/widgets/managed_setting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,7 +21,7 @@ Glyph _glyphOf(Mode mode) => switch (mode) {
 
 void _changeMode(WidgetRef ref, Mode mode) {
   if (ref.read(patchClashConfigProvider).mode == mode) return;
-  ref.read(setupActionProvider.notifier).changeMode(mode);
+  unawaited(ref.read(setupActionProvider.notifier).pickMode(mode));
 }
 
 class OutboundModeCard extends ConsumerWidget {
@@ -31,55 +34,61 @@ class OutboundModeCard extends ConsumerWidget {
     final mode = ref.watch(
       patchClashConfigProvider.select((state) => state.mode),
     );
+    final modes = ref.watch(availableModesProvider);
     final tone = DashboardColors.of(context).tone;
     final style = AppTextStyle.footnote.of(context, emphasized: true);
-    return DashboardCard(
-      semanticLabel: context.appLocalizations.outboundMode,
-      child: Column(
-        children: [
-          DashboardCardHeader(
-            glyph: AppGlyphs.split,
-            title: context.appLocalizations.outboundMode,
-          ),
-          const SizedBox(height: 12),
-          DashboardConnectedGroup(
-            children: [
-              for (final (index, item) in Mode.values.indexed)
-                Expanded(
-                  child: DashboardConnectedButton(
-                    selected: item == mode,
-                    first: index == 0,
-                    last: index == Mode.values.length - 1,
-                    outer: _outer,
-                    inner: 12,
-                    background: tone,
-                    semanticLabel: item.label,
-                    onTap: () => _changeMode(ref, item),
-                    builder: (foreground) => SizedBox(
-                      height: 52,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        spacing: 2,
-                        children: [
-                          GlyphIcon(
-                            _glyphOf(item),
-                            size: 18,
-                            color: foreground,
-                          ),
-                          Text(
-                            item.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: style.copyWith(color: foreground),
-                          ),
-                        ],
+    return ManagedSetting(
+      settingKey: 'clash.mode',
+      dimsWhenLocked: false,
+      showsLock: false,
+      child: DashboardCard(
+        semanticLabel: context.appLocalizations.outboundMode,
+        child: Column(
+          children: [
+            DashboardCardHeader(
+              glyph: AppGlyphs.split,
+              title: context.appLocalizations.outboundMode,
+            ),
+            const SizedBox(height: 12),
+            DashboardConnectedGroup(
+              children: [
+                for (final (index, item) in modes.indexed)
+                  Expanded(
+                    child: DashboardConnectedButton(
+                      selected: item == mode,
+                      first: index == 0,
+                      last: index == modes.length - 1,
+                      outer: _outer,
+                      inner: 12,
+                      background: tone,
+                      semanticLabel: item.label,
+                      onTap: () => _changeMode(ref, item),
+                      builder: (foreground) => SizedBox(
+                        height: 52,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: 2,
+                          children: [
+                            GlyphIcon(
+                              _glyphOf(item),
+                              size: 18,
+                              color: foreground,
+                            ),
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: style.copyWith(color: foreground),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -98,75 +107,81 @@ class OutboundModeBar extends ConsumerWidget {
     final mode = ref.watch(
       patchClashConfigProvider.select((state) => state.mode),
     );
+    final modes = ref.watch(availableModesProvider);
     final appLocalizations = context.appLocalizations;
     final outer = dashboardCardRadius(density) - _inset;
     final style = AppTextStyle.subheadline.of(context, emphasized: true);
-    return DashboardCard(
-      semanticLabel: appLocalizations.outboundMode,
-      padding: EdgeInsetsDirectional.fromSTEB(
-        dashboardCardPadding(density).left,
-        _inset,
-        _inset,
-        _inset,
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          spacing: 16,
-          children: [
-            GlyphIcon(
-              AppGlyphs.split,
-              size: 18,
-              color: context.colorScheme.onSurfaceVariant,
-            ),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: constraints.maxWidth / 4),
-              child: Text(
-                appLocalizations.outboundMode,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: DashboardText.cardTitle(context),
+    return ManagedSetting(
+      settingKey: 'clash.mode',
+      dimsWhenLocked: false,
+      showsLock: false,
+      child: DashboardCard(
+        semanticLabel: appLocalizations.outboundMode,
+        padding: EdgeInsetsDirectional.fromSTEB(
+          dashboardCardPadding(density).left,
+          _inset,
+          _inset,
+          _inset,
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            spacing: 16,
+            children: [
+              GlyphIcon(
+                AppGlyphs.split,
+                size: 18,
+                color: context.colorScheme.onSurfaceVariant,
               ),
-            ),
-            Expanded(
-              child: DashboardConnectedGroup(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final (index, item) in Mode.values.indexed)
-                    Expanded(
-                      child: DashboardConnectedButton(
-                        selected: item == mode,
-                        first: index == 0,
-                        last: index == Mode.values.length - 1,
-                        outer: outer,
-                        inner: 10,
-                        background: DashboardColors.of(context).tone,
-                        semanticLabel: item.label,
-                        onTap: () => _changeMode(ref, item),
-                        builder: (foreground) => Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          spacing: 6,
-                          children: [
-                            GlyphIcon(
-                              _glyphOf(item),
-                              size: 18,
-                              color: foreground,
-                            ),
-                            Flexible(
-                              child: Text(
-                                item.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: style.copyWith(color: foreground),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth / 4),
+                child: Text(
+                  appLocalizations.outboundMode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DashboardText.cardTitle(context),
+                ),
+              ),
+              Expanded(
+                child: DashboardConnectedGroup(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (index, item) in modes.indexed)
+                      Expanded(
+                        child: DashboardConnectedButton(
+                          selected: item == mode,
+                          first: index == 0,
+                          last: index == modes.length - 1,
+                          outer: outer,
+                          inner: 10,
+                          background: DashboardColors.of(context).tone,
+                          semanticLabel: item.label,
+                          onTap: () => _changeMode(ref, item),
+                          builder: (foreground) => Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: 6,
+                            children: [
+                              GlyphIcon(
+                                _glyphOf(item),
+                                size: 18,
+                                color: foreground,
                               ),
-                            ),
-                          ],
+                              Flexible(
+                                child: Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: style.copyWith(color: foreground),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

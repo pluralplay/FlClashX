@@ -21,23 +21,6 @@ class IconRecordsDao extends DatabaseAccessor<Database>
 
   final int maxCapacity = 1000;
 
-  Future<IconRecord?> get(String url) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    return transaction(() async {
-      final record = await iconRecords
-          .readable((row) => row, where: (t) => t.url.equals(url))
-          .getSingleOrNull();
-
-      if (record != null) {
-        await (update(iconRecords)..where((t) => t.url.equals(url))).write(
-          IconRecordsCompanion(lastAccessed: Value(now)),
-        );
-      }
-      return record;
-    });
-  }
-
   Future<void> put(String url) async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -119,6 +102,22 @@ class IconSetsDao extends DatabaseAccessor<Database> with _$IconSetsDaoMixin {
     await batch((b) {
       b.insertAllOnConflictUpdate(iconSets, items);
     });
+  }
+
+  void setAllWithBatch(Batch batch, Iterable<IconSet> items) {
+    iconSets.setAll(
+      batch,
+      items.map((item) => item.toCompanion()),
+      deleteFilter: (_) => const Constant(true),
+      preDelete: true,
+    );
+  }
+
+  void putAllWithBatch(Batch batch, Iterable<IconSet> items) {
+    batch.insertAllOnConflictUpdate(
+      iconSets,
+      items.map((item) => item.toCompanion()),
+    );
   }
 }
 

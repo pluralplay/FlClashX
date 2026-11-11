@@ -1,3 +1,4 @@
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/proxy_manager.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
@@ -40,6 +41,7 @@ void main() {
     container.read(patchClashConfigProvider.notifier).value =
         const PatchClashConfig().copyWith(mixedPort: mixedPort);
     container.read(runTimeProvider.notifier).value = running ? 1 : null;
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
   }
 
   testWidgets('renders its child unchanged', (tester) async {
@@ -84,6 +86,7 @@ void main() {
 
   test('a running core reports the mixed port as the proxy target', () {
     container.read(runTimeProvider.notifier).value = 1;
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
     container.read(networkSettingProvider.notifier).value = const NetworkProps()
         .copyWith(systemProxy: true);
     container.read(patchClashConfigProvider.notifier).value =
@@ -95,6 +98,21 @@ void main() {
     expect(state.port, 7892);
   });
 
+  test('a crashed core drops the system proxy but keeps the run', () {
+    container.read(runTimeProvider.notifier).value = 1;
+    container.read(networkSettingProvider.notifier).value = const NetworkProps()
+        .copyWith(systemProxy: true);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    expect(container.read(proxyStateProvider).isStart, isTrue);
+
+    container.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
+    expect(container.read(proxyStateProvider).isStart, isFalse);
+    expect(container.read(isStartProvider), isTrue);
+
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+    expect(container.read(proxyStateProvider).isStart, isTrue);
+  });
+
   test('an excluded SSID suspends the system proxy', () {
     final suspended = ProviderContainer(
       overrides: [
@@ -103,8 +121,11 @@ void main() {
     );
     addTearDown(suspended.dispose);
     suspended.read(runTimeProvider.notifier).value = 1;
-    suspended.read(currentSSIDProvider.notifier).value = 'Office Wi-Fi';
+    suspended.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    suspended.read(currentSSIDProvider.notifier).value = 'Home Wi-Fi';
+    expect(suspended.read(proxyStateProvider).isStart, isTrue);
 
+    suspended.read(currentSSIDProvider.notifier).value = 'Office Wi-Fi';
     expect(suspended.read(proxyStateProvider).isStart, isFalse);
   });
 }

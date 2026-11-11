@@ -109,6 +109,46 @@ func TestHandleGetProfileBaseLeavesTheBulkSectionsInTheCore(t *testing.T) {
 	if base.Digest != hex.EncodeToString(digest[:]) {
 		t.Errorf("digest = %s, want the sha256 of the file", base.Digest)
 	}
+	want := []string{"x-defaults", "mixed-port", "dns", "proxies", "proxy-groups", "sub-rules", "rules"}
+	if !reflect.DeepEqual(base.Present, want) {
+		t.Errorf("present = %v, want %v", base.Present, want)
+	}
+}
+
+func TestHandleGetProfileBaseReadsTheOverrideOnlyFromGlobal(t *testing.T) {
+	cases := map[string]bool{
+		"{name: GLOBAL, type: select, proxies: [g], flclashx-override: true}":    true,
+		"{name: GLOBAL, type: select, proxies: [g], flclashx-override: ' True'}": true,
+		"{name: GLOBAL, type: select, proxies: [g], flclashx-override: false}":   false,
+		"{name: GLOBAL, type: select, proxies: [g]}":                             false,
+		"{name: h, type: select, proxies: [g], flclashx-override: true}":         false,
+	}
+	for group, want := range cases {
+		profile := strings.Replace(baseProfile, "proxy-groups:\n", "proxy-groups:\n  - "+group+"\n", 1)
+
+		base, err := handleGetProfileBase(writeBaseProfile(t, profile))
+
+		if err != nil {
+			t.Fatalf("handleGetProfileBase = %v", err)
+		}
+		if base.GlobalOverride != want {
+			t.Errorf("%s: override = %t, want %t", group, base.GlobalOverride, want)
+		}
+	}
+}
+
+func TestPresentKeysNamesTheTunKeysAndSkipsMergeKeys(t *testing.T) {
+	profile := "x: &x {allow-lan: true}\n<<: *x\nmixed-port: 1\ntun:\n  enable: true\n  stack: system\n"
+
+	got := presentKeys([]byte(profile))
+
+	want := []string{"x", "mixed-port", "tun", "tun.enable", "tun.stack"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("present = %v, want %v", got, want)
+	}
+	if got := presentKeys([]byte("- not a mapping")); len(got) != 0 {
+		t.Errorf("a non-mapping names keys: %v", got)
+	}
 }
 
 func TestHandleGetProfileOutboundsListsOnlyNamesAndTypes(t *testing.T) {
@@ -333,6 +373,7 @@ func TestHandleGetProxyDefinitionReadsAProviderProxyAsItsProviderBuildsIt(t *tes
   sub:
     type: file
     path: ./sub.yaml
+    payload: [{name: b, type: socks5, server: 10.0.0.9, port: 1080}]
     exclude-filter: ^a$
     override: {additional-prefix: "S-", udp: false}
   inline:

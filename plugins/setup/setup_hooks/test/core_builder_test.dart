@@ -181,6 +181,7 @@ void main() {
                 p.join(coreDir, 'manifest.json'),
               ],
               rebuilt: true,
+              sourceDirectories: [p.dirname(goFile)],
             );
           },
         );
@@ -194,6 +195,7 @@ void main() {
         expect(seen?.target, Target.linuxAmd64);
         expect(BuildOutput(output.json).dependencies, [
           Uri.file(goFile),
+          Uri.directory(p.join(repository.path, 'core')),
           Uri.directory(coreDir),
         ]);
       },

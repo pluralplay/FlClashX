@@ -34,6 +34,9 @@ abstract mixin class ServiceListener {
   void onServiceEvent(CoreEvent event) {}
 
   void onServiceStopped() {}
+
+  /// A stop from Quick Settings or automation while no service runs.
+  void onServiceStopRequested() {}
 }
 
 class Service {
@@ -46,6 +49,10 @@ class Service {
 
   int _commandRevision = 0;
   bool _startRequested = false;
+  bool _vpnDemandedBySystem = false;
+
+  /// Always-on runs a VPN even while the saved setting runs a proxy only.
+  bool get vpnDemandedBySystem => _vpnDemandedBySystem;
 
   factory Service() {
     _instance ??= Service._internal();
@@ -76,6 +83,18 @@ class Service {
           }
           _startRequested = false;
           _dispatch('stop report', (listener) => listener.onServiceStopped());
+          break;
+        case 'stopRequested':
+          if (call.arguments != _commandRevision) {
+            break;
+          }
+          _dispatch(
+            'stop request',
+            (listener) => listener.onServiceStopRequested(),
+          );
+          break;
+        case 'vpnDemanded':
+          _vpnDemandedBySystem = call.arguments == true;
           break;
         default:
           throw MissingPluginException();
@@ -122,6 +141,15 @@ class Service {
   Future<bool> stop() async {
     _startRequested = false;
     return await methodChannel.invokeMethod<bool>('stop', ++_commandRevision) ??
+        false;
+  }
+
+  Future<bool> restart() async {
+    _startRequested = true;
+    return await methodChannel.invokeMethod<bool>(
+          'restart',
+          ++_commandRevision,
+        ) ??
         false;
   }
 

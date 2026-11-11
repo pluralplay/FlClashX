@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/launch.dart';
+import 'package:fl_clash/common/window.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/config.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -11,6 +12,7 @@ import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tray/tray.dart';
 import 'package:window/window.dart';
 
 const _windowGeometryDelay = Duration(milliseconds: 120);
@@ -58,10 +60,33 @@ class _WindowContainerState extends ConsumerState<WindowManager>
         unawaited(_applyWindowBlur(next));
       }
     }, fireImmediately: true);
+    if (system.isMacOS) {
+      ref.listenManual(
+        appSettingProvider.select((state) => state.menuBarMode),
+        (prev, next) {
+          if (prev != next) {
+            unawaited(_applyMenuBarMode(next));
+          }
+        },
+        fireImmediately: true,
+      );
+    }
     desktopWindow.addListener(this);
     _terminateSubscription = widget.terminateSignals?.listen(
       (_) => unawaited(onWindowShouldTerminate()),
     );
+  }
+
+  Future<void> _applyMenuBarMode(bool enabled) async {
+    try {
+      await window?.setMenuBarMode(enabled);
+      await Tray.instance.setClickActivates(enabled);
+    } catch (error) {
+      commonPrint.log(
+        'Menu bar mode failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+    }
   }
 
   Future<void> _applyWindowBlur(WindowBlurRequest request) async {
@@ -93,6 +118,15 @@ class _WindowContainerState extends ConsumerState<WindowManager>
   void onWindowClose() async {
     await ref.read(systemActionProvider.notifier).handleClose();
     super.onWindowClose();
+  }
+
+  /// The zoom button pins the app to the menu bar instead of zooming.
+  @override
+  void onWindowZoom() {
+    super.onWindowZoom();
+    ref
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(menuBarMode: true));
   }
 
   /// Another launch, or a Dock reopen, asked for the window.

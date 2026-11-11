@@ -36,7 +36,7 @@ const (
 
 func classOfMessage(message Message) messageClass {
 	switch message.Type {
-	case LoadedMessage, GeoUpdateMessage, RouteChangedMessage:
+	case LoadedMessage, GeoUpdateMessage, RouteChangedMessage, TunFailedMessage:
 		return stateMessageClass
 	case LogMessage, RequestMessage:
 		return bulkMessageClass

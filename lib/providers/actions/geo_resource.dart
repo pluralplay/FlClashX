@@ -18,7 +18,18 @@ class GeoResourceAction extends _$GeoResourceAction {
     });
   }
 
+  /// The stale sweep drops an update's key when its end never arrived, while
+  /// its token stays here and would keep the next update from showing.
+  bool _isRunning(GeoResource geoResource) {
+    if (_operations.containsKey(geoResource) &&
+        !ref.read(updatingKeysProvider).contains(geoResource.updatingKey)) {
+      _operations.remove(geoResource);
+    }
+    return _operations.containsKey(geoResource);
+  }
+
   int _startUpdating(GeoResource geoResource) {
+    _isRunning(geoResource);
     return _operations.putIfAbsent(
       geoResource,
       () => ref
@@ -47,7 +58,7 @@ class GeoResourceAction extends _$GeoResourceAction {
     GeoResource geoResource, {
     bool announceSuccess = true,
   }) async {
-    final running = _operations.containsKey(geoResource);
+    final running = _isRunning(geoResource);
     final previous = _manualUpdates[geoResource];
     _manualUpdates[geoResource] = announceSuccess;
     final operation = _startUpdating(geoResource);

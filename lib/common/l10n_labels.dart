@@ -15,7 +15,7 @@ extension PageLabelL10n on PageLabel {
       PageLabel.logs => appLocalizations.logs,
       PageLabel.requests => appLocalizations.recentRequests,
       PageLabel.resources => appLocalizations.resources,
-      PageLabel.connections => appLocalizations.liveConnections,
+      PageLabel.connections => appLocalizations.connections,
       PageLabel.dns => appLocalizations.dnsQueries,
     };
   }
@@ -30,6 +30,17 @@ extension DnsQueryInitiatorL10n on DnsQueryInitiator {
       DnsQueryInitiator.direct => appLocalizations.direct,
       DnsQueryInitiator.proxy => appLocalizations.proxies,
       DnsQueryInitiator.other => appLocalizations.other,
+    };
+  }
+}
+
+extension FindProcessModeL10n on FindProcessMode {
+  String get label {
+    final appLocalizations = currentAppLocalizations;
+    return switch (this) {
+      FindProcessMode.always => appLocalizations.findProcessAlways,
+      FindProcessMode.strict => appLocalizations.findProcessStrict,
+      FindProcessMode.off => appLocalizations.disabled,
     };
   }
 }

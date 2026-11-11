@@ -1,14 +1,23 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'batch_section.dart';
 import 'form_page.dart';
 import 'form_row.dart';
 
-typedef NamedUrl = ({String label, String url, String ageSecretKey});
+typedef NamedUrl = ({
+  String label,
+  String url,
+  String ageSecretKey,
+  bool sendDeviceHeaders,
+});
 
 Future<NamedUrl?> showNamedUrlForm(
   BuildContext context, {
@@ -41,6 +50,8 @@ Future<List<NamedUrl>?> showNamedUrlsForm(
   FormFieldValidator<String>? urlValidator,
   Set<String> existingUrls = const {},
   bool withAgeSecretKey = false,
+  bool withDeviceHeaders = false,
+  bool clipboardImport = false,
 }) {
   return showFormSheet<List<NamedUrl>>(
     context: context,
@@ -53,6 +64,8 @@ Future<List<NamedUrl>?> showNamedUrlsForm(
       batch: true,
       existingUrls: existingUrls,
       withAgeSecretKey: withAgeSecretKey,
+      withDeviceHeaders: withDeviceHeaders,
+      clipboardImport: clipboardImport,
     ),
   );
 }
@@ -73,6 +86,12 @@ class NamedUrlForm extends StatefulWidget {
   final Set<String> existingUrls;
   final bool withAgeSecretKey;
 
+  /// Offers the switch for the device id headers, on to begin with.
+  final bool withDeviceHeaders;
+
+  /// Offers to submit the link on the clipboard as it is, in one tap.
+  final bool clipboardImport;
+
   const NamedUrlForm({
     super.key,
     required this.title,
@@ -85,6 +104,8 @@ class NamedUrlForm extends StatefulWidget {
     this.batch = false,
     this.existingUrls = const {},
     this.withAgeSecretKey = false,
+    this.withDeviceHeaders = false,
+    this.clipboardImport = false,
   });
 
   @override
@@ -100,6 +121,7 @@ class _NamedUrlFormState extends State<NamedUrlForm> {
   final _batchController = TextEditingController();
   bool _isBatch = false;
   bool _attempted = false;
+  bool _sendDeviceHeaders = true;
   ParsedInput<String>? _parsed;
 
   String get _urlLabel => widget.urlLabel ?? context.appLocalizations.url;
@@ -208,7 +230,7 @@ class _NamedUrlFormState extends State<NamedUrlForm> {
       }
       Navigator.of(context).pop<List<NamedUrl>>([
         for (final url in parsed.entries)
-          (label: '', url: url, ageSecretKey: ''),
+          (label: '', url: url, ageSecretKey: '', sendDeviceHeaders: true),
       ]);
       return;
     }
@@ -223,6 +245,34 @@ class _NamedUrlFormState extends State<NamedUrlForm> {
         label: _labelController.text.trim(),
         url: _urlController.text.trim(),
         ageSecretKey: _ageSecretKeyController.text.trim(),
+        sendDeviceHeaders: _sendDeviceHeaders,
+      ),
+    ]);
+  }
+
+  void _setSendDeviceHeaders(bool value) {
+    if (_sendDeviceHeaders == value) return;
+    setState(() {
+      _sendDeviceHeaders = value;
+    });
+  }
+
+  Future<void> _submitClipboard() async {
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
+    if (!mounted) {
+      return;
+    }
+    final error = _validateUrl(text ?? '');
+    if (error != null) {
+      context.showNotifier(error, level: MessageLevel.error);
+      return;
+    }
+    Navigator.of(context).pop<List<NamedUrl>>([
+      (
+        label: '',
+        url: text!,
+        ageSecretKey: '',
+        sendDeviceHeaders: _sendDeviceHeaders,
       ),
     ]);
   }
@@ -261,6 +311,18 @@ class _NamedUrlFormState extends State<NamedUrlForm> {
                 onChanged: _handleBatchChanged,
               )
             : _buildFields(appLocalizations, issue?.field),
+        if (widget.clipboardImport && !_isBatch) ...[
+          const SizedBox(height: 16),
+          generateSection(
+            items: [
+              ListItem(
+                leading: const GlyphIcon(AppGlyphs.paste),
+                title: Text(appLocalizations.addProfileFromClipboard),
+                onTap: () => unawaited(_submitClipboard()),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -316,6 +378,15 @@ class _NamedUrlFormState extends State<NamedUrlForm> {
               hintText: appLocalizations.optional,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _handleSubmit(),
+            ),
+          ),
+        if (widget.withDeviceHeaders)
+          FormRow(
+            title: appLocalizations.sendDeviceHeaders,
+            onPressed: () => _setSendDeviceHeaders(!_sendDeviceHeaders),
+            trailing: Switch(
+              value: _sendDeviceHeaders,
+              onChanged: _setSendDeviceHeaders,
             ),
           ),
       ],

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/constant"
 )
@@ -27,7 +28,6 @@ func setTestURL(url string) {
 	if url == "" {
 		return
 	}
-	constant.DefaultTestURL = url
 	testURL.Store(&url)
 }
 
@@ -84,8 +84,20 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	}
 
 	timeout := timeoutFromMillis(params.Timeout, defaultDelayTestTimeout)
-	if !delayTestSlots.acquireWithin(context.Background(), timeout) {
+	value, tested := testDelay(context.Background(), proxy, url, timeout)
+	if !tested {
 		return nil
+	}
+	result.Value = value
+	return result
+}
+
+func testDelay(wait context.Context, proxy constant.Proxy, url string, timeout time.Duration) (int32, bool) {
+	if _, ok := adapterAs[*outboundgroup.LoadBalance](proxy); ok {
+		return testBalancerDelay(wait, balancedNodes(proxy), url, timeout)
+	}
+	if !delayTestSlots.acquireWithin(wait, timeout) {
+		return 0, false
 	}
 	defer delayTestSlots.release()
 
@@ -95,6 +107,58 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	if err != nil {
 		delay = 0
 	}
-	result.Value = delayValue(delay, ctx.Err() != nil)
-	return result
+	return delayValue(delay, ctx.Err() != nil), true
+}
+
+type nodeDelay struct {
+	value  int32
+	tested bool
+}
+
+// A balancer sends a test to the one member it would pick, down or not, so it
+// answers with its fastest node. mihomo records a probe cut short as a dead node.
+func testBalancerDelay(wait context.Context, nodes []constant.Proxy, url string, timeout time.Duration) (int32, bool) {
+	wait, answered := context.WithCancel(wait)
+	defer answered()
+	results := make(chan nodeDelay, len(nodes))
+	for _, node := range nodes {
+		safeGo("balancer delay test", func() {
+			var result nodeDelay
+			defer func() { results <- result }()
+			result.value, result.tested = testDelay(wait, node, url, timeout)
+		})
+	}
+	value, complete := delayFailed, true
+	for range nodes {
+		result := <-results
+		if result.value > 0 {
+			return result.value, true
+		}
+		complete = complete && result.tested
+		value = max(value, result.value)
+	}
+	return value, complete
+}
+
+func balancedNodes(balancer constant.Proxy) []constant.Proxy {
+	var nodes []constant.Proxy
+	seen := map[constant.Proxy]bool{}
+	var walk func(proxy constant.Proxy)
+	walk = func(proxy constant.Proxy) {
+		if seen[proxy] {
+			return
+		}
+		seen[proxy] = true
+		if inner, ok := adapterAs[*outboundgroup.LoadBalance](proxy); ok {
+			for _, member := range inner.Proxies() {
+				walk(member)
+			}
+		} else if pick := proxy.Unwrap(nil, false); pick != nil {
+			walk(pick)
+		} else {
+			nodes = append(nodes, proxy)
+		}
+	}
+	walk(balancer)
+	return nodes
 }

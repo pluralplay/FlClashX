@@ -58,7 +58,7 @@ extension CodeForgeControllerCompletion on CodeForgeController {
   /// the prefix it was matched against and closes the popup.
   void acceptSuggestion([int? index]) {
     final suggestions = suggestionsNotifier.value;
-    if (suggestions == null || suggestions.isEmpty) return;
+    if (readOnly || suggestions == null || suggestions.isEmpty) return;
     final selected = (index ?? selectedSuggestionNotifier.value ?? 0).clamp(
       0,
       suggestions.length - 1,

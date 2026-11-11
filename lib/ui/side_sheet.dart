@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fl_clash/ui/color.dart';
 import 'package:fl_clash/ui/drag_back.dart';
-import 'package:fl_clash/ui/shape.dart';
+import 'package:fl_clash/ui/frosted_surface.dart';
 import 'package:fl_clash/ui/sheet_navigator.dart';
 import 'package:fl_clash/ui/surface.dart';
 import 'package:material_ui/material_ui.dart';
@@ -45,12 +45,11 @@ class _SideSheetState extends State<SideSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return FrostedSheet(
       key: _childKey,
       color:
           widget.backgroundColor ??
           SurfaceLevel.page.colorOf(Theme.of(context).colorScheme),
-      shape: AppShape.none,
       child: widget.builder(context),
     );
   }

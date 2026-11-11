@@ -272,8 +272,9 @@ class _ListEditViewState extends EditViewState<ListEditView, String> {
   @override
   String get title => widget.title;
 
+  // Rows are keyed by their value, which a config can repeat.
   @override
-  List<String> get initialEntries => widget.items;
+  List<String> get initialEntries => widget.items.toSet().toList();
 
   @override
   String idOf(String entry) => entry;

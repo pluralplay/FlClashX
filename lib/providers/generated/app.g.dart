@@ -133,7 +133,7 @@ final class LogsProvider extends $NotifierProvider<Logs, FixedList<Log>> {
   }
 }
 
-String _$logsHash() => r'aefb14ef2c0a3c7a4e27f2ac4188a5b2943e60b5';
+String _$logsHash() => r'c0a720eb727b92cc8fc4b9c4552e0b9cc52a602c';
 
 abstract class _$Logs extends $Notifier<FixedList<Log>> {
   FixedList<Log> build();
@@ -1433,6 +1433,68 @@ abstract class _$Groups extends $Notifier<List<Group>> {
             as $ClassProviderElement<
               AnyNotifier<List<Group>, List<Group>>,
               List<Group>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// The current profile's own GLOBAL carries `flclashx-override`: global mode
+/// shows that group alone and rule mode leaves it out.
+
+@ProviderFor(GlobalOverride)
+final globalOverrideProvider = GlobalOverrideProvider._();
+
+/// The current profile's own GLOBAL carries `flclashx-override`: global mode
+/// shows that group alone and rule mode leaves it out.
+final class GlobalOverrideProvider
+    extends $NotifierProvider<GlobalOverride, bool> {
+  /// The current profile's own GLOBAL carries `flclashx-override`: global mode
+  /// shows that group alone and rule mode leaves it out.
+  GlobalOverrideProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'globalOverrideProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$globalOverrideHash();
+
+  @$internal
+  @override
+  GlobalOverride create() => GlobalOverride();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$globalOverrideHash() => r'b6dea981a94720fca39fdf688c4a47455f16dd25';
+
+/// The current profile's own GLOBAL carries `flclashx-override`: global mode
+/// shows that group alone and rule mode leaves it out.
+
+abstract class _$GlobalOverride extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
               Object?,
               Object?
             >;

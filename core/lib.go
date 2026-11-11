@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -16,17 +17,11 @@ import (
 
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/process"
+	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/dns"
-	"github.com/metacubex/mihomo/listener/sing_tun"
 	"github.com/metacubex/mihomo/log"
 )
-
-type TunCallbacks interface {
-	Protect(fd int) bool
-	ResolveUid(protocol int, source, target string) int
-	ResolvePackage(uid int) string
-}
 
 var (
 	eventListenerLock sync.RWMutex
@@ -34,72 +29,11 @@ var (
 	listening         atomic.Bool
 )
 
-type TunHandler struct {
-	listener  *sing_tun.Listener
-	callbacks TunCallbacks
-
-	mu sync.RWMutex
-}
-
-func (th *TunHandler) start(fd int, stack, address, dns, options string) bool {
-	configMu.Lock()
-	defer configMu.Unlock()
-
-	th.mu.Lock()
-	th.initHook()
-	th.mu.Unlock()
-
-	// t.Start runs outside th.mu on purpose. The hook is live from initHook
-	// onwards, and a socket opened anywhere inside Start reaches handleProtect
-	// on this very goroutine — an RLock taken while this one holds the write
-	// lock deadlocks the start outright. Nothing is lost by dropping it: both
-	// hooks return early until th.listener is set, which is below.
-	tunListener := t.Start(fd, stack, address, dns, options)
-
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	if tunListener != nil {
-		log.Infoln("TUN address: %v", tunListener.Address())
-		th.listener = tunListener
-		return true
-	}
-	th.clear()
-	return false
-}
-
-func (th *TunHandler) close() {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	th.clear()
-}
-
-func (th *TunHandler) clear() {
-	th.removeHook()
-	if th.listener != nil {
-		_ = th.listener.Close()
-	}
-	th.callbacks = nil
-	th.listener = nil
-}
-
-// A refused protect never fails the dial: mihomo's tunnel retries a failed
-// dial ten times, and Android refuses only after the VPN was revoked, when the
-// routes are gone and an unprotected socket takes the default network.
-func (th *TunHandler) handleProtect(fd int) {
-	th.mu.RLock()
-	defer th.mu.RUnlock()
-
-	if th.listener == nil || th.callbacks == nil {
-		return
-	}
-	th.callbacks.Protect(fd)
-}
-
 func (th *TunHandler) handleResolveProcess(source, target net.Addr) (int, string) {
 	th.mu.RLock()
 	defer th.mu.RUnlock()
 
-	if th.listener == nil || th.callbacks == nil {
+	if th.callbacks == nil {
 		return -1, ""
 	}
 	var protocol int
@@ -121,10 +55,7 @@ func (th *TunHandler) handleResolveProcess(source, target net.Addr) (int, string
 	return uid, th.callbacks.ResolvePackage(uid)
 }
 
-var (
-	installHooksOnce sync.Once
-	activeTunHandler atomic.Pointer[TunHandler]
-)
+var installHooksOnce sync.Once
 
 func installHooks() {
 	installHooksOnce.Do(func() {
@@ -136,8 +67,11 @@ func installHooks() {
 			if th == nil {
 				return nil
 			}
+			// A refused protect never fails the dial: mihomo's tunnel retries a failed
+			// dial ten times, and Android refuses only after the VPN was revoked, when the
+			// routes are gone and an unprotected socket takes the default network.
 			return conn.Control(func(fd uintptr) {
-				th.handleProtect(int(fd))
+				protectFrom(th, int(fd))
 			})
 		}
 		process.DefaultPackageNameResolver = func(metadata *constant.Metadata) (string, error) {
@@ -159,57 +93,26 @@ func installHooks() {
 	})
 }
 
-func (th *TunHandler) initHook() {
-	installHooks()
-	activeTunHandler.Store(th)
-}
+var errBlocked = errors.New("blocked: the process is out of file descriptors")
 
-// Swap the handler, never the hook: mihomo nil-checks DefaultSocketHook once and
-// dereferences it again when the socket is created, so clearing it mid-dial
-// calls a nil func value.
-func (th *TunHandler) removeHook() {
-	activeTunHandler.CompareAndSwap(th, nil)
-}
-
-var (
-	tunLock    sync.Mutex
-	errBlocked = errors.New("blocked: the process is out of file descriptors")
-	tunHandler *TunHandler
-)
-
-func handleStopTun() {
-	tunLock.Lock()
-	defer tunLock.Unlock()
-	stopTunLocked()
-}
-
-func stopTunLocked() {
-	if tunHandler == nil {
-		return
-	}
-	tunHandler.close()
-	tunHandler = nil
-}
-
+// Android has the routes up regardless, so a false here must tear the VPN down.
 func handleStartTun(callbacks TunCallbacks, fd int, stack, address, dns, options string) bool {
 	tunLock.Lock()
 	defer tunLock.Unlock()
-	stopTunLocked()
 	if fd == 0 {
+		stopTunLocked()
 		logError("startTun was handed no tun descriptor")
 		return false
 	}
-	tunHandler = &TunHandler{
-		callbacks: callbacks,
-	}
-	if tunHandler.start(fd, stack, address, dns, options) {
-		return true
-	}
-	// start() already cleared the handler, so nothing protects sockets from
-	// here on. Android has the routes up regardless, so the caller has to tear
-	// the VPN down rather than leave the device pointed at a black hole.
-	tunHandler = nil
-	return false
+	installHooks()
+	return startTunLocked(callbacks, func() io.Closer {
+		listener := t.Start(fd, stack, address, dns, options, trafficTunnel)
+		if listener == nil {
+			return nil
+		}
+		log.Infoln("TUN address: %v", listener.Address())
+		return listener
+	})
 }
 
 var (
@@ -233,7 +136,8 @@ func handleUpdateDns(value string) {
 		}
 		log.Infoln("[DNS] updateDns %s", value)
 		dns.UpdateSystemDNS(addr)
-		dns.FlushCacheWithDefaultResolver()
+		resolver.ClearCache()
+		resolver.ResetConnection()
 	})
 }
 
@@ -323,25 +227,6 @@ func SetEventListener(listener func([]byte)) {
 
 func hasEventListener() bool {
 	return listening.Load()
-}
-
-func GetTotalTraffic(onlyStatisticsProxy bool) string {
-	defer recoverExport("getTotalTraffic")
-	return marshalResult(handleGetTotalTraffic(onlyStatisticsProxy))
-}
-
-func GetTraffic(onlyStatisticsProxy bool) string {
-	defer recoverExport("getTraffic")
-	return marshalResult(handleGetTraffic(onlyStatisticsProxy))
-}
-
-func marshalResult(value any) string {
-	data, err := json.Marshal(value)
-	if err != nil {
-		logError("Result marshal error: %v", err)
-		return ""
-	}
-	return string(data)
 }
 
 func deliverEvent(data []byte) {

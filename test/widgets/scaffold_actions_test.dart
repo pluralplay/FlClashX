@@ -14,6 +14,7 @@ Future<List<String>> _pumpBar(
   List<String> icons = const [],
   List<String> menuItems = const [],
   List<String> selection = const [],
+  bool groupActions = false,
 }) async {
   final taps = <String>[];
   IconButtonData action(String label) {
@@ -34,6 +35,7 @@ Future<List<String>> _pumpBar(
         primaryAction: primary == null ? null : action(primary),
         iconActions: [for (final label in icons) action(label)],
         selectionActions: [for (final label in selection) action(label)],
+        groupActions: groupActions,
         menuItems: [
           for (final label in menuItems)
             CommonPopupMenuItem(label: label, onPressed: () => taps.add(label)),
@@ -156,6 +158,30 @@ void main() {
       'Locate',
       'Settings',
     ]);
+  });
+
+  testWidgets('a grouped bar keeps every action beside the search', (
+    tester,
+  ) async {
+    await _pumpBar(
+      tester,
+      hasSearch: true,
+      groupActions: true,
+      icons: ['Mode', 'Delay test', 'Fold'],
+      menuItems: ['Settings'],
+    );
+
+    expect(_barButtons(tester), [
+      'Search',
+      'Mode',
+      'Delay test',
+      'Fold',
+      'More',
+    ]);
+    for (final tooltip in ['Search', 'Mode', 'Delay test', 'Fold']) {
+      expect(_inGroup(tooltip), findsOneWidget);
+    }
+    expect(_inGroup('More'), findsNothing);
   });
 
   testWidgets('a running action folds in disabled', (tester) async {

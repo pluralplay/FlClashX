@@ -4,12 +4,17 @@ final class WindowController: NSObject, NSWindowDelegate {
     var onEvent: ((String) -> Void)?
     var onBecameVisible: (() -> Void)?
 
+    /// Where the menu bar popover hangs from: the runner points this at the
+    /// tray plugin's status item, which this package cannot see.
+    var popoverAnchor: (() -> NSView?)?
+
     private var window: NSWindow?
     private weak var previousDelegate: NSWindowDelegate?
     private var preventClose = false
     private var style = WindowStyle()
     private var wasZoomed = false
     private var geometrySettle: DispatchWorkItem?
+    private var popover: MenuBarPopover?
 
     private static let geometrySettleDelay: DispatchTimeInterval = .milliseconds(150)
 
@@ -19,7 +24,68 @@ final class WindowController: NSObject, NSWindowDelegate {
         previousDelegate = window.delegate
         window.delegate = self
         wasZoomed = window.isZoomed
+        // The zoom button then zooms instead of entering full screen, and
+        // windowShouldZoom turns that into the `zoom` event.
+        window.collectionBehavior.insert(.fullScreenNone)
         WindowEffectView.install(in: window)
+    }
+
+    var isMenuBarMode: Bool { popover != nil }
+
+    /// Moves the Flutter view into a popover under the status item and takes
+    /// the app out of the Dock, or puts both back.
+    func setMenuBarMode(_ enabled: Bool) throws {
+        let window = try requireWindow()
+        if enabled == isMenuBarMode { return }
+        if enabled {
+            guard let content = window.contentViewController else {
+                throw PluginError(code: "not_initialized", message: "the window has no content")
+            }
+            let wasVisible = window.isVisible
+            window.orderOut(nil)
+            window.contentViewController = nil
+            let popover = MenuBarPopover()
+            popover.onShown = { [weak self] in
+                self?.emit("show")
+                self?.onBecameVisible?()
+            }
+            popover.onClosed = { [weak self] in
+                self?.emit("hide")
+            }
+            popover.adopt(content)
+            self.popover = popover
+            NSApp.setActivationPolicy(.accessory)
+            if wasVisible {
+                emit("hide")
+            }
+        } else {
+            guard let popover, let content = popover.release() else { return }
+            self.popover = nil
+            window.contentViewController = content
+            NSApp.setActivationPolicy(.regular)
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            emit("show")
+            onBecameVisible?()
+        }
+    }
+
+    func togglePopover() throws {
+        guard let popover else {
+            throw PluginError(code: "unsupported", message: "not in menu bar mode")
+        }
+        if popover.isShown {
+            popover.close()
+        } else {
+            try showPopover(popover)
+        }
+    }
+
+    private func showPopover(_ popover: MenuBarPopover) throws {
+        guard let anchor = popoverAnchor?() else {
+            throw PluginError(code: "unsupported", message: "no status item to anchor the popover to")
+        }
+        popover.show(relativeTo: anchor)
     }
 
     private func requireWindow() throws -> NSWindow {
@@ -31,6 +97,10 @@ final class WindowController: NSObject, NSWindowDelegate {
 
     func show(inactive: Bool) throws {
         let window = try requireWindow()
+        if let popover {
+            try showPopover(popover)
+            return
+        }
         let wasVisible = window.isVisible
         if inactive {
             window.orderFront(nil)
@@ -46,6 +116,10 @@ final class WindowController: NSObject, NSWindowDelegate {
 
     func hide() throws {
         let window = try requireWindow()
+        if let popover {
+            popover.close()
+            return
+        }
         let wasVisible = window.isVisible
         window.orderOut(nil)
         if wasVisible && !window.isVisible {
@@ -54,11 +128,19 @@ final class WindowController: NSObject, NSWindowDelegate {
     }
 
     func isVisible() throws -> Bool {
-        try requireWindow().isVisible
+        let window = try requireWindow()
+        if let popover {
+            return popover.isShown
+        }
+        return window.isVisible
     }
 
     func focus() throws {
         let window = try requireWindow()
+        if popover != nil {
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
         NSApp.activate(ignoringOtherApps: false)
         window.makeKeyAndOrderFront(nil)
     }
@@ -257,6 +339,11 @@ final class WindowController: NSObject, NSWindowDelegate {
 
     func windowDidMiniaturize(_ notification: Notification) {
         emit("minimize")
+    }
+
+    func windowShouldZoom(_ window: NSWindow, toFrame newFrame: NSRect) -> Bool {
+        emit("zoom")
+        return false
     }
 
     func windowDidDeminiaturize(_ notification: Notification) {

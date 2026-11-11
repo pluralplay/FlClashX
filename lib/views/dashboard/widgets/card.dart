@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show lerpDouble;
+import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -51,7 +51,8 @@ class DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final density = DashboardDensityScope.of(context);
-    final shape = AppShape.all(dashboardCardRadius(density));
+    final radius = dashboardCardRadius(density);
+    final shape = AppShape.all(radius);
     final content = Padding(
       padding: padding ?? dashboardCardPadding(density),
       child: child,
@@ -59,13 +60,11 @@ class DashboardCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: semanticLabel,
-      child: Container(
+      child: FrostedSurface(
         clipBehavior: clipBehavior,
-        decoration: ShapeDecoration(
-          color: DashboardColors.of(context).card,
-          shape: shape,
-          shadows: DashboardShadows.e1(context),
-        ),
+        color: DashboardColors.of(context).card,
+        radius: AppRadius.all(radius),
+        shadows: DashboardShadows.e1(context),
         child: Material(
           type: MaterialType.transparency,
           child: onTap == null
@@ -73,6 +72,7 @@ class DashboardCard extends StatelessWidget {
               : FocusRing(
                   shape: shape,
                   child: InkWell(
+                    mouseCursor: clickableCursor,
                     customBorder: shape,
                     onTap: onTap,
                     child: content,
@@ -411,6 +411,7 @@ class DashboardConnectedButton extends StatelessWidget {
                 child: Material(
                   type: MaterialType.transparency,
                   child: InkWell(
+                    mouseCursor: clickableCursor,
                     customBorder: shape,
                     splashFactory: NoSplash.splashFactory,
                     highlightColor: Colors.transparent,
@@ -523,6 +524,7 @@ class DashboardBlock extends StatelessWidget {
                 child: FocusRing(
                   shape: shape,
                   child: InkWell(
+                    mouseCursor: clickableCursor,
                     customBorder: shape,
                     onTap: onTap,
                     child: content,
@@ -538,35 +540,86 @@ class DashboardBlock extends StatelessWidget {
 class ShapeBadge extends StatelessWidget {
   const ShapeBadge({
     super.key,
-    required this.shape,
+    required RoundedPolygon this.shape,
     required this.color,
     required this.size,
     this.rotation = 0,
     this.ring,
+    this.background,
     this.child,
-  });
+  }) : path = null;
 
-  final RoundedPolygon shape;
+  /// A badge on a unit-square [path], for a shape mid-[Morph].
+  const ShapeBadge.path({
+    super.key,
+    required Path this.path,
+    required this.color,
+    required this.size,
+    this.rotation = 0,
+    this.ring,
+    this.background,
+    this.child,
+  }) : shape = null;
+
+  final RoundedPolygon? shape;
+  final Path? path;
   final Color color;
   final double size;
 
-  /// Turns the shape alone, leaving [child] upright.
+  /// Turns the shape alone, leaving [background] and [child] upright.
   final double rotation;
   final BorderSide? ring;
+
+  /// Shows through the shape over [color], under [child].
+  final Widget? background;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
+    final path = this.path ?? shapePathOf(shape!);
+    final background = this.background;
+    final child = this.child;
+    if (background == null) {
+      return CustomPaint(
+        painter: ShapePainter(
+          path: path,
+          color: color,
+          rotation: rotation,
+          ring: ring,
+        ),
+        child: SizedBox.square(
+          dimension: size,
+          child: child == null ? null : Center(child: child),
+        ),
+      );
+    }
     return CustomPaint(
-      painter: ShapePainter(
-        path: shapePathOf(shape),
-        color: color,
-        rotation: rotation,
-        ring: ring,
-      ),
+      painter: ShapePainter(path: path, color: color, rotation: rotation),
+      foregroundPainter: ring == null
+          ? null
+          : ShapePainter(
+              path: path,
+              color: Colors.transparent,
+              rotation: rotation,
+              ring: ring,
+            ),
       child: SizedBox.square(
         dimension: size,
-        child: child == null ? null : Center(child: child),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipPath(
+              clipper: ShapeClipper(path: path, rotation: rotation),
+              // MSAA clips each sample whole; without it the flag's stacked
+              // stripes would each blend into the clip's soft edge.
+              clipBehavior: ImageFilter.isShaderFilterSupported
+                  ? Clip.antiAlias
+                  : Clip.antiAliasWithSaveLayer,
+              child: background,
+            ),
+            if (child != null) Center(child: child),
+          ],
+        ),
       ),
     );
   }
@@ -575,6 +628,28 @@ class ShapeBadge extends StatelessWidget {
 final _shapePaths = Expando<Path>();
 
 Path shapePathOf(RoundedPolygon shape) => _shapePaths[shape] ??= shape.toPath();
+
+/// Clips to a unit-square [path] laid out the way [ShapePainter] paints it.
+class ShapeClipper extends CustomClipper<Path> {
+  const ShapeClipper({required this.path, this.rotation = 0});
+
+  final Path path;
+  final double rotation;
+
+  @override
+  Path getClip(Size size) {
+    final matrix = Matrix4.identity()
+      ..translateByDouble(size.width / 2, size.height / 2, 0, 1)
+      ..rotateZ(rotation)
+      ..scaleByDouble(size.width, size.height, 1, 1)
+      ..translateByDouble(-0.5, -0.5, 0, 1);
+    return path.transform(matrix.storage);
+  }
+
+  @override
+  bool shouldReclip(ShapeClipper oldClipper) =>
+      oldClipper.path != path || oldClipper.rotation != rotation;
+}
 
 /// Paints a path laid out in the unit square, the space [MaterialShapes]
 /// are normalized to.
@@ -828,6 +903,8 @@ class DashboardIconButton extends StatelessWidget {
     required this.glyph,
     required this.tooltip,
     required this.onPressed,
+    this.color,
+    this.iconSize = glyphSize,
   });
 
   static const size = 32.0;
@@ -836,6 +913,8 @@ class DashboardIconButton extends StatelessWidget {
   final Glyph glyph;
   final String tooltip;
   final VoidCallback? onPressed;
+  final Color? color;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -849,15 +928,15 @@ class DashboardIconButton extends StatelessWidget {
         child: IconButton(
           tooltip: tooltip,
           padding: EdgeInsets.zero,
-          iconSize: glyphSize,
+          iconSize: iconSize,
           style: IconButton.styleFrom(
             minimumSize: const Size.square(size),
             fixedSize: const Size.square(size),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            foregroundColor: context.colorScheme.onSurfaceVariant,
+            foregroundColor: color ?? context.colorScheme.onSurfaceVariant,
           ),
           onPressed: onPressed,
-          icon: GlyphIcon(glyph, size: glyphSize),
+          icon: GlyphIcon(glyph, size: iconSize),
         ),
       ),
     );

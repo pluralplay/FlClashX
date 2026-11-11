@@ -113,6 +113,24 @@ void main() {
       expect(workDirs(), isEmpty);
     });
 
+    test('restores an icon gallery imported from a file', () async {
+      const gallery = IconSet(
+        id: 7,
+        name: 'Local',
+        icons: [IconSetIcon(name: 'cat', url: 'https://icons.example/cat.png')],
+      );
+      await testDatabase.iconSetsDao.putAll([gallery.toCompanion()]);
+      final archivePath = await backupToKept(actionOf(buildContainer()));
+
+      await testDatabase.delete(testDatabase.iconSets).go();
+      final restored = await actionOf(
+        buildContainer(),
+      ).restore(RestoreOption.all, (_) async => archivePath);
+
+      expect(restored, isTrue);
+      expect(await testDatabase.iconSetsDao.query().get(), [gallery]);
+    });
+
     test('removes the work directory when delivery fails', () async {
       final container = buildContainer();
 
@@ -206,6 +224,39 @@ void main() {
       final stored = await testDatabase.profilesDao.query().get();
       expect(stored.map((item) => item.label), ['From backup']);
     });
+
+    for (final (name, data, kept) in [
+      (
+        'an override restore of an empty backup leaves no profile',
+        const MigrationData(),
+        <String>[],
+      ),
+      (
+        'an override restore of settings alone keeps the profiles',
+        const MigrationData(includesTables: false),
+        ['Pre-existing'],
+      ),
+    ]) {
+      test(name, () async {
+        final container = buildContainer();
+        await testDatabase.profilesDao.putAll([
+          _profile(9, 'Pre-existing').toCompanion(0),
+        ]);
+        container
+            .read(appSettingProvider.notifier)
+            .update(
+              (state) =>
+                  state.copyWith(restoreStrategy: RestoreStrategy.override),
+            );
+
+        await actionOf(
+          container,
+        ).applyRestore(data, RestoreOption.onlyProfiles);
+
+        final stored = await testDatabase.profilesDao.query().get();
+        expect(stored.map((item) => item.label), kept);
+      });
+    }
 
     test('a compatible restore keeps profiles the backup omits', () async {
       final container = buildContainer();

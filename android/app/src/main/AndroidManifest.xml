@@ -16,6 +16,7 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -69,6 +70,8 @@
                 <data android:scheme="clash" />
                 <data android:scheme="clashmeta" />
                 <data android:scheme="flclash" />
+                <data android:scheme="flclashx" />
+                <data android:scheme="clashx" />
 
                 <data android:host="install-config" />
             </intent-filter>
@@ -117,6 +120,16 @@
                 <action android:name="${applicationId}.intent.action.VPN_REVOKED" />
             </intent-filter>
         </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
 
         <meta-data
             android:name="flutterEmbedding"

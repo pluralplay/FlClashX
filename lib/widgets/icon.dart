@@ -242,10 +242,12 @@ Future<void> _decodeAhead(Uint8List bytes) {
     completer.complete();
   }
 
-  listener = ImageStreamListener(
-    (_, _) => finish(),
-    onError: (_, _) => finish(),
-  );
+  // Each frame handed to a listener is its own handle on the decoded image,
+  // which the image cache cannot release while one is left undisposed.
+  listener = ImageStreamListener((image, _) {
+    image.dispose();
+    finish();
+  }, onError: (_, _) => finish());
   stream.addListener(listener);
   return completer.future;
 }

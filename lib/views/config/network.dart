@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/views/config/override.dart';
@@ -79,6 +80,7 @@ class TUNItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     return ConfigToggleItem(
+      managedKey: 'clash.tun.enable',
       title: (l) => l.tun,
       selector: patchClashConfigProvider.select((state) => state.tun.enable),
       onChanged: _tunWriter(
@@ -172,6 +174,7 @@ class TunStackItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     return ConfigOptionsItem<TunStack>(
+      managedKey: 'clash.tun.stack',
       title: (l) => l.stackMode,
       options: TunStack.values,
       textBuilder: (stack) => stack.name,
@@ -188,6 +191,7 @@ class InterfaceNameModeItem extends ConsumerWidget {
   Widget build(BuildContext context, ref) {
     final appLocalizations = context.appLocalizations;
     return ConfigOptionsItem<InterfaceNameMode>(
+      managedKey: 'clash.interface-name',
       title: (l) => l.interfaceNameMode,
       options: InterfaceNameMode.values,
       textBuilder: (mode) => switch (mode) {
@@ -211,6 +215,7 @@ class InterfaceNameItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     return ConfigTextItem(
+      managedKey: 'clash.interface-name',
       title: (l) => l.interfaceName,
       maxLength: TextInputLimits.name,
       selector: patchClashConfigProvider.select((state) => state.interfaceName),
@@ -255,15 +260,18 @@ class RouteAddressItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
-    return ConfigListEditItem(
-      title: (l) => l.routeAddress,
-      itemMaxLength: TextInputLimits.cidr,
-      itemValidator: validateCidr,
-      selector: patchClashConfigProvider.select(
-        (state) => state.tun.routeAddress,
-      ),
-      onChanged: _tunWriter(
-        (state, value) => state.copyWith.tun(routeAddress: value),
+    return ManagedSetting(
+      settingKey: 'clash.tun.route-address',
+      child: ConfigListEditItem(
+        title: (l) => l.routeAddress,
+        itemMaxLength: TextInputLimits.cidr,
+        itemValidator: validateCidr,
+        selector: patchClashConfigProvider.select(
+          (state) => state.tun.routeAddress,
+        ),
+        onChanged: _tunWriter(
+          (state, value) => state.copyWith.tun(routeAddress: value),
+        ),
       ),
     );
   }
@@ -296,9 +304,11 @@ class _NumberItem extends ConsumerWidget {
     this.isSeconds = false,
     this.min = 0,
     this.max = _maxUint32,
+    this.managedKey,
   });
 
   final ConfigLabel title;
+  final String? managedKey;
   final int Function(PatchClashConfig state) select;
   final _TunUpdate<int> update;
   final bool isSeconds;
@@ -310,7 +320,7 @@ class _NumberItem extends ConsumerWidget {
     final appLocalizations = context.appLocalizations;
     final label = title(appLocalizations);
     final value = ref.watch(patchClashConfigProvider.select(select));
-    return ListItem.input(
+    final item = ListItem.input(
       title: Text(label),
       subtitle: Text(
         isSeconds ? appLocalizations.secondsCount(value) : '$value',
@@ -339,6 +349,10 @@ class _NumberItem extends ConsumerWidget {
             .update((state) => update(state, int.parse(value.trim())));
       },
     );
+    final managedKey = this.managedKey;
+    return managedKey == null
+        ? item
+        : ManagedSetting(settingKey: managedKey, child: item);
   }
 }
 
@@ -347,6 +361,7 @@ class _NumberItem extends ConsumerWidget {
 List<Widget> tunItems({required bool isMipsStack}) {
   return [
     _NumberItem(
+      managedKey: 'clash.tun.mtu',
       title: (l) => 'MTU',
       min: minTunMtu,
       max: maxTunMtu,
@@ -355,6 +370,7 @@ List<Widget> tunItems({required bool isMipsStack}) {
     ),
     if (isMipsStack)
       ConfigOptionsItem<String>(
+        managedKey: 'clash.tun.congestion-controller',
         title: (l) => l.congestionController,
         options: congestionControllers,
         textBuilder: (value) => value,
@@ -367,15 +383,18 @@ List<Widget> tunItems({required bool isMipsStack}) {
       ),
     const BypassPrivateRouteItem(),
     const RouteAddressItem(),
-    ConfigListEditItem(
-      title: (l) => l.routeExcludeAddress,
-      itemMaxLength: TextInputLimits.cidr,
-      itemValidator: validateCidr,
-      selector: patchClashConfigProvider.select(
-        (state) => state.tun.routeExcludeAddress,
-      ),
-      onChanged: _tunWriter(
-        (state, value) => state.copyWith.tun(routeExcludeAddress: value),
+    ManagedSetting(
+      settingKey: 'clash.tun.route-exclude-address',
+      child: ConfigListEditItem(
+        title: (l) => l.routeExcludeAddress,
+        itemMaxLength: TextInputLimits.cidr,
+        itemValidator: validateCidr,
+        selector: patchClashConfigProvider.select(
+          (state) => state.tun.routeExcludeAddress,
+        ),
+        onChanged: _tunWriter(
+          (state, value) => state.copyWith.tun(routeExcludeAddress: value),
+        ),
       ),
     ),
   ];
@@ -408,11 +427,35 @@ class TunSection extends ConsumerWidget {
         footer: appLocalizations.bypassPrivateRouteDesc,
       );
     }
-    return OverrideSection(
+    final spec = appTunOverrideSpec(isLinux: isLinux, isWindows: isWindows);
+    final picked = ref.watch(
+      patchClashConfigProvider.select((state) => state.tunOverrideKeys),
+    );
+    final listed = [
+      for (final key in spec.values)
+        if (picked.contains(key)) key,
+    ];
+    void handleAdd() => showOverrideAddSheet(context, ref, spec);
+    return generateAnimatedSection(
       title: appLocalizations.tun,
-      spec: appTunOverrideSpec(isLinux: isLinux, isWindows: isWindows),
-      items: const [BypassPrivateRouteItem(key: ValueKey(#bypassPrivateRoute))],
-      footer: [appLocalizations.bypassPrivateRouteDesc],
+      items: [
+        const BypassPrivateRouteItem(key: ValueKey(#bypassPrivateRoute)),
+        for (final key in listed)
+          OverrideEntry(key: ValueKey(key), spec: spec, overrideKey: key),
+        if (listed.length < spec.values.length)
+          FormRow(
+            key: const ValueKey(#add),
+            leading: EntryButton.add(onPressed: handleAdd),
+            title: spec.target.addEntry(appLocalizations),
+            titleStyle: TextStyle(color: context.colorScheme.primary),
+            onPressed: handleAdd,
+          ),
+      ],
+      footer: [
+        appLocalizations.bypassPrivateRouteDesc,
+        appLocalizations.tunOverrideDesc,
+        ?spec.footerOf(listed, appLocalizations),
+      ].join('\n'),
     );
   }
 }
@@ -424,6 +467,7 @@ List<Widget> outboundItems({required bool isDesktop, required bool isLinux}) {
     if (isDesktop) ...[
       ConfigToggleItem(
         title: (l) => l.disableKeepAlive,
+        managedKey: 'clash.disable-keep-alive',
         selector: patchClashConfigProvider.select(
           (state) => state.disableKeepAlive,
         ),
@@ -433,12 +477,14 @@ List<Widget> outboundItems({required bool isDesktop, required bool isLinux}) {
       ),
       _NumberItem(
         title: (l) => l.keepAliveIdle,
+        managedKey: 'clash.keep-alive-idle',
         isSeconds: true,
         select: (state) => state.keepAliveIdle,
         update: (state, value) => state.copyWith(keepAliveIdle: value),
       ),
       _NumberItem(
         title: (l) => l.keepAliveIntervalDesc,
+        managedKey: 'clash.keep-alive-interval',
         isSeconds: true,
         select: (state) => state.keepAliveInterval,
         update: (state, value) => state.copyWith(keepAliveInterval: value),
@@ -447,6 +493,7 @@ List<Widget> outboundItems({required bool isDesktop, required bool isLinux}) {
     if (isLinux)
       _NumberItem(
         title: (l) => l.routingMark,
+        managedKey: 'clash.routing-mark',
         select: (state) => state.routingMark,
         update: (state, value) => state.copyWith(routingMark: value),
       ),
@@ -566,6 +613,7 @@ class NetworkListView extends StatelessWidget {
         bottom: 16 + context.bottomInset,
       ),
       children: [
+        const ManagedSettingsHint(keys: networkPageKeys),
         if (system.isAndroid) const VpnSections(),
         if (system.isDesktop) const SystemProxySection(),
         const NetworkOptionsSection(),

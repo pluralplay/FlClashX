@@ -54,12 +54,3 @@ class ResolveOnce<T> {
     return value;
   }
 }
-
-extension CompleterExt<T> on Completer<T> {
-  void safeCompleter(T value) {
-    if (isCompleted) {
-      return;
-    }
-    complete(value);
-  }
-}

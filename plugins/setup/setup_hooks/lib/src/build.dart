@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
@@ -29,9 +31,13 @@ class BuildReport {
     required this.inputs,
     required this.outputs,
     required this.rebuilt,
+    this.sourceDirectories = const [],
   });
 
   final List<String> inputs;
+
+  /// A source file added beside the others changes no file the hook read.
+  final List<String> sourceDirectories;
   final List<String> outputs;
   final bool rebuilt;
 
@@ -47,6 +53,9 @@ Future<BuildReport> buildPlatform(BuildRequest request) async {
   final target = request.target;
   final rootDir = request.rootDir;
   final config = BuildConfig.load(rootDir: rootDir);
+  // Its values reach the fingerprints, which the hook only checks once it runs.
+  final configFile = File(p.join(rootDir, 'build_config.yaml'));
+  final configInputs = [if (configFile.existsSync()) configFile.path];
   final cache = BuildCache(rootDir: rootDir);
   final notice = BuildNotice();
   final harnessInputs = switch (request.harnessDir) {
@@ -63,7 +72,7 @@ Future<BuildReport> buildPlatform(BuildRequest request) async {
   ).build(target);
   if (!target.hasHelper) {
     _log.info('Done in ${stopwatch.elapsed}: ${core.primaryOutput}');
-    return _report([core]);
+    return _report([core], extraInputs: configInputs);
   }
 
   final coreSha256 = await calcSha256(core.primaryOutput);
@@ -86,23 +95,32 @@ Future<BuildReport> buildPlatform(BuildRequest request) async {
     'Done in ${stopwatch.elapsed}: ${core.primaryOutput}, '
     '${helper.primaryOutput}',
   );
-  return _report([core, helper], extraOutputs: [manifestPath]);
+  return _report(
+    [core, helper],
+    extraInputs: configInputs,
+    extraOutputs: [manifestPath],
+  );
 }
 
 BuildReport _report(
   List<BuildExecution> results, {
+  List<String> extraInputs = const [],
   List<String> extraOutputs = const [],
 }) {
-  final inputs = <String>{};
+  final sources = <String>{};
   final outputs = <String>{};
   for (final result in results) {
-    inputs.addAll(result.inputs);
+    sources.addAll(result.inputs);
     outputs.addAll(result.outputs);
   }
+  final inputs = {...sources, ...extraInputs};
   outputs.addAll(extraOutputs);
   return BuildReport(
     inputs: inputs.toList()..sort(),
     outputs: outputs.toList()..sort(),
     rebuilt: results.any((result) => result.rebuilt),
+    sourceDirectories: {
+      for (final source in sources) p.dirname(source),
+    }.toList()..sort(),
   );
 }

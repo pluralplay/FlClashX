@@ -33,6 +33,7 @@ Future<FocusNode> pumpEditProfile(
   WidgetTester tester, {
   Profile? profile,
   List<Override> overrides = const [],
+  SheetType? sheetType,
 }) async {
   tester.view.physicalSize = const Size(900, 800);
   tester.view.devicePixelRatio = 1;
@@ -81,11 +82,16 @@ Future<FocusNode> pumpEditProfile(
                   pages: [
                     MaterialPage(
                       child: Builder(
-                        builder: (context) => Scaffold(
-                          body: EditProfileView(
+                        builder: (context) {
+                          final view = EditProfileView(
                             profile: profile ?? _urlProfile(),
-                          ),
-                        ),
+                          );
+                          return Scaffold(
+                            body: sheetType == null
+                                ? view
+                                : SheetProvider(type: sheetType, child: view),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -128,6 +134,13 @@ void main() {
     try {
       tempDir.deleteSync(recursive: true);
     } catch (_) {}
+  });
+
+  testWidgets('the sections of the edit page keep a gap between them', (
+    tester,
+  ) async {
+    await pumpEditProfile(tester);
+    expect(find.byType(ListSectionGap), findsNWidgets(2));
   });
 
   testWidgets('tabbing into the edit page reaches the form past its bar', (

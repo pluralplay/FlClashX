@@ -71,9 +71,15 @@ class LinkManager {
     }
   }
 
+  /// The nested url carries the subscription's credentials, so the log
+  /// names only its host.
   void _handle(Uri uri, Function(String url) installConfigCallBack) {
-    commonPrint.log('onAppLink: $uri');
     final url = _installConfigUrl(uri);
+    final target = url?.webUri?.host;
+    commonPrint.log(
+      'onAppLink: ${uri.scheme}://${uri.host}'
+      '${target == null ? '' : ' for $target'}',
+    );
     if (url != null) {
       installConfigCallBack(url);
     }

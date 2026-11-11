@@ -1,6 +1,6 @@
-package com.follow.clash.models
+package com.follow.clashx.models
 
-import com.follow.clash.common.AccessControlMode
+import com.follow.clashx.common.AccessControlMode
 import com.google.gson.Gson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -47,7 +47,6 @@ class SharedStateTest {
               "stopTip": "Stopping",
               "currentProfileName": "Work",
               "stopText": "Halt",
-              "onlyStatisticsProxy": true,
               "showStopAction": false,
               "vpnOptions": {
                 "enable": true,
@@ -77,7 +76,6 @@ class SharedStateTest {
 
         assertEquals("Starting", state.startTip)
         assertEquals("Work", state.currentProfileName)
-        assertEquals(true, state.onlyStatisticsProxy)
         assertEquals(false, state.showStopAction)
         assertEquals(7890, state.vpnOptions?.port)
         assertEquals("gvisor", state.vpnOptions?.stack)
@@ -93,9 +91,8 @@ class SharedStateTest {
     fun `the constructed default keeps every fallback Flutter relies on`() {
         val defaults = SharedState()
 
-        assertEquals("FlClash", defaults.currentProfileName)
+        assertEquals("FlClashX", defaults.currentProfileName)
         assertEquals("Stop", defaults.stopText)
-        assertEquals(false, defaults.onlyStatisticsProxy)
         assertEquals(true, defaults.showStopAction)
         assertNull(defaults.vpnOptions)
         assertNull(defaults.setupParams)
@@ -110,7 +107,7 @@ class SharedStateTest {
 
         assertNotNull(state)
         assertEquals("Starting VPN...", state.startTip)
-        assertEquals("FlClash", state.currentProfileName)
+        assertEquals("FlClashX", state.currentProfileName)
         assertNull(state.vpnOptions)
         assertNull(state.setupParams)
     }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -22,19 +23,18 @@ import (
 	"github.com/metacubex/mihomo/constant"
 	cp "github.com/metacubex/mihomo/constant/provider"
 	rp "github.com/metacubex/mihomo/rules/provider"
-	"github.com/metacubex/mihomo/tunnel"
 )
 
 var errNotExternalProvider = errors.New("not external provider")
 
 func externalProviders() map[string]cp.Provider {
 	eps := make(map[string]cp.Provider)
-	for n, p := range tunnel.ProvidersSnapshot() {
+	for n, p := range providersSnapshot() {
 		if p.VehicleType() != cp.Compatible {
 			eps[n] = p
 		}
 	}
-	for n, p := range tunnel.RuleProvidersSnapshot() {
+	for n, p := range ruleProvidersSnapshot() {
 		if p.VehicleType() != cp.Compatible {
 			eps[n] = p
 		}
@@ -43,13 +43,29 @@ func externalProviders() map[string]cp.Provider {
 }
 
 func lookupExternalProvider(name string) (cp.Provider, bool) {
-	if p, exist := tunnel.RuleProvidersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
+	if p, exist := ruleProvidersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
 		return p, true
 	}
-	if p, exist := tunnel.ProvidersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
+	if p, exist := providersSnapshot()[name]; exist && p.VehicleType() != cp.Compatible {
 		return p, true
 	}
 	return nil, false
+}
+
+// mihomo keeps a provider's subscription info to itself and only writes it
+// out as JSON.
+func subscriptionInfoOf(p *provider.ProxySetProvider) *provider.SubscriptionInfo {
+	data, err := p.MarshalJSON()
+	if err != nil {
+		return nil
+	}
+	var view struct {
+		SubscriptionInfo *provider.SubscriptionInfo `json:"subscriptionInfo"`
+	}
+	if err := json.Unmarshal(data, &view); err != nil {
+		return nil
+	}
+	return view.SubscriptionInfo
 }
 
 func toExternalProvider(p cp.Provider) (*ExternalProvider, error) {
@@ -62,7 +78,7 @@ func toExternalProvider(p cp.Provider) (*ExternalProvider, error) {
 			Count:            typed.Count(),
 			UpdateAt:         typed.UpdatedAt(),
 			Path:             typed.Vehicle().Path(),
-			SubscriptionInfo: typed.GetSubscriptionInfo(),
+			SubscriptionInfo: subscriptionInfoOf(typed),
 		}, nil
 	case *rp.RuleSetProvider:
 		return &ExternalProvider{
@@ -276,9 +292,14 @@ func handleUpdateExternalProvider(name string) error {
 	})
 }
 
+// The host edits a provider by name, and an apply may have put another one
+// under that name since it read the file.
 func handleSideLoadExternalProvider(params *SideLoadParams) error {
 	name := params.ProviderName
 	return updateExternalProvider(name, func(p cp.Provider) *MethodError {
+		if view, err := toExternalProvider(p); err != nil || view.Path != params.Path || view.Type != params.Type {
+			return providerError("provider_replaced", name, errors.New("external provider was replaced"))
+		}
 		if err := sideUpdateExternalProvider(p, []byte(params.Data)); err != nil {
 			return providerError("provider_update_error", name, err)
 		}
@@ -294,7 +315,10 @@ func handleDumpRuleSet(path string) (string, error) {
 	var errs []error
 	for _, behavior := range []cp.RuleBehavior{cp.Domain, cp.IPCIDR} {
 		var text strings.Builder
-		err := rp.ConvertToMrs(buf, behavior, cp.MrsRule, &text)
+		err := checkMrs(buf, behavior)
+		if err == nil {
+			err = rp.ConvertToMrs(buf, behavior, cp.MrsRule, &text)
+		}
 		if err == nil {
 			return text.String(), nil
 		}

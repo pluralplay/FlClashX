@@ -136,14 +136,30 @@ void main() {
       expect(trackerInfo.title, 'example.com');
       expect(trackerInfo.progressText, 'Browser(501)');
     });
+
+    test('shows a punycode host in Unicode and finds it by either form', () {
+      final trackerInfo = TrackerInfo(
+        id: '1',
+        start: DateTime(2026),
+        metadata: const Metadata(host: 'xn--41a.xn--p1acf'),
+        chains: const [],
+        rule: 'MATCH',
+        rulePayload: '',
+      );
+
+      expect(trackerInfo.title, 'я.рус');
+      expect(
+        trackerInfo.searchFields,
+        containsAll(['xn--41a.xn--p1acf', 'я.рус']),
+      );
+    });
   });
 
   group('TrafficExt', () {
-    test('formats tray title and total speed', () {
+    test('formats the tray title', () {
       const traffic = Traffic(up: 1024, down: 2048);
 
       expect(traffic.trayTitle, '1 KB/s\n2 KB/s');
-      expect(traffic.speed, 3072);
     });
   });
 
@@ -202,20 +218,24 @@ void main() {
   group('IpInfo parsers', () {
     test('parse supported response shapes', () {
       expect(
-        IpInfo.fromIpInfoIoJson({'ip': '1.1.1.1', 'country': 'US'}),
-        const IpInfo(ip: '1.1.1.1', countryCode: 'US'),
-      );
-      expect(
         IpInfo.fromIdentMeJson({'ip': '2.2.2.2', 'cc': 'JP'}),
         const IpInfo(ip: '2.2.2.2', countryCode: 'JP'),
       );
       expect(
-        IpInfo.fromGeoJsJson({'ip': '4.4.4.4', 'country_code': 'DE'}),
+        IpInfo.fromIpAPIJson({'query': '4.4.4.4', 'countryCode': 'DE'}),
         const IpInfo(ip: '4.4.4.4', countryCode: 'DE'),
       );
       expect(
-        IpInfo.fromCountryIsJson({'ip': '5.5.5.5', 'country': 'FR'}),
-        const IpInfo(ip: '5.5.5.5', countryCode: 'FR'),
+        IpInfo.fromIpInfoJson({'ip': '5.5.5.5', 'country': 'NL'}),
+        const IpInfo(ip: '5.5.5.5', countryCode: 'NL'),
+      );
+      expect(
+        IpInfo.fromSeeIpJson({
+          'ip': '6.6.6.6',
+          'country': 'France',
+          'country_code': 'FR',
+        }),
+        const IpInfo(ip: '6.6.6.6', countryCode: 'FR'),
       );
     });
 
@@ -231,23 +251,9 @@ void main() {
       );
     });
 
-    test('parse the Cloudflare trace key-value text', () {
-      expect(
-        IpInfo.fromCloudflareTrace(
-          'fl=0f0\nh=www.cloudflare.com\nip=203.0.113.9\nts=1757800000.1\n'
-          'visit_scheme=https\ncolo=LHR\nhttp=http/2\nloc=GB\ntls=TLSv1.3\n',
-        ),
-        const IpInfo(ip: '203.0.113.9', countryCode: 'GB'),
-      );
-    });
-
     test('throw FormatException for unsupported response shapes', () {
       expect(
-        () => IpInfo.fromIpInfoIoJson({'ip': '1.1.1.1'}),
-        throwsFormatException,
-      );
-      expect(
-        () => IpInfo.fromGeoJsJson({'ip': '1.1.1.1'}),
+        () => IpInfo.fromIpAPIJson({'query': '1.1.1.1'}),
         throwsFormatException,
       );
       expect(
@@ -257,22 +263,6 @@ void main() {
         }),
         throwsFormatException,
       );
-      expect(
-        () => IpInfo.fromCloudflareTrace('ip=1.1.1.1\ncolo=LHR\n'),
-        throwsFormatException,
-      );
-    });
-  });
-
-  group('ResultExt', () {
-    test('identifies success and error results', () {
-      final success = Result.success('ok');
-      final error = Result<Object>.error('failed');
-
-      expect(success.isSuccess, isTrue);
-      expect(success.isError, isFalse);
-      expect(error.isSuccess, isFalse);
-      expect(error.isError, isTrue);
     });
   });
 

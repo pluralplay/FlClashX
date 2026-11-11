@@ -185,7 +185,7 @@ void main() {
     });
 
     test('passes a path containing spaces through untouched', () {
-      const path = '/Users/a b/Library/Application Support/com.follow.clash';
+      const path = '/Users/a b/Library/Application Support/com.follow.clashx';
 
       final arguments = System.aclArguments(path, 'alice');
 
@@ -293,7 +293,10 @@ void main() {
         processes.stub('stat', 'root:admin -rwsr-x---');
 
         expect(await system.checkIsAdmin(), isTrue);
-        expect(processes.argumentsFor('stat').last, appPath.corePath);
+        expect(
+          processes.argumentsFor('stat').last,
+          await appPath.privilegedCorePath,
+        );
       });
 
       test(
@@ -323,32 +326,65 @@ void main() {
   );
 
   group('elevation shells', () {
-    test('macOS hands the Core to the admin group and nobody else', () {
+    test('macOS installs a copy only root may replace and admins may run', () {
       expect(
-        System.macOSElevationShell('/Apps/Fl Clash/core'),
-        "chown root:admin '/Apps/Fl Clash/core' && "
-        "chmod 4750 '/Apps/Fl Clash/core'",
+        System.macOSElevationShell(
+          '/Apps/Fl Clash/core',
+          '/Library/Application Support/app/core',
+        ),
+        "dir='/Library/Application Support/app' && "
+        r'{ [ ! -L "$dir" ] || rm -f "$dir"; } && '
+        r'mkdir -p "$dir" && chown root:wheel "$dir" && '
+        r'chmod -N "$dir" && chmod 755 "$dir" && '
+        "install -S -o root -g admin -m 4750 '/Apps/Fl Clash/core' "
+        "'/Library/Application Support/app/core'",
       );
     });
 
-    test('Linux hands the Core to the requesting user\'s group', () {
-      final shell = System.linuxElevationShell('/opt/FlClash/FlClashCore');
+    test('Linux installs a copy in a directory only the requesting user may '
+        'enter, leaving the shared Core as it was', () {
+      expect(
+        System.linuxElevationShell(
+          '/opt/Fl ClashX/FlClashCore',
+          '/usr/local/lib/app/1000/FlClashCore',
+        ),
+        "dir='/usr/local/lib/app/1000' && "
+        r'uid="${dir##*/}" && group=$(id -g "$uid") && '
+        r'app="${dir%/*}" && base="${app%/*}" && mkdir -p "$base" && '
+        r'base=$(readlink -f "$base") && app="$base/${app##*/}" && '
+        r'dir="$app/$uid" && p="$base" && while [ -n "$p" ]; do '
+        r'{ [ ! -L "$p" ] && [ "$(stat -c %u "$p")" = 0 ] && '
+        r'[ $((0$(stat -c %a "$p") & 022)) = 0 ]; } || exit 1; '
+        r'p="${p%/*}"; done && '
+        r'{ [ ! -L "$app" ] || rm -f "$app"; } && mkdir -p "$app" && '
+        r'chown root:root "$app" && chmod 755 "$app" && '
+        r'staged=$(mktemp "$app/.FlClashCore.XXXXXX") && '
+        "{ cat '/opt/Fl ClashX/FlClashCore' > \"\$staged\" && "
+        r'chown "root:$group" "$staged" && '
+        r'rm -rf "$dir" && mkdir -m 700 "$dir" && '
+        "mv -f \"\$staged\" \"\$dir\"/'FlClashCore' && "
+        "chmod 4750 \"\$dir\"/'FlClashCore' && "
+        r'chown "$uid:$group" "$dir" && chmod 500 "$dir" || '
+        r'{ rm -f "$staged"; exit 1; }; }',
+      );
+    });
+
+    test('the Linux copy turns setuid only inside its private directory', () {
+      final shell = System.linuxElevationShell('/core', '/elevated/1000/core');
 
       expect(
-        shell,
-        startsWith(r'group=$(id -g "${PKEXEC_UID:-$SUDO_UID}") && '),
+        shell.indexOf('chmod 4750'),
+        greaterThan(shell.indexOf('mv -f "\$staged"')),
       );
-      expect(shell, contains(r'chown "root:$group" '));
-      expect(shell, endsWith("chmod 4750 '/opt/FlClash/FlClashCore'"));
     });
 
     test('neither leaves execute to others', () {
       for (final shell in [
-        System.macOSElevationShell('/core'),
-        System.linuxElevationShell('/core'),
+        System.macOSElevationShell('/core', '/elevated/core'),
+        System.linuxElevationShell('/core', '/elevated/core'),
       ]) {
         expect(shell, isNot(contains('+sx')));
-        expect(shell, contains('chmod 4750'));
+        expect(shell, contains(' 4750 '));
       }
     });
   });
@@ -365,9 +401,65 @@ void main() {
       processes.stub('id', 'alice staff admin');
 
       expect(await system.authorizeCore(), AuthorizeCode.success);
-      expect(processes.argumentsFor('osascript').last, contains('chmod 4750'));
+      final arguments = processes.argumentsFor('osascript');
+      expect(arguments.last, contains("'${await appPath.privilegedCorePath}'"));
+      expect(
+        arguments.where((argument) => argument.contains('do shell script')),
+        ['do shell script (item 1 of argv) with administrator privileges'],
+      );
+    });
+
+    test('reports a cancelled password prompt as an error', () async {
+      processes.stub('id', 'alice staff admin');
+      processes.stub('osascript', '', exitCode: 1);
+
+      expect(await system.authorizeCore(), AuthorizeCode.error);
     });
   }, skip: system.isMacOS ? false : 'macOS only');
+
+  group(
+    'launchableCorePath',
+    () {
+      test('runs the elevated copy while it is the bundled Core', () async {
+        processes.stub('stat', 'root:admin -rwsr-x---');
+        final elevated = await appPath.privilegedCorePath;
+
+        expect(await system.launchableCorePath(), elevated);
+        expect(processes.argumentsFor('cmp'), [
+          '-s',
+          appPath.corePath,
+          elevated,
+        ]);
+      });
+
+      test('runs the bundled Core once an update replaced it', () async {
+        processes.stub('stat', 'root:admin -rwsr-x---');
+        processes.stub('cmp', '', exitCode: 1);
+
+        expect(await system.launchableCorePath(), appPath.corePath);
+        expect(await system.checkIsAdmin(), isFalse);
+      });
+
+      test('runs the bundled Core when the copy cannot be compared', () async {
+        processes.stub('stat', 'root:admin -rwsr-x---');
+        processes.stubThrow('cmp');
+
+        expect(await system.launchableCorePath(), appPath.corePath);
+      });
+
+      test('runs the bundled Core while no copy is setuid root', () async {
+        processes.stub('stat', 'alice:staff -rwxr-xr-x');
+
+        expect(await system.launchableCorePath(), appPath.corePath);
+        expect(processes.ran('cmp'), isFalse);
+      });
+    },
+    skip: !system.isMacOS && !(system.isLinux && !system.hasHelperService)
+        ? 'the Helper or the bundled Core alone runs TUN here'
+        : safeModeBuild
+        ? 'a safe mode build never runs the elevated copy'
+        : false,
+  );
 
   group('Windows installArguments', () {
     test('names this process as the account the Helper serves', () {

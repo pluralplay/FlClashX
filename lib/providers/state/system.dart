@@ -57,6 +57,7 @@ TrayState trayState(Ref ref) {
       (state) => (
         autoLaunch: state.autoLaunch,
         showTrayTitle: state.showTrayTitle,
+        menuBarMode: state.menuBarMode,
         monochromeTrayIcon: state.monochromeTrayIcon,
       ),
     ),
@@ -78,9 +79,11 @@ TrayState trayState(Ref ref) {
     groups: groups,
     selectedMap: selectedMap,
     showTrayTitle: appSetting.showTrayTitle,
+    menuBarMode: appSetting.menuBarMode,
     monochromeTrayIcon: appSetting.monochromeTrayIcon,
     safeMode: safeMode,
     hotKeys: hotKeys,
+    globalModeAllowed: ref.watch(globalModeAllowedProvider),
   );
 }
 
@@ -106,13 +109,16 @@ Map<String, Map<String, int>> trayDelays(Ref ref) {
   final allGroups = ref.watch(groupsProvider);
   final selectedMap = ref.watch(selectedMapProvider);
   final defaultTestUrl = ref.watch(
-    patchClashConfigProvider.select((state) => state.testUrl),
+    appSettingProvider.select((state) => state.testUrl),
   );
   final delays = <String, Map<String, int>>{};
   for (final group in groups) {
     final testUrl = group.testUrl.takeFirstValid([defaultTestUrl]);
+    final selected = allGroups
+        .getGroup(group.name)
+        ?.getCurrentSelectedName(selectedMap[group.name] ?? '');
     final groupDelays = <String, int>{};
-    for (final proxy in group.all) {
+    for (final proxy in group.trayProxies(selected)) {
       final delay = computeProxyDelayState(
         proxyName: proxy.name,
         testUrl: testUrl,
@@ -175,8 +181,10 @@ SharedState sharedState(Ref ref) {
   ref.watch(loadedLocaleProvider);
   final currentProfile = ref.watch(
     currentProfileProvider.select(
+      // A panel's profile label is often the user's name; the VPN
+      // notification is titled with the service, as the expiry notice is.
       (state) => CurrentProfileSelectorState(
-        label: state?.label ?? '',
+        label: state?.headers.serviceName ?? state?.label ?? '',
         selectedMap: state?.selectedMap ?? {},
       ),
     ),
@@ -184,21 +192,17 @@ SharedState sharedState(Ref ref) {
   final appSetting = ref.watch(
     appSettingProvider.select(
       (state) => (
-        onlyStatisticsProxy: state.onlyStatisticsProxy,
         showStopAction: state.showNotificationStopAction,
+        testUrl: state.testUrl,
         checkCertificate: state.checkCertificate,
       ),
     ),
   );
   final currentProfileName = currentProfile.label;
   final selectedMap = currentProfile.selectedMap;
-  final onlyStatisticsProxy = appSetting.onlyStatisticsProxy;
-  final testUrl = ref.watch(
-    patchClashConfigProvider.select((state) => state.testUrl),
-  );
+  final testUrl = appSetting.testUrl;
   return SharedState(
     currentProfileName: currentProfileName,
-    onlyStatisticsProxy: onlyStatisticsProxy,
     showStopAction: appSetting.showStopAction,
     stopText: currentAppLocalizations.stop,
     stopTip: currentAppLocalizations.stopVpn,
@@ -236,6 +240,7 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
       (state) => (
         bypassDomain: state.bypassDomain,
         authenticated: state.authentication.credentials.isNotEmpty,
+        bypassPrivateRoute: state.bypassPrivateRoute,
       ),
     ),
   );
@@ -246,7 +251,8 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
   );
   final vpnSetting = ref.watch(vpnSettingProvider);
   final safeMode = ref.watch(safeModeProvider);
-  final routeAddress = ref.watch(vpnRouteAddressProvider.future);
+  final androidSecure = ref.watch(androidSecureProvider);
+  final routeAddress = await ref.watch(vpnRouteAddressProvider.future);
   final tun = clashConfig.tun;
   return VpnOptions(
     enable: vpnSetting.enable && !safeMode,
@@ -254,14 +260,24 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
     // VpnService.setHttpProxy cannot carry credentials, so an authenticated
     // mixed port is left to TUN instead of declared as the system proxy.
     systemProxy:
-        vpnSetting.systemProxy && !networkSetting.authenticated && !safeMode,
+        vpnSetting.systemProxy &&
+        !networkSetting.authenticated &&
+        !safeMode &&
+        !androidSecure,
     port: clashConfig.mixedPort,
     ipv6: vpnSetting.ipv6,
     dnsHijacking: vpnSetting.dnsHijacking,
-    accessControlProps: vpnSetting.accessControlProps,
+    accessControlProps: vpnSetting.accessControlProps.withPackages(
+      include: tun.includePackage,
+      exclude: tun.excludePackage,
+    ),
     allowBypass: vpnSetting.allowBypass,
     bypassDomain: networkSetting.bypassDomain,
-    routeAddress: await routeAddress,
+    routeAddress: routeAddress,
+    excludesAllRoutes: tun.excludesEveryRoute(
+      routeAddress,
+      bypassPrivateRoute: networkSetting.bypassPrivateRoute,
+    ),
     mtu: tun.mtu,
     congestionController: tun.congestionController,
   );

@@ -7,13 +7,6 @@ extension DateTimeExtension on DateTime {
     return isBefore(DateTime.now());
   }
 
-  bool isBeforeSecure(DateTime? dateTime) {
-    if (dateTime == null) {
-      return false;
-    }
-    return true;
-  }
-
   String getLastUpdateTimeDesc(BuildContext context, {bool compact = false}) {
     final appLocalizations = context.appLocalizations;
     if (year <= 1970) {
@@ -63,8 +56,16 @@ extension DateTimeExtension on DateTime {
     return toLocal().toString().substring(0, 10);
   }
 
+  /// The day as people here write it, DD-MM-YYYY.
+  String get showDate {
+    final local = toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(local.day)}-${two(local.month)}-${local.year}';
+  }
+
+  /// The day as [showDate] with the time, DD-MM-YYYY HH:MM:SS.
   String get showFull {
-    return toLocal().toString().substring(0, 19);
+    return '$showDate ${toLocal().toString().substring(11, 19)}';
   }
 
   String get showTime {

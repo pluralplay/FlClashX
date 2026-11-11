@@ -1,6 +1,7 @@
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/ui/ui.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -49,6 +50,7 @@ bool _focused(WidgetTester tester, Finder field) => tester
     .hasFocus;
 
 void main() {
+  clipboardImportTests();
   testWidgets('the optional name comes first and the url holds the focus', (
     tester,
   ) async {
@@ -81,7 +83,48 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(result, [
-      (label: 'Home', url: 'https://example.com/sub', ageSecretKey: ''),
+      (
+        label: 'Home',
+        url: 'https://example.com/sub',
+        ageSecretKey: '',
+        sendDeviceHeaders: true,
+      ),
+    ]);
+  });
+
+  testWidgets('the HWID switch starts on and its choice is returned', (
+    tester,
+  ) async {
+    List<NamedUrl>? result;
+    await _open(
+      tester,
+      const NamedUrlForm(title: 'Import', withDeviceHeaders: true),
+      (value) => result = value,
+    );
+    final row = find.widgetWithText(FormRow, 'Send HWID');
+    expect(row, findsOneWidget);
+    expect(
+      tester
+          .widget<Switch>(
+            find.descendant(of: row, matching: find.byType(Switch)),
+          )
+          .value,
+      isTrue,
+    );
+
+    await tester.tap(row);
+    await tester.pump();
+    await tester.enterText(_field('URL'), 'https://example.com/sub');
+    await tester.tap(find.widgetWithText(TextButton, 'Submit'));
+    await tester.pumpAndSettle();
+
+    expect(result, [
+      (
+        label: '',
+        url: 'https://example.com/sub',
+        ageSecretKey: '',
+        sendDeviceHeaders: false,
+      ),
     ]);
   });
 
@@ -127,8 +170,80 @@ void main() {
     await tester.tap(submit);
     await tester.pumpAndSettle();
     expect(result, [
-      (label: '', url: 'https://example.com/a', ageSecretKey: ''),
-      (label: '', url: 'https://example.com/b', ageSecretKey: ''),
+      (
+        label: '',
+        url: 'https://example.com/a',
+        ageSecretKey: '',
+        sendDeviceHeaders: true,
+      ),
+      (
+        label: '',
+        url: 'https://example.com/b',
+        ageSecretKey: '',
+        sendDeviceHeaders: true,
+      ),
     ]);
+  });
+}
+
+void clipboardImportTests() {
+  void mockClipboard(WidgetTester tester, String? text) {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async =>
+          call.method == 'Clipboard.getData' ? {'text': text} : null,
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+  }
+
+  testWidgets('a link on the clipboard submits in one tap', (tester) async {
+    mockClipboard(tester, ' https://example.com/sub ');
+    List<NamedUrl>? result;
+    await _open(
+      tester,
+      const NamedUrlForm(title: 'Import', batch: true, clipboardImport: true),
+      (value) => result = value,
+    );
+
+    await tester.tap(find.text('Add profile from clipboard'));
+    await tester.pumpAndSettle();
+
+    expect(result, [
+      (
+        label: '',
+        url: 'https://example.com/sub',
+        ageSecretKey: '',
+        sendDeviceHeaders: true,
+      ),
+    ]);
+  });
+
+  testWidgets('a clipboard without a link says so and keeps the form', (
+    tester,
+  ) async {
+    mockClipboard(tester, 'not a link');
+    List<NamedUrl>? result;
+    var opened = false;
+    await _open(
+      tester,
+      const NamedUrlForm(title: 'Import', batch: true, clipboardImport: true),
+      (value) {
+        opened = true;
+        result = value;
+      },
+    );
+
+    await tester.tap(find.text('Add profile from clipboard'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(opened, isFalse);
+    expect(result, isNull);
+    expect(find.byType(NamedUrlForm), findsOneWidget);
+    expect(find.textContaining('URL'), findsWidgets);
   });
 }

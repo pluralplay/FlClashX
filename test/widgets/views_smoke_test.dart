@@ -21,7 +21,6 @@ import 'package:fl_clash/views/config/on_demand.dart';
 import 'package:fl_clash/views/config/filters.dart';
 import 'package:fl_clash/views/config/rules.dart';
 import 'package:fl_clash/views/config/scripts.dart';
-import 'package:fl_clash/views/config/user_agents.dart';
 import 'package:fl_clash/views/hotkey.dart';
 import 'package:fl_clash/views/profiles/custom/custom.dart';
 import 'package:fl_clash/views/profiles/custom/custom_proxies.dart';
@@ -68,7 +67,6 @@ void main() {
     'access control': const AccessView(),
     'added rules': const AddedRulesView(),
     'scripts': const ScriptsView(),
-    'user agents': const UserAgentsView(),
     'filters': const FiltersView(),
   };
 
@@ -161,48 +159,6 @@ void main() {
       expect(tester.takeException(), null);
     });
   }
-
-  testWidgets('user agent item opens the page that applies a preset', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1000, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final container = ProviderContainer(
-      overrides: [profilesProvider.overrideWith(TestProfiles.new)],
-    );
-    addTearDown(container.dispose);
-    globalState.container = container;
-    container
-        .read(viewSizeProvider.notifier)
-        .update((_) => const Size(1000, 800));
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: TestApp(
-          child: Scaffold(body: ListView(children: const [UaItem()])),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    await tester.tap(find.text('User-Agent'));
-    await tester.pumpAndSettle();
-    expect(find.byType(UserAgentsView), findsOneWidget);
-    expect(find.text('clash-verge/v2.4.2'), findsOneWidget);
-
-    await tester.tap(find.text('clash-verge/v2.4.2'));
-    await tester.pumpAndSettle();
-
-    expect(
-      container.read(patchClashConfigProvider).globalUa,
-      'clash-verge/v2.4.2',
-    );
-    expect(tester.takeException(), null);
-  });
 
   testWidgets('the port form refuses an emptied port', (tester) async {
     tester.view.physicalSize = const Size(1000, 800);

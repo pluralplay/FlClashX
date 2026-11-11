@@ -90,21 +90,4 @@ void main() {
       expect(lastCalls, 0);
     });
   });
-
-  group('CompleterExt.safeCompleter', () {
-    test('completes a pending completer', () async {
-      final completer = Completer<String>();
-
-      completer.safeCompleter('value');
-
-      expect(await completer.future, 'value');
-    });
-
-    test('ignores a second completion instead of throwing', () async {
-      final completer = Completer<String>()..complete('first');
-
-      expect(() => completer.safeCompleter('second'), returnsNormally);
-      expect(await completer.future, 'first');
-    });
-  });
 }

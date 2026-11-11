@@ -8,6 +8,8 @@ import 'package:material_ui/material_ui.dart';
 
 const _scale = 3;
 const _side = 24 * _scale;
+const _supersample = 8;
+const _edgeTolerance = 12;
 
 final _glyphs = {
   'dashboard': AppGlyphs.dashboard,
@@ -18,7 +20,6 @@ final _glyphs = {
   'dns': AppGlyphs.dns,
   'resources': AppGlyphs.resources,
   'logs': AppGlyphs.logs,
-  'tools': AppGlyphs.tools,
   'target': AppGlyphs.target,
   'arrowBack': AppGlyphs.arrowBack,
   'chevronBack': AppGlyphs.chevronBack,
@@ -44,7 +45,6 @@ final _glyphs = {
   'clearField': AppGlyphs.clearField,
   'close': AppGlyphs.close,
   'check': AppGlyphs.check,
-  'checkDouble': AppGlyphs.checkDouble,
   'checkCircle': AppGlyphs.checkCircle,
   'block': AppGlyphs.block,
   'info': AppGlyphs.info,
@@ -74,6 +74,7 @@ final _glyphs = {
   'cloudDownload': AppGlyphs.cloudDownload,
   'cloudSync': AppGlyphs.cloudSync,
   'link': AppGlyphs.link,
+  'globe': AppGlyphs.globe,
   'send': AppGlyphs.send,
   'rules': AppGlyphs.rules,
   'rulePresets': AppGlyphs.rulePresets,
@@ -82,19 +83,16 @@ final _glyphs = {
   'sliders': AppGlyphs.sliders,
   'wrench': AppGlyphs.wrench,
   'toggle': AppGlyphs.toggle,
-  'toggleOn': AppGlyphs.toggleOn,
   'pin': AppGlyphs.pin,
   'eye': AppGlyphs.eye,
   'eyeOff': AppGlyphs.eyeOff,
   'lock': AppGlyphs.lock,
   'lockOpen': AppGlyphs.lockOpen,
   'key': AppGlyphs.key,
-  'password': AppGlyphs.password,
   'account': AppGlyphs.account,
   'sparkle': AppGlyphs.sparkle,
   'bolt': AppGlyphs.bolt,
   'locate': AppGlyphs.locate,
-  'star': AppGlyphs.star,
   'puzzle': AppGlyphs.puzzle,
   'customize': AppGlyphs.customize,
   'layers': AppGlyphs.layers,
@@ -144,18 +142,38 @@ Future<Uint8List> _render(
   Glyph glyph,
   double fill, {
   Color color = const Color(0xFF000000),
+  int scale = _scale,
 }) async {
   final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder)..scale(_scale.toDouble());
+  final canvas = Canvas(recorder)..scale(scale.toDouble());
   GlyphPainter(
     glyph: glyph,
     fill: fill,
     color: color,
   ).paint(canvas, const Size.square(24));
-  final image = await recorder.endRecording().toImage(_side, _side);
+  final image = await recorder.endRecording().toImage(24 * scale, 24 * scale);
   final bytes = await image.toByteData();
   image.dispose();
   return bytes!.buffer.asUint8List();
+}
+
+/// Alpha per grid pixel, averaged past Skia's quarter-pixel curve slack.
+Future<List<double>> _coverage(Glyph glyph, Color color) async {
+  final fine = await _render(
+    glyph,
+    1,
+    color: color,
+    scale: _scale * _supersample,
+  );
+  const fineSide = _side * _supersample;
+  final coverage = List.filled(_side * _side, 0.0);
+  for (var y = 0; y < fineSide; y++) {
+    for (var x = 0; x < fineSide; x++) {
+      coverage[(y ~/ _supersample) * _side + x ~/ _supersample] +=
+          _alpha(fine, y * fineSide + x) / (_supersample * _supersample);
+    }
+  }
+  return coverage;
 }
 
 int _alpha(Uint8List pixels, int pixel) => pixels[pixel * 4 + 3];
@@ -232,6 +250,18 @@ void main() {
       ]);
 
       expect(await _render(glyph, 0.5), await _render(bodies, 0.5));
+    });
+
+    test('$name fills to the shape its layered cutouts give', () async {
+      final layered = await _coverage(glyph, const Color(0xFE000000));
+      final cut = await _coverage(glyph, const Color(0xFF000000));
+      var worst = 0.0;
+      for (var pixel = 0; pixel < cut.length; pixel++) {
+        final expected = cut[pixel] * 0xFE / 0xFF;
+        worst = math.max(worst, (layered[pixel] - expected).abs());
+      }
+
+      expect(worst, lessThanOrEqualTo(_edgeTolerance));
     });
 
     test('$name stays even under a translucent color', () async {

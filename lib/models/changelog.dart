@@ -62,8 +62,6 @@ extension ChangelogVersionExt on ChangelogVersion {
       .where((group) => group.type != ChangelogType.unknown)
       .where((group) => group.entries.isNotEmpty)
       .toList();
-
-  bool get isEmpty => visibleGroups.isEmpty;
 }
 
 extension ChangelogExt on Changelog {

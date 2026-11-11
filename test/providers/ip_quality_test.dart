@@ -29,9 +29,10 @@ class _Adapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests++;
-    if (succeed && options.uri.host == 'iplocate.io') {
+    if (succeed && options.uri.host == 'ipinfo.io') {
       return ResponseBody.fromString(
         jsonEncode({
+          'ip': options.uri.pathSegments.first,
           'asn': {'asn': 'AS64500', 'type': 'isp'},
         }),
         200,
@@ -46,7 +47,7 @@ class _Adapter implements HttpClientAdapter {
 
 const _saved = IpQuality(
   ip: _ip,
-  source: IpQualitySource.proxyCheck,
+  source: IpQualitySource.ipInfo,
   type: IpType.hosting,
 );
 

@@ -7,6 +7,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'quick_edit.dart';
@@ -19,6 +20,10 @@ class CustomRulesView extends ConsumerStatefulWidget {
   @override
   ConsumerState createState() => _CustomRulesViewState();
 }
+
+/// Below this many rules the list is encoded and checked faster than an
+/// isolate starts.
+const _inlineRules = 2000;
 
 class _CustomRulesViewState extends ConsumerState<CustomRulesView> {
   int get _profileId => widget.profileId;
@@ -81,47 +86,44 @@ class _CustomRulesViewState extends ConsumerState<CustomRulesView> {
     ];
   }
 
-  Future<void> _handleQuickEdit() {
+  Future<void> _handleQuickEdit() async {
     final appLocalizations = context.appLocalizations;
     final provider = profileRulesProvider(_profileId);
     final previous = ref.read(provider).value;
     if (previous == null) {
-      return Future.value();
+      return;
     }
     final notifier = ref.read(provider.notifier);
+    final content = previous.length < _inlineRules
+        ? encodeRuleList(previous)
+        : await compute(encodeRuleList, previous);
+    if (!mounted) {
+      return;
+    }
     return showCustomQuickEdit(
       context,
       title: appLocalizations.rule,
-      content: encodeRuleList(previous),
+      content: content,
       schema: EditorSchema.rules,
       invalidMessage: appLocalizations.ruleListInvalid,
-      apply: (content) {
-        final rules = <Rule>[];
-        try {
-          for (final (:line, :rule) in decodeRuleList(
-            content,
-            previous: previous,
-          )) {
-            if (rule.ruleAction == RuleAction.SUB_RULE) {
-              continue;
-            }
-            final error = _ruleSaveError(context, rule);
-            if (error != null) {
-              throw MessageException(
-                appLocalizations.lineIssueTip(line, error),
-              );
-            }
-            rules.add(rule);
-          }
-        } on RuleLineException catch (error) {
+      apply: (content) async {
+        final input = (content: content, previous: previous);
+        final checked =
+            previous.length < _inlineRules && content.length < _inlineRules * 40
+            ? checkRuleList(input)
+            : await compute(checkRuleList, input);
+        if (checked.issue case (:final line, :final rule)?) {
+          final error = rule != null && mounted
+              ? _ruleSaveError(context, rule)
+              : null;
           throw MessageException(
             appLocalizations.lineIssueTip(
-              error.line,
-              appLocalizations.ruleTextInvalid,
+              line,
+              error ?? appLocalizations.ruleTextInvalid,
             ),
           );
         }
-        notifier.setAll(rules);
+        notifier.setAll(checked.rules);
       },
     );
   }
@@ -601,21 +603,16 @@ String? _handleSaveRule(BuildContext context, WidgetRef ref) {
 
 String? _ruleSaveError(BuildContext context, Rule rule) {
   final appLocalizations = context.appLocalizations;
-  if (rule.ruleAction == RuleAction.SUB_RULE) {
-    return appLocalizations.invalidSubRule(rule.subRule ?? '');
-  }
-  final payloadError = rule.payloadError;
-  if (payloadError != null) {
-    return payloadError.getMessage(context);
-  }
-  if (rule.ruleAction != RuleAction.MATCH &&
-      rule.realContent?.isNotEmpty != true) {
-    return rule.ruleAction == RuleAction.RULE_SET
-        ? appLocalizations.emptyTip(appLocalizations.ruleSet)
-        : appLocalizations.contentNotEmpty;
-  }
-  if (rule.realTarget?.isNotEmpty != true) {
-    return appLocalizations.splitStrategyNotEmpty;
-  }
-  return null;
+  return switch (rule.saveIssue) {
+    null => null,
+    RuleSaveIssue.subRule => appLocalizations.invalidSubRule(
+      rule.subRule ?? '',
+    ),
+    RuleSaveIssue.payload => rule.payloadError!.getMessage(context),
+    RuleSaveIssue.emptyContent =>
+      rule.ruleAction == RuleAction.RULE_SET
+          ? appLocalizations.emptyTip(appLocalizations.ruleSet)
+          : appLocalizations.contentNotEmpty,
+    RuleSaveIssue.emptyTarget => appLocalizations.splitStrategyNotEmpty,
+  };
 }

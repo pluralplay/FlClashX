@@ -134,11 +134,11 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
       case HotAction.tun:
         systemAction.updateTun();
       case HotAction.ruleMode:
-        setupAction.changeMode(Mode.rule);
+        unawaited(setupAction.pickMode(Mode.rule, ask: false));
       case HotAction.globalMode:
-        setupAction.changeMode(Mode.global);
+        unawaited(setupAction.pickMode(Mode.global, ask: false));
       case HotAction.directMode:
-        setupAction.changeMode(Mode.direct);
+        unawaited(setupAction.pickMode(Mode.direct, ask: false));
       case HotAction.delayTest:
         unawaited(
           ref

@@ -13,7 +13,6 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/sing_tun"
 	"github.com/metacubex/mihomo/log"
-	"github.com/metacubex/mihomo/tunnel"
 )
 
 type startOptions struct {
@@ -28,7 +27,7 @@ type startOptions struct {
 // whether tunNew was reached; the options built below never enable the
 // tun features whose validation runs before tunNew, so New cannot fail
 // before taking ownership of dupFd.
-func Start(fd int, stack, address, dns, rawOptions string) *sing_tun.Listener {
+func Start(fd int, stack, address, dns, rawOptions string, handler constant.Tunnel) *sing_tun.Listener {
 	var settings startOptions
 	if err := json.Unmarshal([]byte(rawOptions), &settings); err != nil {
 		log.Errorln("TUN: %v", err)
@@ -84,7 +83,7 @@ func Start(fd int, stack, address, dns, rawOptions string) *sing_tun.Listener {
 
 	options := LC.Tun{
 		Enable:               true,
-		Device:               "FlClash",
+		Device:               "FlClashX",
 		Stack:                tunStack,
 		DNSHijack:            dnsHijack,
 		AutoRoute:            false,
@@ -96,7 +95,7 @@ func Start(fd int, stack, address, dns, rawOptions string) *sing_tun.Listener {
 		FileDescriptor:       dupFd,
 	}
 
-	listener, err := sing_tun.New(options, tunnel.Tunnel)
+	listener, err := sing_tun.New(options, handler)
 
 	if err != nil {
 		log.Errorln("TUN: %v", err)
