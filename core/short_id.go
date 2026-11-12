@@ -29,7 +29,9 @@ func retagShortIDs(node *yaml.Node) bool {
 	if node.Kind == yaml.MappingNode {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			if node.Content[i].Value == "short-id" {
-				retagged = retagNumber(node.Content[i+1]) || retagged
+				value, changed := retagShortID(node.Content[i+1])
+				node.Content[i+1] = value
+				retagged = changed || retagged
 			}
 		}
 	}
@@ -39,20 +41,33 @@ func retagShortIDs(node *yaml.Node) bool {
 	return retagged
 }
 
-func retagNumber(node *yaml.Node) bool {
-	node = resolveAlias(node)
-	switch node.Kind {
-	case yaml.ScalarNode:
-		if node.Style == 0 && (node.Tag == "!!int" || node.Tag == "!!float") {
-			node.Tag = "!!str"
-			return true
-		}
-	case yaml.SequenceNode:
-		retagged := false
-		for _, item := range node.Content {
-			retagged = retagNumber(item) || retagged
-		}
-		return retagged
+// A copy is retagged: an alias's target may be another key's value, such as a port.
+func retagShortID(node *yaml.Node) (*yaml.Node, bool) {
+	target := resolveAlias(node)
+	if target.Kind != yaml.SequenceNode {
+		return retagNumber(node)
 	}
-	return false
+	retagged := false
+	items := make([]*yaml.Node, len(target.Content))
+	for i, item := range target.Content {
+		var changed bool
+		items[i], changed = retagNumber(item)
+		retagged = changed || retagged
+	}
+	if !retagged {
+		return node, false
+	}
+	copied := *target
+	copied.Anchor, copied.Content = "", items
+	return &copied, true
+}
+
+func retagNumber(node *yaml.Node) (*yaml.Node, bool) {
+	target := resolveAlias(node)
+	if target.Kind != yaml.ScalarNode || target.Style != 0 || (target.Tag != "!!int" && target.Tag != "!!float") {
+		return node, false
+	}
+	copied := *target
+	copied.Anchor, copied.Tag = "", "!!str"
+	return &copied, true
 }

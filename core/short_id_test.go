@@ -4,7 +4,37 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
+
+func TestAShortIDAliasLeavesTheValueItSharesWithAnotherKey(t *testing.T) {
+	raw, err := unmarshalRawConfig([]byte(`mixed-port: &n 7890
+proxies:
+  - {name: a, type: vless, reality-opts: {public-key: k, short-id: *n}}
+`))
+	if err != nil {
+		t.Fatalf("unmarshalRawConfig = %v", err)
+	}
+	if raw.MixedPort != 7890 {
+		t.Errorf("mixed-port = %d, want the port the short-id alias shares", raw.MixedPort)
+	}
+	if got := raw.Proxy[0]["reality-opts"].(map[string]any)["short-id"]; got != "7890" {
+		t.Errorf("short-id = %#v, want the literal 7890", got)
+	}
+}
+
+func TestAShortIDListThatHoldsItselfIsLeftAlone(t *testing.T) {
+	done := make(chan error, 1)
+	go func() {
+		_, err := unmarshalRawConfig([]byte("x-template: {short-id: &ids [*ids]}\nmixed-port: 7890\n"))
+		done <- err
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("retagging a short-id list that holds itself never returned")
+	}
+}
 
 func TestHandleGetConfigKeepsAnUnquotedShortIDAsWritten(t *testing.T) {
 	profile := `proxies:
