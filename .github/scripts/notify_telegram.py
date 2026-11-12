@@ -6,21 +6,33 @@ import html
 import requests
 import json
 
+CHANNEL_URL = 'https://t.me/flclashx'
+SUPPORT_URL = 'https://t.me/tribute/app?startapp=dtyh'
+
 BOLD = re.compile(r'\*\*(.+?)\*\*')
 CODE = re.compile(r'`([^`]+)`')
 BULLET = re.compile(r'^[-*•]\s+')
 
-def send_telegram_message(bot_token, chat_id, message, parse_mode='HTML'):
+def link_buttons(view_url):
+    """One row of URL buttons under the post, in place of links in its text."""
+    return {
+        'inline_keyboard': [[
+            {'text': '👀 Посмотреть', 'url': view_url, 'style': 'primary'},
+            {'text': '❤️ Поддержать', 'url': SUPPORT_URL, 'style': 'success'},
+        ]]
+    }
+
+def send_telegram_message(bot_token, chat_id, message, buttons, parse_mode='HTML'):
     """Send a message to a Telegram chat."""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    
+
     payload = {
         'chat_id': chat_id,
         'text': message,
         'parse_mode': parse_mode,
-        'disable_web_page_preview': False
+        'reply_markup': buttons,
     }
-    
+
     try:
         response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
@@ -46,7 +58,7 @@ def format_changes(changes):
         lines.append(f'• {text}')
     return '\n'.join(lines)
 
-def format_release_message(version, commits, release_url, is_stable):
+def format_release_message(version, commits, is_stable):
     """Format the release notification message (HTML parse mode).
 
     Commit subjects contain Markdown-hostile characters (e.g. `_` in
@@ -64,10 +76,9 @@ def format_release_message(version, commits, release_url, is_stable):
     changes = format_changes(commits or '')
     if changes:
         message += "<b>What's new:</b>\n"
-        message += changes + "\n\n"
-    message += f'🔗 <a href="{html.escape(release_url)}">DOWNLOAD</a>\n'
+        message += changes
 
-    return message
+    return message.rstrip()
 
 def main():
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
@@ -90,11 +101,13 @@ def main():
         sys.exit(1)
     
     # Full release message for channels 1 and 2
-    message = format_release_message(version, commits, release_url, is_stable)
+    message = format_release_message(version, commits, is_stable)
+    buttons = link_buttons(release_url)
     
     # Simple notification message for channel 3
     version_clean = html.escape(version.lstrip('v'))
-    simple_message = f"Новый релиз!❤️\nFlClashX {version_clean}\nПосмотреть: https://t.me/flclashx"
+    simple_message = f"Новый релиз!❤️\nFlClashX {version_clean}"
+    simple_buttons = link_buttons(CHANNEL_URL)
     
     # Log notification details (without secrets)
     print(f"Sending notification for version {version}...")
@@ -106,21 +119,21 @@ def main():
     total_channels = 3
     
     print(f"Sending full message to channel 1...")
-    if send_telegram_message(bot_token, channel_id_1, message):
+    if send_telegram_message(bot_token, channel_id_1, message, buttons):
         print("✓ Channel 1: Success")
         success_count += 1
     else:
         print("✗ Channel 1: Failed")
     
     print(f"Sending full message to channel 2...")
-    if send_telegram_message(bot_token, channel_id_2, message):
+    if send_telegram_message(bot_token, channel_id_2, message, buttons):
         print("✓ Channel 2: Success")
         success_count += 1
     else:
         print("✗ Channel 2: Failed")
     
     print(f"Sending simple message to channel 3...")
-    if send_telegram_message(bot_token, channel_id_3, simple_message):
+    if send_telegram_message(bot_token, channel_id_3, simple_message, simple_buttons):
         print("✓ Channel 3: Success")
         success_count += 1
     else:
