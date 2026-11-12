@@ -271,6 +271,37 @@ func TestShareLinksLeaveOutWhatNoLinkCarries(t *testing.T) {
 	}
 }
 
+func TestShareLinksCarryCredentialsALinkMustEscape(t *testing.T) {
+	proxies := []map[string]any{
+		{"name": "hy2", "type": "hysteria2", "server": "a.example", "port": 443, "password": "p@ss%41/?"},
+		{"name": "socks", "type": "socks5", "server": "b.example", "port": 1080, "username": "me", "password": "p@ss"},
+		{"name": "http", "type": "http", "server": "c.example", "port": 8080, "username": "me", "password": "a b?"},
+	}
+	links := handleEncodeShareLinks(proxies)
+
+	results := handleDecodeShareLinks(links)
+
+	for i, proxy := range proxies {
+		if len(results[i]) != 1 {
+			t.Fatalf("link %q read back as %v", links[i], results[i])
+		}
+		for _, key := range []string{"username", "password"} {
+			if want, ok := proxy[key]; ok && results[i][0][key] != want {
+				t.Errorf("%s from %q = %q, want %q", key, links[i], results[i][0][key], want)
+			}
+		}
+	}
+	unrepresentable := handleEncodeShareLinks([]map[string]any{
+		{"name": "colon", "type": "socks5", "server": "d.example", "port": 1080, "username": "me", "password": "a:b"},
+		{"name": "slash", "type": "socks5", "server": "d.example", "port": 1080, "username": "a b", "password": "x?y"},
+	})
+	for i, link := range unrepresentable {
+		if link != "" {
+			t.Errorf("credentials %d the converter cannot read back encoded to %q", i, link)
+		}
+	}
+}
+
 func TestDecodeShareLinksAnswersEveryLine(t *testing.T) {
 	results := handleDecodeShareLinks([]string{
 		"trojan://pw@a.example:443#one",

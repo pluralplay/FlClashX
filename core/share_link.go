@@ -29,9 +29,23 @@ func handleDecodeShareLinks(lines []string) [][]map[string]any {
 		if err != nil {
 			proxies = []map[string]any{}
 		}
+		for _, proxy := range proxies {
+			unescapeHysteria2Password(proxy)
+		}
 		results[i] = proxies
 	}
 	return results
+}
+
+func unescapeHysteria2Password(proxy map[string]any) {
+	if proxy["type"] != "hysteria2" || proxy["realm-opts"] != nil {
+		return
+	}
+	if password, ok := proxy["password"].(string); ok {
+		if unescaped, err := url.PathUnescape(password); err == nil {
+			proxy["password"] = unescaped
+		}
+	}
 }
 
 type proxyFields map[string]any
@@ -422,11 +436,21 @@ func encodeTuic(f proxyFields) string {
 }
 
 // The converter reads the user info as base64 before falling back to plain
-// text, so it always carries the ":" that no base64 alphabet has.
+// text, which it keeps escaped, and splits it at its one ":".
 func encodeSocks(f proxyFields, scheme string) string {
 	var user *url.Userinfo
 	if username, password := f.str("username"), f.str("password"); username != "" || password != "" {
+		if strings.Contains(username, ":") || strings.Contains(password, ":") {
+			return ""
+		}
 		user = url.UserPassword(username, password)
+		if plain := username + ":" + password; user.String() != plain {
+			encoded := base64.StdEncoding.EncodeToString([]byte(plain))
+			if strings.Contains(encoded, "/") {
+				return ""
+			}
+			user = url.User(encoded)
+		}
 	}
 	return shareURL(scheme, user, hostPort(f), url.Values{}, f.str("name"))
 }
