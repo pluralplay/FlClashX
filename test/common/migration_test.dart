@@ -209,12 +209,12 @@ void main() {
       expect(store.version, Migration.currentVersion);
     });
 
-    test('imports nothing over a store that has a config', () async {
+    test('imports nothing over a store that has profiles', () async {
       var imported = false;
       final store = _FakeMigrationStore(
         configMap: _createConfigMap(),
         version: Migration.currentVersion,
-      );
+      )..profiles = true;
 
       await Migration(
         store: store,
@@ -225,6 +225,61 @@ void main() {
       ).run();
 
       expect(imported, isFalse);
+      expect(store.legacyImported, isTrue);
+    });
+
+    test('recovers the 0.4 profiles a prerelease store left behind, once, '
+        'keeping its settings', () async {
+      final configMap = _createConfigMap()
+        ..['currentProfileId'] = null
+        ..['themeProps'] = {'primaryColor': 0xFF123456};
+      final store = _FakeMigrationStore(
+        configMap: configMap,
+        version: Migration.currentVersion,
+      );
+      var imports = 0;
+      Migration migration() => Migration(
+        store: store,
+        importLegacy: () async {
+          imports++;
+          return (
+            config: <String, Object?>{'proxiesStyle': <String, Object?>{}},
+            clashConfig: <String, Object?>{'mixed-port': 1080},
+          );
+        },
+        migrateV0: (_) async => MigrationData(
+          configMap: _createConfigMap()..['currentProfileId'] = 42,
+        ),
+      );
+
+      final config = await migration().run();
+
+      expect(store.events, contains('restore'));
+      expect(config.currentProfileId, 42);
+      expect(
+        config.themeProps.primaryColor,
+        Config.realFromJson(configMap).themeProps.primaryColor,
+      );
+      expect(
+        config.patchClashConfig,
+        Config.realFromJson(configMap).patchClashConfig,
+      );
+      expect(store.legacyImported, isTrue);
+
+      await migration().run();
+      expect(imports, 1);
+    });
+
+    test('marks a store without 0.4 data so it never looks again', () async {
+      final store = _FakeMigrationStore(
+        configMap: _createConfigMap(),
+        version: Migration.currentVersion,
+      );
+
+      await Migration(store: store, importLegacy: () async => null).run();
+
+      expect(store.events, isNot(contains('restore')));
+      expect(store.legacyImported, isTrue);
     });
 
     group('upgrade', () {
@@ -528,5 +583,20 @@ class _FakeMigrationStore implements MigrationStore {
   Future<void> setUpgradeVersion(int version) async {
     events.add('setUpgradeVersion');
     upgradeVersion = version;
+  }
+
+  bool profiles = false;
+  bool legacyImported = false;
+
+  @override
+  Future<bool> hasProfiles() async => profiles;
+
+  @override
+  Future<bool> getLegacyImported() async => legacyImported;
+
+  @override
+  Future<void> setLegacyImported() async {
+    events.add('setLegacyImported');
+    legacyImported = true;
   }
 }

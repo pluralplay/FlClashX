@@ -35,6 +35,12 @@ abstract interface class MigrationStore {
   Future<int> getUpgradeVersion();
 
   Future<void> setUpgradeVersion(int version);
+
+  Future<bool> hasProfiles();
+
+  Future<bool> getLegacyImported();
+
+  Future<void> setLegacyImported();
 }
 
 class _AppMigrationStore implements MigrationStore {
@@ -80,6 +86,16 @@ class _AppMigrationStore implements MigrationStore {
   @override
   Future<void> setUpgradeVersion(int version) =>
       preferences.setUpgradeVersion(version);
+
+  @override
+  Future<bool> hasProfiles() async =>
+      (await database.profilesDao.ids().get()).isNotEmpty;
+
+  @override
+  Future<bool> getLegacyImported() => preferences.getLegacyImported();
+
+  @override
+  Future<void> setLegacyImported() => preferences.setLegacyImported();
 }
 
 class Migration {
@@ -110,15 +126,54 @@ class Migration {
 
   Future<Config> run() async {
     final stored = await _store.getConfigMap();
-    final imported = stored == null && await _store.getVersion() == 0
-        ? await _importLegacy?.call()
-        : null;
+    final isFresh = stored == null && await _store.getVersion() == 0;
+    final imported = isFresh ? await _importLegacy?.call() : null;
     final configMap = stored ?? imported?.config;
-    final config = await _migrate(
+    var config = await _migrate(
       configMap,
       importedClashConfig: imported?.clashConfig,
     );
+    if (_importLegacy != null) {
+      config = isFresh
+          ? await _markLegacyImported(config)
+          : await _recoverLegacyProfiles(config);
+    }
     return _upgrade(config, installed: configMap != null);
+  }
+
+  Future<Config> _markLegacyImported(Config config) async {
+    await _store.setLegacyImported();
+    return config;
+  }
+
+  /// Only profiles: the settings of a store a prerelease saved are the
+  /// user's own since, not an empty install's.
+  Future<Config> _recoverLegacyProfiles(Config config) async {
+    if (await _store.getLegacyImported()) {
+      return config;
+    }
+    if (await _store.hasProfiles()) {
+      await _store.setLegacyImported();
+      return config;
+    }
+    final legacy = await _importLegacy!();
+    if (legacy == null) {
+      await _store.setLegacyImported();
+      return config;
+    }
+    final data = await _migrateV0(Map.of(legacy.config));
+    await _store.restore(data);
+    final current = data.configMap?['currentProfileId'];
+    final recovered = config.copyWith(
+      currentProfileId: current is int
+          ? current
+          : data.profiles.firstOrNull?.id,
+    );
+    if (!await _store.saveConfig(recovered)) {
+      return config;
+    }
+    await _store.setLegacyImported();
+    return recovered;
   }
 
   Future<Config> _upgrade(Config config, {required bool installed}) async {

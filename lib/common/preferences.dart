@@ -56,6 +56,16 @@ class Preferences {
     await preferences?.setInt('upgradeVersion', version);
   }
 
+  Future<bool> getLegacyImported() async {
+    final preferences = await _store.value;
+    return preferences?.getBool('legacyImported') ?? false;
+  }
+
+  Future<void> setLegacyImported() async {
+    final preferences = await _store.value;
+    await preferences?.setBool('legacyImported', true);
+  }
+
   Future<void> saveShareState(SharedState shareState) async {
     final preferences = await _store.value;
     await preferences?.setString('sharedState', json.encode(shareState));
