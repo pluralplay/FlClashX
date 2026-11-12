@@ -1006,5 +1006,6 @@
   "proxyChainProviderHop": "{name} toma sus nodos de un proveedor, algo que las cadenas aún no admiten",
   "proxyChainRepeatedHop": "El mismo salto está elegido dos veces",
   "proxyChainNameTaken": "{name} ya es un nombre de este perfil",
-  "proxyChainIncomplete": "Pon un nombre a la cadena y elige todos los saltos"
+  "proxyChainIncomplete": "Pon un nombre a la cadena y elige todos los saltos",
+  "proxyChainUnchainableHop": "{name} tiene proxies que no pueden conectarse a través de otro salto, como direct"
 }

@@ -1006,5 +1006,6 @@
   "proxyChainProviderHop": "{name} takes its nodes from a provider, which chains do not support yet",
   "proxyChainRepeatedHop": "The same hop is picked twice",
   "proxyChainNameTaken": "{name} is already a name in this profile",
-  "proxyChainIncomplete": "Give the chain a name and pick every hop"
+  "proxyChainIncomplete": "Give the chain a name and pick every hop",
+  "proxyChainUnchainableHop": "{name} has proxies that cannot dial through another hop, such as direct"
 }

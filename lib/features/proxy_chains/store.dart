@@ -14,6 +14,10 @@ final proxyChainsProvider =
       ProxyChainsNotifier.new,
     );
 
+class ProxyChainsSaveException implements Exception {
+  const ProxyChainsSaveException();
+}
+
 class ProxyChainsNotifier extends AsyncNotifier<List<ProxyChain>> {
   ProxyChainsNotifier(this.profileId);
 
@@ -22,8 +26,8 @@ class ProxyChainsNotifier extends AsyncNotifier<List<ProxyChain>> {
   @override
   Future<List<ProxyChain>> build() async {
     final preferences = await SharedPreferences.getInstance();
-    final raw = preferences.getString(_keyOf(profileId));
-    if (raw == null) {
+    final raw = preferences.get(_keyOf(profileId));
+    if (raw is! String) {
       return const [];
     }
     try {
@@ -58,12 +62,15 @@ class ProxyChainsNotifier extends AsyncNotifier<List<ProxyChain>> {
   }
 
   Future<void> _save(List<ProxyChain> chains) async {
-    state = AsyncData(chains);
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(
+    final saved = await preferences.setString(
       _keyOf(profileId),
       jsonEncode([for (final chain in chains) chain.toJson()]),
     );
+    if (!saved) {
+      throw const ProxyChainsSaveException();
+    }
+    state = AsyncData(chains);
   }
 }
 
@@ -78,4 +85,15 @@ Future<List<Map<String, Object?>>> watchEnabledProxyChains(
     for (final chain in chains)
       if (chain.enabled) chain.toJson(),
   ];
+}
+
+/// Never fails the profile's deletion; a leftover is only dead weight.
+Future<void> forgetProxyChains(Ref ref, int profileId) async {
+  try {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_keyOf(profileId));
+  } catch (_) {
+  } finally {
+    ref.invalidate(proxyChainsProvider(profileId));
+  }
 }

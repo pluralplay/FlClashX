@@ -1006,5 +1006,6 @@
   "proxyChainProviderHop": "{name} はプロバイダーからノードを取得しており、チェーンはまだ対応していません",
   "proxyChainRepeatedHop": "同じホップが2回選ばれています",
   "proxyChainNameTaken": "{name} はこのプロファイルで既に使われている名前です",
-  "proxyChainIncomplete": "名前を付けて、すべてのホップを選んでください"
+  "proxyChainIncomplete": "名前を付けて、すべてのホップを選んでください",
+  "proxyChainUnchainableHop": "{name} には direct など、他のホップ経由で接続できないプロキシがあります"
 }

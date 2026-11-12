@@ -1,7 +1,6 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
-import 'package:fl_clash/models/models.dart';
-import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,24 +8,47 @@ import 'package:material_ui/material_ui.dart';
 
 import 'chain.dart';
 import 'editor.dart';
+import 'outbounds.dart';
 import 'store.dart';
 import 'transform.dart';
-
-ProxyChainGraph proxyChainGraphOf(ClashConfig config) => ProxyChainGraph(
-  proxies: {for (final proxy in config.proxies) proxy.name},
-  groups: {
-    for (final group in config.proxyGroups)
-      group.name: group.proxies ?? const [],
-  },
-);
 
 String proxyChainIssueText(AppLocalizations l, ProxyChainIssue issue) =>
     switch (issue.kind) {
       ProxyChainIssueKind.missingHop => l.proxyChainMissingHop(issue.name),
       ProxyChainIssueKind.providerHop => l.proxyChainProviderHop(issue.name),
+      ProxyChainIssueKind.unchainableHop => l.proxyChainUnchainableHop(
+        issue.name,
+      ),
       ProxyChainIssueKind.repeatedHop => l.proxyChainRepeatedHop,
       ProxyChainIssueKind.nameTaken => l.proxyChainNameTaken(issue.name),
     };
+
+/// The names the profile build will add as groups, for rule targets.
+final proxyChainTargetsProvider = Provider.autoDispose.family<Set<String>, int>(
+  (ref, profileId) {
+    final chains = ref.watch(proxyChainsProvider(profileId)).value;
+    final graph = ref.watch(proxyChainGraphProvider(profileId)).value;
+    if (chains == null || graph == null) {
+      return const {};
+    }
+    final issues = graph.issuesOf(chains);
+    return {
+      for (final chain in chains)
+        if (chain.enabled && !issues.containsKey(chain.id)) chain.name,
+    };
+  },
+);
+
+Future<void> _saving(Future<void> Function() save) async {
+  try {
+    await save();
+  } on ProxyChainsSaveException {
+    dialogs.showNotifier(
+      currentAppLocalizations.databaseWriteFailedTip,
+      level: MessageLevel.error,
+    );
+  }
+}
 
 /// The extension page's chains, a beta that lives in this folder alone.
 class ProxyChainsSection extends ConsumerWidget {
@@ -42,8 +64,8 @@ class ProxyChainsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
     final chains = ref.watch(proxyChainsProvider(profileId)).value ?? const [];
-    final config = ref.watch(clashConfigProvider(profileId)).value;
-    final graph = config == null ? null : proxyChainGraphOf(config);
+    final graph = ref.watch(proxyChainGraphProvider(profileId)).value;
+    final issues = graph?.issuesOf(chains) ?? const {};
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverToBoxAdapter(
@@ -75,7 +97,7 @@ class ProxyChainsSection extends ConsumerWidget {
                     _ChainRow(
                       profileId: profileId,
                       chain: chain,
-                      issue: graph?.issueOf(chain),
+                      issue: issues[chain.id],
                     ),
               ],
             ),
@@ -103,6 +125,7 @@ class _ChainRow extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final appLocalizations = context.appLocalizations;
+    final notifier = ref.read(proxyChainsProvider(profileId).notifier);
     final confirmed = await dialogs.showMessage(
       title: appLocalizations.tip,
       message: TextSpan(
@@ -114,7 +137,7 @@ class _ChainRow extends ConsumerWidget {
     if (confirmed != true) {
       return;
     }
-    await ref.read(proxyChainsProvider(profileId).notifier).remove(chain.id);
+    await _saving(() => notifier.remove(chain.id));
   }
 
   @override
@@ -153,9 +176,11 @@ class _ChainRow extends ConsumerWidget {
         trailing: CommonSwitch(
           value: chain.enabled,
           semanticLabel: chain.name,
-          onChanged: (enabled) => ref
-              .read(proxyChainsProvider(profileId).notifier)
-              .put(chain.copyWith(enabled: enabled)),
+          onChanged: (enabled) => _saving(
+            () => ref
+                .read(proxyChainsProvider(profileId).notifier)
+                .put(chain.copyWith(enabled: enabled)),
+          ),
         ),
       ),
     );

@@ -8451,6 +8451,16 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `{name} has proxies that cannot dial through another hop, such as direct`
+  String proxyChainUnchainableHop(Object name) {
+    return Intl.message(
+      '$name has proxies that cannot dial through another hop, such as direct',
+      name: 'proxyChainUnchainableHop',
+      desc: '',
+      args: [name],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

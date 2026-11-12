@@ -1006,5 +1006,6 @@
   "proxyChainProviderHop": "{name} 的节点来自代理提供者，代理链暂不支持",
   "proxyChainRepeatedHop": "同一个节点被选了两次",
   "proxyChainNameTaken": "名称 {name} 在此配置中已被使用",
-  "proxyChainIncomplete": "请填写名称并选择所有节点"
+  "proxyChainIncomplete": "请填写名称并选择所有节点",
+  "proxyChainUnchainableHop": "{name} 中有无法经由其他节点连接的代理，例如 direct"
 }

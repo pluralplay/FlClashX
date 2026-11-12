@@ -1,10 +1,8 @@
 import 'dart:convert';
 
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
-import 'package:fl_clash/models/models.dart';
-import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,20 +14,22 @@ import '../helpers/test_app.dart';
 
 const _profileId = 7;
 
-const _config = ClashConfig(
-  proxies: [
-    Proxy(name: 'DE', type: 'Vless'),
-    Proxy(name: 'NL', type: 'Trojan'),
+/// The whole config, members included, as the editor reads it; the outbound
+/// names a profile lists on its own carry no members.
+final _graph = ProxyChainGraph.fromRaw({
+  'proxies': [
+    {'name': 'DE', 'type': 'vless'},
+    {'name': 'NL', 'type': 'trojan'},
+    {'name': 'Bypass', 'type': 'direct'},
   ],
-  proxyGroups: [
-    ProxyGroup(
-      id: 1,
-      name: 'Auto',
-      type: GroupType.URLTest,
-      proxies: ['DE', 'NL'],
-    ),
+  'proxy-groups': [
+    {
+      'name': 'Auto',
+      'type': 'url-test',
+      'proxies': ['DE', 'NL'],
+    },
   ],
-);
+});
 
 const _working = ProxyChain(id: 'a', name: 'Telegram', hops: ['Auto', 'NL']);
 const _broken = ProxyChain(id: 'b', name: 'Banks', hops: ['DE', 'Moscow']);
@@ -46,9 +46,7 @@ Future<ProviderContainer> _pump(
   });
   final container = ProviderContainer(
     overrides: [
-      clashConfigProvider(
-        _profileId,
-      ).overrideWithValue(const AsyncData(_config)),
+      proxyChainGraphProvider(_profileId).overrideWith((_) async => _graph),
     ],
   );
   addTearDown(container.dispose);
@@ -168,5 +166,31 @@ void main() {
       findsOneWidget,
     );
     expect((await _stored()).single.name, 'Telegram');
+  });
+
+  testWidgets('a group can be picked as the exit, a direct proxy cannot', (
+    tester,
+  ) async {
+    await _pump(tester, const ProxyChainForm(profileId: _profileId));
+    final l = currentAppLocalizations;
+    Future<void> pick(String hop, String name) async {
+      await tester.tap(find.widgetWithText(FormRow, hop));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(name).last);
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.widgetWithText(FormRow, l.proxyChainExit));
+    await tester.pumpAndSettle();
+    expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Bypass'), findsNothing);
+    await tester.tap(find.text('Auto'));
+    await tester.pumpAndSettle();
+    await pick(l.proxyChainEntry, 'DE');
+    await tester.enterText(find.byType(TextFormField), 'Via DE');
+    await tester.tap(find.byTooltip(l.save));
+    await tester.pumpAndSettle();
+
+    expect((await _stored()).single.hops, ['DE', 'Auto']);
   });
 }

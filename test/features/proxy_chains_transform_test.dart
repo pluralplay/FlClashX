@@ -11,7 +11,7 @@ Map<String, Object?> _config() => {
     {'name': 'NL-2', 'type': 'trojan', 'server': 'nl2.example'},
     {'name': 'FI', 'type': 'ss', 'server': 'fi.example'},
   ],
-  'proxy-groups': [
+  'proxy-groups': <Map<String, Object?>>[
     {
       'name': 'Auto',
       'type': 'url-test',
@@ -44,7 +44,13 @@ Map<String, Object?> _chain(
   String name,
   List<String> hops, {
   bool enabled = true,
-}) => ProxyChain(id: name, name: name, hops: hops, enabled: enabled).toJson();
+  String? id,
+}) => ProxyChain(
+  id: id ?? name,
+  name: name,
+  hops: hops,
+  enabled: enabled,
+).toJson();
 
 List<Map> _proxies(Map config) => (config['proxies'] as List).cast<Map>();
 
@@ -193,7 +199,7 @@ void main() {
     });
     applyProxyChains(config, [
       _chain('A', ['DE', 'FI']),
-      _chain('A', ['Auto', 'FI']),
+      _chain('A', ['Auto', 'FI'], id: 'second'),
     ]);
 
     expect(_named(_groups(config), 'A')['proxies'], ['FI · A 2']);
@@ -202,13 +208,160 @@ void main() {
 
   test('the graph names what is wrong with a chain', () {
     final graph = ProxyChainGraph.fromRaw(_config());
-    ProxyChainIssueKind? kindOf(List<String> hops, [String name = 'C']) =>
-        graph.issueOf(ProxyChain(id: 'c', name: name, hops: hops))?.kind;
+    ProxyChainIssueKind? kindOf(List<String> hops, [String name = 'C']) {
+      final chain = ProxyChain(id: 'c', name: name, hops: hops);
+      return graph.issuesOf([chain])['c']?.kind;
+    }
 
     expect(kindOf(['Auto', 'Netherlands']), isNull);
     expect(kindOf(['Auto', 'Gone']), ProxyChainIssueKind.missingHop);
     expect(kindOf(['Auto', 'Remote']), ProxyChainIssueKind.providerHop);
     expect(kindOf(['FI', 'FI']), ProxyChainIssueKind.repeatedHop);
     expect(kindOf(['DE', 'FI'], 'Auto'), ProxyChainIssueKind.nameTaken);
+    expect(kindOf(['DE', 'FI'], 'DIRECT'), ProxyChainIssueKind.nameTaken);
+    expect(kindOf(['DE', 'FI'], 'GLOBAL'), ProxyChainIssueKind.nameTaken);
+  });
+
+  test('a direct proxy past the entry would skip the hops before it', () {
+    final config = _config();
+    (config['proxies']! as List).add(<String, Object?>{
+      'name': 'Bypass',
+      'type': 'direct',
+    });
+    final graph = ProxyChainGraph.fromRaw(config);
+
+    expect(
+      graph.issuesOf([
+        const ProxyChain(id: 'c', name: 'C', hops: ['Auto', 'Bypass']),
+      ])['c']?.kind,
+      ProxyChainIssueKind.unchainableHop,
+    );
+    expect(graph.isChainable('Bypass'), isFalse);
+    expect(graph.isChainable('Netherlands'), isTrue);
+  });
+
+  test('a provider name or a later chain keeps its name from a clone', () {
+    final config = _config()
+      ..['proxy-providers'] = {
+        'feed': {'type': 'http', 'url': 'https://example.com'},
+      };
+    applyProxyChains(config, [
+      _chain('A', ['DE', 'FI']),
+      _chain('feed', ['DE', 'FI']),
+      _chain('FI · A', ['Auto', 'NL-1']),
+    ]);
+
+    final names = [for (final group in _groups(config)) group['name']];
+    expect(names, containsAll(['A', 'FI · A']));
+    expect(names, isNot(contains('feed')));
+    expect(_named(_groups(config), 'A')['proxies'], ['FI · A 2']);
+  });
+
+  test('include-all groups keep the members they had before the clones', () {
+    final config = _config();
+    (config['proxy-groups']! as List).addAll(<Map<String, Object?>>[
+      {'name': 'Every', 'type': 'select', 'include-all-proxies': true},
+      {'name': 'Both', 'type': 'select', 'include-all': true, 'filter': 'NL'},
+    ]);
+    applyProxyChains(config, [
+      _chain('Loop', ['Every', 'FI']),
+    ]);
+
+    final every = _named(_groups(config), 'Every');
+    expect(every['proxies'], ['DE', 'FI', 'NL-1', 'NL-2']);
+    expect(every.containsKey('include-all-proxies'), isFalse);
+    final both = _named(_groups(config), 'Both');
+    expect(both['proxies'], ['NL-1', 'NL-2']);
+    expect(both['include-all-providers'], true);
+    expect(both.containsKey('include-all'), isFalse);
+    expect(_named(_proxies(config), 'FI · Loop')['dialer-proxy'], 'Every');
+  });
+
+  test('a hop resolves members the way mihomo filters them', () {
+    final config = _config();
+    (config['proxy-groups']! as List).addAll(<Map<String, Object?>>[
+      {
+        'name': 'Trimmed',
+        'type': 'select',
+        'proxies': ['FI', 'NL-1'],
+        'exclude-filter': 'NL',
+      },
+      {
+        'name': 'Typed',
+        'type': 'select',
+        'include-all-proxies': true,
+        'exclude-type': 'Shadowsocks|Trojan',
+      },
+      {
+        'name': 'Mixed',
+        'type': 'select',
+        'proxies': ['FI'],
+        'use': ['feed'],
+      },
+    ]);
+    final graph = ProxyChainGraph.fromRaw(config);
+
+    expect(graph.leavesOf('Trimmed'), ['FI']);
+    expect(graph.leavesOf('Typed'), ['DE', 'NL-1']);
+    expect(graph.leavesOf('Mixed'), isNull);
+  });
+
+  test('a rebuilt group keeps its options and default pick', () {
+    final config = _config();
+    (config['proxy-groups']! as List).add(<String, Object?>{
+      'name': 'Balance',
+      'type': 'load-balance',
+      'proxies': ['NL-1', 'NL-2'],
+      'strategy': 'consistent-hashing',
+      'hash-key': 'in-user',
+      'disable-udp': true,
+      'default-selected': 'NL-2',
+      'url': 'https://cp.cloudflare.com',
+    });
+    applyProxyChains(config, [
+      _chain('LB', ['DE', 'Balance']),
+    ]);
+
+    final group = _named(_groups(config), 'LB');
+    expect(group['hash-key'], 'in-user');
+    expect(group['disable-udp'], true);
+    expect(group['strategy'], 'consistent-hashing');
+    expect(group['default-selected'], 'NL-2 · LB');
+  });
+
+  test('a malformed stored chain is dropped, not shortened', () {
+    expect(
+      ProxyChain.fromJson({
+        'id': 'a',
+        'name': 'A',
+        'hops': ['DE', null, 'FI'],
+      }),
+      isNull,
+    );
+    expect(
+      ProxyChain.fromJson({
+        'id': 'a',
+        'name': ' ',
+        'hops': ['DE', 'FI'],
+      }),
+      isNull,
+    );
+    expect(
+      ProxyChain.fromJson({
+        'id': 'a',
+        'name': 'A',
+        'hops': ['DE', 'FI'],
+        'enabled': 'yes',
+      }),
+      isNull,
+    );
+    expect(
+      ProxyChain.fromJson({
+        'id': 'a',
+        'name': 'A',
+        'hops': ['DE', 'FI'],
+      })?.enabled,
+      isTrue,
+    );
   });
 }

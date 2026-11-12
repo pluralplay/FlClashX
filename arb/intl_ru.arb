@@ -1006,5 +1006,6 @@
   "proxyChainProviderHop": "{name} берёт узлы из провайдера, такие звенья пока не поддерживаются",
   "proxyChainRepeatedHop": "Одно звено выбрано дважды",
   "proxyChainNameTaken": "Имя {name} уже занято в профиле",
-  "proxyChainIncomplete": "Укажите имя и выберите все звенья"
+  "proxyChainIncomplete": "Укажите имя и выберите все звенья",
+  "proxyChainUnchainableHop": "В {name} есть узлы, которые не подключаются через другое звено, например direct"
 }

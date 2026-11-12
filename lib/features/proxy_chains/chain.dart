@@ -27,17 +27,23 @@ class ProxyChain {
     final id = json['id'];
     final name = json['name'];
     final hops = json['hops'];
-    if (id is! String || name is! String || hops is! List) {
+    final enabled = json['enabled'] ?? true;
+    if (id is! String ||
+        id.isEmpty ||
+        name is! String ||
+        name.trim().isEmpty ||
+        enabled is! bool ||
+        hops is! List ||
+        hops.length < minHops ||
+        hops.length > maxHops ||
+        hops.any((hop) => hop is! String || hop.isEmpty)) {
       return null;
     }
     return ProxyChain(
       id: id,
       name: name,
-      hops: [
-        for (final hop in hops)
-          if (hop is String) hop,
-      ],
-      enabled: json['enabled'] != false,
+      hops: hops.cast<String>().toList(),
+      enabled: enabled,
     );
   }
 

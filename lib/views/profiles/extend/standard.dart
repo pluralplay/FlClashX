@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/form/form.dart';
+import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
 import 'package:fl_clash/models/clash_config.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -211,6 +212,7 @@ class _MatchTargetItem extends ConsumerWidget {
             for (final item in groups) item.name: item.type.name,
           };
           final proxyTypes = {for (final item in proxies) item.name: item.type};
+          final chains = ref.watch(proxyChainTargetsProvider(profileId));
           return SelectionSheet<String>(
             title: appLocalizations.matchTarget,
             sections: [
@@ -221,6 +223,10 @@ class _MatchTargetItem extends ConsumerWidget {
                   for (final name in RuleTarget.ruleTargetNames)
                     if (!groupTypes.containsKey(name)) name,
                 ],
+              ),
+              SelectionSection(
+                label: appLocalizations.proxyChainsTitle,
+                items: chains.toList(),
               ),
               SelectionSection(
                 label: appLocalizations.ruleTarget,
@@ -260,10 +266,12 @@ class _MatchTargetItem extends ConsumerWidget {
       profileProvider(profileId).select((state) => state?.matchTarget),
     );
     final clashConfig = ref.watch(clashConfigProvider(profileId)).value;
+    final chains = ref.watch(proxyChainTargetsProvider(profileId));
     final invalid =
         matchTarget != null &&
         clashConfig != null &&
         !RuleTarget.ruleTargets.contains(matchTarget) &&
+        !chains.contains(matchTarget) &&
         !clashConfig.proxyGroups.any((item) => item.name == matchTarget) &&
         !clashConfig.proxies.any((item) => item.name == matchTarget);
     return MoreActionButton(

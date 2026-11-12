@@ -1,16 +1,16 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/l10n/l10n.dart';
-import 'package:fl_clash/models/models.dart';
-import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'chain.dart';
+import 'outbounds.dart';
 import 'section.dart';
 import 'store.dart';
+import 'transform.dart';
 
 Future<void> showProxyChainEditor(
   BuildContext context, {
@@ -44,6 +44,7 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
   late final _nameController = TextEditingController(text: widget.chain?.name);
   late List<String?> _hops = [...?widget.chain?.hops];
   String? _error;
+  var _saving = false;
 
   @override
   void initState() {
@@ -90,6 +91,9 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
   }
 
   Future<void> _save() async {
+    if (_saving) {
+      return;
+    }
     final appLocalizations = context.appLocalizations;
     final name = _nameController.text.trim();
     final hops = [for (final hop in _hops) ?hop];
@@ -103,27 +107,39 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
       hops: hops,
       enabled: widget.chain?.enabled ?? true,
     );
-    final notifier = ref.read(proxyChainsProvider(widget.profileId).notifier);
-    final others = {
-      for (final other in await ref.read(
-        proxyChainsProvider(widget.profileId).future,
-      ))
-        if (other.id != chain.id) other.name,
-    };
-    final config = ref.read(clashConfigProvider(widget.profileId)).value;
-    final issue = config == null
-        ? null
-        : proxyChainGraphOf(config).issueOf(chain, taken: others);
-    if (!mounted) {
-      return;
-    }
-    if (issue != null) {
-      setState(() => _error = proxyChainIssueText(appLocalizations, issue));
-      return;
-    }
-    await notifier.put(chain);
-    if (mounted) {
-      Navigator.of(context).pop();
+    final chainsProvider = proxyChainsProvider(widget.profileId);
+    final notifier = ref.read(chainsProvider.notifier);
+    final graphFuture = ref.read(
+      proxyChainGraphProvider(widget.profileId).future,
+    );
+    setState(() => _saving = true);
+    try {
+      final chains = await ref.read(chainsProvider.future);
+      final graph = await graphFuture;
+      if (!mounted) {
+        return;
+      }
+      final issue =
+          graph?.issuesOf([chain])[chain.id] ??
+          (chains.any((other) => other.id != chain.id && other.name == name)
+              ? (kind: ProxyChainIssueKind.nameTaken, name: name)
+              : null);
+      if (issue != null) {
+        setState(() => _error = proxyChainIssueText(appLocalizations, issue));
+        return;
+      }
+      await notifier.put(chain);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } on ProxyChainsSaveException {
+      if (mounted) {
+        setState(() => _error = appLocalizations.databaseWriteFailedTip);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
@@ -131,11 +147,13 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     final count = _hops.length;
+    ref.watch(proxyChainGraphProvider(widget.profileId));
     return FormPage(
       title: widget.chain == null
           ? appLocalizations.newProxyChain
           : appLocalizations.proxyChain,
       onSave: _save,
+      saving: _saving,
       error: _error,
       children: [
         generateSection(items: [_PathDiagram(hops: _hops)]),
@@ -344,19 +362,19 @@ class _HopPicker extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
-    final config = ref.watch(clashConfigProvider(profileId)).value;
-    final graph = config == null ? null : proxyChainGraphOf(config);
+    final graph = ref.watch(proxyChainGraphProvider(profileId)).value;
     bool usable(String name) =>
         !otherHops.contains(name) &&
-        (isEntry || (graph?.leavesOf(name).isNotEmpty ?? false));
+        (isEntry || (graph?.isChainable(name) ?? false));
     final groupTypes = {
-      for (final group in config?.proxyGroups ?? const <ProxyGroup>[])
-        if (group.hidden != true && usable(group.name))
-          group.name: group.type.name,
+      for (final MapEntry(:key, :value)
+          in (graph?.groupTypes ?? const <String, String>{}).entries)
+        if (usable(key)) key: value,
     };
     final proxyTypes = {
-      for (final proxy in config?.proxies ?? const <Proxy>[])
-        if (usable(proxy.name)) proxy.name: proxy.type,
+      for (final MapEntry(:key, :value)
+          in (graph?.proxyTypes ?? const <String, String>{}).entries)
+        if (usable(key)) key: value,
     };
     return SelectionSheet<String>(
       title: title,
