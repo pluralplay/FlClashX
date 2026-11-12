@@ -60,6 +60,11 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
     ) {
       app?.updateExcludeFromRecents(next);
     }, fireImmediately: true);
+    ref.listenManual(
+      appSettingProvider.select((state) => state.vibration),
+      (_, next) => app?.setVibration(next),
+      fireImmediately: true,
+    );
     ref.listenManual(loadedLocaleProvider, (prev, next) {
       if (prev != null && prev != next && !safeModeBuild) {
         app?.initShortcuts();

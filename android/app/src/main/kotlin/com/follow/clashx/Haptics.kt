@@ -1,5 +1,6 @@
 package com.follow.clashx
 
+import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.os.VibrationEffect
@@ -11,6 +12,8 @@ import kotlin.math.roundToLong
 private const val STEP_MS = 50L
 private const val PULSE_MS = 100L
 private const val FAINTEST = 8
+private const val PREFERENCES = "haptics"
+private const val ENABLED = "enabled"
 
 /** Steps that grow from barely felt to full strength over [durationMs], eased in. */
 internal fun risingWaveform(durationMs: Long): Pair<LongArray, IntArray> {
@@ -36,6 +39,21 @@ internal fun risingPulses(durationMs: Long): LongArray {
 }
 
 object Haptics {
+    private fun preferences(context: Context) =
+        context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+
+    private fun enabled(context: Context) = preferences(context).getBoolean(ENABLED, true)
+
+    fun setEnabled(context: Context, activity: Activity?, value: Boolean) {
+        preferences(context).edit().putBoolean(ENABLED, value).apply()
+        activity?.let(::applyTo)
+    }
+
+    /** Flutter's HapticFeedback goes through the decor view, silent while its feedback is off. */
+    fun applyTo(activity: Activity) {
+        activity.window.decorView.isHapticFeedbackEnabled = enabled(activity)
+    }
+
     private fun vibrator(context: Context): Vibrator? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.getSystemService(VibratorManager::class.java)?.defaultVibrator
@@ -45,6 +63,7 @@ object Haptics {
         }?.takeIf { it.hasVibrator() }
 
     fun rise(context: Context, durationMs: Long) {
+        if (!enabled(context)) return
         val vibrator = vibrator(context) ?: return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             @Suppress("DEPRECATION")

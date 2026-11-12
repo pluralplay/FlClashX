@@ -227,6 +227,8 @@
   "sidebarBlurDesc": "배경 흐림은 창 뒤의 바탕화면을 사이드바에 비쳐 보이게 합니다.",
   "liquidGlass": "Liquid Glass",
   "liquidGlassReduced": "기기가 따라가지 못해 Liquid Glass를 계속 단순화합니다.",
+  "vibration": "진동",
+  "vibrationDesc": "터치 피드백, 길게 눌러 전환할 때와 실행할 때의 진동.",
   "keepAliveIntervalDesc": "TCP 킵얼라이브 간격",
   "local": "로컬",
   "remote": "원격",

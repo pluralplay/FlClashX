@@ -349,6 +349,22 @@ void main() {
     });
   });
 
+  group('noVibration', () {
+    test('is asked for only by the novibrate special', () {
+      expect(const ProviderHeaders({}).noVibration, isFalse);
+      expect(
+        const ProviderHeaders({'flclashx-special': 'hideip'}).noVibration,
+        isFalse,
+      );
+      expect(
+        const ProviderHeaders({
+          'flclashx-special': 'hideip, NoVibrate',
+        }).noVibration,
+        isTrue,
+      );
+    });
+  });
+
   group('fallbackUrlsOf', () {
     final url = Uri.parse('https://u:p@old.example.com/sub/abc?x=1');
     List<String> moved(String header) => ProviderHeaders({

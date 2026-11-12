@@ -125,6 +125,7 @@ final _glyphs = {
   'memory': AppGlyphs.memory,
   'cpu': AppGlyphs.cpu,
   'devices': AppGlyphs.devices,
+  'vibration': AppGlyphs.vibration,
   'broom': AppGlyphs.broom,
   'wifi': AppGlyphs.wifi,
   'wifiOff': AppGlyphs.wifiOff,

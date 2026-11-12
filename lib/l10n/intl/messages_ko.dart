@@ -1613,6 +1613,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "usedTraffic": MessageLookupByLibrary.simpleMessage("사용한 트래픽"),
     "username": MessageLookupByLibrary.simpleMessage("사용자 이름"),
     "value": MessageLookupByLibrary.simpleMessage("값"),
+    "vibration": MessageLookupByLibrary.simpleMessage("진동"),
+    "vibrationDesc": MessageLookupByLibrary.simpleMessage(
+      "터치 피드백, 길게 눌러 전환할 때와 실행할 때의 진동.",
+    ),
     "view": MessageLookupByLibrary.simpleMessage("보기"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("가상 IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("선명"),

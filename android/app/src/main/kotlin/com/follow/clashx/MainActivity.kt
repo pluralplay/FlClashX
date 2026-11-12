@@ -13,6 +13,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Haptics.applyTo(this)
         if (savedInstanceState == null) {
             Haptics.rise(this, LAUNCH_RISE_MS)
         }

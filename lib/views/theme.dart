@@ -69,6 +69,13 @@ class ThemeView extends StatelessWidget {
             _SidebarBlurItem(),
             SizedBox(height: 16),
           ],
+          if (system.isAndroid) ...const [
+            ManagedSetting(
+              settingKey: vibrationSetting,
+              child: _VibrationItem(),
+            ),
+            SizedBox(height: 16),
+          ],
           const _FontFamilyItem(),
           const SizedBox(height: 16),
           const _TextScaleFactorItem(),
@@ -929,6 +936,35 @@ class _SidebarBlurItem extends ConsumerWidget {
         ref
             .read(themeSettingProvider.notifier)
             .update((state) => state.copyWith(sidebarBlur: value));
+      },
+    );
+  }
+}
+
+class _VibrationItem extends ConsumerWidget {
+  const _VibrationItem();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appLocalizations = context.appLocalizations;
+    final vibration = ref.watch(
+      appSettingProvider.select((state) => state.vibration),
+    );
+    return ListItem.toggle(
+      leading: const GlyphIcon(AppGlyphs.vibration),
+      horizontalTitleGap: 12,
+      title: Text(
+        appLocalizations.vibration,
+        style: AppTextStyle.subheadline
+            .of(context, emphasized: true)
+            .copyWith(color: context.colorScheme.onSurfaceVariant),
+      ),
+      subtitle: Text(appLocalizations.vibrationDesc),
+      value: vibration,
+      onChanged: (value) {
+        ref
+            .read(appSettingProvider.notifier)
+            .update((state) => state.copyWith(vibration: value));
       },
     );
   }

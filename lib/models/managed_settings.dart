@@ -15,6 +15,9 @@ const appSwitchSettings = {
 /// Driven by `flclashx-special: hideip`.
 const hideIpSetting = 'app.hideIp';
 
+/// Driven by `flclashx-special: novibrate`.
+const vibrationSetting = 'app.vibration';
+
 /// The config keys a subscription takes over and the user may take back.
 const managedClashKeys = {
   'mode',
@@ -101,6 +104,7 @@ const themePageKeys = {
   'view.app.glass',
   'view.app.color',
   'view.app.black',
+  vibrationSetting,
 };
 
 const proxiesPageKeys = {

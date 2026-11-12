@@ -149,6 +149,12 @@ class App {
     await methodChannel.invokeMethod<bool>('stopVibration');
   }
 
+  Future<void> setVibration(bool enabled) async {
+    await methodChannel.invokeMethod<bool>('setVibration', {
+      'enabled': enabled,
+    });
+  }
+
   Future<bool?> initShortcuts() async {
     return methodChannel.invokeMethod<bool>('initShortcuts', {
       'start': currentAppLocalizations.start,

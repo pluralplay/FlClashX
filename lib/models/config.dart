@@ -258,6 +258,7 @@ abstract class AppSettingProps with _$AppSettingProps {
     bool checkCertificate,
     @Default(defaultFilters) List<Filter> filters,
     @Default(false) bool hideIp,
+    @Default(true) bool vibration,
     @Default(false) bool editorLineWrap,
     @Default(EditorFontSize.standard) EditorFontSize editorFontSize,
     @Default([]) List<String> serviceOrder,

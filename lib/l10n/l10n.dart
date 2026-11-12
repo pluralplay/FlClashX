@@ -1816,6 +1816,21 @@ class AppLocalizations {
     );
   }
 
+  /// `Vibration`
+  String get vibration {
+    return Intl.message('Vibration', name: 'vibration', desc: '', args: []);
+  }
+
+  /// `Touch feedback, the hold-to-toggle buzz and the pulse at launch.`
+  String get vibrationDesc {
+    return Intl.message(
+      'Touch feedback, the hold-to-toggle buzz and the pulse at launch.',
+      name: 'vibrationDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `TCP keep-alive interval`
   String get keepAliveIntervalDesc {
     return Intl.message(

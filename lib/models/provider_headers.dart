@@ -97,6 +97,8 @@ class ProviderHeaders {
 
   bool get hideIp => specials?.contains('hideip') ?? false;
 
+  bool get noVibration => specials?.contains('novibrate') ?? false;
+
   String? get serviceName => _plainOrBase64(text('flclashx-servicename'));
 
   String? get serviceLogo {

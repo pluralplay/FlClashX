@@ -171,6 +171,34 @@ void main() {
     );
   });
 
+  test('the novibrate special turns vibration off and locks it', () async {
+    await select(_profile(1, special: 'novibrate'));
+
+    expect(container.read(appSettingProvider).vibration, isFalse);
+    expect(container.read(settingLockedProvider(vibrationSetting)), isTrue);
+  });
+
+  test('vibration the user took over is left to the user', () async {
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(ownedSettings: {vibrationSetting}));
+
+    await select(_profile(1, special: 'novibrate'));
+
+    expect(container.read(appSettingProvider).vibration, isTrue);
+    expect(container.read(settingReleasableProvider(vibrationSetting)), isTrue);
+  });
+
+  test('without the novibrate special vibration stays the user\'s', () async {
+    await select(_profile(1, special: 'hideip'));
+
+    expect(container.read(appSettingProvider).vibration, isTrue);
+    expect(
+      container.read(managedSettingsProvider),
+      isNot(contains(vibrationSetting)),
+    );
+  });
+
   test('the header picks the style when its profile is switched to', () async {
     await select(_profile(1, view: 'app.board:extended'));
     expect(style(), ThemeStyle.enhanced);

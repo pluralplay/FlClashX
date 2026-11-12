@@ -1915,6 +1915,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "usedTraffic": MessageLookupByLibrary.simpleMessage("Used traffic"),
     "username": MessageLookupByLibrary.simpleMessage("Username"),
     "value": MessageLookupByLibrary.simpleMessage("Value"),
+    "vibration": MessageLookupByLibrary.simpleMessage("Vibration"),
+    "vibrationDesc": MessageLookupByLibrary.simpleMessage(
+      "Touch feedback, the hold-to-toggle buzz and the pulse at launch.",
+    ),
     "view": MessageLookupByLibrary.simpleMessage("View"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("Virtual IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("Vivid"),

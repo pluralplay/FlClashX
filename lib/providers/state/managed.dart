@@ -26,9 +26,15 @@ Set<String> managedSettings(Ref ref) {
       (profile) => profile?.headers.hideIp ?? false,
     ),
   );
+  final noVibration = ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.noVibration ?? false,
+    ),
+  );
   return {
     if (switches != null) ...appSwitchSettings.values,
     if (hideIp) hideIpSetting,
+    if (noVibration) vibrationSetting,
     ...managedViewKeysOf(view),
     ...ref.watch(managedClashKeysProvider),
   };

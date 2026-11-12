@@ -1854,6 +1854,26 @@ abstract final class AppGlyphs {
     GlyphBox(15, 10, 20.8, 20.5, 2),
   ]);
 
+  static const vibration = Glyph([
+    GlyphBox(8, 3.5, 16, 20.5, 2.5),
+    GlyphPolyline([
+      GlyphVertex(4.6, 9),
+      GlyphVertex(4.6, 15),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(19.4, 9),
+      GlyphVertex(19.4, 15),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(1.9, 10.5),
+      GlyphVertex(1.9, 13.5),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(22.1, 10.5),
+      GlyphVertex(22.1, 13.5),
+    ], role: GlyphRole.line),
+  ]);
+
   static const broom = Glyph([
     GlyphPolyline([
       GlyphVertex(20.1, 3.9),

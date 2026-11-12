@@ -93,7 +93,7 @@ final class ManagedSettingsActionProvider
 }
 
 String _$managedSettingsActionHash() =>
-    r'276a17ac316848bd3b1f6762c1bb8136f401eca0';
+    r'367a45084033c5e495f876b75d5f42cd4b316709';
 
 abstract class _$ManagedSettingsAction extends $Notifier<void> {
   void build();
@@ -150,7 +150,7 @@ final class ProfileHeadersActionProvider
 }
 
 String _$profileHeadersActionHash() =>
-    r'9949f5bedf6a22bed892c8640f0a3c902ce72458';
+    r'1db71a57ec61a6991119ce7417e0ecdaaa366533';
 
 /// Lands once per update of, or switch to, a profile; edits in between stay.
 

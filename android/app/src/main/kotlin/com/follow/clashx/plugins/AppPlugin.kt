@@ -220,6 +220,13 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 result.success(true)
             }
 
+            "setVibration" -> {
+                val enabled = call.argument<Boolean>("enabled") ?: true
+                Haptics.setEnabled(GlobalState.application, activity, enabled)
+                if (!enabled) Haptics.stop(GlobalState.application)
+                result.success(true)
+            }
+
             "openAppSettings" -> {
                 result.success(openAppSettings())
             }

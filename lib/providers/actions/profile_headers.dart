@@ -6,6 +6,7 @@ typedef ProfileHeaderSettings = ({
   Set<String>? switches,
   bool globalModeAllowed,
   bool hideIp,
+  bool noVibration,
 });
 
 ProfileHeaderSettings profileHeaderSettingsOf(Profile? profile) {
@@ -16,6 +17,7 @@ ProfileHeaderSettings profileHeaderSettingsOf(Profile? profile) {
     switches: headers?.appSwitches,
     globalModeAllowed: headers?.globalModeAllowed ?? true,
     hideIp: headers?.hideIp ?? false,
+    noVibration: headers?.noVibration ?? false,
   );
 }
 
@@ -148,6 +150,11 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
       ref
           .read(appSettingProvider.notifier)
           .update((state) => state.copyWith(hideIp: true));
+    }
+    if (settings.noVibration && !owned.contains(vibrationSetting)) {
+      ref
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(vibration: false));
     }
     if (!settings.globalModeAllowed &&
         ref.read(patchClashConfigProvider).mode == Mode.global) {

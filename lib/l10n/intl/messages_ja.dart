@@ -1645,6 +1645,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "usedTraffic": MessageLookupByLibrary.simpleMessage("使用済みトラフィック"),
     "username": MessageLookupByLibrary.simpleMessage("ユーザー名"),
     "value": MessageLookupByLibrary.simpleMessage("値"),
+    "vibration": MessageLookupByLibrary.simpleMessage("バイブレーション"),
+    "vibrationDesc": MessageLookupByLibrary.simpleMessage(
+      "タップの触覚フィードバック、長押し切り替えと起動時の振動。",
+    ),
     "view": MessageLookupByLibrary.simpleMessage("表示"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("仮想 IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("ビビッド"),

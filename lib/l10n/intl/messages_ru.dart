@@ -2016,6 +2016,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "username": MessageLookupByLibrary.simpleMessage("Имя пользователя"),
     "value": MessageLookupByLibrary.simpleMessage("Значение"),
+    "vibration": MessageLookupByLibrary.simpleMessage("Вибрация"),
+    "vibrationDesc": MessageLookupByLibrary.simpleMessage(
+      "Отклик на касания, вибрация при удержании кнопки и при запуске.",
+    ),
     "view": MessageLookupByLibrary.simpleMessage("Просмотр"),
     "virtualIpv4": MessageLookupByLibrary.simpleMessage("Виртуальный IPv4"),
     "vividStyle": MessageLookupByLibrary.simpleMessage("Яркий"),

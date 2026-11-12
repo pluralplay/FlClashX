@@ -227,6 +227,8 @@
   "sidebarBlurDesc": "El desenfoque de fondo deja ver el escritorio detrás de la ventana a través de la barra lateral.",
   "liquidGlass": "Liquid Glass",
   "liquidGlassReduced": "Liquid Glass simplificado de forma permanente: el dispositivo no da abasto.",
+  "vibration": "Vibración",
+  "vibrationDesc": "Respuesta táctil, vibración al mantener pulsado y al abrir la app.",
   "keepAliveIntervalDesc": "Intervalo de keep-alive TCP",
   "local": "Local",
   "remote": "Remoto",

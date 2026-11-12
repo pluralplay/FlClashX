@@ -227,6 +227,8 @@
   "sidebarBlurDesc": "背景のぼかしでは、ウィンドウの背後のデスクトップがサイドバー越しに見えます。",
   "liquidGlass": "リキッドグラス",
   "liquidGlassReduced": "描画が追いつかないため、リキッドグラスを簡略化したままにします。",
+  "vibration": "バイブレーション",
+  "vibrationDesc": "タップの触覚フィードバック、長押し切り替えと起動時の振動。",
   "keepAliveIntervalDesc": "TCPキープアライブ間隔",
   "local": "ローカル",
   "remote": "リモート",
