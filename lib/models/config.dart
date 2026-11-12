@@ -267,6 +267,9 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default({}) Map<String, int> subscriptionNotices,
     @Default({}) Set<String> ownedSettings,
 
+    /// Special flags the panel set, put back once its headers drop them.
+    @Default({}) Set<String> panelSetSettings,
+
     /// The profile update whose panel headers the settings last took.
     String? appliedHeadersUpdate,
   }) = _AppSettingProps;

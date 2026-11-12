@@ -150,7 +150,7 @@ final class ProfileHeadersActionProvider
 }
 
 String _$profileHeadersActionHash() =>
-    r'1db71a57ec61a6991119ce7417e0ecdaaa366533';
+    r'e163b7c9b01142c0c4359c09d6764d6ba6b9d27f';
 
 /// Lands once per update of, or switch to, a profile; edits in between stay.
 

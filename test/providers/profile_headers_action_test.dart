@@ -189,6 +189,46 @@ void main() {
     expect(container.read(settingReleasableProvider(vibrationSetting)), isTrue);
   });
 
+  test('a panel that drops hideip and novibrate puts both back', () async {
+    await select(_profile(1, special: 'hideip,novibrate'));
+    expect(container.read(appSettingProvider).hideIp, isTrue);
+    expect(container.read(appSettingProvider).vibration, isFalse);
+
+    await put(_profile(1, special: 'noglobal'));
+
+    final setting = container.read(appSettingProvider);
+    expect(setting.hideIp, isFalse);
+    expect(setting.vibration, isTrue);
+    expect(setting.panelSetSettings, isEmpty);
+  });
+
+  test('a hidden IP the user chose survives a panel without hideip', () async {
+    await select(_profile(1, special: 'noglobal'));
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(hideIp: true));
+
+    await put(_profile(1));
+
+    expect(container.read(appSettingProvider).hideIp, isTrue);
+  });
+
+  test(
+    'a special the user took over keeps the user\'s value once dropped',
+    () async {
+      await select(_profile(1, special: 'hideip'));
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(ownedSettings: {hideIpSetting}));
+
+      await put(_profile(1));
+
+      final setting = container.read(appSettingProvider);
+      expect(setting.hideIp, isTrue);
+      expect(setting.panelSetSettings, isEmpty);
+    },
+  );
+
   test('without the novibrate special vibration stays the user\'s', () async {
     await select(_profile(1, special: 'hideip'));
 
