@@ -397,6 +397,59 @@ void main() {
       expect(config.themeProps.style, ThemeStyle.original);
     });
 
+    test(
+      'turns the FlClashX 0.4 override switches into owned settings',
+      () async {
+        final data = await migrateLegacyConfig(
+          configMap: legacyConfig(
+            extra: {
+              'appSetting': {
+                'overrideNetworkSettings': true,
+                'overrideProviderSettings': true,
+              },
+            },
+          ),
+          sourcePath: source.path,
+          targetPath: target.path,
+        );
+
+        final owned = Config.realFromJson(
+          data.configMap,
+        ).appSettingProps.ownedSettings;
+        expect(
+          owned,
+          containsAll([
+            'clash.mixed-port',
+            'clash.allow-lan',
+            'clash.ipv6',
+            'clash.find-process-mode',
+            'clash.tun.stack',
+            ...appSwitchSettings.values,
+          ]),
+        );
+        expect(owned, hasLength(5 + appSwitchSettings.length));
+
+        final untouched = await migrateLegacyConfig(
+          configMap: legacyConfig(
+            extra: {
+              'appSetting': {
+                'overrideNetworkSettings': false,
+                'overrideProviderSettings': false,
+              },
+            },
+          ),
+          sourcePath: source.path,
+          targetPath: target.path,
+        );
+        expect(
+          Config.realFromJson(
+            untouched.configMap,
+          ).appSettingProps.ownedSettings,
+          isEmpty,
+        );
+      },
+    );
+
     test('links added rules to the profile that declared them', () async {
       writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
 

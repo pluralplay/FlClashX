@@ -537,6 +537,15 @@ Map<String, Object?>? _overwriteOfOverrideData(Object? overrideData) {
   };
 }
 
+/// What FlClashX 0.4's network switch kept from the profile.
+const _legacyNetworkSettings = {
+  'clash.ipv6',
+  'clash.allow-lan',
+  'clash.mixed-port',
+  'clash.find-process-mode',
+  'clash.tun.stack',
+};
+
 bool _isPlainFileName(String name) =>
     name.isNotEmpty &&
     name != '.' &&
@@ -562,11 +571,19 @@ Future<MigrationData> migrateLegacyConfig({
     vpnPropsRaw['accessControlProps'] = vpnPropsRaw['accessControl'];
   }
   configMap['davProps'] = configMap['dav'];
-  final appSettingProps =
-      configMap['appSetting'] as Map<String, dynamic>? ?? {};
+  final appSettingProps = Map<String, dynamic>.from(
+    configMap['appSetting'] as Map? ?? const {},
+  );
   if (appSettingProps['recoveryStrategy'] != null) {
     appSettingProps['restoreStrategy'] = appSettingProps['recoveryStrategy'];
   }
+  appSettingProps['ownedSettings'] = {
+    ...?(appSettingProps['ownedSettings'] as List?)?.cast<String>(),
+    if (appSettingProps['overrideNetworkSettings'] == true)
+      ..._legacyNetworkSettings,
+    if (appSettingProps['overrideProviderSettings'] == true)
+      ...appSwitchSettings.values,
+  }.toList();
   configMap['appSettingProps'] = appSettingProps;
   // FlClashX 0.4 kept its hero page as a flag; here it is the theme style,
   // and one without the flag keeps the standard page over the new default.
