@@ -34,6 +34,11 @@
               "id": "bb0e6d6",
               "scope": "settings",
               "text": "TLS certificates are always checked; the toggle to turn the check off is gone"
+            },
+            {
+              "id": "ea1c50c",
+              "scope": "settings",
+              "text": "A switch turns vibration off, and a panel can turn it off with novibrate"
             }
           ]
         },

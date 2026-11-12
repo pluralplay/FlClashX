@@ -9,6 +9,7 @@
 - **tun** Desktop TUN settings follow the profile until you pick them; values you changed carry over (c2f57e9)
 - **settings** Settings the subscription sets belong to the provider; each one can be taken over and handed back (c2f57e9)
 - **settings** TLS certificates are always checked; the toggle to turn the check off is gone (bb0e6d6)
+- **settings** A switch turns vibration off, and a panel can turn it off with novibrate (ea1c50c)
 
 **Features**
 
