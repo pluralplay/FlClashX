@@ -30,9 +30,9 @@
             <td>Windows</td>
             <td>
                 <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-amd64-setup.exe"><img src="https://img.shields.io/badge/Setup-x64-2d7d9a.svg?logo=windows"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-arm-setup.exe"><img src="https://img.shields.io/badge/Setup-arm-2d7d9a.svg?logo=windows"></a><br>
+                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-arm64-setup.exe"><img src="https://img.shields.io/badge/Setup-arm-2d7d9a.svg?logo=windows"></a><br>
                 <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-amd64.zip"><img src="https://img.shields.io/badge/Portable-x64-67b7d1.svg?logo=windows"></a><br>
-                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-arm.zip"><img src="https://img.shields.io/badge/Portable-arm-67b7d1.svg?logo=windows"></a>
+                <a href="https://github.com/pluralplay/FlClashX/releases/download/vVERSION/FlClashX-windows-arm64.zip"><img src="https://img.shields.io/badge/Portable-arm-67b7d1.svg?logo=windows"></a>
             </td>
         </tr>
         <tr>
