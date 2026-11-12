@@ -278,6 +278,31 @@ func TestLoadConfigWithBaseWritesAConfigThatLoadsAlone(t *testing.T) {
 	}
 }
 
+func TestMergeProfileBaseKeepsAShortIDAProxyReachesThroughAnAlias(t *testing.T) {
+	path := writeBaseProfile(t, `x-reality: &reality {public-key: k, short-id: 0123}
+x-sid: &sid 0456
+proxies:
+  - {name: a, type: vless, reality-opts: *reality}
+  - {name: b, type: vless, reality-opts: {public-key: k, short-id: *sid}}
+`)
+	document, err := mergeProfileBase(&SetupBase{Path: path, Overlay: `{"rules": ["MATCH,DIRECT"]}`})
+	if err != nil {
+		t.Fatalf("mergeProfileBase = %v", err)
+	}
+
+	raw := config.DefaultRawConfig()
+	if err := document.Decode(raw); err != nil {
+		t.Fatalf("decode = %v", err)
+	}
+	want := map[string]string{"a": "0123", "b": "0456"}
+	for _, proxy := range raw.Proxy {
+		name, _ := proxy["name"].(string)
+		if got := proxy["reality-opts"].(map[string]any)["short-id"]; got != want[name] {
+			t.Errorf("short-id of %s = %#v, want the literal %s", name, got, want[name])
+		}
+	}
+}
+
 func TestLoadConfigWithBaseKeepsAnEmptyProfileOnTheDefaults(t *testing.T) {
 	path := writeBaseProfile(t, "")
 

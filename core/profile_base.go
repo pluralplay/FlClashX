@@ -191,6 +191,11 @@ func mergeProfileBase(base *SetupBase) (*yaml.Node, error) {
 	if err := yaml.Unmarshal([]byte(base.Overlay), &overlayDocument); err != nil {
 		return nil, err
 	}
+	// Before the merge drops the sections an alias may still point into.
+	if retag {
+		retagShortIDs(&profileDocument)
+		retagShortIDs(&overlayDocument)
+	}
 	profile, err := documentMapping(&profileDocument)
 	if err != nil {
 		return nil, err
@@ -210,9 +215,6 @@ func mergeProfileBase(base *SetupBase) (*yaml.Node, error) {
 	}
 	if rules != nil {
 		setMappingValue(root, "rules", rules)
-	}
-	if retag {
-		retagShortIDs(root)
 	}
 	return &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{root}}, nil
 }

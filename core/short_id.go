@@ -40,6 +40,7 @@ func retagShortIDs(node *yaml.Node) bool {
 }
 
 func retagNumber(node *yaml.Node) bool {
+	node = resolveAlias(node)
 	switch node.Kind {
 	case yaml.ScalarNode:
 		if node.Style == 0 && (node.Tag == "!!int" || node.Tag == "!!float") {
