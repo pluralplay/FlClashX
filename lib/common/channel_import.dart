@@ -7,65 +7,172 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 
 const _database = 'database.sqlite';
-
+const _databaseSidecars = ['-wal', '-journal'];
 const _skipped = {'config.yaml', 'logs', '.DS_Store'};
+const _staging = '.stable-import';
+const _pendingMarker = '.stable-import-pending';
+const _doneMarker = '.stable-import-done';
 
-/// A macOS pre-release starts from a read-only copy of the stable app's data.
+/// What the stable process did to the system, which a copy must not undo.
+const runtimePreferenceKeys = [
+  systemDnsRecordKey,
+  systemProxyAppliedKey,
+  bootRecordKey,
+  appliedConfigMd5Key,
+];
+
+enum StableImport { imported, skipped, deferred }
+
+typedef StableRelease = Future<void> Function();
+
+typedef StableSource = ({
+  String stableHome,
+  String home,
+  Future<bool> Function() hasOwnPreferences,
+  Future<void> Function() copyPreferences,
+  Future<StableRelease?> Function() lock,
+});
+
 Future<void> importStableDataForPre() async {
-  if (!Platform.isMacOS) {
-    return;
-  }
-  final home = await appPath.homeDirPath;
-  final domain = basename(home);
-  if (domain != '$packageName.pre') {
-    return;
-  }
   try {
-    await copyStableData(
-      stableHome: join(dirname(home), packageName),
-      home: home,
-      hasOwnConfig: () async =>
-          await _defaults(['read', domain, 'flutter.$configKey']) == 0,
-      copyDefaults: () => _copyDefaults(from: packageName, to: domain),
-    );
+    final source = await _macosSource();
+    if (source == null) {
+      return;
+    }
+    final result = await copyStableData(source);
+    if (result == StableImport.deferred) {
+      commonPrint.log('stable app is running, its data is copied next launch');
+    }
   } catch (error) {
     commonPrint.log('stable data not copied: $error');
   }
 }
 
-/// The database goes last, so a copy cut short is redone on the next launch.
+Future<StableSource?> _macosSource() async {
+  if (!Platform.isMacOS) {
+    return null;
+  }
+  final home = await appPath.homeDirPath;
+  final domain = basename(home);
+  if (domain != '$packageName.pre') {
+    return null;
+  }
+  final stableHome = join(dirname(home), packageName);
+  return (
+    stableHome: stableHome,
+    home: home,
+    hasOwnPreferences: () async =>
+        await _defaults(['read', domain, 'flutter.$configKey']) == 0,
+    copyPreferences: () => _copyDefaults(from: packageName, to: domain),
+    lock: () => lockStableHome(stableHome),
+  );
+}
+
+/// A shared hold on the instance lock keeps the stable app from writing.
+Future<StableRelease?> lockStableHome(String stableHome) async {
+  final lockFile = File(join(stableHome, 'FlClash.lock'));
+  if (!await lockFile.exists()) {
+    return () async {};
+  }
+  final access = await lockFile.open();
+  try {
+    await access.lock(FileLock.shared);
+  } catch (_) {
+    await access.close();
+    return null;
+  }
+  return access.close;
+}
+
+/// Only a completed import is final: one cut short is redone next launch.
 @visibleForTesting
-Future<bool> copyStableData({
-  required String stableHome,
-  required String home,
-  required Future<bool> Function() hasOwnConfig,
-  required Future<void> Function() copyDefaults,
-}) async {
+Future<StableImport> copyStableData(StableSource source) async {
+  final StableSource(:stableHome, :home) = source;
   if (equals(stableHome, home) ||
-      await File(join(home, _database)).exists() ||
-      await hasOwnConfig()) {
-    return false;
+      await File(join(home, _doneMarker)).exists()) {
+    return StableImport.skipped;
   }
-  final stableDatabase = File(join(stableHome, _database));
-  if (!await stableDatabase.exists()) {
-    return false;
+  final pending = File(join(home, _pendingMarker));
+  if (!await pending.exists() &&
+      (await File(join(home, _database)).exists() ||
+          await source.hasOwnPreferences())) {
+    return StableImport.skipped;
   }
-  await copyDefaults();
+  if (!await File(join(stableHome, _database)).exists()) {
+    return StableImport.skipped;
+  }
+  await Directory(home).create(recursive: true);
+  await pending.writeAsString('');
+  final release = await source.lock();
+  if (release == null) {
+    return StableImport.deferred;
+  }
+  final staging = Directory(join(home, _staging));
+  try {
+    await source.copyPreferences();
+    if (await staging.exists()) {
+      await staging.delete(recursive: true);
+    }
+    await _stage(stableHome, staging.path);
+  } finally {
+    await release();
+  }
+  await _moveIn(staging.path, home);
+  await File(join(home, _doneMarker)).writeAsString('');
+  await pending.delete();
+  await staging.delete(recursive: true);
+  return StableImport.imported;
+}
+
+Future<void> _stage(String stableHome, String staging) async {
+  await Directory(staging).create(recursive: true);
   await for (final entity in Directory(stableHome).list(followLinks: false)) {
     final name = basename(entity.path);
     if (_skipped.contains(name) ||
         name.endsWith('.lock') ||
-        name.startsWith(_database)) {
+        name.startsWith(_database) ||
+        name.startsWith('.stable-import')) {
       continue;
     }
-    await _copy(entity, join(home, name));
+    await _copy(entity, join(staging, name));
   }
-  final wal = File('${stableDatabase.path}-wal');
-  if (await wal.exists()) {
-    await wal.copy(join(home, '$_database-wal'));
+  for (final suffix in ['', ..._databaseSidecars]) {
+    final file = File(join(stableHome, '$_database$suffix'));
+    if (await file.exists()) {
+      await file.copy(join(staging, '$_database$suffix'));
+    }
   }
-  await stableDatabase.copy(join(home, _database));
-  return true;
+}
+
+Future<void> _moveIn(String staging, String home) async {
+  await for (final entity in Directory(staging).list(followLinks: false)) {
+    final name = basename(entity.path);
+    if (!name.startsWith(_database)) {
+      await _replace(entity, join(home, name));
+    }
+  }
+  for (final suffix in ['-wal', '-journal', '-shm']) {
+    final own = File(join(home, '$_database$suffix'));
+    if (await own.exists()) {
+      await own.delete();
+    }
+  }
+  for (final suffix in [..._databaseSidecars, '']) {
+    final staged = File(join(staging, '$_database$suffix'));
+    if (await staged.exists()) {
+      await _replace(staged, join(home, '$_database$suffix'));
+    }
+  }
+}
+
+Future<void> _replace(FileSystemEntity entity, String target) async {
+  final type = await FileSystemEntity.type(target, followLinks: false);
+  if (type == FileSystemEntityType.directory) {
+    await Directory(target).delete(recursive: true);
+  } else if (type != FileSystemEntityType.notFound) {
+    await File(target).delete();
+  }
+  await entity.rename(target);
 }
 
 Future<void> _copy(FileSystemEntity entity, String target) async {
@@ -83,17 +190,29 @@ Future<void> _copyDefaults({required String from, required String to}) async {
   final temp = await Directory.systemTemp.createTemp('flclashx_defaults');
   try {
     final plist = join(temp.path, 'defaults.plist');
-    if (await _defaults(['export', from, plist]) == 0) {
-      await _defaults(['import', to, plist]);
+    await _mustDefaults(['export', from, plist]);
+    for (final key in runtimePreferenceKeys) {
+      await _run('/usr/bin/plutil', ['-remove', 'flutter.$key', plist]);
     }
+    await _mustDefaults(['import', to, plist]);
   } finally {
     await temp.delete(recursive: true);
   }
 }
 
-Future<int> _defaults(List<String> arguments) async {
+Future<void> _mustDefaults(List<String> arguments) async {
+  final code = await _defaults(arguments);
+  if (code != 0) {
+    throw ProcessException('defaults', arguments, 'exit code $code', code);
+  }
+}
+
+Future<int> _defaults(List<String> arguments) =>
+    _run('/usr/bin/defaults', arguments);
+
+Future<int> _run(String executable, List<String> arguments) async {
   try {
-    return (await Process.run('/usr/bin/defaults', arguments)).exitCode;
+    return (await Process.run(executable, arguments)).exitCode;
   } catch (_) {
     return -1;
   }

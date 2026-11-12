@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fl_clash/common/channel_import.dart';
+import 'package:fl_clash/common/constant.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart';
 
@@ -8,16 +9,19 @@ void main() {
   late Directory root;
   late String stable;
   late String pre;
-  var defaultsCopied = 0;
+  late int preferencesCopied;
+  late int released;
 
   setUp(() async {
     root = await Directory.systemTemp.createTemp('channel_import_test');
     stable = join(root.path, 'com.follow.clashx');
     pre = join(root.path, 'com.follow.clashx.pre');
-    defaultsCopied = 0;
+    preferencesCopied = 0;
+    released = 0;
     await Directory(join(stable, 'profiles')).create(recursive: true);
     await File(join(stable, 'database.sqlite')).writeAsString('db');
     await File(join(stable, 'database.sqlite-wal')).writeAsString('wal');
+    await File(join(stable, 'database.sqlite-journal')).writeAsString('jrnl');
     await File(join(stable, 'database.sqlite-shm')).writeAsString('shm');
     await File(join(stable, 'profiles', '1.yaml')).writeAsString('proxies: []');
     await File(join(stable, 'FlClash.lock')).writeAsString('');
@@ -27,11 +31,21 @@ void main() {
 
   tearDown(() => root.delete(recursive: true));
 
-  Future<bool> copy({bool hasOwnConfig = false}) => copyStableData(
+  StableSource source({
+    bool hasOwnPreferences = false,
+    bool busy = false,
+    bool failPreferences = false,
+  }) => (
     stableHome: stable,
     home: pre,
-    hasOwnConfig: () async => hasOwnConfig,
-    copyDefaults: () async => defaultsCopied++,
+    hasOwnPreferences: () async => hasOwnPreferences,
+    copyPreferences: () async {
+      if (failPreferences) {
+        throw const ProcessException('defaults', [], 'failed', 1);
+      }
+      preferencesCopied++;
+    },
+    lock: () async => busy ? null : () async => released++,
   );
 
   Map<String, String> snapshot(String dir) => {
@@ -40,53 +54,143 @@ void main() {
         relative(entity.path, from: dir): entity.readAsStringSync(),
   };
 
+  String read(String name) => File(join(pre, name)).readAsStringSync();
+
+  bool exists(String name) =>
+      FileSystemEntity.typeSync(join(pre, name)) !=
+      FileSystemEntityType.notFound;
+
   test('copies the stable data into a fresh pre-release store', () async {
     final before = snapshot(stable);
 
-    expect(await copy(), isTrue);
+    expect(await copyStableData(source()), StableImport.imported);
 
-    expect(File(join(pre, 'database.sqlite')).readAsStringSync(), 'db');
-    expect(File(join(pre, 'database.sqlite-wal')).readAsStringSync(), 'wal');
-    expect(File(join(pre, 'profiles', '1.yaml')).existsSync(), isTrue);
-    expect(File(join(pre, 'database.sqlite-shm')).existsSync(), isFalse);
-    expect(File(join(pre, 'FlClash.lock')).existsSync(), isFalse);
-    expect(File(join(pre, 'config.yaml')).existsSync(), isFalse);
-    expect(defaultsCopied, 1);
+    expect(read('database.sqlite'), 'db');
+    expect(read('database.sqlite-wal'), 'wal');
+    expect(read('database.sqlite-journal'), 'jrnl');
+    expect(exists(join('profiles', '1.yaml')), isTrue);
+    for (final left in [
+      'database.sqlite-shm',
+      'FlClash.lock',
+      'config.yaml',
+      '.stable-import',
+      '.stable-import-pending',
+    ]) {
+      expect(exists(left), isFalse, reason: left);
+    }
+    expect(exists('.stable-import-done'), isTrue);
+    expect(preferencesCopied, 1);
+    expect(released, 1);
     expect(snapshot(stable), before);
+  });
+
+  test('a finished import is not taken again', () async {
+    await copyStableData(source());
+    await File(join(pre, 'database.sqlite')).writeAsString('own');
+
+    expect(await copyStableData(source()), StableImport.skipped);
+    expect(read('database.sqlite'), 'own');
   });
 
   test('leaves a pre-release store that has data of its own', () async {
     await File(join(pre, 'database.sqlite')).writeAsString('own');
 
-    expect(await copy(), isFalse);
-    expect(File(join(pre, 'database.sqlite')).readAsStringSync(), 'own');
-    expect(defaultsCopied, 0);
+    expect(await copyStableData(source()), StableImport.skipped);
+    expect(read('database.sqlite'), 'own');
+    expect(
+      await copyStableData(source(hasOwnPreferences: true)),
+      isNot(StableImport.imported),
+    );
+    expect(preferencesCopied, 0);
   });
 
-  test('leaves a pre-release whose settings already exist', () async {
-    expect(await copy(hasOwnConfig: true), isFalse);
-    expect(File(join(pre, 'database.sqlite')).existsSync(), isFalse);
+  test('waits for the stable app to quit, then replaces the start', () async {
+    expect(await copyStableData(source(busy: true)), StableImport.deferred);
+    expect(preferencesCopied, 0);
+    expect(exists('database.sqlite'), isFalse);
+
+    await File(join(pre, 'database.sqlite')).writeAsString('first run');
+    await File(join(pre, 'database.sqlite-shm')).writeAsString('stale');
+
+    expect(await copyStableData(source()), StableImport.imported);
+    expect(read('database.sqlite'), 'db');
+    expect(exists('database.sqlite-shm'), isFalse);
+  });
+
+  test('an import that fails is retried and never marked done', () async {
+    await expectLater(
+      copyStableData(source(failPreferences: true)),
+      throwsA(isA<ProcessException>()),
+    );
+    expect(released, 1);
+    expect(exists('.stable-import-done'), isFalse);
+    expect(exists('.stable-import-pending'), isTrue);
+
+    expect(await copyStableData(source()), StableImport.imported);
+    expect(read('database.sqlite'), 'db');
   });
 
   test('copies nothing when the stable app has no data', () async {
     await File(join(stable, 'database.sqlite')).delete();
 
-    expect(await copy(), isFalse);
+    expect(await copyStableData(source()), StableImport.skipped);
     expect(Directory(pre).listSync(), isEmpty);
-    expect(defaultsCopied, 0);
   });
 
   test('never copies a store onto itself', () async {
-    expect(
-      await copyStableData(
-        stableHome: stable,
-        home: stable,
-        hasOwnConfig: () async => false,
-        copyDefaults: () async => defaultsCopied++,
-      ),
-      isFalse,
+    final itself = (
+      stableHome: stable,
+      home: stable,
+      hasOwnPreferences: () async => false,
+      copyPreferences: () async => preferencesCopied++,
+      lock: () async => () async {},
     );
-    expect(defaultsCopied, 0);
+
+    expect(await copyStableData(itself), StableImport.skipped);
+    expect(preferencesCopied, 0);
+  });
+
+  test('the stable lock is taken shared and given back', () async {
+    final release = await lockStableHome(stable);
+
+    expect(release, isNotNull);
+    await release!();
+    final missing = await lockStableHome(join(root.path, 'nowhere'));
+    expect(missing, isNotNull);
+  });
+
+  test(
+    'a stable app holding its lock defers the copy',
+    () async {
+      final holder = await Process.start('python3', [
+        '-c',
+        'import fcntl, sys, time\n'
+            'f = open(sys.argv[1], "w")\n'
+            'fcntl.lockf(f, fcntl.LOCK_EX)\n'
+            'print("locked", flush=True)\n'
+            'time.sleep(30)',
+        join(stable, 'FlClash.lock'),
+      ]);
+      addTearDown(holder.kill);
+      await holder.stdout.first;
+
+      expect(await lockStableHome(stable), isNull);
+    },
+    skip:
+        Platform.isWindows ||
+        Process.runSync('which', ['python3']).exitCode != 0,
+  );
+
+  test('runtime records stay with the stable app', () {
+    expect(
+      runtimePreferenceKeys,
+      containsAll([
+        systemDnsRecordKey,
+        systemProxyAppliedKey,
+        bootRecordKey,
+        appliedConfigMd5Key,
+      ]),
+    );
   });
 
   group('preChannelTipDue', () {
