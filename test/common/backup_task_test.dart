@@ -645,23 +645,20 @@ void main() {
           targetPath: target.path,
         );
 
-        expect(data.rules, isEmpty);
-        expect(data.scripts, hasLength(2));
-        String scriptOf(Profile profile) {
-          expect(profile.extendType, ExtendType.script);
-          return File(
-            join(target.path, 'scripts', '${profile.scriptId}.js'),
-          ).readAsStringSync();
+        expect(data.scripts, isEmpty);
+        List<String?> rulesOf(Profile profile) {
+          expect(profile.extendType, ExtendType.standard);
+          return [
+            for (final rule in data.rules)
+              if (rule.profileId == profile.id) rule.rawValue,
+          ];
         }
 
-        final work = scriptOf(data.profiles.first);
-        expect(work, contains('config.rules = ['));
-        expect(
-          work.indexOf('DOMAIN,example.com,DIRECT'),
-          lessThan(work.indexOf('MATCH,Proxy')),
-        );
-        expect(work, isNot(contains('unused.com')));
-        expect(scriptOf(data.profiles.last), contains('config.rules = []'));
+        expect(rulesOf(data.profiles.first), [
+          'DOMAIN,example.com,DIRECT',
+          'MATCH,Proxy',
+        ]);
+        expect(rulesOf(data.profiles.last), ['MATCH,DIRECT']);
       },
     );
 

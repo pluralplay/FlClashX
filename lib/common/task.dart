@@ -520,7 +520,10 @@ Future<MigrationData> _oldToNowTask(
 }
 
 /// FlClashX 0.4 `overrideData`: only an enabled list reaches the profile.
-Map<String, Object?>? _overwriteOfOverrideData(Object? overrideData) {
+Map<String, Object?>? _overwriteOfOverrideData(
+  Object? overrideData, {
+  required String matchId,
+}) {
   if (overrideData is! Map || overrideData['enable'] != true) {
     return null;
   }
@@ -528,39 +531,24 @@ Map<String, Object?>? _overwriteOfOverrideData(Object? overrideData) {
   if (rule is! Map) {
     return null;
   }
-  if (rule['type'] == 'override') {
-    return null;
+  final isReplacement = rule['type'] == 'override';
+  final rules = isReplacement ? rule['overrideRules'] : rule['addedRules'];
+  final list = [if (rules is List) ...rules];
+  // A replacing list ran without the profile's rules, and mihomo sends what no
+  // rule matched DIRECT; ending the list so leaves those rules unreached.
+  if (isReplacement && !list.any(_isMatchRule)) {
+    list.add({'id': matchId, 'value': 'MATCH,DIRECT'});
   }
-  final rules = rule['addedRules'];
   return {
     'type': ExtendType.standard.name,
-    'standardOverwrite': {'addedRules': rules is List ? rules : const []},
+    'standardOverwrite': {'addedRules': list},
   };
 }
 
-/// The rules an enabled FlClashX 0.4 `override` list ran in place of the
-/// subscription's; added rules cannot drop those, a script can.
-List<String>? _replacedRulesOf(Object? overrideData) {
-  if (overrideData is! Map || overrideData['enable'] != true) {
-    return null;
-  }
-  final rule = overrideData['rule'];
-  if (rule is! Map || rule['type'] != 'override') {
-    return null;
-  }
-  final rules = rule['overrideRules'];
-  return [
-    if (rules is List)
-      for (final item in rules)
-        if (item is Map && item['value'] is String) item['value'] as String,
-  ];
-}
-
-String _replacementScript(List<String> rules) =>
-    'function main(config) {\n'
-    '  config.rules = ${const JsonEncoder.withIndent('  ').convert(rules)};\n'
-    '  return config;\n'
-    '}\n';
+bool _isMatchRule(Object? rule) =>
+    rule is Map &&
+    rule['value'] is String &&
+    Rule.parse(rule['value'] as String).ruleAction == RuleAction.MATCH;
 
 /// What FlClashX 0.4's network switch kept from the profile.
 const _legacyNetworkSettings = {
@@ -671,6 +659,7 @@ Future<MigrationData> migrateLegacyConfig({
     final isLegacyProfile = rawProfile['overwrite'] == null;
     final legacyOverwrite = _overwriteOfOverrideData(
       rawProfile['overrideData'],
+      matchId: '$rawId#match',
     );
     if (legacyOverwrite != null && isLegacyProfile) {
       rawProfile['overwrite'] = legacyOverwrite;
@@ -706,24 +695,9 @@ Future<MigrationData> migrateLegacyConfig({
           ? ExtendType.script.name
           : ExtendType.standard.name;
     }
-    final replacedRules = _replacedRulesOf(rawProfile['overrideData']);
     if (isLegacyProfile && globalScriptId != null) {
       rawProfile['extendType'] = ExtendType.script.name;
       rawProfile['scriptId'] = globalScriptId;
-    } else if (isLegacyProfile && replacedRules != null) {
-      final scriptId = snowflake.id;
-      await File(
-        BackupEntries.resolve(targetPath, BackupEntries.script(scriptId)),
-      ).safeWriteAsString(_replacementScript(replacedRules));
-      scripts.add(
-        Script(
-          id: scriptId,
-          label: '${rawProfile['label'] ?? rawId} rules',
-          lastUpdateTime: DateTime.now(),
-        ),
-      );
-      rawProfile['extendType'] = ExtendType.script.name;
-      rawProfile['scriptId'] = scriptId;
     }
     final rawUrl = rawProfile['url'];
     rawProfile['type'] = rawUrl is String && rawUrl.isNotEmpty ? 'url' : 'file';
