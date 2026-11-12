@@ -280,6 +280,38 @@ void main() {
     );
   });
 
+  testWidgets('counts flags through layers of groups that share members', (
+    tester,
+  ) async {
+    const width = 30;
+    List<String> layer(int depth) => [
+      for (var index = 0; index < width; index++) 'L$depth-$index',
+    ];
+    final leaves = [
+      for (var index = 0; index < 100; index++)
+        index.isEven ? '🇳🇱 Amsterdam $index' : '🇩🇪 Berlin $index',
+    ];
+    setUp_(
+      profiles: [_profile()],
+      groups: [
+        _group('Auto', layer(1), now: 'L1-0'),
+        for (var depth = 1; depth <= 4; depth++)
+          for (final name in layer(depth))
+            _group(
+              name,
+              depth == 4 ? leaves : layer(depth + 1),
+              now: depth == 4 ? leaves.first : layer(depth + 1).first,
+            ),
+      ],
+    );
+    final watch = Stopwatch()..start();
+    await pump(tester);
+    watch.stop();
+
+    expect(find.text('+1'), findsOneWidget);
+    expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
+  });
+
   testWidgets('the app name stands in and the support button stays away', (
     tester,
   ) async {

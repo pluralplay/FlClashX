@@ -399,23 +399,28 @@ Group? _pickedGroupOf(List<Group> groups, String? name) {
 }
 
 /// The distinct flags in [group]'s proxy names, nested groups four deep.
+///
+/// Breadth first, each group once: groups that share members would otherwise
+/// be walked once per path, which grows with the product of the layer sizes.
 List<String> _groupFlagsOf(List<Group> groups, Group group) {
   final codes = <String>{};
-  void walk(Group group, int depth) {
-    if (depth > 4) {
-      return;
-    }
-    for (final proxy in group.all) {
-      final code = proxy.name.flagCountryCode;
-      if (code != null) {
-        codes.add(code);
-      } else if (groups.getGroup(proxy.name) case final nested?) {
-        walk(nested, depth + 1);
+  final seen = {group.name};
+  var layer = [group];
+  for (var depth = 0; depth <= 4 && layer.isNotEmpty; depth++) {
+    final next = <Group>[];
+    for (final current in layer) {
+      for (final proxy in current.all) {
+        final code = proxy.name.flagCountryCode;
+        if (code != null) {
+          codes.add(code);
+        } else if (groups.getGroup(proxy.name) case final nested?
+            when seen.add(nested.name)) {
+          next.add(nested);
+        }
       }
     }
+    layer = next;
   }
-
-  walk(group, 0);
   return codes.toList();
 }
 
