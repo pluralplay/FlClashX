@@ -131,14 +131,24 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
         return;
       }
       await notifier.put(chain);
-      final previous = widget.chain?.name;
-      if (previous != null && previous != name) {
-        profiles.updateProfile(
-          widget.profileId,
-          (profile) => profile.matchTarget == previous
-              ? profile.copyWith(matchTarget: name)
-              : profile,
-        );
+      final previous = widget.chain;
+      if (previous != null &&
+          previous.name != name &&
+          ref.read(profileProvider(widget.profileId))?.matchTarget ==
+              previous.name) {
+        try {
+          await profiles.rewriteCustom(
+            () async => {
+              widget.profileId: (profile) =>
+                  profile.matchTarget == previous.name
+                  ? profile.copyWith(matchTarget: name)
+                  : profile,
+            },
+          );
+        } catch (_) {
+          await notifier.put(previous);
+          throw const ProxyChainsSaveException();
+        }
       }
       if (mounted) {
         Navigator.of(context).pop();

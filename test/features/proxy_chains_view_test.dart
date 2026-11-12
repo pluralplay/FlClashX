@@ -37,11 +37,29 @@ final _graph = ProxyChainGraph.fromRaw({
 const _working = ProxyChain(id: 'a', name: 'Telegram', hops: ['Auto', 'NL']);
 const _broken = ProxyChain(id: 'b', name: 'Banks', hops: ['DE', 'Moscow']);
 
+class _Profiles extends TestProfiles {
+  _Profiles(super.initial, {required this.failWrites});
+
+  final bool failWrites;
+
+  @override
+  Future<void> rewriteCustom(
+    Future<Map<int, Profile Function(Profile profile)>> Function() body,
+  ) async {
+    if (failWrites) {
+      throw StateError('write failed');
+    }
+    final changes = await body();
+    state = [for (final item in state) changes[item.id]?.call(item) ?? item];
+  }
+}
+
 Future<ProviderContainer> _pump(
   WidgetTester tester,
   Widget child, {
   List<ProxyChain> chains = const [],
   String? matchTarget,
+  bool failProfileWrites = false,
 }) async {
   SharedPreferences.setMockInitialValues({
     'proxy_chains_$_profileId': jsonEncode([
@@ -54,7 +72,9 @@ Future<ProviderContainer> _pump(
   );
   final container = ProviderContainer(
     overrides: [
-      profilesProvider.overrideWith(() => TestProfiles([profile])),
+      profilesProvider.overrideWith(
+        () => _Profiles([profile], failWrites: failProfileWrites),
+      ),
       proxyChainGraphProvider(_profileId).overrideWith((_) async => _graph),
     ],
   );
@@ -242,5 +262,32 @@ void main() {
       container.read(profileProvider(_profileId))?.matchTarget,
       'Messages',
     );
+  });
+
+  testWidgets('a rename the MATCH target cannot follow is rolled back', (
+    tester,
+  ) async {
+    final container = await _pump(
+      tester,
+      const ProxyChainForm(profileId: _profileId, chain: _working),
+      chains: [_working],
+      matchTarget: 'Telegram',
+      failProfileWrites: true,
+    );
+
+    await tester.enterText(find.byType(TextFormField), 'Messages');
+    await tester.tap(find.byTooltip(currentAppLocalizations.save));
+    await tester.pumpAndSettle();
+
+    expect((await _stored()).single.name, 'Telegram');
+    expect(
+      container.read(profileProvider(_profileId))?.matchTarget,
+      'Telegram',
+    );
+    expect(
+      find.text(currentAppLocalizations.databaseWriteFailedTip),
+      findsOneWidget,
+    );
+    expect(find.byType(ProxyChainForm), findsOneWidget);
   });
 }

@@ -485,4 +485,63 @@ void main() {
     expect(group['proxies'], ['FI · C', 'NL-2 · C', 'NL-1 · C']);
     expect(group['default-selected'], 'NL-1 · C');
   });
+
+  test('a default only a child selector sets still starts the chain', () {
+    final config = _config();
+    (config['proxy-groups']! as List).addAll(<Map<String, Object?>>[
+      {
+        'name': 'Preferred',
+        'type': 'select',
+        'proxies': ['FI', 'NL-1'],
+        'default-selected': 'NL-1',
+      },
+      {
+        'name': 'Exit',
+        'type': 'select',
+        'proxies': ['Preferred'],
+      },
+    ]);
+    applyProxyChains(config, [
+      _chain('C', ['DE', 'Exit']),
+    ]);
+
+    final group = _named(_groups(config), 'C');
+    expect(group['proxies'], ['FI · C', 'NL-1 · C']);
+    expect(group['default-selected'], 'NL-1 · C');
+  });
+
+  test('a filter Dart would read differently from mihomo is unreadable', () {
+    for (final filter in [
+      r'\ANL',
+      r'NL\z',
+      r'\p{L}+',
+      r'\bNL',
+      r'\d',
+      '[A-Z-[N]]',
+    ]) {
+      final config = _config();
+      (config['proxies']! as List).add(<String, Object?>{
+        'name': 'ANL',
+        'type': 'ss',
+      });
+      (config['proxy-groups']! as List).add(<String, Object?>{
+        'name': 'Odd',
+        'type': 'select',
+        'include-all-proxies': true,
+        'filter': filter,
+      });
+
+      expect(ProxyChainGraph.fromRaw(config).unpinnable, 'Odd', reason: filter);
+    }
+    final config = _config();
+    (config['proxy-groups']! as List).add(<String, Object?>{
+      'name': 'Spaced',
+      'type': 'select',
+      'include-all-proxies': true,
+      'filter': r'NL\s?-\s?1|[F]I',
+    });
+    final graph = ProxyChainGraph.fromRaw(config);
+    expect(graph.unpinnable, isNull);
+    expect(graph.leavesOf('Spaced'), ['FI', 'NL-1']);
+  });
 }

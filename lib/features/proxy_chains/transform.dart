@@ -470,9 +470,7 @@ Map<String, Object?> _groupOf(
   final keptType = type is String && _groupTypes.contains(type)
       ? type
       : 'select';
-  final defaultSelected = source?['default-selected'] == null
-      ? null
-      : cloneOf[defaultLeaf];
+  final defaultSelected = keptType == 'select' ? cloneOf[defaultLeaf] : null;
   return {
     if (source != null)
       for (final MapEntry(:key, :value) in source.entries)
@@ -514,6 +512,9 @@ List<RegExp>? _patterns(Object? value) {
       }
       pattern = pattern.substring(flags.end);
     }
+    if (!_readsAlike(pattern)) {
+      return null;
+    }
     try {
       patterns.add(
         RegExp(
@@ -528,6 +529,45 @@ List<RegExp>? _patterns(Object? value) {
     }
   }
   return patterns;
+}
+
+/// Escapes that mean something else in Dart than in regexp2's .NET syntax.
+const _divergentEscapes = {
+  'A',
+  'Z',
+  'z',
+  'G',
+  'p',
+  'P',
+  'e',
+  'a',
+  'w',
+  'W',
+  'b',
+  'B',
+  'd',
+  'D',
+};
+
+bool _readsAlike(String pattern) {
+  var inClass = false;
+  for (var i = 0; i < pattern.length; i++) {
+    final char = pattern[i];
+    if (char == r'\') {
+      if (i + 1 < pattern.length &&
+          _divergentEscapes.contains(pattern[i + 1])) {
+        return false;
+      }
+      i++;
+    } else if (char == '[' && !inClass) {
+      inClass = true;
+    } else if (char == ']' && inClass) {
+      inClass = false;
+    } else if (inClass && pattern.startsWith('-[', i)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /// Go sorts strings by their UTF-8 bytes, as mihomo orders `include-all`.
