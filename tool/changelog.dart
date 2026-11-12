@@ -66,8 +66,9 @@ int _release(String root, ArgResults command) {
     ),
   );
   _printWarnings(result.warnings);
-  _writeData(root, result.changelog);
-  _writeMarkdown(root, result.changelog);
+  final changelog = _keepWritten(root, result.changelog);
+  _writeData(root, changelog);
+  _writeMarkdown(root, changelog);
   stdout.writeln('Wrote $changelogMarkdownPath and $changelogDataPath');
   return 0;
 }
@@ -97,7 +98,7 @@ int _build(String root, ArgResults command) {
   }
   final result = ChangelogBuilder(git).build(pending: pending);
   _printWarnings(result.warnings);
-  _writeData(root, result.changelog);
+  _writeData(root, _keepWritten(root, result.changelog));
   stdout.writeln('Wrote $changelogDataPath');
   return 0;
 }
@@ -247,6 +248,12 @@ Set<String> _fingerprint(ChangelogVersion version) => <String>{
   for (final group in version.groups)
     for (final entry in group.entries) '${group.type.id}:${entry.id}',
 };
+
+Changelog _keepWritten(String root, Changelog built) {
+  final file = resolve(root, changelogDataPath);
+  if (!file.existsSync()) return built;
+  return keepWrittenEntries(built, decodeChangelog(file.readAsStringSync()));
+}
 
 void _writeData(String root, Changelog changelog) {
   final file = resolve(root, changelogDataPath);

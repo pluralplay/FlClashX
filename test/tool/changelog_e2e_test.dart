@@ -226,4 +226,62 @@ void main() {
 
     expect(warnings.single, contains('not a conventional commit'));
   });
+
+  test('a fork release numbered below its upstream counts by history', () {
+    commit('feat(f): fork feature');
+    git(['tag', 'v0.5.0']);
+
+    final versions = ChangelogBuilder(
+      Git(workingDirectory: repo.path),
+      boundary: 'v1.1.0',
+    ).build().changelog.versions;
+
+    expect(versions.map((version) => version.tag), ['v0.5.0']);
+    expect(versions.single.groups.single.entries.single.text, 'Fork feature');
+  });
+
+  test('a rebuild keeps the entries written for a version and adds what git '
+      'derived since', () {
+    commit('fix(e): derived fix');
+    final built = build(
+      pending: const PendingVersion(version: '1.2.0', date: '2026-02-03'),
+    ).changelog;
+    const written = Changelog(
+      versions: [
+        ChangelogVersion(
+          version: '1.2.0',
+          tag: 'v1.2.0',
+          date: '2026-01-01',
+          groups: [
+            ChangelogGroup(
+              type: ChangelogType.feat,
+              entries: [ChangelogEntry(id: 'abc1234', text: 'Written by hand')],
+            ),
+          ],
+        ),
+        ChangelogVersion(
+          version: '0.1.0',
+          tag: 'v0.1.0',
+          date: '2025-01-01',
+          groups: [],
+        ),
+      ],
+    );
+
+    final kept = keepWrittenEntries(built, written);
+
+    expect(kept.versions.map((version) => version.tag), ['v1.2.0', 'v1.1.0']);
+    final pending = kept.versions.first;
+    expect(pending.date, '2026-02-03');
+    expect(
+      {
+        for (final group in pending.groups)
+          group.type: [for (final entry in group.entries) entry.text],
+      },
+      {
+        ChangelogType.feat: ['Written by hand'],
+        ChangelogType.fix: ['Derived fix'],
+      },
+    );
+  });
 }

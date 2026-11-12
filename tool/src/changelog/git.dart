@@ -89,8 +89,16 @@ class Git {
 
   final String? workingDirectory;
 
-  List<VersionTag> versionTags({String revision = 'HEAD'}) {
-    final output = _run(['tag', '--merged', revision]);
+  List<VersionTag> versionTags({
+    String revision = 'HEAD',
+    String? notMergedInto,
+  }) {
+    final output = _run([
+      'tag',
+      '--merged',
+      revision,
+      if (notMergedInto != null) ...['--no-merged', notMergedInto],
+    ]);
     final tags = output
         .split('\n')
         .map(VersionTag.tryParse)
@@ -100,8 +108,12 @@ class Git {
     return tags;
   }
 
-  List<VersionTag> stableTags({String revision = 'HEAD'}) => versionTags(
+  List<VersionTag> stableTags({
+    String revision = 'HEAD',
+    String? notMergedInto,
+  }) => versionTags(
     revision: revision,
+    notMergedInto: notMergedInto,
   ).where((tag) => !tag.isPrerelease).toList();
 
   bool tagExists(String name) =>
