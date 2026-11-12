@@ -270,6 +270,43 @@ void main() {
       expect(imports, 1);
     });
 
+    test('a recovery cut short finishes on a later launch', () async {
+      final store = _FakeMigrationStore(
+        configMap: _createConfigMap()..['currentProfileId'] = null,
+        version: Migration.currentVersion,
+        configSaveResult: false,
+      );
+      Migration migration() => Migration(
+        store: store,
+        importLegacy: () async => (
+          config: <String, Object?>{'proxiesStyle': <String, Object?>{}},
+          clashConfig: null,
+        ),
+        migrateV0: (_) async => MigrationData(
+          configMap: _createConfigMap()..['currentProfileId'] = 42,
+          profiles: [Profile.normal(label: 'p').copyWith(id: 42)],
+        ),
+      );
+
+      await migration().run();
+      expect(store.events, isNot(contains('restore')));
+      expect(store.legacyImported, isFalse);
+
+      store
+        ..configSaveResult = true
+        ..restoreError = StateError('exited');
+      await expectLater(migration().run(), throwsStateError);
+      expect(store.savedConfig?.currentProfileId, 42);
+      expect(store.profiles, isFalse);
+      expect(store.legacyImported, isFalse);
+
+      store.restoreError = null;
+      await migration().run();
+      expect(store.restoredData?.profiles.single.id, 42);
+      expect(store.savedConfig?.currentProfileId, 42);
+      expect(store.legacyImported, isTrue);
+    });
+
     test('marks a store without 0.4 data so it never looks again', () async {
       final store = _FakeMigrationStore(
         configMap: _createConfigMap(),
@@ -508,9 +545,10 @@ Map<String, Object?> _createClashConfigMap({required int mixedPort}) {
 class _FakeMigrationStore implements MigrationStore {
   final Map<String, Object?>? configMap;
   final Map<String, Object?>? clashConfigMap;
-  final bool configSaveResult;
+  bool configSaveResult;
   final bool available;
   final List<String> events = [];
+  Error? restoreError;
 
   int version;
   int upgradeVersion;
@@ -560,7 +598,11 @@ class _FakeMigrationStore implements MigrationStore {
   @override
   Future<void> restore(MigrationData data) async {
     events.add('restore');
+    if (restoreError case final error?) {
+      throw error;
+    }
     restoredData = data;
+    profiles = profiles || data.profiles.isNotEmpty;
   }
 
   @override

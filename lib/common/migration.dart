@@ -162,16 +162,18 @@ class Migration {
       return config;
     }
     final data = await _migrateV0(Map.of(legacy.config));
-    await _store.restore(data);
     final current = data.configMap?['currentProfileId'];
     final recovered = config.copyWith(
       currentProfileId: current is int
           ? current
           : data.profiles.firstOrNull?.id,
     );
+    // Rows go in last: until they do, the store still has no profiles and the
+    // next launch redoes the whole step.
     if (!await _store.saveConfig(recovered)) {
       return config;
     }
+    await _store.restore(data);
     await _store.setLegacyImported();
     return recovered;
   }
