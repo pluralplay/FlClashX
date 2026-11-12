@@ -342,7 +342,7 @@ void main() {
       expect(calls, 2);
     });
 
-    testWidgets('is masked everywhere once hidden', (tester) async {
+    testWidgets('leaves every view once hidden', (tester) async {
       _useTallView(tester);
       await tester.pumpWidget(_app((_, _) async => _residential));
       await tester.pump();
@@ -359,7 +359,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(_ip), findsNothing);
-      expect(find.text('*****'), findsNWidgets(2));
+      expect(find.text('*****'), findsNothing);
       final container = ProviderScope.containerOf(
         tester.element(find.byType(CurrentOutboundCard)),
       );

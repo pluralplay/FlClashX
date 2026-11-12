@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/service_probe.dart' show routedOutbound;
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/features.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/ip_quality.dart';
 import 'package:fl_clash/providers/outbound_ip.dart';
@@ -384,7 +386,9 @@ void main() {
     expect(find.text(currentAppLocalizations.outboundIp), findsOneWidget);
   });
 
-  testWidgets('a hidden IP is masked on the server card too', (tester) async {
+  testWidgets('a hidden IP leaves the server card to a title that swaps', (
+    tester,
+  ) async {
     setUp_(
       profiles: [
         _profile(headers: const {'flclashx-serverinfo': 'Auto'}),
@@ -401,10 +405,15 @@ void main() {
     await pump(tester);
 
     expect(find.text(_ip), findsNothing);
-    expect(find.text(ipMask), findsOneWidget);
+    expect(find.text('*****'), findsNothing);
+    expect(find.byGlyph(AppGlyphs.swap), findsNothing);
+    await tester.tap(find.text('Amsterdam'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProxiesView), findsOneWidget);
   });
 
-  testWidgets('the hideip special masks the IP and locks its switch', (
+  testWidgets('the hideip special hides the IP and locks its switch', (
     tester,
   ) async {
     setUp_(
@@ -426,7 +435,9 @@ void main() {
     await pump(tester);
 
     expect(find.text(_ip), findsNothing);
-    await tester.tap(find.text(ipMask));
+    unawaited(
+      showIpQualitySheet(tester.element(find.text('Amsterdam')), ip: _ip),
+    );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Hide IP'),
