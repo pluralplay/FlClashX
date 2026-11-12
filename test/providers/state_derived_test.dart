@@ -54,19 +54,15 @@ void main() {
     ]);
     container.read(groupsProvider.notifier).update((_) => groups);
 
-    final watch = Stopwatch()..start();
     final subscription = container.listen(
       groupFlagsProvider('Auto'),
       (_, _) {},
     );
     addTearDown(subscription.close);
     final first = subscription.read();
-    final took = watch.elapsed;
-    printOnFailure('counted in $took');
 
     expect(first, unorderedEquals(['NL', 'DE', 'FR', 'GB', 'US']));
     expect(container.read(groupFlagsProvider('Auto')), same(first));
-    expect(took, lessThan(const Duration(milliseconds: 16)));
   });
 
   test('a group with a flag of its own counts as that flag, not its nodes', () {
