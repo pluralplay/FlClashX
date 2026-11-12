@@ -1,105 +1,208 @@
+// ignore_for_file: constant_identifier_names
+
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:collection/collection.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:material_ui/material_ui.dart';
 
-const appName = "FlClashX";
-const appHelperService = "FlClashHelperService";
-const coreName = "clashx.meta";
+const appName = 'FlClashX';
+const appHelperService = 'FlClashXHelperService';
+const coreManifestName = 'manifest.json';
 const browserUa =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const packageName = "com.follow.clashx";
-final unixSocketPath = "/tmp/FlClashXSocket_${pid}_${Random.secure().nextInt(1 << 30)}.sock";
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const packageName = 'com.follow.clashx';
+final unixSocketPath = '/tmp/FlClashSocket_${Random().nextInt(10000)}.sock';
+final windowsPipeName = '\\\\.\\pipe\\FlClashCore_${_randomPipeId()}';
 const helperPort = 47890;
+const helperPortKey =
+    'SYSTEM\\CurrentControlSet\\Services\\$appHelperService\\Runtime';
+const helperPortValue = 'Port';
+const helperSocketPath = '/run/flclashx/helper.sock';
+const helperProtocolVersionHeader = 'x-flclashx-helper-protocol';
+final helperProtocolVersion = Platform.isWindows ? '8' : '6';
 const maxTextScale = 1.4;
 const minTextScale = 0.8;
-final baseInfoEdgeInsets = EdgeInsets.symmetric(
-  vertical: 16.ap,
-  horizontal: 16.ap,
-);
 
-final defaultTextScaleFactor =
-    WidgetsBinding.instance.platformDispatcher.textScaleFactor;
-const httpTimeoutDuration = Duration(milliseconds: 5000);
-const moreDuration = Duration(milliseconds: 100);
-const animateDuration = Duration(milliseconds: 100);
-const midDuration = Duration(milliseconds: 200);
-const commonDuration = Duration(milliseconds: 300);
+const watchExecution = false;
+
+const safeModeBuild = bool.fromEnvironment('SAFE_MODE');
+
+/// CI release tag with its `-pre.N`; empty locally, where pubspec stands in.
+const appVersionDefine = String.fromEnvironment('APP_VERSION');
+
+/// The mihomo release the core was linked with, for when it cannot be asked.
+const coreVersionDefine = String.fromEnvironment('CORE_VERSION');
+
+const disclaimerVersion = 2;
+
+String _randomPipeId() {
+  final random = Random.secure();
+  return List.generate(
+    16,
+    (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
+}
+
+/// Depends on [context]'s text scaler, so the caller rebuilds when the system
+/// font scale changes.
+double systemTextScaleOf(BuildContext context) {
+  MediaQuery.textScalerOf(context);
+  return WidgetsBinding.instance.platformDispatcher.textScaleFactor;
+}
+
+/// How long, in milliseconds, the Core may spend on one manual delay test. It
+/// spends this twice in the worst case - once queueing for a slot, once on the
+/// probe itself - so the guard below has to outlast twice the longest option.
+const delayTestTimeoutOptions = [500, 1000, 2000, 5000, 8000];
+
+const defaultDelayTestTimeout = 8000;
+
+const delayTestGuardDuration = Duration(seconds: 30);
+
+const delayTimedOutValue = -1;
+
+const probeTimeoutDuration = Duration(seconds: 10);
+
+/// Outlasts the Core's one-second pick poll (`routePollInterval` in
+/// core/route.go), so groups re-picking on neighbouring polls cost one route
+/// check.
+const probeSettleDuration = Duration(milliseconds: 1500);
+
+/// Spans a config load, whose providers, rule sets and url-test picks land
+/// over a few seconds, so an exit moving with each costs one probe more.
+const probeThrottleDuration = Duration(seconds: 5);
+
+/// Covers a start, which moves the route three times within about 150 ms
+/// (`proxied`, then the listeners, then the Android TUN).
+const probeMoveSettleDuration = Duration(milliseconds: 300);
+
+const downloadTimeoutDuration = Duration(seconds: 20);
+
+/// Far past any subscription; a larger body is refused before it fills memory.
+const maxDownloadBytes = 64 << 20;
+
+/// A healthy source answers within a second; past this the outbound is down.
+const outboundIpTimeoutDuration = Duration(seconds: 6);
+
+/// The Core may spend a method's own timeout twice, once queueing for a probe
+/// slot and once on the request, before the transport is considered
+/// unresponsive. [budgetFactor] covers methods that spend it more than once.
+Duration coreGuardFor(int timeout, {int budgetFactor = 2}) =>
+    Duration(milliseconds: timeout * budgetFactor) + const Duration(seconds: 5);
+
+/// Kept in step with serviceSweepBudgetFactor in core/service_check.go.
+const serviceSweepBudgetFactor = 6;
+
+const coreConnectionWaitDuration = Duration(seconds: 10);
+
+/// Keep at or below the Core's delay-test concurrency (`delayTestConcurrency`
+/// in core/delay.go).
+const maxConcurrentDelayTests = 32;
+const maxConcurrentImports = 4;
+const maxConcurrentIconLoads = 8;
+
+const renderThrottleDuration = Duration(milliseconds: 300);
 const defaultUpdateDuration = Duration(days: 1);
-const mmdbFileName = "geoip.metadb";
-const asnFileName = "ASN.mmdb";
-const geoIpFileName = "GeoIP.dat";
-const geoSiteFileName = "GeoSite.dat";
-final double kHeaderHeight = system.isDesktop
-    ? !Platform.isMacOS
-        ? 40
-        : 28
-    : 0;
-const profilesDirectoryName = "profiles";
-const localhost = "127.0.0.1";
-const clashConfigKey = "clash_config";
-const configKey = "config";
-const double dialogCommonWidth = 300;
-const repository = "pluralplay/FlClashX";
-const defaultExternalController = "127.0.0.1:9090";
+const MMDB = 'GEOIP.metadb';
+const ASN = 'ASN.mmdb';
+const GEOIP = 'GEOIP.dat';
+const GEOSITE = 'GEOSITE.dat';
+
+final double kHeaderHeight = getWindowHeaderHeight(
+  isDesktop: system.isDesktop,
+  isMacOS: system.isMacOS,
+);
+const profilesDirectoryName = 'profiles';
+const providersDirectoryName = 'providers';
+const proxiesProviderDirectoryName = 'proxies';
+const rulesProviderDirectoryName = 'rules';
+
+const localhost = '127.0.0.1';
+const clashConfigKey = 'clash_config';
+const configKey = 'config';
+const systemDnsRecordKey = 'system_dns_record';
+const systemProxyAppliedKey = 'system_proxy_applied';
+const bootRecordKey = 'boot_record';
+const appliedConfigMd5Key = 'applied_config_md5';
+const defaultSystemDnsFallback = '1.1.1.1';
+const repository = 'pluralplay/FlClashX';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
-const defaultTestUrl = "https://www.gstatic.com/generate_204";
-final commonFilter = ImageFilter.blur(
-  sigmaX: 2.5,
-  sigmaY: 2.5,
-  tileMode: TileMode.mirror,
-);
+const defaultTestUrl = 'https://www.gstatic.com/generate_204';
+const defaultExternalUi = 'ui';
+const defaultExternalUiUrl =
+    'https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip';
 
-const navigationItemListEquality = ListEquality<NavigationItem>();
-const connectionListEquality = ListEquality<Connection>();
-const stringListEquality = ListEquality<String>();
-const intListEquality = ListEquality<int>();
-const logListEquality = ListEquality<Log>();
-const groupListEquality = ListEquality<Group>();
-const externalProviderListEquality = ListEquality<ExternalProvider>();
-const packageListEquality = ListEquality<Package>();
-const hotKeyActionListEquality = ListEquality<HotKeyAction>();
-const stringAndStringMapEquality = MapEquality<String, String>();
-const stringAndStringMapEntryIterableEquality =
-    IterableEquality<MapEntry<String, String>>();
-const delayMapEquality = MapEquality<String, Map<String, int?>>();
-const stringSetEquality = SetEquality<String>();
-const keyboardModifierListEquality = SetEquality<KeyboardModifier>();
-
-const viewModeColumnsMap = {
-  ViewMode.mobile: [2, 1],
-  ViewMode.laptop: [3, 2],
-  ViewMode.desktop: [4, 3],
+const shareLinkSchemes = {
+  'hysteria',
+  'hysteria2',
+  'hy2',
+  'hysteria2+realm',
+  'hy2+realm',
+  'tuic',
+  'trojan',
+  'vless',
+  'vmess',
+  'ss',
+  'ssr',
+  'socks',
+  'socks5',
+  'socks5h',
+  'anytls',
+  'mierus',
 };
 
-// const proxiesStoreKey = PageStorageKey<String>('proxies');
-// const toolsStoreKey = PageStorageKey<String>('tools');
-// const profilesStoreKey = PageStorageKey<String>('profiles');
+const stringListEquality = ListEquality<String>();
+const intListEquality = ListEquality<int>();
+const ruleListEquality = ListEquality<Rule>();
+const scriptListEquality = ListEquality<Script>();
+const profileListEquality = ListEquality<Profile>();
+const proxyGroupsEquality = ListEquality<ProxyGroup>();
+const customProxiesEquality = ListEquality<CustomProxy>();
+const clashProviderListEquality = ListEquality<ClashProvider>();
+const iconSetListEquality = ListEquality<IconSet>();
+const hotKeyActionListEquality = ListEquality<HotKeyAction>();
+const stringAndStringMapEntryListEquality =
+    ListEquality<MapEntry<String, String>>();
+const keyboardModifierListEquality = SetEquality<KeyboardModifier>();
+
+const proxiesListStoreKey = PageStorageKey<String>('proxies_list');
+const toolsStoreKey = PageStorageKey<String>('tools');
+const profilesStoreKey = PageStorageKey<String>('profiles');
 
 const defaultPrimaryColor = 0xFF03A9F4;
 
-double getWidgetHeight(num lines) => max(lines * 84 + (lines - 1) * 16, 0).ap;
+const maxLogsLength = 5000;
+const maxRequestsLength = 2000;
+const maxDnsQueriesLength = 3000;
+const pausedMaxLogsLength = maxLogsLength * 2;
+const pausedMaxRequestsLength = maxRequestsLength * 2;
+const pausedMaxDnsQueriesLength = maxDnsQueriesLength * 2;
 
-const maxLength = 150;
+const trafficSampleLength = 30;
 
-
+// iOS 27's system colors but the deeper blue of earlier iOS, in the order of the
+// macOS accent colors.
 const defaultPrimaryColors = [
-  0xFF795548,
   defaultPrimaryColor,
-  0xFFFFFF00,
-  0XFFBBC9CC,
-  0XFFABD397,
-  0XFFD8C0C3,
-  0XFF665390,
+  0xFF007AFF,
+  0xFFCB30E0,
+  0xFFFF2D55,
+  0xFFFF383C,
+  0xFFFF8D28,
+  0xFFFFCC00,
+  0xFF34C759,
+  0xFF8E8E93,
 ];
 
-const scriptTemplate = """
+const scriptTemplate = '''
 const main = (config) => {
   return config;
-}""";
+}''';
+
+const backupDatabaseName = 'database.sqlite';
+const configJsonName = 'config.json';

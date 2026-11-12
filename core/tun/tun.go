@@ -1,68 +1,106 @@
-//go:build android && cgo
+//go:build android
 
 package tun
 
-import "C"
 import (
-	"core/state"
-	"fmt"
+	"encoding/json"
+	"net"
+	"net/netip"
+	"strings"
+	"syscall"
+
+	"github.com/metacubex/mihomo/constant"
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/sing_tun"
 	"github.com/metacubex/mihomo/log"
-	"github.com/metacubex/mihomo/tunnel"
-	"net"
-	"net/netip"
 )
 
-type Props struct {
-	Fd       int    `json:"fd"`
-	Gateway  string `json:"gateway"`
-	Gateway6 string `json:"gateway6"`
-	Portal   string `json:"portal"`
-	Portal6  string `json:"portal6"`
-	Dns      string `json:"dns"`
-	Dns6     string `json:"dns6"`
+type startOptions struct {
+	MTU                  uint32 `json:"mtu"`
+	CongestionController string `json:"congestion-controller"`
 }
 
-func Start(fd int, cfg LC.Tun) (listener *sing_tun.Listener, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorln("startTUN panic recovered: %v", r)
-			listener = nil
-			err = fmt.Errorf("tun init panic: %v", r)
-		}
-	}()
-	var prefix4 []netip.Prefix
-	tempPrefix4, err := netip.ParsePrefix(state.DefaultIpv4Address)
-	if err != nil {
-		log.Errorln("startTUN error:", err)
-		return nil, err
+// Start takes ownership of fd. dupFd is handed to sing_tun.New, which only
+// takes ownership of it once tunNew succeeds inside New; from that point
+// Listener.Close (run by New's own deferred cleanup on error) closes dupFd,
+// so this must never close dupFd itself. New's error alone can't say
+// whether tunNew was reached; the options built below never enable the
+// tun features whose validation runs before tunNew, so New cannot fail
+// before taking ownership of dupFd.
+func Start(fd int, stack, address, dns, rawOptions string, handler constant.Tunnel) *sing_tun.Listener {
+	var settings startOptions
+	if err := json.Unmarshal([]byte(rawOptions), &settings); err != nil {
+		log.Errorln("TUN: %v", err)
+		_ = syscall.Close(fd)
+		return nil
 	}
-	prefix4 = append(prefix4, tempPrefix4)
+	var prefix4 []netip.Prefix
+	var prefix6 []netip.Prefix
+	tunStack, ok := constant.StackTypeMapping[strings.ToLower(stack)]
+	if !ok {
+		tunStack = constant.TunMips
+	}
+	for _, a := range strings.Split(address, ",") {
+		a = strings.TrimSpace(a)
+		if len(a) == 0 {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(a)
+		if err != nil {
+			log.Errorln("TUN: %v", err)
+			_ = syscall.Close(fd)
+			return nil
+		}
+		if prefix.Addr().Is4() {
+			prefix4 = append(prefix4, prefix)
+		} else {
+			prefix6 = append(prefix6, prefix)
+		}
+	}
 
 	var dnsHijack []string
-	if len(cfg.DNSHijack) > 0 {
-		dnsHijack = cfg.DNSHijack
-	} else {
-		dnsHijack = append(dnsHijack, net.JoinHostPort(state.GetDnsServerAddress(), "53"))
+	for _, d := range strings.Split(dns, ",") {
+		d = strings.TrimSpace(d)
+		if len(d) == 0 {
+			continue
+		}
+		hijack := net.JoinHostPort(d, "53")
+		if _, err := netip.ParseAddrPort(hijack); err != nil {
+			log.Errorln("TUN: %v", err)
+			_ = syscall.Close(fd)
+			return nil
+		}
+		dnsHijack = append(dnsHijack, hijack)
 	}
+
+	dupFd, err := syscall.Dup(fd)
+	if err != nil {
+		log.Errorln("TUN: %v", err)
+		_ = syscall.Close(fd)
+		return nil
+	}
+	defer func() { _ = syscall.Close(fd) }()
 
 	options := LC.Tun{
-		Enable:                 true,
-		FileDescriptor:         fd,
-		Stack:                  cfg.Stack,
-		DNSHijack:              dnsHijack,
-		Inet4Address:           prefix4,
-		EndpointIndependentNat: cfg.EndpointIndependentNat,
-		UDPTimeout:             cfg.UDPTimeout,
-		DisableICMPForwarding:  cfg.DisableICMPForwarding,
+		Enable:               true,
+		Device:               "FlClashX",
+		Stack:                tunStack,
+		DNSHijack:            dnsHijack,
+		AutoRoute:            false,
+		AutoDetectInterface:  false,
+		Inet4Address:         prefix4,
+		Inet6Address:         prefix6,
+		MTU:                  settings.MTU,
+		CongestionController: settings.CongestionController,
+		FileDescriptor:       dupFd,
 	}
 
-	listener, err = sing_tun.New(options, tunnel.Tunnel)
+	listener, err := sing_tun.New(options, handler)
+
 	if err != nil {
-		log.Errorln("startTUN error:", err)
-		return nil, err
+		log.Errorln("TUN: %v", err)
+		return nil
 	}
 
-	return listener, nil
+	return listener
 }

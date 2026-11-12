@@ -1,49 +1,101 @@
 import 'dart:io';
 
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/state.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/state.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class FlClashHttpOverrides extends HttpOverrides {
-  static String handleFindProxy(Uri url) {
+  final ProviderContainer _container;
+
+  FlClashHttpOverrides(this._container);
+
+  static const _coreRootsAsset = 'assets/ca/ca-certificates.crt';
+
+  /// The curated root bundle release CI fetches; empty in a local build,
+  /// where the system roots stand alone. mihomo ships an empty bundle of
+  /// its own and falls back to the system roots the same way.
+  static Future<void> trustCoreRoots() async {
+    try {
+      final data = await rootBundle.load(_coreRootsAsset);
+      if (data.lengthInBytes == 0) return;
+      SecurityContext.defaultContext.setTrustedCertificatesBytes(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
+    } catch (e) {
+      commonPrint.log(
+        'trustCoreRoots error ${compactError(e)}',
+        logLevel: LogLevel.warning,
+      );
+    }
+  }
+
+  static String findProxyFor(ProviderContainer container, Uri url) {
+    return findProxyForReader(container.read, url);
+  }
+
+  static String findProxyForReader(ProviderReader read, Uri url) {
     if ([localhost].contains(url.host)) {
-      return "DIRECT";
+      return 'DIRECT';
     }
-    final isStart = globalState.appState.runTime != null;
-    commonPrint.log("find $url proxy:$isStart");
-    if (!isStart) return "DIRECT";
-    // When TUN is handling traffic, let the OS network stack send the request
-    // so it gets captured by TUN and processed by the core via rules. This
-    // avoids depending on the mixed-port inbound at all, which removes issues
-    // with inbound `authentication` rejecting the app's own HTTP traffic and
-    // also works when the user sets mixed-port to 0 (disabled).
-    // Loop prevention: clash-core outbound sockets are protected/bound outside
-    // TUN (on Android via TunInterface.protect, on desktop via binding the
-    // physical interface).
-    //
-    // On Android the service is always a VpnService (TUN), so when it's
-    // running the traffic is already captured. `realTunEnable` is a desktop-
-    // only flag (it tracks admin authorization for TUN on Win/macOS/Linux)
-    // and stays false on Android even though TUN is effectively on.
-    final tunHandlesTraffic =
-        Platform.isAndroid || globalState.appState.realTunEnable;
-    if (tunHandlesTraffic) {
-      return "DIRECT";
-    }
-    final port = globalState.config.patchClashConfig.mixedPort;
-    if (port == 0) {
-      // Mixed-port is disabled and TUN isn't handling traffic — we have no
-      // inbound to route through. Go DIRECT; at worst the request leaks, but
-      // that's strictly better than trying PROXY localhost:0 which hangs.
-      return "DIRECT";
-    }
-    return "PROXY localhost:$port";
+    final isStart = read(isStartProvider);
+    final suspend = read(suspendProvider);
+    if (!isStart || suspend) return 'DIRECT';
+    if (read(androidSecureProvider)) return 'DIRECT';
+    final localPort = read(
+      patchClashConfigProvider.select(
+        (state) => state.mixedPort != 0 ? state.mixedPort : state.port,
+      ),
+    );
+    if (localPort == 0) return 'DIRECT';
+    final authentication = read(
+      networkSettingProvider.select((state) => state.authentication),
+    );
+    final credentials = authentication.credentials;
+    final userInfo = credentials.isNotEmpty ? '${credentials.first}@' : '';
+    return 'PROXY ${userInfo}localhost:$localPort';
+  }
+
+  static bool allowBadCertificate(
+    ProviderContainer container,
+    X509Certificate certificate,
+    String host,
+    int port,
+  ) {
+    return allowBadCertificateForReader(
+      container.read,
+      certificate,
+      host,
+      port,
+    );
+  }
+
+  static bool allowBadCertificateForReader(
+    ProviderReader read,
+    X509Certificate certificate,
+    String host,
+    int port,
+  ) {
+    final checkCertificate = read(
+      appSettingProvider.select((state) => state.checkCertificate),
+    );
+    commonPrint.log(
+      'untrusted certificate for $host:$port issued by ${certificate.issuer}, '
+      'check: $checkCertificate',
+      logLevel: LogLevel.warning,
+    );
+    return !checkCertificate;
   }
 
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
-    client.badCertificateCallback = (_, __, ___) => true;
-    client.findProxy = handleFindProxy;
+    client.badCertificateCallback = (certificate, host, port) =>
+        allowBadCertificate(_container, certificate, host, port);
+    client.findProxy = (url) => findProxyFor(_container, url);
     return client;
   }
 }

@@ -1,5 +1,5 @@
-extension IterableExt<T> on Iterable<T> {
-  Iterable<T> separated(T separator) sync* {
+extension IterableExt<E> on Iterable<E> {
+  Iterable<E> separated(E separator) sync* {
     final iterator = this.iterator;
     if (!iterator.moveNext()) return;
 
@@ -11,7 +11,7 @@ extension IterableExt<T> on Iterable<T> {
     }
   }
 
-  Iterable<List<T>> chunks(int size) sync* {
+  Iterable<List<E>> chunks(int size) sync* {
     if (length == 0) return;
     final iterator = this.iterator;
     while (iterator.moveNext()) {
@@ -23,11 +23,8 @@ extension IterableExt<T> on Iterable<T> {
     }
   }
 
-  Iterable<T> fill(
-    int length, {
-    required T Function(int count) filler,
-  }) sync* {
-    var count = 0;
+  Iterable<E> fill(int length, {required E Function(int count) filler}) sync* {
+    int count = 0;
     for (final item in this) {
       yield item;
       count++;
@@ -38,74 +35,71 @@ extension IterableExt<T> on Iterable<T> {
       count++;
     }
   }
-
-  Iterable<T> takeLast({int count = 50}) {
-    if (count <= 0) return Iterable.empty();
-    return count >= length ? this : toList().skip(length - count);
-  }
 }
 
 extension ListExt<T> on List<T> {
   void truncate(int maxLength) {
-    assert(maxLength > 0);
+    if (maxLength == 0) {
+      return;
+    }
     if (length > maxLength) {
       removeRange(0, length - maxLength);
     }
   }
 
-  List<T> intersection(List<T> list) => where((item) => list.contains(item)).toList();
-
-  List<List<T>> batch(int maxConcurrent) {
-    final batches = (length / maxConcurrent).ceil();
-    final res = <List<T>>[];
-    for (var i = 0; i < batches; i++) {
-      if (i != batches - 1) {
-        res.add(sublist(i * maxConcurrent, maxConcurrent * (i + 1)));
-      } else {
-        res.add(sublist(i * maxConcurrent, length));
-      }
-    }
-    return res;
+  List<T> intersection(List<T> list) {
+    final lookup = list.toSet();
+    return where(lookup.contains).toList();
   }
 
-  List<T> safeSublist(int start) {
-    if (start <= 0) return this;
-    if (start > length) return [];
-    return sublist(start);
+  List<T> copyAndPut(T data, bool Function(T element) test) {
+    final newList = List<T>.from(this);
+    final index = newList.indexWhere(test);
+    if (index != -1) {
+      newList[index] = data;
+    } else {
+      newList.insert(0, data);
+    }
+    return newList;
+  }
+
+  List<T> copyAndReorder(int oldIndex, int newIndex) {
+    final newList = List<T>.from(this);
+    final item = newList.removeAt(oldIndex);
+    newList.insert(newIndex, item);
+    return newList;
+  }
+
+  T? safeGet(int index, {T? defaultValue}) {
+    if (index < 0 || index >= length) {
+      return defaultValue;
+    }
+    return this[index];
+  }
+
+  T safeLast(T defaultValue) {
+    if (isNotEmpty) {
+      return last;
+    }
+    return defaultValue;
   }
 }
 
-extension DoubleListExt on List<double> {
-  int findInterval(num target) {
-    if (isEmpty) return -1;
-    if (target < first) return -1;
-    if (target >= last) return length - 1;
-
-    var left = 0;
-    var right = length - 1;
-
-    while (left <= right) {
-      final mid = left + (right - left) ~/ 2;
-
-      if (mid == length - 1 ||
-          (this[mid] <= target && target < this[mid + 1])) {
-        return mid;
-      } else if (target < this[mid]) {
-        right = mid - 1;
-      } else {
-        left = mid + 1;
-      }
+extension SetExt<T> on Set<T> {
+  void addOrRemove(T value) {
+    if (contains(value)) {
+      remove(value);
+    } else {
+      add(value);
     }
-
-    return -1;
   }
 }
 
 extension MapExt<K, V> on Map<K, V> {
-  V? updateCacheValue(K key, V Function() callback) {
+  V updateCacheValue(K key, V Function() callback) {
     if (this[key] == null) {
       this[key] = callback();
     }
-    return this[key];
+    return this[key]!;
   }
 }

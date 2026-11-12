@@ -1,0 +1,51 @@
+import 'package:flutter/services.dart';
+
+/// The platform permission state required to read the current Wi-Fi SSID.
+enum WifiSsidPermission { granted, denied, permanentlyDenied }
+
+class WifiSsidManager {
+  WifiSsidManager._();
+
+  static final WifiSsidManager instance = WifiSsidManager._();
+
+  static const _channel = MethodChannel('wifi_ssid');
+  static const _changes = EventChannel('wifi_ssid/changes');
+  static const _getSsidMethod = 'getSsid';
+  static const _checkPermissionMethod = 'checkPermission';
+  static const _requestPermissionMethod = 'requestPermission';
+
+  /// Returns the current WiFi SSID, or null if not connected to WiFi.
+  Future<String?> getSsid() {
+    return _channel.invokeMethod<String>(_getSsidMethod);
+  }
+
+  /// Android only: the SSID each time the Wi-Fi network changes, including a
+  /// hand-over from one Wi-Fi to another, which keeps the transport the same.
+  Stream<String?> get ssidChanges =>
+      _changes.receiveBroadcastStream().map((ssid) => ssid as String?);
+
+  Future<WifiSsidPermission> checkPermission() async {
+    final result = await _channel.invokeMethod<int>(_checkPermissionMethod);
+    return _decodePermission(result);
+  }
+
+  Future<WifiSsidPermission> requestPermission() async {
+    final result = await _channel.invokeMethod<int>(_requestPermissionMethod);
+    return _decodePermission(result);
+  }
+
+  WifiSsidPermission _decodePermission(int? value) {
+    return switch (value) {
+      0 => WifiSsidPermission.granted,
+      2 => WifiSsidPermission.permanentlyDenied,
+      null || 1 => WifiSsidPermission.denied,
+      _ => throw PlatformException(
+        code: 'INVALID_PERMISSION_STATE',
+        message: 'Native wifi_ssid returned an invalid permission state.',
+        details: value,
+      ),
+    };
+  }
+}
+
+final wifiSsidManager = WifiSsidManager.instance;

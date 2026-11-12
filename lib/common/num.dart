@@ -1,43 +1,49 @@
-import 'package:flclashx/state.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/common.dart';
+import 'package:intl/intl.dart' show NumberFormat;
+
+/// Pinned to English so every locale reads K and M, never 万 or тыс.
+final _compactFormat = NumberFormat.compact(locale: 'en');
 
 extension NumExt on num {
+  String get compact => _compactFormat.format(this);
+
   String fixed({int decimals = 2}) {
-    final formatted = toStringAsFixed(decimals);
+    String formatted = toStringAsFixed(decimals);
     if (formatted.contains('.')) {
-      return formatted.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+      formatted = formatted.replaceAll(RegExp(r'0*$'), '');
+      if (formatted.endsWith('.')) {
+        formatted = formatted.substring(0, formatted.length - 1);
+      }
     }
     return formatted;
   }
 
-  double get ap => this * (1 + (globalState.theme.textScaleFactor - 1) * 0.5);
-}
-
-extension DoubleExt on double {
-  bool moreOrEqual(double value) => this > value || (value - this).abs() < precisionErrorTolerance + 1;
-}
-
-extension OffsetExt on Offset {
-  double getCrossAxisOffset(Axis direction) => direction == Axis.vertical ? dx : dy;
-
-  double getMainAxisOffset(Axis direction) => direction == Axis.vertical ? dy : dx;
-
-  bool less(Offset offset) {
-    if (dy < offset.dy) {
-      return true;
+  TrafficShow get traffic {
+    const units = TrafficUnit.values;
+    var size = toDouble();
+    var unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
     }
-    if (dy == offset.dy && dx < offset.dx) {
-      return true;
-    }
-    return false;
+    return TrafficShow(
+      value: size.fixed(decimals: 1),
+      unit: units[unitIndex].name,
+    );
   }
-}
 
-extension RectExt on Rect {
-  bool doRectIntersect(Rect rect) =>
-      left < rect.right &&
-      right > rect.left &&
-      top < rect.bottom &&
-      bottom > rect.top;
+  TrafficShow get shortTraffic {
+    const units = TrafficUnit.values;
+    var size = toDouble();
+    var unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    return TrafficShow(
+      value: size.toStringAsFixed(0),
+      unit: ' ${units[unitIndex].name}',
+    );
+  }
 }

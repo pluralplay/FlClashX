@@ -1,48 +1,40 @@
-import 'package:flclashx/common/file_logger.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:dio/dio.dart';
+import 'package:fl_clash/common/file_logger.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/state.dart';
+import 'package:material_ui/material_ui.dart';
+
+String compactError(Object error) {
+  if (error is DioException) {
+    final statusCode = error.response?.statusCode;
+    return statusCode != null
+        ? 'DioException(${error.type.name}, HTTP $statusCode)'
+        : 'DioException(${error.type.name})';
+  }
+  return error.toString();
+}
 
 class CommonPrint {
+  static CommonPrint? _instance;
+
+  CommonPrint._internal();
 
   factory CommonPrint() {
     _instance ??= CommonPrint._internal();
     return _instance!;
   }
 
-  CommonPrint._internal();
-  static CommonPrint? _instance;
-
-  static const _levelPriority = {
-    LogLevel.debug: 0,
-    LogLevel.info: 1,
-    LogLevel.warning: 2,
-    LogLevel.error: 3,
-    LogLevel.silent: 4,
-    LogLevel.app: 0,
-  };
-
-  void log(String? text) {
-    final payload = "[FlClashX] $text";
+  void log(String? text, {LogLevel logLevel = LogLevel.info}) {
+    final payload = '[APP] $text';
     debugPrint(payload);
-
-    fileLogger.log(payload);
-
-    if (!globalState.isInit) {
+    final log = Log.app(payload).copyWith(logLevel: logLevel);
+    if (!globalState.isAttach) {
+      fileLogger.write(log);
       return;
     }
-    final configuredLevel = globalState.effectiveLogLevel.value;
-    final threshold = LogLevel.values.where(
-      (l) => l.name == configuredLevel,
-    ).firstOrNull;
-    if (threshold != null &&
-        (_levelPriority[LogLevel.app] ?? 0) < (_levelPriority[threshold] ?? 0)) {
-      return;
-    }
-    globalState.appController.addLog(
-      Log.app(payload),
-    );
+    globalState.container.read(logsProvider.notifier).add(log);
   }
 }
 

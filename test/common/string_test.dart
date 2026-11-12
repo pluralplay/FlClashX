@@ -1,0 +1,238 @@
+import 'package:fl_clash/common/string.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('StringExtension.isUrl', () {
+    test('valid http URL', () {
+      expect('http://example.com'.isUrl, isTrue);
+    });
+
+    test('valid https URL', () {
+      expect('https://example.com/path?q=1'.isUrl, isTrue);
+    });
+
+    test('valid ftp URL', () {
+      expect('ftp://files.example.com'.isUrl, isTrue);
+    });
+
+    test('invalid scheme', () {
+      expect('file:///path'.isUrl, isFalse);
+    });
+
+    test('no host', () {
+      expect('http://'.isUrl, isFalse);
+    });
+
+    test('plain text', () {
+      expect('not a url'.isUrl, isFalse);
+    });
+
+    test('accepts an e-mail user name typed with a bare @', () {
+      final uri = 'https://me@mail.com:p@ss@dav.example.com/dav/a.yaml'.webUri;
+
+      expect(uri?.host, 'dav.example.com');
+      expect(uri?.userInfo, 'me%40mail.com:p%40ss');
+      expect(uri?.path, '/dav/a.yaml');
+    });
+
+    test('leaves an @ after the authority alone', () {
+      final uri = 'https://example.com/a@b?to=c@d'.webUri;
+
+      expect(uri?.host, 'example.com');
+      expect(uri?.userInfo, isEmpty);
+      expect(uri?.path, '/a@b');
+    });
+  });
+
+  group('StringExtension.isShareLink', () {
+    test('a link whose scheme mihomo converts', () {
+      expect('vmess://eyJhZGQiOiIxLjIuMy40In0='.isShareLink, isTrue);
+      expect('Hy2://pass@example.com:443#HK'.isShareLink, isTrue);
+    });
+
+    test('a subscription url', () {
+      expect('https://example.com/sub'.isShareLink, isFalse);
+    });
+
+    test('a scheme with nothing after it', () {
+      expect('ss://'.isShareLink, isFalse);
+    });
+
+    test('several links', () {
+      expect('ss://a@b:1\nss://c@d:2'.isShareLink, isFalse);
+    });
+
+    test('an unknown scheme', () {
+      expect('wireguard://key@example.com:51820'.isShareLink, isFalse);
+    });
+  });
+
+  group('StringExtension.splitByMultipleSeparators', () {
+    test('splits on comma', () {
+      final result = 'a,b,c'.splitByMultipleSeparators;
+      expect(result, ['a', 'b', 'c']);
+    });
+
+    test('splits on semicolon', () {
+      final result = 'a;b;c'.splitByMultipleSeparators;
+      expect(result, ['a', 'b', 'c']);
+    });
+
+    test('splits on space', () {
+      final result = 'a b c'.splitByMultipleSeparators;
+      expect(result, ['a', 'b', 'c']);
+    });
+
+    test('splits on mixed separators', () {
+      final result = 'a, b; c'.splitByMultipleSeparators;
+      expect(result, ['a', 'b', 'c']);
+    });
+
+    test('returns original string when single part', () {
+      final result = 'hello'.splitByMultipleSeparators;
+      expect(result, 'hello');
+    });
+
+    test('filters empty parts', () {
+      final result = 'a,,b'.splitByMultipleSeparators;
+      expect(result, ['a', 'b']);
+    });
+  });
+
+  group('StringExtension.countryFlagEmoji', () {
+    test('maps a two-letter region code to its flag', () {
+      expect('us'.countryFlagEmoji, '🇺🇸');
+    });
+
+    test('leaves anything but two ASCII letters untouched', () {
+      expect('1A'.countryFlagEmoji, '1A');
+      expect('É1'.countryFlagEmoji, 'É1');
+      expect('USA'.countryFlagEmoji, 'USA');
+    });
+  });
+
+  group('StringExtension.getBase64', () {
+    test('extracts base64 from data URI', () {
+      const data = 'data:image/png;base64,aGVsbG8=';
+      final result = data.getBase64;
+      expect(result, isNotNull);
+      expect(result!.isNotEmpty, isTrue);
+    });
+
+    test('returns null for non-base64 string', () {
+      expect('hello world'.getBase64, isNull);
+    });
+
+    test('returns null for empty match', () {
+      expect('base64,'.getBase64, isNull);
+    });
+  });
+
+  group('StringExtension.isSvg', () {
+    test('detects SVG files', () {
+      expect('icon.svg'.isSvg, isTrue);
+      expect('icon.PNG'.isSvg, isFalse);
+      expect('icon.svg.bak'.isSvg, isFalse);
+    });
+
+    test('reads the path of a url and the type of a data uri', () {
+      expect('https://example.com/icon.SVG?raw=true'.isSvg, isTrue);
+      expect('https://example.com/icon.png#.svg'.isSvg, isFalse);
+      expect('data:image/svg+xml;base64,PHN2Zy8+'.isSvg, isTrue);
+      expect('data:image/png;base64,iVBORw0KGgo='.isSvg, isFalse);
+    });
+  });
+
+  group('StringExtension.toMd5', () {
+    test('produces consistent hash', () {
+      final hash1 = 'hello'.toMd5();
+      final hash2 = 'hello'.toMd5();
+      expect(hash1, hash2);
+    });
+
+    test('different input produces different hash', () {
+      expect('hello'.toMd5(), isNot(equals('world'.toMd5())));
+    });
+
+    test('produces 32 char hex string', () {
+      final hash = 'test'.toMd5();
+      expect(hash.length, 32);
+      expect(RegExp(r'^[0-9a-f]{32}$').hasMatch(hash), isTrue);
+    });
+  });
+
+  group('StringExtension.value', () {
+    test('returns null for empty string', () {
+      expect(''.value, isNull);
+    });
+
+    test('returns self for non-empty string', () {
+      expect('hello'.value, 'hello');
+    });
+  });
+
+  group('StringNullExt.takeFirstValid', () {
+    test('returns self when non-null and non-empty', () {
+      expect('hello'.takeFirstValid(['world']), 'hello');
+    });
+
+    test('returns first valid from others when self is null', () {
+      expect(null.takeFirstValid(['world', 'foo']), 'world');
+    });
+
+    test('skips null and empty in others', () {
+      expect(null.takeFirstValid([null, '', 'valid']), 'valid');
+    });
+
+    test('returns default when all are null or empty', () {
+      expect(
+        null.takeFirstValid([null, ''], defaultValue: 'default'),
+        'default',
+      );
+    });
+
+    test('trims whitespace', () {
+      expect('  hello  '.takeFirstValid([]), 'hello');
+    });
+  });
+
+  group('StringExtension flags', () {
+    test('reads the country off a leading flag and strips it', () {
+      expect('🇳🇱 Amsterdam'.flagCountryCode, 'NL');
+      expect('🇳🇱 Amsterdam'.withoutLeadingFlag, 'Amsterdam');
+      expect('Berlin 🇩🇪'.flagCountryCode, 'DE');
+      expect('Berlin 🇩🇪'.withoutLeadingFlag, 'Berlin 🇩🇪');
+      expect('Plain'.flagCountryCode, isNull);
+      expect('Plain'.withoutLeadingFlag, 'Plain');
+    });
+  });
+
+  group('StringExtension.decodeJson', () {
+    test('decodes small json on main thread', () async {
+      final result = await '{"key": "value"}'
+          .decodeJson<Map<String, dynamic>>();
+      expect(result, {'key': 'value'});
+    });
+
+    test('decodes list json', () async {
+      final result = await '[1, 2, 3]'.decodeJson<List<dynamic>>();
+      expect(result, [1, 2, 3]);
+    });
+  });
+  group('StringExtension.fileStem', () {
+    test('drops only the last extension', () {
+      expect('my.script.js'.fileStem, 'my.script');
+      expect('script'.fileStem, 'script');
+      expect('.hidden'.fileStem, '.hidden');
+      expect(''.fileStem, '');
+    });
+  });
+
+  group('StringExtension.take', () {
+    test('cuts to the length without throwing on short strings', () {
+      expect('abcdef'.take(3), 'abc');
+      expect('ab'.take(3), 'ab');
+      expect(''.take(3), '');
+    });
+  });
+}

@@ -1,5 +1,5 @@
 # Project-level configuration.
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
@@ -53,26 +53,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # System-level dependencies.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
+pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 
-add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
-
-# Define the application target. To change its name, change BINARY_NAME above,
-# not the value here, or `flutter run` will no longer work.
-#
-# Any new source files that you add to the application should be added here.
-add_executable(${BINARY_NAME}
-  "main.cc"
-  "my_application.cc"
-  "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
-)
-
-# Apply the standard set of build settings. This can be removed for applications
-# that need different build settings.
-apply_standard_settings(${BINARY_NAME})
-
-# Add dependency libraries. Add any application-specific dependencies here.
-target_link_libraries(${BINARY_NAME} PRIVATE flutter)
-target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
+# Application build; see runner/CMakeLists.txt.
+add_subdirectory("runner")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
@@ -117,16 +101,28 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
-# libclash.so
-set(CLASH_DIR "../libclash/linux")
-install(PROGRAMS "${CLASH_DIR}/FlClashCore" DESTINATION "${BUILD_BUNDLE_DIR}"
-  COMPONENT Runtime)
-
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endforeach(bundled_library)
+
+# Produced by the setup build hook during flutter_assemble.
+set(CORE_ARTIFACTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libclash/linux")
+install(PROGRAMS
+  "${CORE_ARTIFACTS_DIR}/FlClashCore"
+  "${CORE_ARTIFACTS_DIR}/FlClashXHelperService"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(FILES "${CORE_ARTIFACTS_DIR}/manifest.json"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+
+# Copy the native assets provided by the build.dart from all packages.
+set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")
+install(DIRECTORY "${NATIVE_ASSETS_DIR}"
+   DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+   COMPONENT Runtime)
 
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.

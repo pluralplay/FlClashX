@@ -1,57 +1,323 @@
 import 'dart:math';
-import 'package:flclashx/common/constant.dart';
-import 'package:flclashx/common/measure.dart';
-import 'package:flclashx/common/theme.dart';
-import 'package:flclashx/providers/config.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/material.dart';
+
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/action.dart';
+import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/ui.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ThemeManager extends ConsumerWidget {
+import '../providers/state.dart';
 
-  const ThemeManager({
-    super.key,
-    required this.child,
-  });
+const _pageTransitionsTheme = PageTransitionsTheme(
+  builders: <TargetPlatform, PageTransitionsBuilder>{
+    TargetPlatform.android: commonSharedXPageTransitions,
+    TargetPlatform.windows: commonSharedXPageTransitions,
+    TargetPlatform.linux: commonSharedXPageTransitions,
+    TargetPlatform.macOS: commonSharedXPageTransitions,
+  },
+);
+
+const _actionIconTheme = ActionIconThemeData(
+  backButtonIconBuilder: _backButtonIcon,
+  closeButtonIconBuilder: _closeButtonIcon,
+);
+
+Widget _backButtonIcon(BuildContext context) =>
+    GlyphIcon(AppGlyphs.backFor(Theme.of(context).platform));
+
+Widget _closeButtonIcon(BuildContext context) =>
+    const GlyphIcon(AppGlyphs.close);
+
+/// A rebuilt ThemeData never equals the last, and ThemeCrossFade fades on that.
+final _appThemes = <Brightness, ({Object inputs, ThemeData theme})>{};
+
+ThemeData watchAppTheme(WidgetRef ref, Brightness brightness) {
+  final locale = ref.watch(appSettingProvider.select((state) => state.locale));
+  final fontFamily = ref.watch(
+    themeSettingProvider.select((state) => state.fontFamily),
+  );
+  final colorScheme = ref.watch(genColorSchemeProvider(brightness));
+  final locales = [
+    ?getLocaleForString(locale),
+    ...WidgetsBinding.instance.platformDispatcher.locales,
+  ];
+  final inputs = (
+    platform: defaultTargetPlatform,
+    fontFamily: fontFamily,
+    colorScheme: colorScheme,
+    locales: locales.join(','),
+  );
+  if (_appThemes[brightness] case (
+    inputs: final cached,
+    :final theme,
+  ) when cached == inputs) {
+    return theme;
+  }
+  final theme = ThemeData(
+    useMaterial3: true,
+    pageTransitionsTheme: _pageTransitionsTheme,
+    actionIconTheme: _actionIconTheme,
+    colorScheme: colorScheme,
+    fontFamily: fontFamily,
+    fontFamilyFallback: appFontFamilyFallback(
+      platform: defaultTargetPlatform,
+      locales: locales,
+      fontFamily: fontFamily,
+    ),
+    extensions: [
+      if (brightness == Brightness.dark)
+        ElevatedColorScheme(colorScheme.elevated),
+    ],
+  ).withAppShapes.withAppSurfaces.withAppTypography.withPointerCursor;
+  _appThemes[brightness] = (inputs: inputs, theme: theme);
+  return theme;
+}
+
+class ThemeManager extends ConsumerWidget {
   final Widget child;
 
+  const ThemeManager({super.key, required this.child});
+
+  Widget _buildSystemUi(Widget child) {
+    if (!system.isAndroid) {
+      return child;
+    }
+    return Consumer(
+      builder: (context, ref, _) {
+        final brightness = ref.watch(currentBrightnessProvider);
+        final iconBrightness = brightness == Brightness.light
+            ? Brightness.dark
+            : Brightness.light;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: iconBrightness,
+            systemNavigationBarIconBrightness: iconBrightness,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarDividerColor: Colors.transparent,
+            // Pages scroll under the navigation bar. Android scrims only a
+            // three-button bar for it; the gesture handle stays clear.
+            systemNavigationBarContrastEnforced: true,
+          ),
+          sized: false,
+          child: child,
+        );
+      },
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final textScale = ref.watch(
+  Widget build(BuildContext context, ref) {
+    final textScale = ref.read(
       themeSettingProvider.select((state) => state.textScale),
     );
     final double textScaleFactor = max(
       min(
-        textScale.enable ? textScale.scale : defaultTextScaleFactor,
+        textScale.enable ? textScale.scale : systemTextScaleOf(context),
         maxTextScale,
       ),
       minTextScale,
     );
 
-    globalState.measure = Measure.of(context, textScaleFactor);
-    globalState.theme = CommonTheme.of(context, textScaleFactor);
-    final padding = MediaQuery.of(context).padding;
-    final height = MediaQuery.of(context).size.height;
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        textScaler: TextScaler.linear(
-          textScaleFactor,
-        ),
-        padding: padding.copyWith(
-          top: padding.top > height * 0.3 ? 20.0 : padding.top,
+    final measure = Measure.of(context, textScaleFactor);
+    globalState.measure = measure;
+    return MeasureScope(
+      measure: measure,
+      child: AppViewScope(
+        child: _AppMediaQuery(
+          textScaler: TextScaler.linear(textScaleFactor),
+          child: _LiquidGlassSetting(
+            child: LayoutBuilder(
+              builder: (_, constraints) {
+                ref
+                    .read(themeActionProvider.notifier)
+                    .updateViewSize(
+                      Size(constraints.maxWidth, constraints.maxHeight),
+                    );
+                return _PanelBackdrop(child: _buildSystemUi(child));
+              },
+            ),
+          ),
         ),
       ),
-      child: LayoutBuilder(
-        builder: (_, container) {
-          globalState.appController.updateViewSize(
-            Size(
-              container.maxWidth,
-              container.maxHeight,
-            ),
-          );
-          return child;
+    );
+  }
+}
+
+class _PanelBackdrop extends ConsumerWidget {
+  const _PanelBackdrop({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final background = ref.watch(panelBackgroundProvider);
+    final backdrop = ref.watch(panelBackdropImageProvider).value;
+    final still =
+        backdrop != null &&
+        backdrop.animated &&
+        (context.disableAnimations || ref.watch(backdropFrozenProvider));
+    final image = still ? FirstFrameImage(backdrop.image) : backdrop?.image;
+    return PageBackdropScope(
+      image: background == null ? null : image,
+      visibility: background?.visibility ?? defaultBackdropVisibility,
+      child: child,
+    );
+  }
+}
+
+class AppViewScope extends ConsumerWidget {
+  const AppViewScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isMobile = ref.watch(isMobileViewProvider);
+    return ViewScope(
+      isMobile: isMobile,
+      windowControls: windowControlsOverPage(
+        isMacOS: system.isMacOS,
+        version: ref.watch(versionProvider),
+        isMobileView: isMobile,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _LiquidGlassSetting extends ConsumerStatefulWidget {
+  const _LiquidGlassSetting({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_LiquidGlassSetting> createState() =>
+      _LiquidGlassSettingState();
+}
+
+/// Draws no more glass than the GPU keeps up with: each sustained overload
+/// lowers the stored setting a level and takes it from the subscription, so
+/// a panel cannot raise it again, unless the user restores it.
+class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
+  static const _settingKey = 'view.app.glass';
+  static var _toldReduced = false;
+
+  final _load = FrameLoadWatch();
+  var _kept = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SchedulerBinding.instance.addTimingsCallback(_onTimings);
+    ref.listenManual(
+      themeSettingProvider.select((state) => state.liquidGlass),
+      (_, _) => _load.reset(),
+    );
+  }
+
+  @override
+  void dispose() {
+    SchedulerBinding.instance.removeTimingsCallback(_onTimings);
+    super.dispose();
+  }
+
+  void _setGlass(LiquidGlassMode mode) {
+    ref
+        .read(themeSettingProvider.notifier)
+        .update((state) => state.copyWith(liquidGlass: mode));
+  }
+
+  bool get _backdropMoves =>
+      ref.read(panelBackdropImageProvider).value?.animated == true &&
+      !ref.read(backdropFrozenProvider);
+
+  void _onTimings(List<FrameTiming> timings) {
+    final current = ref.read(themeSettingProvider).liquidGlass;
+    final backdropMoves = _backdropMoves;
+    if (!backdropMoves && (_kept || current == LiquidGlassMode.none)) {
+      return;
+    }
+    if (!_load.overloadedAfter(timings.map((t) => t.rasterDuration))) {
+      return;
+    }
+    // An animated backdrop is the cheapest thing to give up, so it goes first.
+    if (backdropMoves) {
+      ref.read(backdropFrozenProvider.notifier).value = true;
+      return;
+    }
+    final wasOwned = ref.read(settingOwnedProvider(_settingKey));
+    _setGlass(LiquidGlassMode.values[current.index - 1]);
+    ref.read(managedSettingsActionProvider.notifier).takeOver(_settingKey);
+    if (_toldReduced) {
+      return;
+    }
+    _toldReduced = true;
+    dialogs.showNotifier(
+      currentAppLocalizations.liquidGlassReduced,
+      actionState: MessageActionState(
+        actionText: currentAppLocalizations.restore,
+        action: () {
+          if (!mounted) {
+            return;
+          }
+          _kept = true;
+          _setGlass(current);
+          if (!wasOwned) {
+            ref
+                .read(managedSettingsActionProvider.notifier)
+                .disown(_settingKey);
+          }
         },
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mode = ref.watch(
+      themeSettingProvider.select((state) => state.liquidGlass),
+    );
+    return LiquidGlassScope(
+      enabled: mode != LiquidGlassMode.none,
+      quality: mode == LiquidGlassMode.ultra
+          ? LiquidGlassQuality.ultra
+          : LiquidGlassQuality.standard,
+      child: LiquidGlassHost(
+        enabled: mode != LiquidGlassMode.none,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _AppMediaQuery extends StatelessWidget {
+  const _AppMediaQuery({required this.textScaler, required this.child});
+
+  final TextScaler textScaler;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = MediaQuery.of(context);
+    final padding = data.padding;
+    return MediaQuery(
+      data: data.copyWith(
+        textScaler: textScaler,
+        padding: padding.copyWith(
+          top: padding.top > data.size.height * 0.3 ? 20.0 : padding.top,
+        ),
+      ),
+      child: child,
     );
   }
 }

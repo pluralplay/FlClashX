@@ -1,7 +1,3 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-
 # Miscellaneous
 *.class
 *.log
@@ -31,6 +27,7 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+/.widget_preview/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
@@ -38,8 +35,6 @@ migrate_working_dir/
 .pub/
 /build/
 /dist/
-/android/core/.cxx/
-/service/
 
 # Symbolication related
 app.*.symbols
@@ -47,38 +42,38 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Claude Code - ignore user-specific settings only
+.claude/settings.local.json
+.claude/worktrees/
+
+
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/**/.cxx
+/android/**/build
+/android/common/**/.**/
+/android/common/local.*
+# Left in place by builds from before the gomobile Core.
+/android/core/**/includes/
+/android/core/**/cmake-build-*/
+/android/core/**/jniLibs/
 
-# Local properties (contains SDK path, potentially sensitive)
-android/local.properties
-
-# Project assets
-store/
-docs/
-
-# Helper
-/services/helper/target/
-#libclash
+#FlClash
 /libclash/
-
-#jniLibs
 /android/app/src/main/jniLibs/
-/android/core/src/main/jniLibs/
+/services/helper/target
+/macos/**/Package.resolved
+/macos/build/
+/env.json
+/core_sha256.json
+/plugins/rust_api/.claude/
+/issue-triage/
+devtools_options.yaml
 
-# Signing keys (sensitive data)
-/android/app/keystore.jks
-*.jks
-
-# Firebase config (per-developer / CI secret)
-/android/app/google-services.json
-
-# Environment variables (contains sensitive data)
-.env
-*.local.sh
-
-
-# Landing page (deployed separately)
-docs/
+# FVM Version Cache
+.fvm/
+.fvmrc
+/coverage/lcov.info

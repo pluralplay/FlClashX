@@ -1,77 +1,81 @@
 import 'iterable.dart';
 
 class FixedList<T> {
-
-  FixedList(this.maxLength, {List<T>? list})
-      : _list = (list ?? [])..truncate(maxLength);
   final int maxLength;
   final List<T> _list;
+
+  final int _revision;
+  List<T>? _snapshot;
+
+  FixedList(this.maxLength, {List<T>? list})
+    : assert(maxLength > 0, 'FixedList without a cap grows without bound'),
+      _list = (list ?? [])..truncate(maxLength),
+      _revision = 0;
+
+  FixedList._(this.maxLength, this._list, this._revision);
+
+  int get revision => _revision;
 
   void add(T item) {
     _list.add(item);
     _list.truncate(maxLength);
+    _snapshot = null;
   }
 
   void clear() {
     _list.clear();
+    _snapshot = null;
   }
 
-  List<T> get list => List.unmodifiable(_list);
+  FixedList<T> append(T item) {
+    add(item);
+    return FixedList._(maxLength, _list, _revision + 1);
+  }
+
+  FixedList<T> replace(Map<int, T> items) {
+    items.forEach((index, item) => _list[index] = item);
+    _snapshot = null;
+    return FixedList._(maxLength, _list, _revision + 1);
+  }
+
+  List<T> get list => _snapshot ??= List.unmodifiable(_list);
 
   int get length => _list.length;
 
   T operator [](int index) => _list[index];
 
-  FixedList<T> copyWith() => FixedList(
-      maxLength,
-      list: List.of(_list),
-    );
+  FixedList<T> copyWith() {
+    return FixedList(maxLength, list: List.of(_list));
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is FixedList<T> &&
+      identical(other._list, _list) &&
+      other._revision == _revision;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(_list), _revision);
 }
 
-class FixedMap<K, V> {
-
-  FixedMap(this.maxLength, {Map<K, V>? map}) {
-    _map = map ?? {};
+/// Restores the head that [latest] trimmed off [current] so a paused view
+/// stays anchored; the result is capped at [limit] from the tail.
+List<T> retainTrimmedHead<T>(
+  List<T> current,
+  List<T> latest,
+  int limit, {
+  Object Function(T item)? keyOf,
+}) {
+  if (current.isEmpty || latest.isEmpty) {
+    return latest;
   }
-  int maxLength;
-  late Map<K, V> _map;
-
-  V? updateCacheValue(K key, V Function() callback) {
-    final realValue = _map.updateCacheValue(
-      key,
-      callback,
-    );
-    _adjustMap();
-    return realValue;
+  final first = latest.first;
+  final index = keyOf == null
+      ? current.indexWhere((item) => identical(item, first))
+      : current.indexWhere((item) => keyOf(item) == keyOf(first));
+  if (index == 0) {
+    return latest;
   }
-
-  void clear() {
-    _map.clear();
-  }
-
-  void updateMaxLength(int size) {
-    maxLength = size;
-    _adjustMap();
-  }
-
-  void updateMap(Map<K, V> map) {
-    _map = map;
-    _adjustMap();
-  }
-
-  void _adjustMap() {
-    if (_map.length > maxLength) {
-      _map = Map.fromEntries(
-        map.entries.toList()..truncate(maxLength),
-      );
-    }
-  }
-
-  V? get(K key) => _map[key];
-
-  bool containsKey(K key) => _map.containsKey(key);
-
-  int get length => _map.length;
-
-  Map<K, V> get map => Map.unmodifiable(_map);
+  final head = index > 0 ? current.sublist(0, index) : current;
+  return List.unmodifiable([...head, ...latest].take(limit));
 }

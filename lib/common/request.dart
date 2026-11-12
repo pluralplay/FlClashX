@@ -5,341 +5,305 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/state.dart';
+import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 
 class Request {
+  late final Dio dio;
+  late final Dio _clashDio;
+
+  ProviderReader? _read;
+
+  void attach(ProviderReader read) {
+    _read = read;
+  }
 
   Request() {
-    _dio = Dio(
-      BaseOptions(
-        headers: {
-          "User-Agent": browserUa,
-        },
-        // Without these a profile/subscription fetch over a half-dead uplink
-        // (mobile network, doze-restricted background) hangs forever: the card
-        // spins indefinitely and the auto-update chain stalls until app restart.
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 60),
-      ),
-    );
-    _clashDio = Dio(
-      BaseOptions(
-        // Only cap connection setup globally so a dead/blackholed exit node fails
-        // fast instead of hanging the IP check. Receive time is left unbounded
-        // here (large proxied downloads use this same client) and capped
-        // per-request in checkIp instead.
-        connectTimeout: const Duration(seconds: 5),
-      ),
-    );
-    _clashDio.httpClientAdapter = IOHttpClientAdapter(createHttpClient: () {
+    dio = Dio(BaseOptions(headers: {'User-Agent': browserUa}));
+    _clashDio = Dio();
+    _clashDio.httpClientAdapter = _proxiedAdapter();
+  }
+
+  IOHttpClientAdapter _proxiedAdapter() => IOHttpClientAdapter(
+    createHttpClient: () {
       final client = HttpClient();
-      client.findProxy = (uri) {
+      client.findProxy = (Uri uri) {
         client.userAgent = globalState.ua;
-        return FlClashHttpOverrides.handleFindProxy(uri);
+        final read = _read;
+        if (read == null) {
+          return 'DIRECT';
+        }
+        return FlClashHttpOverrides.findProxyForReader(read, uri);
       };
       return client;
-    });
+    },
+  );
+
+  /// The adapter keeps the first HttpClient it makes, under whatever
+  /// HttpOverrides held then; a test that changes them starts a new one.
+  @visibleForTesting
+  void resetClient() => _clashDio.httpClientAdapter = _proxiedAdapter();
+
+  Future<Response<T>> _download<T>(
+    String url,
+    ResponseType responseType, {
+    Duration timeout = downloadTimeoutDuration,
+    Map<String, String> headers = const {},
+  }) {
+    final target = downloadTarget(url);
+    final cancelToken = CancelToken();
+    var oversized = false;
+    return _clashDio
+        .getUri<T>(
+          target.uri,
+          options: Options(
+            responseType: responseType,
+            headers: {...headers, ...target.headers},
+            // Nothing asks for a range, so a 206 is a cut-off copy.
+            validateStatus: (status) =>
+                status != null &&
+                status >= 200 &&
+                status < 300 &&
+                status != HttpStatus.partialContent,
+          ),
+          cancelToken: cancelToken,
+          onReceiveProgress: (received, total) {
+            if (received > maxDownloadBytes || total > maxDownloadBytes) {
+              oversized = true;
+              cancelToken.cancel();
+            }
+          },
+        )
+        .catchError(
+          (Object _) =>
+              throw MessageException(currentAppLocalizations.downloadTooLarge),
+          test: (_) => oversized,
+        )
+        .timeout(
+          timeout,
+          onTimeout: () {
+            cancelToken.cancel();
+            throw DioException.receiveTimeout(
+              timeout: timeout,
+              requestOptions: RequestOptions(path: url),
+            );
+          },
+        );
   }
-  late final Dio _dio;
-  late final Dio _clashDio;
-  String? userAgent;
 
   Future<Response<Uint8List>> getFileResponseForUrl(
-    String rawUrl, {
-    Map<String, dynamic>? headers,
+    String url, {
+    Duration timeout = downloadTimeoutDuration,
+    Map<String, String> headers = const {},
   }) async {
-    final url = rawUrl.normalizeUrlCredentials;
-    final requestHeaders = headers ?? {};
-    requestHeaders['User-Agent'] = globalState.ua;
+    try {
+      return await _download<Uint8List>(
+        url,
+        ResponseType.bytes,
+        timeout: timeout,
+        headers: headers,
+      );
+    } catch (e) {
+      commonPrint.log(
+        'getFileResponseForUrl error ${compactError(e)}',
+        logLevel: LogLevel.warning,
+      );
+      rethrow;
+    }
+  }
 
-    final dio = _dio;
+  Future<Response<String>> getTextResponseForUrl(String url) async {
+    try {
+      return await _download<String>(url, ResponseType.plain);
+    } catch (e) {
+      commonPrint.log(
+        'getTextResponseForUrl error ${compactError(e)}',
+        logLevel: LogLevel.warning,
+      );
+      rethrow;
+    }
+  }
 
-    final firstResponse = await dio.get<Uint8List>(
-      url,
+  /// Null when this build is current; throws when GitHub cannot be asked.
+  Future<Map<String, dynamic>?> checkForUpdate() async {
+    final release = await latestRelease();
+    final remoteVersion = release['tag_name'] as String;
+    final version = globalState.packageInfo.displayVersion;
+    final hasUpdate =
+        compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
+    return hasUpdate ? release : null;
+  }
+
+  /// The release page redirect still answers once the hourly API quota is spent.
+  @visibleForTesting
+  Future<Map<String, dynamic>> latestRelease() async {
+    try {
+      final response = await dio.get<Map<String, dynamic>>(
+        'https://api.github.com/repos/$repository/releases/latest',
+        options: Options(responseType: ResponseType.json),
+      );
+      return response.data!;
+    } on DioException catch (error) {
+      commonPrint.log(
+        'latest release API failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+    }
+    final response = await dio.get<void>(
+      'https://github.com/$repository/releases/latest',
       options: Options(
-        responseType: ResponseType.bytes,
-        headers: requestHeaders,
         followRedirects: false,
         validateStatus: (status) => status != null && status < 400,
       ),
     );
-
-    if (firstResponse.isRedirect == true) {
-      final newUrl = firstResponse.headers.value('location');
-      if (newUrl == null) {
-        throw Exception('Redirect detected, but no location header was found.');
-      }
-
-      print('↪️ Redirecting to: $newUrl');
-      final finalResponse = await dio.get<Uint8List>(
-        newUrl,
-        options: Options(
-          responseType: ResponseType.bytes,
-          headers: requestHeaders,
-          followRedirects: true,
-          maxRedirects: 5,
-          validateStatus: (status) => status != null && status < 500,
-        ),
-      );
-      return finalResponse;
+    final location = response.headers.value(HttpHeaders.locationHeader);
+    final segments = Uri.tryParse(location ?? '')?.pathSegments ?? const [];
+    final tagIndex = segments.indexOf('tag') + 1;
+    if (tagIndex == 0 || tagIndex >= segments.length) {
+      throw FormatException('No release tag in the redirect', location);
     }
-    return firstResponse;
-  }
-
-  Future<Response> getTextResponseForUrl(String url) async {
-    final response = await _clashDio.get(
-      url,
-      options: Options(
-        responseType: ResponseType.plain,
-      ),
-    );
-    return response;
-  }
-
-  Future<MemoryImage?> getImage(String url) async {
-    if (url.isEmpty) return null;
-    final response = await _dio.get<Uint8List>(
-      url,
-      options: Options(
-        responseType: ResponseType.bytes,
-      ),
-    );
-    final data = response.data;
-    if (data == null) return null;
-    return MemoryImage(data);
-  }
-
-  Future<Map<String, dynamic>?> checkForUpdate() async {
-    final response = await _dio.get(
-      "https://api.github.com/repos/$repository/releases/latest",
-      options: Options(
-        responseType: ResponseType.json,
-      ),
-    );
-    if (response.statusCode != 200) return null;
-    final data = response.data as Map<String, dynamic>;
-    final remoteVersion = data['tag_name'];
-    final version = globalState.packageInfo.version;
-    final hasUpdate =
-        utils.compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
-    if (!hasUpdate) return null;
-    return data;
-  }
-
-  Future<Map<String, dynamic>?> checkForCoreUpdate(String currentCoreVersion) async {
-    final response = await _dio.get(
-      "https://api.github.com/repos/$repository/releases",
-      options: Options(responseType: ResponseType.json),
-      queryParameters: {'per_page': 20},
-    );
-    if (response.statusCode != 200) return null;
-    final current = currentCoreVersion.replaceAll(RegExp(r'^v'), '');
-    final releases = response.data as List<dynamic>;
-    for (final release in releases) {
-      final tag = release['tag_name'] as String? ?? '';
-      if (!tag.startsWith('core-')) continue;
-      final remote = tag.replaceFirst('core-', '').replaceAll(RegExp(r'^v'), '');
-      // Strictly newer only: a locally built core can be ahead of the newest
-      // core-* release, and offering it back would be a silent downgrade.
-      if (utils.compareVersions(remote, current) <= 0) return null;
-      return release as Map<String, dynamic>;
-    }
-    return null;
-  }
-
-  Future<String?> downloadCoreUpdate(
-    String downloadUrl,
-    String targetPath, {
-    void Function(int received, int total)? onProgress,
-  }) async {
-    try {
-      final tmpPath = '$targetPath.tmp';
-      await _dio.download(
-        downloadUrl,
-        tmpPath,
-        onReceiveProgress: onProgress,
-      );
-      final tmpFile = File(tmpPath);
-      if (!await tmpFile.exists()) return 'Download failed';
-      final target = File(targetPath);
-      if (await target.exists()) await target.delete();
-      await tmpFile.rename(targetPath);
-      return null;
-    } catch (e) {
-      return e.toString();
-    }
-  }
-
-  // Tried in order, first success wins. All return a dead-simple JSON with an
-  // IPv4 exit IP + country code:
-  //   ip.sb     — `api-ipv4` host is A-only, so the exit is forced over IPv4
-  //   ip-api.com — IPv4-only on the free tier
-  //   ipinfo.io — plain {ip, country}, used as a last-resort fallback
-  final Map<String, IpInfo Function(Map<String, dynamic>)> _ipInfoSources = {
-    "https://api-ipv4.ip.sb/geoip": IpInfo.fromIpSbJson,
-    "http://ip-api.com/json/?fields=status,countryCode,query":
-        IpInfo.fromIpApiComJson,
-    "https://ipinfo.io/json": IpInfo.fromIpInfoIoJson,
-  };
-
-  /// Resolve the exit IP by trying each source **sequentially**, stopping at the
-  /// first success. A healthy primary therefore means exactly one request — not
-  /// a parallel race that fires every source through the tunnel at once. Each
-  /// source is bounded by a short receive timeout (plus the client-wide connect
-  /// timeout) so a slow/dead node falls through to the next instead of hanging.
-  Future<Result<IpInfo?>> checkIp({CancelToken? cancelToken}) async {
-    for (final source in _ipInfoSources.entries) {
-      if (cancelToken?.isCancelled ?? false) {
-        return Result.error("cancelled");
-      }
-      try {
-        final res = await _clashDio.get<Map<String, dynamic>>(
-          source.key,
-          cancelToken: cancelToken,
-          options: Options(
-            responseType: ResponseType.json,
-            receiveTimeout: const Duration(seconds: 3),
-          ),
-        );
-        if (res.statusCode == HttpStatus.ok && res.data != null) {
-          return Result.success(source.value(res.data!));
-        }
-      } on DioException catch (e) {
-        if (e.type == DioExceptionType.cancel) {
-          return Result.error("cancelled");
-        }
-        // connect/receive timeout or bad status — fall through to the next source
-      } catch (_) {
-        // unexpected shape / parse failure — try the next source
-      }
-    }
-    // Every source failed (offline, all timed out, or unparseable).
-    return Result.success(null);
-  }
-
-  Future<bool> pingHelper() async {
-    try {
-      final response = await _dio
-          .get(
-            "http://$localhost:$helperPort/ping",
-            options: Options(
-              responseType: ResponseType.plain,
-            ),
-          )
-          .timeout(
-            const Duration(
-              milliseconds: 2000,
-            ),
-          );
-      if (response.statusCode != HttpStatus.ok) {
-        return false;
-      }
-      // Compare against the binary actually on disk, not the build-time
-      // constant — a separately updated core is otherwise reported as a
-      // helper mismatch forever.
-      final diskHash = await coreUpdater.calcCoreSha256();
-      return diskHash != null && (response.data as String) == diskHash;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> startCoreByHelper(String arg) async {
-    try {
-      final homeDirPath = await appPath.homeDirPath;
-      final response = await _dio
-          .post(
-            "http://$localhost:$helperPort/start",
-            data: json.encode({
-              "path": appPath.corePath,
-              "arg": arg,
-              "home_dir": homeDirPath,
-            }),
-            options: Options(
-              responseType: ResponseType.plain,
-            ),
-          )
-          .timeout(
-            const Duration(
-              milliseconds: 2000,
-            ),
-          );
-      if (response.statusCode != HttpStatus.ok) {
-        return false;
-      }
-      final data = response.data as String;
-      return data.isEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Ask the SYSTEM helper to swap in the pending core update. Needed for
-  /// per-machine installs (Program Files) where the unelevated app can't
-  /// overwrite the binary itself. The helper stops the core, moves the file and
-  /// refreshes the allow-list hash. Returns true only if it reports success.
-  Future<bool> replaceCoreByHelper(String pendingPath, String targetPath) async {
-    try {
-      final response = await _dio
-          .post(
-            "http://$localhost:$helperPort/replace_core",
-            data: json.encode({
-              "pending": pendingPath,
-              "target": targetPath,
-            }),
-            options: Options(responseType: ResponseType.plain),
-          )
-          .timeout(const Duration(milliseconds: 10000));
-      if (response.statusCode != HttpStatus.ok) return false;
-      final data = response.data as String;
-      if (data.isNotEmpty) {
-        commonPrint.log("replaceCoreByHelper: $data");
-        return false;
-      }
-      return true;
-    } catch (e) {
-      commonPrint.log("replaceCoreByHelper error: $e");
-      return false;
-    }
-  }
-
-  Future<bool> stopCoreByHelper() async {
-    try {
-      final response = await _dio
-          .post(
-            "http://$localhost:$helperPort/stop",
-            options: Options(responseType: ResponseType.plain),
-          )
-          .timeout(const Duration(milliseconds: 2000));
-
-      if (response.statusCode != HttpStatus.ok) return false;
-      final data = response.data as String;
-      return data.isEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<Map<String, dynamic>?> getCoreVersion() async {
-    try {
-      final addr = globalState.effectiveExternalController.value;
-      if (addr.isEmpty) return null;
-      final response = await _dio.get<Map<String, dynamic>>(
-        "http://$addr/version",
-        options: Options(
-          responseType: ResponseType.json,
-        ),
-      ).timeout(const Duration(seconds: 2));
-
-      if (response.statusCode != HttpStatus.ok) return null;
-      return response.data;
-    } catch (_) {
-      return null;
-    }
+    return {'tag_name': segments[tagIndex]};
   }
 }
 
 final request = Request();
+
+/// How a host let a download down: [soft] when it may be back in a moment,
+/// [hard] when the host itself is gone or no longer serves the resource.
+enum HostFailure { soft, hard }
+
+const _goneStatuses = {HttpStatus.notFound, HttpStatus.gone};
+
+/// Errno of a name that does not resolve or a port nobody listens on, on
+/// macOS and Linux (glibc), then Windows.
+const _hardSocketErrors = {8, -2, -3, -5, 61, 111, 11001, 11004, 10061};
+
+HostFailure hostFailureOf(Object error) {
+  final cause = error is DioException ? error.error ?? error : error;
+  final hard = switch (cause) {
+    MessageException() => true,
+    HandshakeException() || CertificateException() => true,
+    SocketException(:final osError, :final message) =>
+      _hardSocketErrors.contains(osError?.errorCode) ||
+          message.contains('Failed host lookup') ||
+          message.contains('Connection refused'),
+    DioException(type: DioExceptionType.badCertificate) => true,
+    DioException(type: DioExceptionType.badResponse, :final response) =>
+      _goneStatuses.contains(response?.statusCode),
+    _ => false,
+  };
+  return hard ? HostFailure.hard : HostFailure.soft;
+}
+
+/// Some subscription servers send a gzip or zlib body without saying so in
+/// Content-Encoding, which is the only signal dart:io decompresses on.
+Future<Uint8List> decompressDownload(Uint8List bytes) async {
+  if (_unlabeledCodecOf(bytes) == null) {
+    return bytes;
+  }
+  final inflated = await compute(decompressUnlabeled, bytes);
+  if (inflated == null) {
+    throw MessageException(currentAppLocalizations.downloadTooLarge);
+  }
+  return inflated;
+}
+
+@visibleForTesting
+Uint8List? decompressUnlabeled(
+  Uint8List bytes, {
+  int limit = maxDownloadBytes,
+}) {
+  final codec = _unlabeledCodecOf(bytes);
+  if (codec == null) {
+    return bytes;
+  }
+  final output = _CappedSink(limit);
+  try {
+    codec.decoder.startChunkedConversion(output)
+      ..add(bytes)
+      ..close();
+  } on _OutputTooLarge {
+    return null;
+  } on FormatException {
+    return bytes;
+  }
+  return output.bytes.takeBytes();
+}
+
+Codec<List<int>, List<int>>? _unlabeledCodecOf(Uint8List bytes) =>
+    switch (bytes) {
+      [0x1f, 0x8b, ...] => gzip,
+      [0x78, final flags, ...] when (0x78 << 8 | flags) % 31 == 0 => zlib,
+      _ => null,
+    };
+
+final class _OutputTooLarge implements Exception {
+  const _OutputTooLarge();
+}
+
+final class _CappedSink implements Sink<List<int>> {
+  _CappedSink(this.limit);
+
+  final int limit;
+  final bytes = BytesBuilder(copy: false);
+
+  @override
+  void add(List<int> chunk) {
+    if (bytes.length + chunk.length > limit) {
+      throw const _OutputTooLarge();
+    }
+    bytes.add(chunk);
+  }
+
+  @override
+  void close() {}
+}
+
+/// dart:io turns [Uri.userInfo] into Basic credentials still percent-encoded.
+@visibleForTesting
+({Uri uri, Map<String, Object> headers}) downloadTarget(String url) {
+  final uri = url.webUri ?? Uri.parse(url);
+  if (uri.userInfo.isEmpty) {
+    return (uri: uri, headers: const {});
+  }
+  final credentials = uri.userInfo.split(':').map(_decodeUserInfo).join(':');
+  return (
+    uri: uri.replace(userInfo: ''),
+    headers: {
+      HttpHeaders.authorizationHeader:
+          'Basic ${base64.encode(utf8.encode(credentials))}',
+    },
+  );
+}
+
+String _decodeUserInfo(String value) {
+  try {
+    return Uri.decodeComponent(value);
+  } on ArgumentError {
+    return value;
+  }
+}
+
+String? getFileNameForDisposition(String? disposition) {
+  if (disposition == null) return null;
+  final parseValue = HeaderValue.parse(disposition);
+  final parameters = parseValue.parameters;
+  final fileNamePointKey = parameters.keys.firstWhere(
+    (key) => key == 'filename*',
+    orElse: () => '',
+  );
+  if (fileNamePointKey.isNotEmpty) {
+    final res = parameters[fileNamePointKey]?.split("''") ?? [];
+    if (res.length >= 2) {
+      return Uri.decodeComponent(res[1]);
+    }
+  }
+  final fileNameKey = parameters.keys.firstWhere(
+    (key) => key == 'filename',
+    orElse: () => '',
+  );
+  if (fileNameKey.isEmpty) return null;
+  return parameters[fileNameKey];
+}

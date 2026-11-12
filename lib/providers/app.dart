@@ -1,338 +1,694 @@
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+import 'dart:collection';
+import 'dart:io';
+import 'dart:ui' show Locale;
+
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/core.dart';
+import 'package:flutter/services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'generated/app.g.dart';
 
-@riverpod
-class RealTunEnable extends _$RealTunEnable with AutoDisposeNotifierMixin {
-  @override
-  bool build() => globalState.appState.realTunEnable;
+@Riverpod(keepAlive: true)
+bool safeMode(Ref ref) => safeModeBuild;
 
-  @override
-  void onUpdate(bool value) {
-    globalState.appState = globalState.appState.copyWith(
-      realTunEnable: value,
-    );
-  }
-}
-
-@riverpod
-class Logs extends _$Logs with AutoDisposeNotifierMixin {
-  @override
-  FixedList<Log> build() => globalState.appState.logs;
-
-  void addLog(Log value) {
-    state = state.copyWith()..add(value);
-  }
-
-  @override
-  void onUpdate(FixedList<Log> value) {
-    globalState.appState = globalState.appState.copyWith(
-      logs: value,
-    );
-  }
-}
-
-@riverpod
-class Requests extends _$Requests with AutoDisposeNotifierMixin {
-  @override
-  FixedList<Connection> build() => globalState.appState.requests;
-
-  @override
-  void onUpdate(FixedList<Connection> value) {
-    globalState.appState = globalState.appState.copyWith(
-      requests: value,
-    );
-  }
-
-  void addRequest(Connection value) {
-    state = state.copyWith()..add(value);
-  }
-}
-
-@riverpod
-class Providers extends _$Providers with AutoDisposeNotifierMixin {
-  @override
-  List<ExternalProvider> build() => globalState.appState.providers;
-
-  @override
-  void onUpdate(List<ExternalProvider> value) {
-    globalState.appState = globalState.appState.copyWith(
-      providers: value,
-    );
-  }
-
-  void setProvider(ExternalProvider? provider) {
-    if (provider == null) return;
-    final index = state.indexWhere((item) => item.name == provider.name);
-    if (index == -1) return;
-    state = List.from(state)..[index] = provider;
-  }
-}
-
-@riverpod
-class Packages extends _$Packages with AutoDisposeNotifierMixin {
-  @override
-  List<Package> build() => globalState.appState.packages;
-
-  @override
-  void onUpdate(List<Package> value) {
-    globalState.appState = globalState.appState.copyWith(
-      packages: value,
-    );
-  }
-}
-
-@riverpod
-class AppBrightness extends _$AppBrightness with AutoDisposeNotifierMixin {
-  @override
-  Brightness? build() => globalState.appState.brightness;
-
-  @override
-  void onUpdate(Brightness? value) {
-    globalState.appState = globalState.appState.copyWith(
-      brightness: value,
-    );
-  }
-
-  void setState(Brightness? value) {
-    state = value;
-  }
-}
-
-@riverpod
-class Traffics extends _$Traffics with AutoDisposeNotifierMixin {
-  @override
-  FixedList<Traffic> build() => globalState.appState.traffics;
-
-  @override
-  void onUpdate(FixedList<Traffic> value) {
-    globalState.appState = globalState.appState.copyWith(
-      traffics: value,
-    );
-  }
-
-  void addTraffic(Traffic value) {
-    state = state.copyWith()..add(value);
-  }
-
-  void clear() {
-    state = state.copyWith()..clear();
-  }
-}
-
-@riverpod
-class TotalTraffic extends _$TotalTraffic with AutoDisposeNotifierMixin {
-  @override
-  Traffic build() => globalState.appState.totalTraffic;
-
-  @override
-  void onUpdate(Traffic value) {
-    globalState.appState = globalState.appState.copyWith(
-      totalTraffic: value,
-    );
-  }
-}
-
-@riverpod
-class LocalIp extends _$LocalIp with AutoDisposeNotifierMixin {
-  @override
-  String? build() => globalState.appState.localIp;
-
-  @override
-  void onUpdate(String? value) {
-    globalState.appState = globalState.appState.copyWith(
-      localIp: value,
-    );
-  }
-
-  @override
-  set state(String? value) {
-    super.state = value;
-    globalState.appState = globalState.appState.copyWith(
-      localIp: state,
-    );
-  }
-}
-
-@riverpod
-class RunTime extends _$RunTime with AutoDisposeNotifierMixin {
-  @override
-  int? build() => globalState.appState.runTime;
-
-  @override
-  void onUpdate(int? value) {
-    globalState.appState = globalState.appState.copyWith(
-      runTime: value,
-    );
-  }
-
-  bool get isStart => state != null;
-}
-
-@riverpod
-class ViewSize extends _$ViewSize with AutoDisposeNotifierMixin {
-  @override
-  Size build() => globalState.appState.viewSize;
-
-  @override
-  void onUpdate(Size value) {
-    globalState.appState = globalState.appState.copyWith(
-      viewSize: value,
-    );
-  }
-
-  ViewMode get viewMode => utils.getViewMode(state.width);
-
-  bool get isMobileView => viewMode == ViewMode.mobile;
-}
-
-@riverpod
-double viewWidth(Ref ref) => ref.watch(viewSizeProvider).width;
-
-@riverpod
-ViewMode viewMode(Ref ref) => utils.getViewMode(ref.watch(viewWidthProvider));
-
-@riverpod
-bool isMobileView(Ref ref) => ref.watch(viewModeProvider) == ViewMode.mobile;
-
-@riverpod
-double viewHeight(Ref ref) => ref.watch(viewSizeProvider).height;
-
-@riverpod
-class Init extends _$Init with AutoDisposeNotifierMixin {
-  @override
-  bool build() => globalState.appState.isInit;
-
-  @override
-  void onUpdate(bool value) {
-    globalState.appState = globalState.appState.copyWith(
-      isInit: value,
-    );
-  }
-}
-
-@riverpod
-class CurrentPageLabel extends _$CurrentPageLabel
+@Riverpod(keepAlive: true)
+class AuthorizedTunEnable extends _$AuthorizedTunEnable
     with AutoDisposeNotifierMixin {
   @override
-  PageLabel build() => globalState.appState.pageLabel;
-
-  @override
-  void onUpdate(PageLabel value) {
-    globalState.appState = globalState.appState.copyWith(
-      pageLabel: value,
-    );
+  TunAuthorizationState build() {
+    return TunAuthorizationState.none;
   }
 }
 
-@riverpod
-class SortNum extends _$SortNum with AutoDisposeNotifierMixin {
+@Riverpod(keepAlive: true)
+class Logs extends _$Logs with AutoDisposeNotifierMixin {
   @override
-  int build() => globalState.appState.sortNum;
-
-  @override
-  void onUpdate(int value) {
-    globalState.appState = globalState.appState.copyWith(
-      sortNum: value,
-    );
+  FixedList<Log> build() {
+    return FixedList(maxLogsLength);
   }
 
-  int add() => state++;
-}
-
-@riverpod
-class CheckIpNum extends _$CheckIpNum with AutoDisposeNotifierMixin {
-  @override
-  int build() => globalState.appState.checkIpNum;
-
-  @override
-  void onUpdate(int value) {
-    globalState.appState = globalState.appState.copyWith(
-      checkIpNum: value,
-    );
+  void add(Log value) {
+    fileLogger.write(value);
+    if (!ref.mounted) {
+      return;
+    }
+    this.value = state.append(value);
   }
 
-  int add() => state++;
-}
-
-@riverpod
-class BackBlock extends _$BackBlock with AutoDisposeNotifierMixin {
-  @override
-  bool build() => globalState.appState.backBlock;
-
-  @override
-  void onUpdate(bool value) {
-    globalState.appState = globalState.appState.copyWith(
-      backBlock: value,
-    );
+  Future<bool> exportLogs() async {
+    final logString = await encodeLogsTask(value.list);
+    final tempFilePath = await appPath.tempFilePath;
+    final file = File(tempFilePath);
+    await file.safeWriteAsString(logString);
+    bool res = false;
+    res = await picker.saveFileWithPath(logFileName, tempFilePath) != null;
+    return res;
   }
 }
 
-@riverpod
-class Version extends _$Version with AutoDisposeNotifierMixin {
+@Riverpod(keepAlive: true)
+class Requests extends _$Requests with AutoDisposeNotifierMixin {
   @override
-  int build() => globalState.appState.version;
-
-  @override
-  void onUpdate(int value) {
-    globalState.appState = globalState.appState.copyWith(
-      version: value,
-    );
-  }
-}
-
-@riverpod
-class Groups extends _$Groups with AutoDisposeNotifierMixin {
-  @override
-  List<Group> build() => globalState.appState.groups;
-
-  @override
-  void onUpdate(List<Group> value) {
-    globalState.appState = globalState.appState.copyWith(
-      groups: value,
-    );
-  }
-}
-
-@riverpod
-class DelayDataSource extends _$DelayDataSource with AutoDisposeNotifierMixin {
-  @override
-  DelayMap build() => globalState.appState.delayMap;
-
-  @override
-  void onUpdate(DelayMap value) {
-    globalState.appState = globalState.appState.copyWith(
-      delayMap: value,
-    );
+  FixedList<TrackerInfo> build() {
+    return FixedList(maxRequestsLength);
   }
 
-  void setDelay(Delay delay) {
-    if (state[delay.url]?[delay.name] != delay.value) {
-      final newDelayMap = Map<String, Map<String, int?>>.from(state);
-      newDelayMap[delay.url] = Map<String, int?>.from(
-        newDelayMap[delay.url] ?? <String, int?>{},
-      );
-      newDelayMap[delay.url]![delay.name] = delay.value;
-      state = newDelayMap;
+  void addRequest(TrackerInfo value) {
+    if (!ref.mounted) {
+      return;
+    }
+    this.value = state.append(value);
+  }
+
+  void updateTraffic(Map<String, RequestTraffic> traffic) {
+    if (!ref.mounted) {
+      return;
+    }
+    final pending = Map.of(traffic);
+    final updated = <int, TrackerInfo>{};
+    for (
+      var index = state.length - 1;
+      index >= 0 && pending.isNotEmpty;
+      index--
+    ) {
+      final request = state[index];
+      final item = pending.remove(request.id);
+      if (item != null) {
+        updated[index] = request.copyWith(
+          upload: item.upload,
+          download: item.download,
+        );
+      }
+    }
+    if (updated.isNotEmpty) {
+      value = state.replace(updated);
     }
   }
 }
 
-@riverpod
-class ProxiesQuery extends _$ProxiesQuery with AutoDisposeNotifierMixin {
+@Riverpod(keepAlive: true)
+class DnsQueries extends _$DnsQueries with AutoDisposeNotifierMixin {
   @override
-  String build() => globalState.appState.proxiesQuery;
+  FixedList<DnsQuery> build() {
+    return FixedList(maxDnsQueriesLength);
+  }
+
+  void addQuery(DnsQuery value) {
+    if (!ref.mounted) {
+      return;
+    }
+    this.value = state.append(value);
+  }
+}
+
+@Riverpod(keepAlive: true)
+class DnsQueryCount extends _$DnsQueryCount with AutoDisposeNotifierMixin {
+  @override
+  int build() {
+    return 0;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class RequestCount extends _$RequestCount with AutoDisposeNotifierMixin {
+  @override
+  int build() {
+    return 0;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class Providers extends _$Providers with AutoDisposeNotifierMixin {
+  @override
+  List<ExternalProvider> build() {
+    return [];
+  }
+
+  void setProvider(ExternalProvider? provider) {
+    if (provider == null) return;
+    final index = value.indexWhere((item) => item.name == provider.name);
+    if (index == -1) return;
+    final newState = List<ExternalProvider>.from(value)..[index] = provider;
+    value = newState;
+  }
+
+  Future<void> syncProviders() async {
+    value = await ref.read(coreHandlerProvider).getExternalProviders();
+  }
+}
+
+@Riverpod(keepAlive: true)
+class Packages extends _$Packages with AutoDisposeNotifierMixin {
+  @override
+  List<Package> build() {
+    return [];
+  }
+}
+
+@Riverpod(keepAlive: true)
+class SystemBrightness extends _$SystemBrightness
+    with AutoDisposeNotifierMixin {
+  @override
+  Brightness build() {
+    return Brightness.dark;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class Traffics extends _$Traffics with AutoDisposeNotifierMixin {
+  @override
+  FixedList<Traffic> build() {
+    return FixedList(trafficSampleLength);
+  }
+
+  void addTraffic(Traffic value) {
+    if (!ref.mounted) {
+      return;
+    }
+    this.value = state.append(value);
+  }
+
+  void clear() {
+    value = state.copyWith()..clear();
+  }
+}
+
+@Riverpod(keepAlive: true)
+class TotalTraffic extends _$TotalTraffic with AutoDisposeNotifierMixin {
+  @override
+  Traffic build() {
+    return const Traffic();
+  }
+}
+
+@Riverpod(keepAlive: true)
+class LoadedLocale extends _$LoadedLocale with AutoDisposeNotifierMixin {
+  @override
+  Locale? build() {
+    return null;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class LocalIp extends _$LocalIp with AutoDisposeNotifierMixin {
+  @override
+  String? build() {
+    return null;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class RunTime extends _$RunTime with AutoDisposeNotifierMixin {
+  @override
+  int? build() {
+    return null;
+  }
+}
+
+/// What the running Android service was started with: it builds the tunnel
+/// once, so a later change waits for a restart.
+@Riverpod(keepAlive: true)
+class RunningVpnOptions extends _$RunningVpnOptions
+    with AutoDisposeNotifierMixin {
+  @override
+  VpnOptions? build() {
+    return null;
+  }
+}
+
+/// False while the window is hidden or the Android activity is in the
+/// background; work that only feeds the UI waits for it to come back.
+@Riverpod(keepAlive: true)
+class AppVisible extends _$AppVisible with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return true;
+  }
+}
+
+/// Set for the session once the GPU fell behind with an animated backdrop.
+@Riverpod(keepAlive: true)
+class BackdropFrozen extends _$BackdropFrozen with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class ViewSize extends _$ViewSize with AutoDisposeNotifierMixin {
+  @override
+  Size build() {
+    return Size.zero;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class SideWidth extends _$SideWidth with AutoDisposeNotifierMixin {
+  @override
+  double build() {
+    return 0;
+  }
+}
+
+/// The opacity the sidebar keeps its own color at over the backdrop the native
+/// window draws behind the content, or null while it draws none.
+@Riverpod(keepAlive: true)
+class WindowBlur extends _$WindowBlur with AutoDisposeNotifierMixin {
+  @override
+  double? build() {
+    return null;
+  }
+}
+
+@Riverpod(keepAlive: true)
+double viewWidth(Ref ref) {
+  return ref.watch(viewSizeProvider).width;
+}
+
+@Riverpod(keepAlive: true)
+ViewMode viewMode(Ref ref) {
+  return getViewMode(ref.watch(viewWidthProvider));
+}
+
+@Riverpod(keepAlive: true)
+bool isMobileView(Ref ref) {
+  return ref.watch(viewModeProvider) == ViewMode.mobile;
+}
+
+@Riverpod(keepAlive: true)
+class Init extends _$Init with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class CurrentPageLabel extends _$CurrentPageLabel
+    with AutoDisposeNotifierMixin {
+  @override
+  PageLabel build() {
+    return PageLabel.dashboard;
+  }
+
+  void toPage(PageLabel pageLabel) {
+    value = pageLabel;
+  }
+
+  void toProfiles() {
+    toPage(PageLabel.profiles);
+  }
+}
+
+@Riverpod(keepAlive: true)
+class SortNum extends _$SortNum with AutoDisposeNotifierMixin {
+  @override
+  int build() {
+    return 0;
+  }
+
+  int add() => state++;
+}
+
+@Riverpod(keepAlive: true)
+class Version extends _$Version with AutoDisposeNotifierMixin {
+  @override
+  int build() {
+    return 0;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class Groups extends _$Groups with AutoDisposeNotifierMixin {
+  @override
+  List<Group> build() {
+    return [];
+  }
+}
+
+/// The current profile's own GLOBAL carries `flclashx-override`: global mode
+/// shows that group alone and rule mode leaves it out.
+@Riverpod(keepAlive: true)
+class GlobalOverride extends _$GlobalOverride with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class DelayDataSource extends _$DelayDataSource with AutoDisposeNotifierMixin {
+  DelayMap? _owned;
+  DelayMap? _published;
 
   @override
-  void onUpdate(String value) {
-    globalState.appState = globalState.appState.copyWith(
-      proxiesQuery: value,
-    );
+  DelayMap build() {
+    return {};
   }
+
+  void setDelay(Delay delay) {
+    setDelays([delay]);
+  }
+
+  /// Publishes a live view, so a dependent that keeps the map must copy it.
+  void setDelays(Iterable<Delay> delays) {
+    final delayMap = _ownedDelayMap();
+    var changed = false;
+    for (final delay in delays) {
+      if (delayMap[delay.url]?[delay.name] == delay.value) {
+        continue;
+      }
+      (delayMap[delay.url] ??= {})[delay.name] = delay.value;
+      changed = true;
+    }
+    if (changed) {
+      value = _published = UnmodifiableMapView(delayMap);
+    }
+  }
+
+  DelayMap _ownedDelayMap() {
+    final owned = _owned;
+    if (owned != null && identical(state, _published)) {
+      return owned;
+    }
+    return _owned = {
+      for (final entry in state.entries) entry.key: {...entry.value},
+    };
+  }
+}
+
+@Riverpod(keepAlive: true)
+class PendingDelayTests extends _$PendingDelayTests
+    with AutoDisposeNotifierMixin {
+  final Map<String, int> _holds = {};
+  final Map<String, int> _runs = {};
+  final Map<String, DelayTestPhase> _phases = {};
+
+  @override
+  Map<String, DelayTestPhase> build() {
+    return const <String, DelayTestPhase>{};
+  }
+
+  /// [finished] keys had started, so they give up their run as well as their
+  /// hold; [released] keys never started.
+  void apply({
+    Iterable<String> acquired = const [],
+    Iterable<String> started = const [],
+    Iterable<String> finished = const [],
+    Iterable<String> released = const [],
+  }) {
+    final touched = <String>{};
+    for (final key in acquired) {
+      _holds[key] = (_holds[key] ?? 0) + 1;
+      touched.add(key);
+    }
+    for (final key in started) {
+      if (_holds.containsKey(key)) {
+        _runs[key] = (_runs[key] ?? 0) + 1;
+        touched.add(key);
+      }
+    }
+    for (final key in finished) {
+      _decrement(_runs, key);
+      _decrement(_holds, key);
+      touched.add(key);
+    }
+    for (final key in released) {
+      _decrement(_holds, key);
+      touched.add(key);
+    }
+    var changed = false;
+    for (final key in touched) {
+      final phase = !_holds.containsKey(key)
+          ? null
+          : _runs.containsKey(key)
+          ? DelayTestPhase.running
+          : DelayTestPhase.queued;
+      if (_phases[key] == phase) {
+        continue;
+      }
+      if (phase == null) {
+        _phases.remove(key);
+      } else {
+        _phases[key] = phase;
+      }
+      changed = true;
+    }
+    if (changed) {
+      _publish();
+    }
+  }
+
+  void clear() {
+    if (_holds.isEmpty) {
+      return;
+    }
+    _holds.clear();
+    _runs.clear();
+    _phases.clear();
+    _publish();
+  }
+
+  void _decrement(Map<String, int> counts, String key) {
+    final count = counts[key];
+    if (count == null) {
+      return;
+    }
+    if (count > 1) {
+      counts[key] = count - 1;
+    } else {
+      counts.remove(key);
+    }
+  }
+
+  // A copy per publish would make a run over n nodes O(n²). The view is live,
+  // so a dependent selects what it needs instead of keeping the map.
+  void _publish() {
+    value = UnmodifiableMapView(_phases);
+  }
+}
+
+@Riverpod(keepAlive: true)
+class DelayTestingGroups extends _$DelayTestingGroups
+    with AutoDisposeNotifierMixin {
+  @override
+  Set<String> build() {
+    return const <String>{};
+  }
+
+  bool start(String groupName) {
+    if (value.contains(groupName)) {
+      return false;
+    }
+    value = {...value, groupName};
+    return true;
+  }
+
+  void stop(String groupName) {
+    if (!value.contains(groupName)) {
+      return;
+    }
+    value = {...value}..remove(groupName);
+  }
+}
+
+@Riverpod(keepAlive: true)
+class HotKeyFailures extends _$HotKeyFailures with AutoDisposeNotifierMixin {
+  @override
+  Map<HotAction, String> build() {
+    return const {};
+  }
+}
+
+@Riverpod(keepAlive: true)
+class HotKeyRecording extends _$HotKeyRecording with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class SystemUiOverlayStyleState extends _$SystemUiOverlayStyleState
+    with AutoDisposeNotifierMixin {
+  @override
+  SystemUiOverlayStyle build() {
+    return const SystemUiOverlayStyle();
+  }
+}
+
+@Riverpod(name: 'coreStatusProvider', keepAlive: true)
+class _CoreStatus extends _$CoreStatus with AutoDisposeNotifierMixin {
+  @override
+  CoreStatus build() {
+    return CoreStatus.disconnected;
+  }
+}
+
+@riverpod
+class Query extends _$Query with AutoDisposeNotifierMixin {
+  @override
+  String build(QueryTag tag) {
+    return '';
+  }
+}
+
+@Riverpod(keepAlive: true)
+class Loading extends _$Loading with AutoDisposeNotifierMixin {
+  DateTime? _start;
+  Timer? _timer;
+
+  @override
+  bool build(LoadingTag tag) {
+    ref.onDispose(() {
+      _timer?.cancel();
+    });
+    return false;
+  }
+
+  void start() {
+    _timer?.cancel();
+    _timer = null;
+    _start = DateTime.now();
+    value = true;
+  }
+
+  Future<void> stop() async {
+    if (_start == null) {
+      value = false;
+      return;
+    }
+    final startedAt = _start!;
+    final elapsed = DateTime.now().difference(_start!).inMilliseconds;
+    const minDuration = 1000;
+    if (elapsed >= minDuration) {
+      value = false;
+      return;
+    }
+    _timer = Timer(Duration(milliseconds: minDuration - elapsed), () {
+      if (_start != startedAt) {
+        return;
+      }
+      value = false;
+    });
+  }
+}
+
+@riverpod
+class Items extends _$Items with AutoDisposeNotifierMixin {
+  @override
+  Set<dynamic> build(String key) {
+    return {};
+  }
+}
+
+@Riverpod(keepAlive: true)
+class UpdatingKeys extends _$UpdatingKeys {
+  final _operations = <String, Set<int>>{};
+  final _scopes = <String, UpdatingScope>{};
+  int _operation = 0;
+
+  @override
+  Set<String> build() {
+    ref.listen(coreStatusProvider, (_, next) {
+      if (next != CoreStatus.connected) {
+        _discardScope(UpdatingScope.core);
+      }
+    });
+    return const <String>{};
+  }
+
+  int start(String key, {UpdatingScope scope = UpdatingScope.local}) {
+    final operation = ++_operation;
+    _operations.putIfAbsent(key, () => <int>{}).add(operation);
+    _scopes[key] = scope;
+    if (!state.contains(key)) {
+      state = {...state, key};
+    }
+    return operation;
+  }
+
+  void stop(String key, int operation) {
+    final operations = _operations[key];
+    if (operations == null) {
+      return;
+    }
+    operations.remove(operation);
+    if (operations.isNotEmpty) {
+      return;
+    }
+    _discard([key]);
+  }
+
+  void stopKeys(Iterable<String> keys) {
+    _discard(keys.toList());
+  }
+
+  UpdatingScope? scopeOf(String key) => _scopes[key];
+
+  void _discardScope(UpdatingScope scope) {
+    _discard(state.where((key) => _scopes[key] == scope).toList());
+  }
+
+  void _discard(List<String> keys) {
+    if (keys.isEmpty) {
+      return;
+    }
+    for (final key in keys) {
+      _operations.remove(key);
+      _scopes.remove(key);
+    }
+    final next = state.where((key) => !keys.contains(key)).toSet();
+    if (next.length == state.length) {
+      return;
+    }
+    state = next;
+  }
+}
+
+@riverpod
+bool isUpdating(Ref ref, String name) {
+  return ref.watch(updatingKeysProvider).contains(name);
+}
+
+@Riverpod(keepAlive: true)
+class CurrentSSID extends _$CurrentSSID with AutoDisposeNotifierMixin {
+  @override
+  String? build() {
+    return null;
+  }
+}
+
+List<Override> buildAppStateOverrides(AppState appState) {
+  return [
+    initProvider.overrideWithBuild((_, _) => appState.isInit),
+    currentPageLabelProvider.overrideWithBuild((_, _) => appState.pageLabel),
+    packagesProvider.overrideWithBuild((_, _) => appState.packages),
+    sortNumProvider.overrideWithBuild((_, _) => appState.sortNum),
+    viewSizeProvider.overrideWithBuild((_, _) => appState.viewSize),
+    sideWidthProvider.overrideWithBuild((_, _) => appState.sideWidth),
+    delayDataSourceProvider.overrideWithBuild((_, _) => appState.delayMap),
+    groupsProvider.overrideWithBuild((_, _) => appState.groups),
+    systemBrightnessProvider.overrideWithBuild((_, _) => appState.brightness),
+    runTimeProvider.overrideWithBuild((_, _) => appState.runTime),
+    providersProvider.overrideWithBuild((_, _) => appState.providers),
+    localIpProvider.overrideWithBuild((_, _) => appState.localIp),
+    requestsProvider.overrideWithBuild((_, _) => appState.requests),
+    versionProvider.overrideWithBuild((_, _) => appState.version),
+    logsProvider.overrideWithBuild((_, _) => appState.logs),
+    trafficsProvider.overrideWithBuild((_, _) => appState.traffics),
+    totalTrafficProvider.overrideWithBuild((_, _) => appState.totalTraffic),
+    authorizedTunEnableProvider.overrideWithBuild(
+      (_, _) => appState.authorizedTunEnable,
+    ),
+    systemUiOverlayStyleStateProvider.overrideWithBuild(
+      (_, _) => appState.systemUiOverlayStyle,
+    ),
+    coreStatusProvider.overrideWithBuild((_, _) => appState.coreStatus),
+  ];
 }

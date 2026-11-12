@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/l10n/l10n.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/plugins/app.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/app.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,398 +19,610 @@ class AccessView extends ConsumerStatefulWidget {
   ConsumerState<AccessView> createState() => _AccessViewState();
 }
 
-class _AccessViewState extends ConsumerState<AccessView> {
-  final _searchController = TextEditingController();
-  final _searchFocusNode = FocusNode();
-  final _scrollController = ScrollController();
-  final _loadCompleter = Completer();
+class _AccessViewState extends ConsumerState<AccessView>
+    with RouteSettledMixin<AccessView> {
+  late ScrollController _controller;
+  List<String>? _pinedList;
+  bool _isInit = false;
+  bool _installedAppsPermissionGranted = true;
 
-  bool _isTV = false;
-  // On Android TV the search field is read-only until the user presses OK, so a
-  // D-pad focus only highlights it (no keyboard) and the remote can move on. OK
-  // switches to editing and raises the IME; submitting drops back to read-only.
-  bool _searchEditing = false;
-  String _query = '';
-  bool _showSystem = false;
-  bool _showNoInternet = false;
-  bool _enabled = false;
-  AccessControlMode _mode = AccessControlMode.rejectSelected;
-
-  late Set<String> _selectedSet;
-  bool _dirty = false;
+  final _completer = Completer();
 
   @override
   void initState() {
     super.initState();
-    final ac = ref.read(vpnSettingProvider).accessControl;
-    _mode = ac.mode;
-    _selectedSet = Set.from(ac.currentList);
-    _enabled = ac.enable;
-    _showSystem = !ac.isFilterSystemApp;
-    _showNoInternet = !ac.isFilterNonInternetApp;
-    _loadCompleter.complete(globalState.appController.getPackages());
-    system.isAndroidTV.then((value) {
-      if (mounted && value) setState(() => _isTV = value);
+    _controller = sheetScrollController(context);
+    final accessControl = ref
+        .read(vpnSettingProvider.select((state) => state.accessControlProps))
+        .copyWith();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(accessControlStateProvider.notifier).value = accessControl;
+      _isInit = true;
+      _pinList();
     });
-    _searchFocusNode.addListener(_onSearchFocusChange);
-    _searchFocusNode.onKeyEvent = _onSearchKey;
+    ref.listenManual(
+      accessControlStateProvider.select((state) => state.mode),
+      (_, _) => _pinList(),
+    );
+    _completer.complete(_loadPackages());
   }
 
-  void _onSearchFocusChange() {
-    // Leaving the field (D-pad away / Back closing the IME) returns it to
-    // read-only so the next focus doesn't reopen the keyboard.
-    if (!_searchFocusNode.hasFocus && _searchEditing) {
-      setState(() => _searchEditing = false);
+  @override
+  void didSettleRoute() => setState(() {});
+
+  Future<void> _loadPackages() async {
+    final action = ref.read(systemActionProvider.notifier);
+    final packages = await action.getPackages();
+    final granted =
+        packages.isNotEmpty || await action.isInstalledAppsPermissionGranted();
+    if (!mounted || granted == _installedAppsPermissionGranted) {
+      return;
     }
+    setState(() {
+      _installedAppsPermissionGranted = granted;
+    });
   }
 
-  KeyEventResult _onSearchKey(FocusNode node, KeyEvent event) {
-    if (!_isTV || _searchEditing || event is! KeyDownEvent) {
-      return KeyEventResult.ignored;
+  Future<void> _handleGrantInstalledAppsPermission() async {
+    final appLocalizations = context.appLocalizations;
+    final granted = await ref
+        .read(systemActionProvider.notifier)
+        .requestInstalledAppsPermission();
+    if (!mounted) {
+      return;
     }
-    // OK / center on the remote begins editing and raises the keyboard.
-    if (event.logicalKey == LogicalKeyboardKey.select ||
-        event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.gameButtonA) {
-      setState(() => _searchEditing = true);
-      SystemChannels.textInput.invokeMethod('TextInput.show');
-      return KeyEventResult.handled;
+    if (!granted) {
+      final res = await dialogs.showMessage(
+        message: TextSpan(
+          text: appLocalizations.installedAppsPermissionDeniedMessage,
+        ),
+        confirmText: appLocalizations.settings,
+      );
+      if (res == true) {
+        await app?.openAppSettings();
+      }
+      return;
     }
-    return KeyEventResult.ignored;
+    await globalState.loadingRun(_loadPackages, tag: LoadingTag.access);
+  }
+
+  void _pinList() {
+    if (!_isInit || !mounted) {
+      return;
+    }
+    setState(() {
+      _pinedList = ref.read(accessControlStateProvider).currentList;
+    });
   }
 
   @override
   void dispose() {
-    _persist();
-    _searchFocusNode.removeListener(_onSearchFocusChange);
-    _searchFocusNode.dispose();
-    _searchController.dispose();
-    _scrollController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _persist() {
-    if (!_dirty) return;
-    final notifier = ref.read(vpnSettingProvider.notifier);
-    notifier.updateState(
-      (state) => state.copyWith.accessControl(
-        enable: _enabled,
-        acceptList: _mode == AccessControlMode.acceptSelected
-            ? _selectedSet.toList()
-            : [],
-        rejectList: _mode == AccessControlMode.rejectSelected
-            ? _selectedSet.toList()
-            : [],
-        mode: _mode,
-        isFilterSystemApp: !_showSystem,
-        isFilterNonInternetApp: !_showNoInternet,
-      ),
+  IconButtonData _buildSelectAllAction({
+    required bool isSelectedAll,
+    required List<String> allValueList,
+  }) {
+    void onPressed() {
+      ref.read(accessControlStateProvider.notifier).update((state) {
+        final newSet = Set<String>.from(state.currentList);
+        final isSelectedAll = newSet.containsAll(allValueList);
+        if (isSelectedAll) {
+          newSet.removeAll(allValueList);
+        } else {
+          newSet.addAll(allValueList);
+        }
+        return state.copyWithNewList(newSet.toList());
+      });
+    }
+
+    final appLocalizations = context.appLocalizations;
+    return isSelectedAll
+        ? IconButtonData(
+            glyph: AppGlyphs.deselect,
+            tooltip: appLocalizations.cancelSelectAll,
+            onPressed: onPressed,
+          )
+        : IconButtonData(
+            glyph: AppGlyphs.selectAll,
+            tooltip: appLocalizations.selectAll,
+            onPressed: onPressed,
+          );
+  }
+
+  Future<void> _handleToSetting() async {
+    await showSheet<int>(
+      context: context,
+      builder: (context) {
+        final appLocalizations = context.appLocalizations;
+        return CommonScaffold(
+          body: const AccessControlPanel(),
+          title: appLocalizations.accessControlSettings,
+        );
+      },
     );
   }
 
-  void _toggleApp(String pkg) {
-    setState(() {
-      _dirty = true;
-      if (_selectedSet.contains(pkg)) {
-        _selectedSet.remove(pkg);
-      } else {
-        _selectedSet.add(pkg);
-      }
+  void _handleSelected(String packageName) {
+    ref.read(accessControlStateProvider.notifier).update((state) {
+      final newSet = Set<String>.from(state.currentList)
+        ..addOrRemove(packageName);
+      return state.copyWithNewList(newSet.toList());
     });
   }
 
-  void _switchMode() {
-    setState(() {
-      _dirty = true;
-      _mode = _mode == AccessControlMode.acceptSelected
-          ? AccessControlMode.rejectSelected
-          : AccessControlMode.acceptSelected;
-      _selectedSet.clear();
+  void _handleEnable(bool enable) {
+    ref.read(accessControlStateProvider.notifier).update((state) {
+      return state.copyWith(enable: enable);
     });
   }
 
-  List<Package> _filter(List<Package> packages) {
-    final q = _query.toLowerCase();
-    return packages.where((p) {
-      if (!_showSystem && p.system) return false;
-      if (!_showNoInternet && !p.internet) return false;
-      if (q.isNotEmpty &&
-          !p.label.toLowerCase().contains(q) &&
-          !p.packageName.toLowerCase().contains(q)) {
-        return false;
-      }
-      return true;
-    }).toList()
-      ..sort((a, b) {
-        final sa = _selectedSet.contains(a.packageName) ? 0 : 1;
-        final sb = _selectedSet.contains(b.packageName) ? 0 : 1;
-        final c = sa.compareTo(sb);
-        return c != 0 ? c : a.label.compareTo(b.label);
-      });
+  Future<void> _handleBack() async {
+    final res = await dialogs.showSaveChanges();
+    if (res == null) {
+      return;
+    }
+    if (res) {
+      _handleSave();
+    }
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
-  void _showModeHelp() {
-    final appLocale = AppLocalizations.of(context);
-    final title = _mode == AccessControlMode.acceptSelected
-        ? appLocale.includeInVpn
-        : appLocale.excludeFromVpn;
-    final desc = _mode == AccessControlMode.acceptSelected
-        ? appLocale.whitelistModeDesc
-        : appLocale.blacklistModeDesc;
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(desc),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+  AccessControlProps _getRealAccessControlProps(
+    AccessControlProps accessControl,
+  ) {
+    final packages = ref.read(packagesProvider);
+    if (packages.isEmpty) {
+      return accessControl;
+    }
+    final installedPackageNames = packages
+        .map((item) => item.packageName)
+        .toSet();
+    return accessControl.copyWithNewList(
+      accessControl.currentList
+          .where((item) => installedPackageNames.contains(item))
+          .toList()
+        ..sort(),
+    );
+  }
+
+  void _handleSave() {
+    final accessControl = ref.read(accessControlStateProvider);
+    ref
+        .read(vpnSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            accessControlProps: _getRealAccessControlProps(accessControl),
+          ),
+        );
+  }
+
+  Future<void> _exportToClipboard() async {
+    await globalState.safeRun(() {
+      final currentList = ref.read(
+        accessControlStateProvider.select((state) => state.currentList),
+      );
+      Clipboard.setData(ClipboardData(text: currentList.join('\n')));
+    });
+  }
+
+  Future<void> _importFormClipboard() async {
+    await globalState.safeRun(() async {
+      final data = await Clipboard.getData('text/plain');
+      final text = data?.text;
+      if (text == null) return;
+      final list = text.split('\n');
+      ref
+          .read(accessControlStateProvider.notifier)
+          .update((state) => state.copyWithNewList(list.toSet().toList()));
+    });
+  }
+
+  void _smartSelect() {
+    final names = ref.read(packagesProvider).map((item) => item.packageName);
+    if (names.isEmpty) {
+      return;
+    }
+    ref
+        .read(accessControlStateProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            acceptList: [
+              for (final name in names)
+                if (!isRussianPackage(name)) name,
+            ],
+            rejectList: [
+              for (final name in names)
+                if (isRussianPackage(name)) name,
+            ],
+          ),
+        );
+  }
+
+  List<CommonPopupMenuItem> _buildMenuItems(
+    BuildContext context, {
+    required bool enable,
+  }) {
+    final appLocalizations = context.appLocalizations;
+    return [
+      CommonPopupMenuItem(
+        glyph: AppGlyphs.toggle,
+        label: appLocalizations.accessControl,
+        subItems: [
+          CommonPopupMenuItem(
+            label: appLocalizations.turnOn,
+            checked: enable,
+            onPressed: () => _handleEnable(true),
+          ),
+          CommonPopupMenuItem(
+            label: appLocalizations.turnOff,
+            checked: !enable,
+            onPressed: () => _handleEnable(false),
           ),
         ],
       ),
+      CommonPopupMenuItem(
+        glyph: AppGlyphs.sliders,
+        label: appLocalizations.settings,
+        onPressed: _handleToSetting,
+      ),
+      CommonPopupMenuItem(
+        glyph: AppGlyphs.moreCircle,
+        label: appLocalizations.action,
+        subItems: [
+          CommonPopupMenuItem(
+            glyph: AppGlyphs.sparkle,
+            label: appLocalizations.intelligentSelected,
+            onPressed: _smartSelect,
+          ),
+          CommonPopupMenuItem(
+            glyph: AppGlyphs.copy,
+            label: appLocalizations.clipboardExport,
+            onPressed: _exportToClipboard,
+          ),
+          CommonPopupMenuItem(
+            glyph: AppGlyphs.paste,
+            label: appLocalizations.clipboardImport,
+            onPressed: _importFormClipboard,
+          ),
+        ],
+      ),
+    ];
+  }
+
+  Widget _buildContent({
+    required List<Package> packages,
+    required Set<String> selected,
+    required bool isSearching,
+  }) {
+    return FutureBuilder(
+      future: _completer.future,
+      builder: (context, snapshot) {
+        final appLocalizations = context.appLocalizations;
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CommonCircleLoading.page());
+        }
+        return NullStatusSwitcher(
+          isEmpty: packages.isEmpty,
+          isSearching: isSearching,
+          nullStatus: NullStatus(
+            label: appLocalizations.noData,
+            illustration: NullStatusIllustration.apps,
+          ),
+          child: CommonScrollBar(
+            controller: _controller,
+            child: ListView.builder(
+              controller: _controller,
+              padding: EdgeInsets.only(
+                top: context.contentTopPadding,
+                bottom: context.bottomInset,
+              ),
+              scrollCacheExtent: arrivalScrollCacheExtent(routeSettled),
+              itemCount: packages.length,
+              itemExtent: 72,
+              itemBuilder: (_, index) {
+                final package = packages[index];
+                return PackageListItem(
+                  key: Key(package.packageName),
+                  package: package,
+                  value: selected.contains(package.packageName),
+                  onChanged: (value) {
+                    _handleSelected(package.packageName);
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  Widget _buildInstalledAppsPermissionStatus() {
+    final appLocalizations = context.appLocalizations;
+    return NullStatus(
+      label: appLocalizations.installedAppsPermissionRequired,
+      description: appLocalizations.installedAppsPermissionDesc,
+      illustration: NullStatusIllustration.permission,
+      action: TonalButton(
+        size: TonalButtonSize.bar,
+        glyph: AppGlyphs.lockOpen,
+        label: appLocalizations.authorize,
+        onPressed: _handleGrantInstalledAppsPermission,
+      ),
+    );
+  }
+
+  void _onSearch(String value) {
+    ref.read(queryProvider(QueryTag.access).notifier).value = value;
+    _pinList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(loadingProvider(LoadingTag.access));
+    final query = SearchQuery(ref.watch(queryProvider(QueryTag.access)));
     final packages = ref.watch(packagesProvider);
-    final filtered = _filter(packages);
-    final appLocale = AppLocalizations.of(context);
-    final isWhitelist = _mode == AccessControlMode.acceptSelected;
+    final accessControl = ref.watch(accessControlStateProvider);
+    final viewPackages = packages
+        .getViewList(
+          pinedList: _pinedList ?? [],
+          sortType: accessControl.sort,
+          isFilterNonInternetApp: accessControl.isFilterNonInternetApp,
+          isFilterSystemApp: accessControl.isFilterSystemApp,
+        )
+        .whereMatches(query, (package) => [package.label, package.packageName])
+        .toList();
+    final currentList = accessControl.currentList;
+    final viewPackageNameList = viewPackages.map((e) => e.packageName).toList();
+    final valueList = currentList.intersection(viewPackageNameList);
+    final needsInstalledAppsPermission =
+        packages.isEmpty && !_installedAppsPermissionGranted;
+    final selectAllAction =
+        accessControl.enable &&
+            !needsInstalledAppsPermission &&
+            viewPackageNameList.isNotEmpty
+        ? _buildSelectAllAction(
+            isSelectedAll: valueList.length == viewPackageNameList.length,
+            allValueList: viewPackageNameList,
+          )
+        : null;
+    final hasChanges = ref.watch(
+      vpnSettingProvider.select(
+        (state) =>
+            _getRealAccessControlProps(state.accessControlProps) !=
+            _getRealAccessControlProps(accessControl),
+      ),
+    );
+    return CommonPopScope(
+      onPop: hasChanges
+          ? (_) {
+              _handleBack();
+              return false;
+            }
+          : null,
+      child: CommonScaffold(
+        isLoading: isLoading,
+        searchState: AppBarSearchState(onSearch: _onSearch),
+        searchActions: [?selectAllAction],
+        searchInBar: true,
+        title: context.appLocalizations.appAccessControl,
+        confirmationAction: hasChanges
+            ? IconButtonData(
+                glyph: AppGlyphs.check,
+                onPressed: _handleSave,
+                tooltip: context.appLocalizations.save,
+              )
+            : null,
+        iconActions: [?selectAllAction],
+        menuItems: _buildMenuItems(context, enable: accessControl.enable),
+        body: AppBarClearance(
+          child: needsInstalledAppsPermission
+              ? _buildInstalledAppsPermissionStatus()
+              : FloatingFootBar(
+                  bar: _AccessStatus(
+                    accessControl: accessControl,
+                    selectedCount: valueList.length,
+                    onEnable: () => _handleEnable(true),
+                  ),
+                  body: DisabledMask(
+                    status: !accessControl.enable,
+                    child: _buildContent(
+                      packages: viewPackages,
+                      selected: valueList.toSet(),
+                      isSearching: query.isNotEmpty,
+                    ),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
 
-    return PopScope(
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) _persist();
-      },
-      child: Column(
+class _AccessStatus extends StatelessWidget {
+  const _AccessStatus({
+    required this.accessControl,
+    required this.selectedCount,
+    required this.onEnable,
+  });
+
+  final AccessControlProps accessControl;
+  final int selectedCount;
+  final VoidCallback onEnable;
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final colorScheme = context.colorScheme;
+    final enabled = accessControl.enable;
+    final description = enabled
+        ? switch (accessControl.mode) {
+            AccessControlMode.acceptSelected =>
+              appLocalizations.accessControlAllowDesc,
+            AccessControlMode.rejectSelected =>
+              appLocalizations.accessControlNotAllowDesc,
+          }
+        : appLocalizations.accessControlDisabledDesc;
+    return Padding(
+      padding: EdgeInsetsDirectional.fromSTEB(16, 6, enabled ? 16 : 8, 6),
+      child: Row(
+        spacing: 12,
         children: [
-          ListItem.switchItem(
-            title: Text(appLocale.appAccessControl),
-            delegate: SwitchDelegate(
-              value: _enabled,
-              onChanged: (v) => setState(() {
-                _enabled = v;
-                _dirty = true;
-              }),
-            ),
+          GlyphIcon(
+            enabled ? AppGlyphs.appsList : AppGlyphs.info,
+            size: 20,
+            color: colorScheme.onSurfaceVariant,
           ),
-          const Divider(height: 1),
           Expanded(
-            child: DisabledMask(
-              status: !_enabled,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    child: GestureDetector(
-                      onLongPress: _showModeHelp,
-                      child: SegmentedButton<AccessControlMode>(
-                        segments: [
-                          ButtonSegment(
-                            value: AccessControlMode.acceptSelected,
-                            label: Text(appLocale.includeInVpn),
-                            icon: const Icon(Icons.check_circle_outline,
-                                size: 18),
-                          ),
-                          ButtonSegment(
-                            value: AccessControlMode.rejectSelected,
-                            label: Text(appLocale.excludeFromVpn),
-                            icon: const Icon(Icons.remove_circle_outline,
-                                size: 18),
-                          ),
-                        ],
-                        selected: {_mode},
-                        onSelectionChanged: (_) => _switchMode(),
-                        showSelectedIcon: false,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    child: TextField(
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      // TV: read-only until OK is pressed, so a D-pad focus
-                      // doesn't trap the user behind the keyboard.
-                      readOnly: _isTV && !_searchEditing,
-                      onSubmitted: (_) {
-                        if (_isTV) setState(() => _searchEditing = false);
-                      },
-                      decoration: InputDecoration(
-                        hintText: appLocale.search,
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        suffixIcon: _query.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 18),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _query = '');
-                                },
-                              )
-                            : null,
-                      ),
-                      onChanged: (v) => setState(() => _query = v),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.android),
-                          tooltip: appLocale.systemApp,
-                          isSelected: _showSystem,
-                          onPressed: () => setState(() {
-                            _showSystem = !_showSystem;
-                            _dirty = true;
-                          }),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.wifi_off),
-                          tooltip: appLocale.noNetworkApp,
-                          isSelected: _showNoInternet,
-                          onPressed: () => setState(() {
-                            _showNoInternet = !_showNoInternet;
-                            _dirty = true;
-                          }),
-                        ),
-                        const Spacer(),
-                        if (_selectedSet.isNotEmpty)
-                          TextButton.icon(
-                            icon: const Icon(Icons.clear_all, size: 18),
-                            label: Text('${_selectedSet.length}'),
-                            onPressed: () => setState(() {
-                              _selectedSet.clear();
-                              _dirty = true;
-                            }),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: FutureBuilder(
-                      future: _loadCompleter.future,
-                      builder: (_, snap) {
-                        if (snap.connectionState != ConnectionState.done) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        if (filtered.isEmpty) {
-                          return Center(
-                            child: Text(
-                              appLocale.noData,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          );
-                        }
-                        return ListView.builder(
-                          controller: _scrollController,
-                          itemCount: filtered.length,
-                          itemExtent: 72,
-                          itemBuilder: (_, i) {
-                            final pkg = filtered[i];
-                            final selected =
-                                _selectedSet.contains(pkg.packageName);
-                            return _AppTile(
-                              package: pkg,
-                              selected: selected,
-                              isWhitelist: isWhitelist,
-                              onTap: () => _toggleApp(pkg.packageName),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            child: Text(
+              description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyle.footnote
+                  .of(context)
+                  .copyWith(color: colorScheme.onSurface),
             ),
           ),
+          if (enabled)
+            TonalChip(
+              label: appLocalizations.accessControlSelectedCount(selectedCount),
+              color: colorScheme.primary.opacity15,
+              foregroundColor: colorScheme.primary,
+            )
+          else
+            TonalButton(
+              size: TonalButtonSize.compact,
+              label: appLocalizations.turnOn,
+              onPressed: onEnable,
+            ),
         ],
       ),
     );
   }
 }
 
-class _AppTile extends StatelessWidget {
-  const _AppTile({
-    required this.package,
-    required this.selected,
-    required this.isWhitelist,
-    required this.onTap,
-  });
-
+class PackageListItem extends StatelessWidget {
   final Package package;
-  final bool selected;
-  final bool isWhitelist;
-  final VoidCallback onTap;
+  final bool value;
+  final void Function(bool?) onChanged;
+
+  const PackageListItem({
+    super.key,
+    required this.package,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final Color? color;
-    final IconData icon;
-    if (selected) {
-      color = isWhitelist ? Colors.green : Colors.red;
-      icon = isWhitelist ? Icons.check_circle : Icons.remove_circle;
-    } else {
-      color = null;
-      icon = Icons.radio_button_unchecked;
-    }
+    return ListItem.checkbox(
+      leading: PackageIcon(packageName: package.packageName, size: 48),
+      title: Text(
+        package.label,
+        style: const TextStyle(overflow: TextOverflow.ellipsis),
+        maxLines: 1,
+      ),
+      subtitle: Text(
+        package.packageName,
+        style: const TextStyle(overflow: TextOverflow.ellipsis),
+        maxLines: 1,
+      ),
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+}
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: FutureBuilder<ImageProvider?>(
-                future: app?.getPackageIcon(package.packageName),
-                builder: (_, snap) {
-                  if (snap.data == null) return const SizedBox();
-                  return Image(
-                    image: snap.data!,
-                    gaplessPlayback: true,
-                    width: 48,
-                    height: 48,
-                  );
+class AccessControlPanel extends StatelessWidget {
+  const AccessControlPanel({super.key});
+
+  static ConfigWriter<T> _writer<T>(
+    AccessControlProps Function(AccessControlProps state, T value) update,
+  ) {
+    return (ref, value) => ref
+        .read(accessControlStateProvider.notifier)
+        .update((state) => update(state, value));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
+        top: context.contentTopPadding,
+        bottom: 32 + context.bottomInset,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          generateSection(
+            items: [
+              ConfigOptionsItem<AccessControlMode>(
+                title: (l) => l.mode,
+                options: AccessControlMode.values,
+                textBuilder: (mode) => switch (mode) {
+                  AccessControlMode.acceptSelected =>
+                    appLocalizations.whitelistMode,
+                  AccessControlMode.rejectSelected =>
+                    appLocalizations.blacklistMode,
                 },
+                selector: accessControlStateProvider.select(
+                  (state) => state.mode,
+                ),
+                onChanged: _writer(
+                  (state, value) => state.copyWith(mode: value),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    package.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    package.packageName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+              ConfigOptionsItem<AccessSortType>(
+                title: (l) => l.sort,
+                options: AccessSortType.values,
+                textBuilder: (type) => switch (type) {
+                  AccessSortType.none => appLocalizations.defaultText,
+                  AccessSortType.name => appLocalizations.name,
+                  AccessSortType.time => appLocalizations.time,
+                },
+                selector: accessControlStateProvider.select(
+                  (state) => state.sort,
+                ),
+                onChanged: _writer(
+                  (state, value) => state.copyWith(sort: value),
+                ),
               ),
-            ),
-            Icon(icon, color: color),
-          ],
-        ),
+            ],
+          ),
+          generateSection(
+            title: appLocalizations.source,
+            items: [
+              ConfigToggleItem(
+                title: (l) => l.systemApp,
+                selector: accessControlStateProvider.select(
+                  (state) => !state.isFilterSystemApp,
+                ),
+                onChanged: _writer(
+                  (state, value) => state.copyWith(isFilterSystemApp: !value),
+                ),
+              ),
+              ConfigToggleItem(
+                title: (l) => l.noNetworkApp,
+                selector: accessControlStateProvider.select(
+                  (state) => !state.isFilterNonInternetApp,
+                ),
+                onChanged: _writer(
+                  (state, value) =>
+                      state.copyWith(isFilterNonInternetApp: !value),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

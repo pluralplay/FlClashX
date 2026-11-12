@@ -1,62 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
-        tools:ignore="SelectedPhotoAccess" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
 
     <application>
-
         <service
-            android:name=".RemoteService"
+            android:name=".VpnService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            android:process=":remote">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="FlClashX AIDL core process keeper" />
-        </service>
-
-        <service
-            android:name=".CommonService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:process=":remote">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="FlClashX proxy core running without VPN tunnel" />
-        </service>
-
-        <service
-            android:name=".FlVpnService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:permission="android.permission.BIND_VPN_SERVICE"
-            android:process=":remote">
+            android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="FlClashX VPN tunnel service" />
+                android:value="vpn" />
+        </service>
+
+        <service
+            android:name=".ProxyService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="proxy" />
         </service>
 
         <provider
             android:name=".FilesProvider"
-            android:authorities="${applicationId}.provider.files"
+            android:authorities="${applicationId}.files"
             android:exported="true"
             android:grantUriPermissions="true"
-            android:permission="android.permission.MANAGE_DOCUMENTS"
-            android:process=":remote">
+            android:permission="android.permission.MANAGE_DOCUMENTS">
             <intent-filter>
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
         </provider>
-
     </application>
-
 </manifest>

@@ -1,14 +1,51 @@
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/views/proxies/common.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProxyCard extends StatelessWidget {
+void selectGroupProxy(
+  WidgetRef ref, {
+  required String groupName,
+  required GroupType groupType,
+  required String proxyName,
+}) {
+  final isComputedSelected = groupType.isComputedSelected;
+  if (isComputedSelected || groupType == GroupType.Selector) {
+    final currentProxyName = ref.read(proxyNameProvider(groupName));
+    final nextProxyName = switch (isComputedSelected) {
+      true => currentProxyName == proxyName ? '' : proxyName,
+      false => proxyName,
+    };
+    ref
+        .read(proxiesActionProvider.notifier)
+        .changeProxyDebounce(groupName, nextProxyName);
+    return;
+  }
+  dialogs.showNotifier(
+    currentAppLocalizations.notSelectedTip,
+    level: MessageLevel.warning,
+  );
+}
+
+/// Built-ins and groups have no definition, and a custom profile's own proxies
+/// are the local proxies already.
+bool _isAddableToLocal(Proxy proxy, {required bool isCustomProfile}) {
+  return (proxy.providerName != null || !isCustomProfile) &&
+      !reservedCustomProxyNames.contains(proxy.name) &&
+      GroupTypeExtension.getGroupType(proxy.type) == null;
+}
+
+class ProxyCard extends ConsumerWidget {
+  final String groupName;
+  final Proxy proxy;
+  final GroupType groupType;
+  final ProxyCardType type;
+  final String? testUrl;
 
   const ProxyCard({
     super.key,
@@ -18,272 +55,378 @@ class ProxyCard extends StatelessWidget {
     required this.groupType,
     required this.type,
   });
-  final String groupName;
-  final Proxy proxy;
-  final GroupType groupType;
-  final ProxyCardType type;
-  final String? testUrl;
 
   Measure get measure => globalState.measure;
 
-  void _handleTestCurrentDelay() {
-    proxyDelayTest(
-      proxy,
-      testUrl,
-    );
-  }
-
-  Widget _buildDelayText() => SizedBox(
-      height: measure.labelSmallHeight,
-      child: Consumer(
-        builder: (context, ref, __) {
-          final delay = ref.watch(getDelayProvider(
-            proxyName: proxy.name,
-            testUrl: testUrl,
-          ));
-          return delay == 0 || delay == null
-              ? SizedBox(
-                  height: measure.labelSmallHeight,
-                  width: measure.labelSmallHeight,
-                  child: delay == 0
-                      ? const CircularProgressIndicator(
-                          strokeWidth: 2,
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.bolt),
-                          iconSize: globalState.measure.labelSmallHeight,
-                          padding: EdgeInsets.zero,
-                          onPressed: _handleTestCurrentDelay,
-                        ),
-                )
-              : GestureDetector(
-                  onTap: _handleTestCurrentDelay,
-                  child: Text(
-                    delay > 0 ? '$delay ms' : "Timeout",
-                    style: context.textTheme.labelSmall?.copyWith(
-                      overflow: TextOverflow.ellipsis,
-                      color: utils.getDelayColor(
-                        delay,
-                      ),
-                    ),
-                  ),
-                );
-        },
-      ),
-    );
-
   Widget _buildProxyNameText(BuildContext context) {
-    if (type == ProxyCardType.oneline) {
-      return Consumer(
-        builder: (context, ref, child) {
-          final isSelected = groupType.isComputedSelected &&
-              ref.watch(getProxyNameProvider(groupName)) == proxy.name;
-
-          return Padding(
-            padding:
-                isSelected ? const EdgeInsets.only(right: 32) : EdgeInsets.zero,
-            child: child,
-          );
-        },
-        child: SizedBox(
-          height: measure.bodyMediumHeight * 1,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: EmojiText(
-                  proxy.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.bodyMedium,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildDelayText(),
-            ],
-          ),
-        ),
-      );
-    } else if (type == ProxyCardType.min) {
+    if (type == ProxyCardType.compact || type == ProxyCardType.oneline) {
       return SizedBox(
-        height: measure.bodyMediumHeight * 1,
+        height: measure.textHeight(AppTextStyle.subheadline) * 1,
         child: EmojiText(
           proxy.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.bodyMedium,
+          style: AppTextStyle.subheadline.of(context),
         ),
       );
     } else {
       return SizedBox(
-        height: measure.bodyMediumHeight * 2,
+        height: measure.textHeight(AppTextStyle.subheadline) * 2,
         child: EmojiText(
           proxy.name,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.bodyMedium,
+          style: AppTextStyle.subheadline.of(context),
         ),
       );
     }
   }
 
-  Future<void> _changeProxy(WidgetRef ref) async {
-    final isComputedSelected = groupType.isComputedSelected;
-    final isSelector = groupType == GroupType.Selector;
-    if (isComputedSelected || isSelector) {
-      final currentProxyName = ref.read(getProxyNameProvider(groupName));
-      final nextProxyName = switch (isComputedSelected) {
-        true => currentProxyName == proxy.name ? "" : proxy.name,
-        false => proxy.name,
-      };
-      final appController = globalState.appController;
-      appController.updateCurrentSelectedMap(
-        groupName,
-        nextProxyName,
-      );
-      appController.changeProxyDebounce(groupName, nextProxyName);
+  void _handleSelect(WidgetRef ref) {
+    selectGroupProxy(
+      ref,
+      groupName: groupName,
+      groupType: groupType,
+      proxyName: proxy.name,
+    );
+  }
+
+  void _handleAddToLocalProxies(WidgetRef ref) {
+    final proxiesAction = ref.read(proxiesActionProvider.notifier);
+    globalState.safeRun(() => proxiesAction.addToLocalProxies(proxy.name));
+  }
+
+  List<CommonPopupMenuItem> _menuItems(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool inUse,
+    required bool pinned,
+    required bool addable,
+  }) {
+    final appLocalizations = context.appLocalizations;
+    return [
+      if (groupType == GroupType.Selector)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.checkCircle,
+          label: appLocalizations.select,
+          checked: inUse,
+          onPressed: () => _handleSelect(ref),
+        )
+      else if (groupType.isComputedSelected)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.pin,
+          label: appLocalizations.preferred,
+          checked: pinned,
+          onPressed: () => _handleSelect(ref),
+        ),
+      if (addable)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.listAdd,
+          label: appLocalizations.addToLocalProxies,
+          onPressed: () => _handleAddToLocalProxies(ref),
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final measure = globalState.measure;
+    final isLoose = type == ProxyCardType.loose;
+    final isOneline = type == ProxyCardType.oneline;
+    final delayText = _DelayText(
+      proxy: proxy,
+      testUrl: testUrl,
+      alignment: isLoose ? Alignment.centerLeft : Alignment.centerRight,
+    );
+    final proxyNameText = _buildProxyNameText(context);
+    final typeStyle = AppTextStyle.footnote
+        .of(context)
+        .copyWith(
+          overflow: TextOverflow.ellipsis,
+          color: context.colorScheme.onSurface.opacity80,
+        );
+    final details = isLoose
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: measure.textHeight(AppTextStyle.footnote),
+                child: _ProxyDesc(proxy: proxy, style: typeStyle),
+              ),
+              const SizedBox(height: 6),
+              delayText,
+            ],
+          )
+        : SizedBox(
+            height: measure.textHeight(AppTextStyle.footnote),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  flex: 1,
+                  child: _ProxyDesc(proxy: proxy, style: typeStyle),
+                ),
+                delayText,
+              ],
+            ),
+          );
+    return Consumer(
+      builder: (context, ref, _) {
+        final inUse = ref.watch(
+          selectedProxyNameProvider(
+            groupName,
+          ).select((name) => name == proxy.name),
+        );
+        final pinned =
+            groupType.isComputedSelected &&
+            ref.watch(
+              proxyNameProvider(groupName).select((name) => name == proxy.name),
+            );
+        final isCustomProfile = ref.watch(
+          currentProfileProvider.select(
+            (profile) => profile?.type == ProfileType.custom,
+          ),
+        );
+        final badge = pinned
+            ? SelectionBadge.preferred(inUse: inUse)
+            : inUse
+            ? const SelectionBadge()
+            : null;
+        return ContextMenuRegion(
+          menuItems: _menuItems(
+            context,
+            ref,
+            inUse: inUse,
+            pinned: pinned,
+            addable: _isAddableToLocal(proxy, isCustomProfile: isCustomProfile),
+          ),
+          child: CommonCard(
+            // A one-line card is about 40 tall, where `lg` would round it into a pill.
+            radius: isOneline ? AppCorner.md : AppCorner.lg,
+            enterActionsOnRight: true,
+            key: key,
+            onPressed: () => _handleSelect(ref),
+            isSelected: inUse,
+            child: Container(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: isOneline
+                  ? Row(
+                      spacing: 8,
+                      children: [
+                        Expanded(child: proxyNameText),
+                        delayText,
+                        ?badge,
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 4,
+                          children: [
+                            Expanded(child: proxyNameText),
+                            ?badge,
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        details,
+                      ],
+                    ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProxyDesc extends ConsumerWidget {
+  const _ProxyDesc({required this.proxy, required this.style});
+
+  final Proxy proxy;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isGroup = GroupType.values.any((type) => type.name == proxy.type);
+    final nodeName = isGroup
+        ? ref.watch(
+            realSelectedProxyStateProvider(
+              proxy.name,
+            ).select((state) => state.proxyName),
+          )
+        : proxy.name;
+    return EmojiText(
+      _describe(nodeName, isGroup: isGroup),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+  }
+
+  // A nested group reads as the host it resolves to, not its bare type, unless
+  // its `groupDescription` speaks for it, which then hides the host.
+  String _describe(String nodeName, {required bool isGroup}) {
+    if (!isGroup) {
+      return proxy.description;
+    }
+    return proxy.serverDescription ??
+        (nodeName == proxy.name ? proxy.type : nodeName);
+  }
+}
+
+class _DelayText extends ConsumerStatefulWidget {
+  const _DelayText({
+    required this.proxy,
+    required this.testUrl,
+    required this.alignment,
+  });
+
+  final Proxy proxy;
+  final String? testUrl;
+  final Alignment alignment;
+
+  @override
+  ConsumerState<_DelayText> createState() => _DelayTextState();
+}
+
+class _DelayTextState extends ConsumerState<_DelayText> {
+  final FocusNode _focusNode = SkipTraversalFocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleFocusChange() {
+    final isFocused = _focusNode.hasPrimaryFocus;
+    if (isFocused == _isFocused) {
       return;
     }
-    globalState.showNotifier(
-      appLocalizations.notSelectedTip,
+    setState(() {
+      _isFocused = isFocused;
+    });
+  }
+
+  void _handleTestCurrentDelay() {
+    ref
+        .read(proxiesActionProvider.notifier)
+        .proxyDelayTest(widget.proxy, widget.testUrl);
+  }
+
+  Widget _withFocusRing(BuildContext context, Widget child) {
+    if (!_isFocused) {
+      return child;
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          top: -2,
+          right: -3,
+          bottom: -2,
+          left: -3,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                shape: AppShape.xs.copyWith(
+                  side: focusRingSide(context.colorScheme),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final measure = globalState.measure;
-    final delayText = _buildDelayText();
-    final proxyNameText = _buildProxyNameText(context);
-    return Stack(
-      children: [
-        Consumer(
-          builder: (_, ref, child) {
-            final selectedProxyName =
-                ref.watch(getSelectedProxyNameProvider(groupName));
-            return CommonCard(
-              key: key,
-              onPressed: () {
-                _changeProxy(ref);
-              },
-              isSelected: selectedProxyName == proxy.name,
-              child: child!,
-            );
-          },
-          child: Container(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                proxyNameText,
-                if (type != ProxyCardType.oneline) ...[
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  if (type == ProxyCardType.expand) ...[
-                    SizedBox(
-                      height: measure.bodySmallHeight,
-                      child: _ProxyDesc(
-                        proxy: proxy,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 6,
-                    ),
-                    delayText,
-                  ] else
-                    SizedBox(
-                      height: measure.bodySmallHeight,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            flex: 1,
-                            child: _ProxyDesc(proxy: proxy),
-                          ),
-                          delayText,
-                        ],
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        if (groupType.isComputedSelected)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: _ProxyComputedMark(
-              groupName: groupName,
-              proxy: proxy,
-              cardType: type,
-            ),
-          )
-      ],
+    final delay = ref.watch(
+      delayProvider(proxyName: widget.proxy.name, testUrl: widget.testUrl),
     );
-  }
-}
-
-class _ProxyDesc extends ConsumerWidget {
-
-  const _ProxyDesc({
-    required this.proxy,
-  });
-  final Proxy proxy;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final desc = ref.watch(
-      getProxyDescProvider(proxy),
-    );
-    return EmojiText(
-      desc,
-      overflow: TextOverflow.ellipsis,
-      style: context.textTheme.bodySmall?.copyWith(
-        color: context.textTheme.bodySmall?.color?.opacity80,
+    final phase = ref.watch(
+      delayTestPhaseProvider(
+        proxyName: widget.proxy.name,
+        testUrl: widget.testUrl,
       ),
     );
-  }
-}
-
-class _ProxyComputedMark extends ConsumerWidget {
-
-  const _ProxyComputedMark({
-    required this.groupName,
-    required this.proxy,
-    required this.cardType,
-  });
-  final String groupName;
-  final Proxy proxy;
-  final ProxyCardType cardType;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final proxyName = ref.watch(
-      getProxyNameProvider(groupName),
-    );
-    if (proxyName != proxy.name) {
-      return const SizedBox();
-    }
-
-    final margin = cardType == ProxyCardType.oneline
-        ? const EdgeInsets.fromLTRB(8, 4, 8, 8)
-        : const EdgeInsets.all(8);
-
-    return Container(
-      alignment: Alignment.topRight,
-      margin: margin,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Theme.of(context).colorScheme.secondaryContainer,
+    return Actions(
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            _handleTestCurrentDelay();
+            return null;
+          },
         ),
-        child: const SelectIcon(),
+      },
+      child: Focus(
+        focusNode: _focusNode,
+        child: SizedBox(
+          height: measure.textHeight(AppTextStyle.caption2),
+          child: FadeBox(
+            alignment: widget.alignment,
+            child: phase != null || delay == null
+                ? SizedBox(
+                    height: measure.textHeight(AppTextStyle.caption2),
+                    width: measure.textHeight(AppTextStyle.caption2),
+                    child: _withFocusRing(context, switch (phase) {
+                      DelayTestPhase.running => CommonCircleLoading(
+                        size: measure.textHeight(AppTextStyle.caption2),
+                      ),
+                      DelayTestPhase.queued => GlyphIcon(
+                        AppGlyphs.clock,
+                        size: measure.textHeight(AppTextStyle.caption2),
+                        color: context.colorScheme.onSurfaceVariant.opacity38,
+                      ),
+                      null => Tooltip(
+                        message: context.appLocalizations.delayTest,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _handleTestCurrentDelay,
+                          child: GlyphIcon(
+                            AppGlyphs.bolt,
+                            size: measure.textHeight(AppTextStyle.caption2),
+                          ),
+                        ),
+                      ),
+                    }),
+                  )
+                : GestureDetector(
+                    onTap: _handleTestCurrentDelay,
+                    child: _withFocusRing(
+                      context,
+                      Text(
+                        delay > 0
+                            ? '$delay ms'
+                            : delayFailureText(delay, context.appLocalizations),
+                        maxLines: 1,
+                        style: AppTextStyle.caption2
+                            .of(context, emphasized: true)
+                            .copyWith(
+                              overflow: TextOverflow.ellipsis,
+                              color: context.colorScheme.delayColor(delay),
+                            ),
+                      ),
+                    ),
+                  ),
+          ),
+        ),
       ),
     );
   }

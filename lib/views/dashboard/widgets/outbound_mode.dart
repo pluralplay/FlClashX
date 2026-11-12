@@ -1,158 +1,187 @@
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/providers/config.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'dart:async';
 
-class OutboundMode extends StatelessWidget {
-  const OutboundMode({super.key});
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/ui.dart';
+import 'package:fl_clash/views/dashboard/layout.dart';
+import 'package:fl_clash/views/dashboard/style.dart';
+import 'package:fl_clash/widgets/managed_setting.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'card.dart';
+
+Glyph _glyphOf(Mode mode) => switch (mode) {
+  Mode.rule => AppGlyphs.rules,
+  Mode.global => AppGlyphs.proxies,
+  Mode.direct => AppGlyphs.target,
+};
+
+void _changeMode(WidgetRef ref, Mode mode) {
+  if (ref.read(patchClashConfigProvider).mode == mode) return;
+  unawaited(ref.read(setupActionProvider.notifier).pickMode(mode));
+}
+
+class OutboundModeCard extends ConsumerWidget {
+  const OutboundModeCard({super.key});
+
+  static const _outer = 26.0;
 
   @override
-  Widget build(BuildContext context) {
-    final height = getWidgetHeight(2);
-    return SizedBox(
-      height: height,
-      child: Consumer(
-        builder: (_, ref, __) {
-          final mode = ref.watch(
-            patchClashConfigProvider.select(
-              (state) => state.mode,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(
+      patchClashConfigProvider.select((state) => state.mode),
+    );
+    final modes = ref.watch(availableModesProvider);
+    final tone = DashboardColors.of(context).tone;
+    final style = AppTextStyle.footnote.of(context, emphasized: true);
+    return ManagedSetting(
+      settingKey: 'clash.mode',
+      dimsWhenLocked: false,
+      showsLock: false,
+      child: DashboardCard(
+        semanticLabel: context.appLocalizations.outboundMode,
+        child: Column(
+          children: [
+            DashboardCardHeader(
+              glyph: AppGlyphs.split,
+              title: context.appLocalizations.outboundMode,
             ),
-          );
-          return Theme(
-              data: Theme.of(context).copyWith(
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  hoverColor: Colors.transparent),
-              child: CommonCard(
-                onPressed: () {},
-                info: Info(
-                  label: appLocalizations.outboundMode,
-                  iconData: Icons.call_split_sharp,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    top: 12,
-                    bottom: 16,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (final item in Mode.values)
-                        Flexible(
-                          fit: FlexFit.tight,
-                          child: ListItem.radio(
-                            dense: true,
-                            horizontalTitleGap: 4,
-                            padding: EdgeInsets.only(
-                              left: 12.ap,
-                              right: 16.ap,
+            const SizedBox(height: 12),
+            DashboardConnectedGroup(
+              children: [
+                for (final (index, item) in modes.indexed)
+                  Expanded(
+                    child: DashboardConnectedButton(
+                      selected: item == mode,
+                      first: index == 0,
+                      last: index == modes.length - 1,
+                      outer: _outer,
+                      inner: 12,
+                      background: tone,
+                      semanticLabel: item.label,
+                      onTap: () => _changeMode(ref, item),
+                      builder: (foreground) => SizedBox(
+                        height: 52,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: 2,
+                          children: [
+                            GlyphIcon(
+                              _glyphOf(item),
+                              size: 18,
+                              color: foreground,
                             ),
-                            delegate: RadioDelegate(
-                              value: item,
-                              groupValue: mode,
-                              onChanged: (value) async {
-                                if (value == null) {
-                                  return;
-                                }
-                                globalState.appController.changeMode(value);
-                              },
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: style.copyWith(color: foreground),
                             ),
-                            title: Text(
-                              Intl.message(item.name),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.toSoftBold,
-                            ),
-                          ),
+                          ],
                         ),
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-              ));
-        },
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class OutboundModeV2 extends StatelessWidget {
-  const OutboundModeV2({super.key});
+/// The desktop control row's mode switch; its buttons sit as far in from the
+/// card's ends as from its edges so their corners stay concentric.
+class OutboundModeBar extends ConsumerWidget {
+  const OutboundModeBar({super.key});
 
-  Color _getTextColor(BuildContext context, Mode mode) => switch (mode) {
-      Mode.rule => context.colorScheme.onSecondaryContainer,
-      Mode.global => context.colorScheme.onPrimaryContainer,
-      Mode.direct => context.colorScheme.onTertiaryContainer,
-    };
+  static const _inset = 8.0;
 
   @override
-  Widget build(BuildContext context) {
-    final height = getWidgetHeight(0.72);
-    return SizedBox(
-      height: height,
-      child: CommonCard(
-        padding: EdgeInsets.zero,
-        child: Consumer(
-          builder: (_, ref, __) {
-            final mode = ref.watch(
-              patchClashConfigProvider.select(
-                (state) => state.mode,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final density = DashboardDensityScope.of(context);
+    final mode = ref.watch(
+      patchClashConfigProvider.select((state) => state.mode),
+    );
+    final modes = ref.watch(availableModesProvider);
+    final appLocalizations = context.appLocalizations;
+    final outer = dashboardCardRadius(density) - _inset;
+    final style = AppTextStyle.subheadline.of(context, emphasized: true);
+    return ManagedSetting(
+      settingKey: 'clash.mode',
+      dimsWhenLocked: false,
+      showsLock: false,
+      child: DashboardCard(
+        semanticLabel: appLocalizations.outboundMode,
+        padding: EdgeInsetsDirectional.fromSTEB(
+          dashboardCardPadding(density).left,
+          _inset,
+          _inset,
+          _inset,
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            spacing: 16,
+            children: [
+              GlyphIcon(
+                AppGlyphs.split,
+                size: 18,
+                color: context.colorScheme.onSurfaceVariant,
               ),
-            );
-            final thumbColor = switch (mode) {
-              Mode.rule => context.colorScheme.secondaryContainer,
-              Mode.global => globalState.theme.darken3PrimaryContainer,
-              Mode.direct => context.colorScheme.tertiaryContainer,
-            };
-            return Container(
-              constraints: const BoxConstraints.expand(),
-              child: CommonTabBar<Mode>(
-                children: Map.fromEntries(
-                  Mode.values.map(
-                    (item) => MapEntry(
-                      item,
-                      Container(
-                        clipBehavior: Clip.antiAlias,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(),
-                        height: height - 16,
-                        child: Text(
-                          Intl.message(item.name),
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.adjustSize(1)
-                              .copyWith(
-                                color: item == mode
-                                    ? _getTextColor(
-                                        context,
-                                        item,
-                                      )
-                                    : null,
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth / 4),
+                child: Text(
+                  appLocalizations.outboundMode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DashboardText.cardTitle(context),
+                ),
+              ),
+              Expanded(
+                child: DashboardConnectedGroup(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (index, item) in modes.indexed)
+                      Expanded(
+                        child: DashboardConnectedButton(
+                          selected: item == mode,
+                          first: index == 0,
+                          last: index == modes.length - 1,
+                          outer: outer,
+                          inner: 10,
+                          background: DashboardColors.of(context).tone,
+                          semanticLabel: item.label,
+                          onTap: () => _changeMode(ref, item),
+                          builder: (foreground) => Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: 6,
+                            children: [
+                              GlyphIcon(
+                                _glyphOf(item),
+                                size: 18,
+                                color: foreground,
                               ),
+                              Flexible(
+                                child: Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: style.copyWith(color: foreground),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                groupValue: mode,
-                onValueChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  globalState.appController.changeMode(value);
-                },
-                thumbColor: thumbColor,
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );

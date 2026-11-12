@@ -31,6 +31,7 @@
 				<string>clashmeta</string>
 				<string>flclash</string>
 				<string>flclashx</string>
+				<string>clashx</string>
 			</array>
 		</dict>
 	</array>
@@ -38,23 +39,13 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-	<key>LSUIElement</key>
-	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<!-- The in-app zashboard webview reaches the core's external-controller over
-	     http on loopback (and http self-hosted dashboards on LAN). WKWebView
-	     enforces ATS, which blocks cleartext by default; NSAllowsLocalNetworking
-	     exempts loopback/.local/private-range hosts while other hosts keep the
-	     secure default. -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FlClash needs location access to detect WiFi network name for connectivity features.</string>
 </dict>
 </plist>

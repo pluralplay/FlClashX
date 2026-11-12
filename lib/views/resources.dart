@@ -1,31 +1,32 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:flclashx/clash/clash.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/l10n/l10n.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/providers/config.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/action.dart';
+import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/database.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' hide context;
 
-@immutable
-class GeoItem {
+typedef _RemoteResources = ({
+  List<IconSet> iconSets,
+  List<ClashProvider> ruleProviders,
+  List<Script> scripts,
+});
 
-  const GeoItem({
-    required this.label,
-    required this.key,
-    required this.fileName,
-    required this.geoType,
-  });
-  final String label;
-  final String key;
-  final String fileName;
-  final String geoType;
-}
+const _RemoteResources _noResources = (
+  iconSets: <IconSet>[],
+  ruleProviders: <ClashProvider>[],
+  scripts: <Script>[],
+);
 
 class ResourcesView extends ConsumerStatefulWidget {
   const ResourcesView({super.key});
@@ -35,414 +36,567 @@ class ResourcesView extends ConsumerStatefulWidget {
 }
 
 class _ResourcesViewState extends ConsumerState<ResourcesView> {
-  bool _isUpdatingAll = false;
-  String? _currentlyUpdating;
-  final Set<String> _individuallyUpdating = {};
-
-  void _setFileUpdating(String fileName, bool isUpdating) {
-    setState(() {
-      if (isUpdating) {
-        _individuallyUpdating.add(fileName);
-      } else {
-        _individuallyUpdating.remove(fileName);
-      }
-    });
-  }
-
-  Future<void> _updateAllGeoFiles() async {
-    if (_isUpdatingAll || _individuallyUpdating.isNotEmpty) return;
-
-    setState(() {
-      _isUpdatingAll = true;
-    });
-
-    try {
-      setState(() => _currentlyUpdating = "GeoIP.dat");
-      try {
-        final result1 = await clashCore.updateGeoData(const UpdateGeoDataParams(geoType: "GeoIp", geoName: "GeoIP.dat"));
-        if (result1.isNotEmpty) {
-          throw Exception("GeoIP.dat: $result1");
-        }
-      } catch (e) {
-        commonPrint.log("Failed to update GeoIP.dat: $e");
-      }
-      
-      setState(() => _currentlyUpdating = "geoip.metadb");
-      try {
-        final result2 = await clashCore.updateGeoData(const UpdateGeoDataParams(geoType: "MMDB", geoName: "geoip.metadb"));
-        if (result2.isNotEmpty) {
-          throw Exception("geoip.metadb: $result2");
-        }
-      } catch (e) {
-        commonPrint.log("Failed to update geoip.metadb: $e");
-      }
-      
-      setState(() => _currentlyUpdating = "GeoSite.dat");
-      try {
-        final result3 = await clashCore.updateGeoData(const UpdateGeoDataParams(geoType: "GeoSite", geoName: "GeoSite.dat"));
-        if (result3.isNotEmpty) {
-          throw Exception("GeoSite.dat: $result3");
-        }
-      } catch (e) {
-        commonPrint.log("Failed to update GeoSite.dat: $e");
-      }
-      
-      setState(() => _currentlyUpdating = "ASN.mmdb");
-      try {
-        final result4 = await clashCore.updateGeoData(const UpdateGeoDataParams(geoType: "ASN", geoName: "ASN.mmdb"));
-        if (result4.isNotEmpty) {
-          throw Exception("ASN.mmdb: $result4");
-        }
-      } catch (e) {
-        commonPrint.log("Failed to update ASN.mmdb: $e");
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUpdatingAll = false;
-          _currentlyUpdating = null;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const geoItems = <GeoItem>[
-      GeoItem(
-        label: "GeoIp",
-        fileName: geoIpFileName,
-        key: "geoip",
-        geoType: "GeoIp",
-      ),
-      GeoItem(
-        label: "GeoSite",
-        fileName: geoSiteFileName,
-        key: "geosite",
-        geoType: "GeoSite",
-      ),
-      GeoItem(
-        label: "MMDB",
-        fileName: mmdbFileName,
-        key: "mmdb",
-        geoType: "MMDB",
-      ),
-      GeoItem(
-        label: "ASN",
-        fileName: asnFileName,
-        key: "asn",
-        geoType: "ASN",
-      ),
-    ];
-
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.separated(
-            itemBuilder: (_, index) {
-              final geoItem = geoItems[index];
-              return GeoDataListItem(
-                geoItem: geoItem,
-                isGlobalUpdating: _isUpdatingAll,
-                currentlyUpdatingFile: _currentlyUpdating,
-                onUpdateStatusChanged: _setFileUpdating,
-              );
-            },
-            separatorBuilder: (context, index) => const Divider(
-                height: 0,
-              ),
-            itemCount: geoItems.length,
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: SizedBox(
-              width: double.infinity,
-              child: Builder(
-                builder: (context) => FilledButton.icon(
-                    icon: _isUpdatingAll
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).colorScheme.onPrimary,
-                              ),
-                            ),
-                          )
-                        : const Icon(Icons.sync),
-                    label: Text(AppLocalizations.of(context).updateAllGeoData),
-                    onPressed: (_isUpdatingAll || _individuallyUpdating.isNotEmpty)
-                        ? null
-                        : () async {
-                            await globalState.safeRun(_updateAllGeoFiles);
-                          },
-                  ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class GeoDataListItem extends StatefulWidget {
-
-  const GeoDataListItem({
-    super.key,
-    required this.geoItem,
-    required this.isGlobalUpdating,
-    this.currentlyUpdatingFile,
-    required this.onUpdateStatusChanged,
-  });
-  final GeoItem geoItem;
-  final bool isGlobalUpdating;
-  final String? currentlyUpdatingFile;
-  final void Function(String fileName, bool isUpdating) onUpdateStatusChanged;
-
-  @override
-  State<GeoDataListItem> createState() => _GeoDataListItemState();
-}
-
-class _GeoDataListItemState extends State<GeoDataListItem> {
-  GeoItem get geoItem => widget.geoItem;
-  bool _isUpdating = false;
-
-  Future<FileInfo> _getGeoFileLastModified(String fileName) async {
-    final homePath = await appPath.homeDirPath;
-    final file = File(join(homePath, fileName));
-    final lastModified = await file.lastModified();
-    final size = await file.length();
-    return FileInfo(
-      size: size,
-      lastModified: lastModified,
-    );
-  }
-
-  Future<void> _updateGeoFile() async {
-    if (_isUpdating) return;
-    
-    setState(() {
-      _isUpdating = true;
-    });
-    widget.onUpdateStatusChanged(geoItem.fileName, true);
-
-    try {
-      final result = await clashCore.updateGeoData(
-        UpdateGeoDataParams(
-          geoType: geoItem.geoType,
-          geoName: geoItem.fileName,
-        ),
-      );
-      
-      if (result.isNotEmpty) {
-        if (mounted) {
-          globalState.showMessage(
-            title: appLocalizations.errorTitle,
-            message: TextSpan(text: result),
-          );
-        }
-      } else {
-        if (mounted) {
-          setState(() {});
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        globalState.showMessage(
-          title: appLocalizations.errorTitle,
-          message: TextSpan(text: e.toString()),
-        );
-      }
-    } finally {
-      widget.onUpdateStatusChanged(geoItem.fileName, false);
-      if (mounted) {
-        setState(() {
-          _isUpdating = false;
-        });
-      }
-    }
-  }
-
-  Future<String?> _getActiveGeoUrl(WidgetRef ref) async {
-    try {
-      final currentProfileId = ref.watch(currentProfileIdProvider);
-      if (currentProfileId != null) {
-        final profileConfig = await globalState.getProfileConfig(currentProfileId);
-        final geoXUrl = profileConfig["geox-url"];
-        if (geoXUrl != null && geoXUrl is Map) {
-          if (geoItem.key == 'geoip') {
-            return geoXUrl['geoip'] ?? geoXUrl['geo-ip'];
-          } else if (geoItem.key == 'geosite') {
-            return geoXUrl['geosite'] ?? geoXUrl['geo-site'];
-          } else {
-            return geoXUrl[geoItem.key];
-          }
-        }
-      }
-    } catch (_) {
-      // config parsing failed — fall through to default
-    }
-    
-    return ref.read(patchClashConfigProvider.select((state) => state.geoXUrl.toJson()[geoItem.key]));
-  }
-
-  Widget _buildSubtitle() => Consumer(
-      builder: (_, ref, __) => FutureBuilder<String?>(
-          future: _getActiveGeoUrl(ref),
-          builder: (context, urlSnapshot) {
-            final url = urlSnapshot.data;
-            
-            if (url == null) {
-              return const SizedBox();
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(
-                  height: 4,
-                ),
-                FutureBuilder<FileInfo>(
-                  future: _getGeoFileLastModified(geoItem.fileName),
-                  builder: (_, snapshot) {
-                final height = globalState.measure.bodyMediumHeight;
-                return SizedBox(
-                  height: height,
-                  child: snapshot.data == null
-                      ? SizedBox(
-                          width: height,
-                          height: height,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          snapshot.data!.desc,
-                          style: context.textTheme.bodyMedium,
-                        ),
-                    );
-                  },
-                ),
-                Text(
-                  url,
-                  style: context.textTheme.bodyMedium?.toLight,
-                ),
-              ],
-            );
-          },
-        ),
-    );
-
-
-
-  @override
-  Widget build(BuildContext context) {
-    final isThisFileUpdating = widget.isGlobalUpdating && 
-                                widget.currentlyUpdatingFile == geoItem.fileName;
-    final isDisabled = widget.isGlobalUpdating || _isUpdating;
-    
-    return ListItem(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 4,
-      ),
-      title: Text(geoItem.label),
-      subtitle: _buildSubtitle(),
-      trailing: (_isUpdating || isThisFileUpdating)
-          ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
-            )
-          : IconButton(
-              icon: const Icon(Icons.sync),
-              tooltip: appLocalizations.update,
-              onPressed: isDisabled ? null : _updateGeoFile,
-            ),
-    );
-  }
-}
-
-class UpdateGeoUrlFormDialog extends StatefulWidget {
-
-  const UpdateGeoUrlFormDialog(
-      {super.key, required this.title, required this.url, this.defaultValue});
-  final String title;
-  final String url;
-  final String? defaultValue;
-
-  @override
-  State<UpdateGeoUrlFormDialog> createState() => _UpdateGeoUrlFormDialogState();
-}
-
-class _UpdateGeoUrlFormDialogState extends State<UpdateGeoUrlFormDialog> {
-  late TextEditingController urlController;
+  _RemoteResources? _resources;
+  var _fileInfos = const <String, FileInfo?>{};
 
   @override
   void initState() {
     super.initState();
-    urlController = TextEditingController(text: widget.url);
+    ref.listenManual(iconSetsProvider, (_, _) => _refreshResources());
+    ref.listenManual(clashProvidersProvider, (_, _) => _refreshResources());
+    ref.listenManual(scriptsProvider, (_, _) => _refreshResources());
+    unawaited(_load());
   }
 
-  Future<void> _handleReset() async {
-    if (widget.defaultValue == null) {
+  Future<void> _load() async {
+    await Future.wait<Object>([
+      ref.read(iconSetsProvider.future),
+      ref.read(clashProvidersProvider.future),
+      ref.read(scriptsProvider.future),
+    ]).catchError((Object _) => const <Object>[]);
+    if (!mounted) {
       return;
     }
-    Navigator.of(context).pop<String>(widget.defaultValue);
+    final resources = _readResources();
+    final loads = <String, Future<FileInfo?>>{
+      for (final type in GeoResource.values)
+        type.updatingKey: _geoFileInfo(type),
+      for (final provider in resources.ruleProviders)
+        provider.updatingKey: provider.fileInfo,
+      for (final script in resources.scripts)
+        script.updatingKey: script.fileInfo,
+    };
+    final fileInfos = await Future.wait([
+      for (final load in loads.values) load.catchError((Object _) => null),
+    ]);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _resources = _readResources();
+      _fileInfos = Map.fromIterables(loads.keys, fileInfos);
+    });
   }
 
-  Future<void> _handleUpdate() async {
-    final url = urlController.value.text;
-    if (url.isEmpty) return;
-    Navigator.of(context).pop<String>(url);
+  _RemoteResources _readResources() => (
+    iconSets: [
+      for (final iconSet in ref.read(iconSetsProvider).value ?? <IconSet>[])
+        if (iconSet.isRemote) iconSet,
+    ],
+    ruleProviders: [
+      for (final provider
+          in ref.read(clashProvidersProvider).value ?? <ClashProvider>[])
+        if (provider.isRemote) provider,
+    ],
+    scripts: [
+      for (final script in ref.read(scriptsProvider).value ?? <Script>[])
+        if (script.url != null) script,
+    ],
+  );
+
+  void _refreshResources() {
+    if (_resources == null) {
+      return;
+    }
+    setState(() => _resources = _readResources());
+  }
+
+  Future<void> _updateAll() async {
+    final failures = await ref
+        .read(resourcesActionProvider.notifier)
+        .updateAll();
+    dialogs.showFailures(failures);
+  }
+
+  Future<void> _updateInterval() async {
+    final appLocalizations = context.appLocalizations;
+    final updateInterval = ref.read(patchClashConfigProvider).geoUpdateInterval;
+    final value = await dialogs.showCommonDialog<String>(
+      child: InputDialog(
+        title: appLocalizations.resourceUpdateInterval,
+        value: updateInterval.toString(),
+        suffixText: appLocalizations.hours,
+        keyboardType: TextInputType.number,
+        inputFormatters: TextInputLimits.digitsOnly(
+          TextInputLimits.geoUpdateInterval,
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return appLocalizations.emptyTip(
+              appLocalizations.resourceUpdateInterval,
+            );
+          }
+          final interval = int.tryParse(value);
+          if (interval == null) {
+            return appLocalizations.numberTip(
+              appLocalizations.resourceUpdateInterval,
+            );
+          }
+          if (interval <= 0) {
+            return appLocalizations.resourceUpdateIntervalTip;
+          }
+          return null;
+        },
+      ),
+    );
+    final interval = int.tryParse(value ?? '');
+    if (interval == null || interval <= 0 || !mounted) {
+      return;
+    }
+    ref
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(geoUpdateInterval: interval));
+  }
+
+  void _updateAutoUpdate(bool value) {
+    ref
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(geoAutoUpdate: value));
   }
 
   @override
-  Widget build(BuildContext context) => CommonDialog(
-      title: widget.title,
-      actions: [
-        if (widget.defaultValue != null &&
-            urlController.value.text != widget.defaultValue) ...[
-          TextButton(
-            onPressed: _handleReset,
-            child: Text(appLocalizations.reset),
-          ),
-          const SizedBox(
-            width: 4,
-          ),
-        ],
-        TextButton(
-          onPressed: _handleUpdate,
-          child: Text(appLocalizations.submit),
-        )
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final autoUpdate = ref.watch(
+      patchClashConfigProvider.select((state) => state.geoAutoUpdate),
+    );
+    final updateInterval = ref.watch(
+      patchClashConfigProvider.select((state) => state.geoUpdateInterval),
+    );
+    final resources = _resources;
+    final (:iconSets, :ruleProviders, :scripts) = resources ?? _noResources;
+    final resourceKeys = [
+      for (final geoResource in GeoResource.values) geoResource.updatingKey,
+      for (final iconSet in iconSets) iconSet.updatingKey,
+      for (final provider in ruleProviders) provider.updatingKey,
+      for (final script in scripts) script.updatingKey,
+    ];
+    final isUpdating = ref.watch(
+      updatingKeysProvider.select((keys) => resourceKeys.any(keys.contains)),
+    );
+
+    return CommonScaffold(
+      title: appLocalizations.resources,
+      iconActions: [
+        IconButtonData(
+          glyph: AppGlyphs.sync,
+          tooltip: appLocalizations.update,
+          isLoading: isUpdating,
+          onPressed: _updateAll,
+        ),
       ],
-      child: Wrap(
-        runSpacing: 16,
-        children: [
-          TextField(
-            maxLines: 5,
-            minLines: 1,
-            controller: urlController,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-            ),
+      body: NullStatusSwitcher(
+        isLoading: resources == null,
+        loadingStatus: const NullStatus(
+          illustration: NullStatusIllustration.data,
+        ),
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
+            top: context.sectionsTopPadding,
+            bottom: 16 + context.bottomInset,
           ),
-        ],
+          children: [
+            generateSection(
+              items: [
+                ListItem.toggle(
+                  title: Text(appLocalizations.autoUpdate),
+                  value: autoUpdate,
+                  onChanged: _updateAutoUpdate,
+                ),
+                if (autoUpdate)
+                  ListItem(
+                    title: Text(appLocalizations.resourceUpdateInterval),
+                    subtitle: Text('$updateInterval ${appLocalizations.hours}'),
+                    onTap: _updateInterval,
+                  ),
+              ],
+            ),
+            generateSection(
+              title: appLocalizations.geoResources,
+              items: [
+                for (final geoResource in GeoResource.values)
+                  _GeoResourceItem(geoResource, preloaded: _fileInfos),
+              ],
+            ),
+            generateSection(
+              title: appLocalizations.iconSets,
+              items: [
+                for (final iconSet in iconSets)
+                  _IconSetItem(iconSet, key: ValueKey(iconSet.id)),
+              ],
+            ),
+            generateSection(
+              title: appLocalizations.ruleProviders,
+              items: [
+                for (final provider in ruleProviders)
+                  _RuleProviderItem(
+                    provider,
+                    preloaded: _fileInfos,
+                    key: ValueKey(provider.id),
+                  ),
+              ],
+            ),
+            generateSection(
+              title: appLocalizations.script,
+              items: [
+                for (final script in scripts)
+                  _ScriptItem(
+                    script,
+                    preloaded: _fileInfos,
+                    key: ValueKey(script.id),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _ResourceItem extends StatelessWidget {
+  final String title;
+  final String? url;
+  final String? chip;
+  final DateTime? lastUpdateTime;
+  final bool pending;
+  final bool isUpdating;
+  final Future<void> Function() onSync;
+  final VoidCallback? onEdit;
+
+  const _ResourceItem({
+    required this.title,
+    required this.url,
+    required this.chip,
+    required this.lastUpdateTime,
+    this.pending = false,
+    required this.isUpdating,
+    required this.onSync,
+    this.onEdit,
+  });
+
+  Future<void> _copyLink(BuildContext context, String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
+    if (context.mounted) {
+      context.showNotifier(
+        context.appLocalizations.copySuccess,
+        level: MessageLevel.success,
+      );
+    }
+  }
+
+  List<CommonPopupMenuItem> _menuItems(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final url = this.url;
+    return [
+      if (!isUpdating)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.sync,
+          label: appLocalizations.sync,
+          onPressed: () {
+            globalState.safeRun<void>(onSync, title: title, silence: false);
+          },
+        ),
+      if (onEdit != null)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.edit,
+          label: appLocalizations.edit,
+          onPressed: onEdit,
+        ),
+      if (url != null)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.copy,
+          label: appLocalizations.copyLink,
+          onPressed: () {
+            _copyLink(context, url);
+          },
+        ),
+    ];
+  }
+
+  Widget _buildTrailing(BuildContext context) {
+    final chip = this.chip;
+    final colorScheme = context.colorScheme;
+    return AnimatedSwitcher(
+      duration: context.motionDuration(commonDuration),
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: AlignmentDirectional.centerEnd,
+        children: [...previousChildren, ?currentChild],
+      ),
+      child: isUpdating
+          ? const CommonCircleLoading(key: ValueKey('updating'), size: 24)
+          : chip == null
+          ? const SizedBox.shrink()
+          : TonalChip(
+              key: const ValueKey('chip'),
+              label: chip,
+              color: context.raisedSurfaceLevel.colorOf(colorScheme),
+              foregroundColor: colorScheme.onSurfaceVariant,
+            ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitleStyle = context.listCaptionStyle;
+    return ContextMenuRegion(
+      menuItems: _menuItems(context),
+      child: DecorationListItem(
+        onPressed: onEdit,
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: lastUpdateTime != null || pending
+            ? LastUpdateTimeText(
+                lastUpdateDate: lastUpdateTime,
+                style: subtitleStyle,
+              )
+            : Text(context.appLocalizations.unknown, style: subtitleStyle),
+        trailing: _buildTrailing(context),
+      ),
+    );
+  }
+}
+
+/// An update can rewrite the file without changing [source], so the file is
+/// read again once [updatingKey] settles.
+class _FileInfoBuilder extends ConsumerStatefulWidget {
+  final Object source;
+  final String updatingKey;
+  final Map<String, FileInfo?> preloaded;
+  final Future<FileInfo?> Function() load;
+  final Widget Function(BuildContext context, FileInfo? fileInfo, bool pending)
+  builder;
+
+  const _FileInfoBuilder({
+    required this.source,
+    required this.updatingKey,
+    required this.preloaded,
+    required this.load,
+    required this.builder,
+  });
+
+  @override
+  ConsumerState<_FileInfoBuilder> createState() => _FileInfoBuilderState();
+}
+
+class _FileInfoBuilderState extends ConsumerState<_FileInfoBuilder> {
+  Future<FileInfo?>? _fileInfoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.preloaded.containsKey(widget.updatingKey)) {
+      _fileInfoFuture = widget.load();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _FileInfoBuilder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.source != widget.source) {
+      _fileInfoFuture = widget.load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(isUpdatingProvider(widget.updatingKey), (previous, next) {
+      if (previous == true && !next) {
+        setState(() {
+          _fileInfoFuture = widget.load();
+        });
+      }
+    });
+    return FutureBuilder<FileInfo?>(
+      future: _fileInfoFuture,
+      initialData: widget.preloaded[widget.updatingKey],
+      builder: (context, snapshot) => widget.builder(
+        context,
+        snapshot.data,
+        _fileInfoFuture != null &&
+            snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData,
+      ),
+    );
+  }
+}
+
+Future<FileInfo?> _geoFileInfo(GeoResource type) async {
+  final fileName = switch (type) {
+    GeoResource.MMDB => MMDB,
+    GeoResource.ASN => ASN,
+    GeoResource.GEOIP => GEOIP,
+    GeoResource.GEOSITE => GEOSITE,
+  };
+  final homePath = await appPath.homeDirPath;
+  return File(join(homePath, fileName)).getFileInfo();
+}
+
+class _GeoResourceItem extends ConsumerWidget {
+  final GeoResource type;
+  final Map<String, FileInfo?> preloaded;
+
+  const _GeoResourceItem(this.type, {required this.preloaded});
+
+  Future<void> _updateUrl(
+    BuildContext context,
+    WidgetRef ref,
+    String url,
+  ) async {
+    final newUrl = await dialogs.showCommonDialog<String>(
+      child: UpdateGeoUrlFormDialog(
+        title: type.name,
+        url: url,
+        defaultValue: defaultGeoXUrl[type],
+      ),
+    );
+    if (newUrl != null && newUrl != url && context.mounted) {
+      try {
+        ref
+            .read(geoResourceActionProvider.notifier)
+            .updateGeoResourceUrl(type, newUrl);
+      } catch (e) {
+        unawaited(
+          dialogs.showAlert(
+            title: type.name,
+            message: TextSpan(text: e.toString()),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isUpdating = ref.watch(isUpdatingProvider(type.updatingKey));
+    final url = ref.watch(
+      patchClashConfigProvider.select((state) => state.geoXUrl[type]),
+    );
+    return _FileInfoBuilder(
+      source: type,
+      updatingKey: type.updatingKey,
+      preloaded: preloaded,
+      load: () => _geoFileInfo(type),
+      builder: (context, fileInfo, pending) => _ResourceItem(
+        title: type.name,
+        url: url,
+        chip: fileInfo?.size.traffic.show,
+        lastUpdateTime: fileInfo?.lastModified,
+        pending: pending,
+        isUpdating: isUpdating,
+        onSync: () => ref
+            .read(geoResourceActionProvider.notifier)
+            .updateGeoResource(type),
+        onEdit: url == null ? null : () => _updateUrl(context, ref, url),
+      ),
+    );
+  }
+}
+
+class _IconSetItem extends ConsumerWidget {
+  final IconSet iconSet;
+
+  const _IconSetItem(this.iconSet, {super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _ResourceItem(
+      title: iconSet.name,
+      url: iconSet.url,
+      chip: iconSet.icons.length.compact,
+      lastUpdateTime: iconSet.lastUpdateTime,
+      isUpdating: ref.watch(isUpdatingProvider(iconSet.updatingKey)),
+      onSync: () =>
+          ref.read(resourcesActionProvider.notifier).updateIconSet(iconSet),
+    );
+  }
+}
+
+class _RuleProviderItem extends ConsumerWidget {
+  final ClashProvider provider;
+  final Map<String, FileInfo?> preloaded;
+
+  const _RuleProviderItem(this.provider, {required this.preloaded, super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isUpdating = ref.watch(isUpdatingProvider(provider.updatingKey));
+    return _FileInfoBuilder(
+      source: provider,
+      updatingKey: provider.updatingKey,
+      preloaded: preloaded,
+      load: () => provider.fileInfo,
+      builder: (context, fileInfo, pending) => _ResourceItem(
+        title: provider.label,
+        url: provider.url,
+        chip: fileInfo?.size.traffic.show,
+        lastUpdateTime: fileInfo?.lastModified,
+        pending: pending,
+        isUpdating: isUpdating,
+        onSync: () => ref
+            .read(resourcesActionProvider.notifier)
+            .updateRuleProvider(provider),
+      ),
+    );
+  }
+}
+
+class _ScriptItem extends ConsumerWidget {
+  final Script script;
+  final Map<String, FileInfo?> preloaded;
+
+  const _ScriptItem(this.script, {required this.preloaded, super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isUpdating = ref.watch(isUpdatingProvider(script.updatingKey));
+    return _FileInfoBuilder(
+      source: script,
+      updatingKey: script.updatingKey,
+      preloaded: preloaded,
+      load: () => script.fileInfo,
+      builder: (context, fileInfo, _) => _ResourceItem(
+        title: script.label,
+        url: script.url,
+        chip: fileInfo?.size.traffic.show,
+        lastUpdateTime: script.lastUpdateTime,
+        isUpdating: isUpdating,
+        onSync: () =>
+            ref.read(resourcesActionProvider.notifier).updateScript(script),
+      ),
+    );
+  }
+}
+
+class UpdateGeoUrlFormDialog extends StatelessWidget {
+  final String title;
+  final String url;
+  final String? defaultValue;
+
+  const UpdateGeoUrlFormDialog({
+    super.key,
+    required this.title,
+    required this.url,
+    this.defaultValue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return InputDialog(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      title: title,
+      value: url,
+      resetValue: defaultValue,
+      inputFormatters: TextInputLimits.limit(TextInputLimits.url),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return appLocalizations.emptyTip('').trim();
+        }
+        if (!value.isUrl) {
+          return appLocalizations.urlTip('').trim();
+        }
+        return null;
+      },
+    );
+  }
 }

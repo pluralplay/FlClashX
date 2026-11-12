@@ -2,54 +2,41 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/state.dart';
+import 'package:fl_clash/common/common.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class Picker {
-  // A profile/config file is tiny; a much larger pick is a mistake. Reading one
-  // (a user picked ~120 MB) OOM'd — file_picker's withData streamed the whole
-  // file through the platform channel, which allocated a >100 MB direct
-  // ByteBuffer. So don't stream bytes over the channel: take the path and read
-  // it in Dart, bounded by this cap.
-  static const _maxImportBytes = 20 * 1024 * 1024;
-
   Future<PlatformFile?> pickerFile() async {
-    final filePickerResult = await FilePicker.platform.pickFiles(
-      withData: false,
-      allowMultiple: false,
-      initialDirectory: await appPath.downloadDirPath,
-    );
-    final file = filePickerResult?.files.first;
-    if (file == null) return null;
-    if (file.size > _maxImportBytes) {
-      globalState.showNotifier(appLocalizations.fileTooLarge);
-      return null;
-    }
-    final path = file.path;
-    // No path (e.g. web) — return whatever the picker provided as-is.
-    if (path == null) return file;
-    final bytes = await File(path).readAsBytes();
-    return PlatformFile(
-      name: file.name,
-      size: file.size,
-      path: path,
-      bytes: bytes,
-    );
+    return FilePicker.pickFile(initialDirectory: await appPath.downloadDirPath);
   }
 
-  Future<String?> saveFile(String fileName, Uint8List bytes) async {
-    final path = await FilePicker.platform.saveFile(
+  Future<Uri?> saveFile(String fileName, Uint8List bytes) async {
+    final uri = await FilePicker.saveFile(
       fileName: fileName,
       initialDirectory: await appPath.downloadDirPath,
-      bytes: Platform.isAndroid ? bytes : null,
+      bytes: bytes,
     );
-    if (!Platform.isAndroid && path != null) {
-      final file = await File(path).create(recursive: true);
-      await file.writeAsBytes(bytes);
+    if (!system.isAndroid && uri != null && uri.scheme == 'file') {
+      final file = File(uri.toFilePath());
+      await file.safeWriteAsBytes(bytes);
     }
-    return path;
+    return uri;
+  }
+
+  Future<Uri?> saveFileWithPath(String fileName, String localPath) async {
+    final localFile = File(localPath);
+    if (!await localFile.exists()) {
+      await localFile.create(recursive: true);
+    }
+    final bytes = await localFile.readAsBytes();
+    final uri = await FilePicker.saveFile(
+      fileName: fileName,
+      initialDirectory: await appPath.downloadDirPath,
+      bytes: bytes,
+    );
+    await localFile.safeDelete();
+    return uri;
   }
 
   Future<String?> pickerConfigQRCode() async {
@@ -57,15 +44,25 @@ class Picker {
     if (xFile == null) {
       return null;
     }
-    final controller = MobileScannerController();
-    final capture = await controller.analyzeImage(xFile.path, formats: [
-      BarcodeFormat.qrCode,
-    ]);
-    final result = capture?.barcodes.first.rawValue;
-    if (result == null || !result.isUrl) {
-      throw appLocalizations.pleaseUploadValidQrcode;
+    // Not through a throwaway MobileScannerController: disposing one clears
+    // the platform scan window of a scanner page that is still open.
+    final capture = await MobileScannerPlatform.instance.analyzeImage(
+      xFile.path,
+      formats: const [BarcodeFormat.qrCode],
+    );
+    final url = profileUrlFromQrCodes(
+      capture?.barcodes.map((barcode) => barcode.rawValue) ?? const [],
+    );
+    if (url == null) {
+      throw MessageException(currentAppLocalizations.pleaseUploadValidQrcode);
     }
-    return result;
+    return url;
+  }
+}
+
+extension PlatformFileExt on PlatformFile {
+  Future<Uint8List> readBytes() {
+    return readAsBytes();
   }
 }
 

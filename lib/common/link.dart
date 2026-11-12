@@ -1,40 +1,88 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 
 import 'print.dart';
+import 'protocol.dart';
+import 'string.dart';
 
-typedef InstallConfigCallBack = void Function(String url);
+String? profileUrlFromQrCodes(Iterable<String?> values) {
+  for (final value in values) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) {
+      continue;
+    }
+    if (text.isUrl || text.isShareLink) {
+      return text;
+    }
+    final uri = Uri.tryParse(text);
+    if (uri == null || !protocolSchemes.contains(uri.scheme)) {
+      continue;
+    }
+    final url = _installConfigUrl(uri);
+    if (url != null && url.isUrl) {
+      return url;
+    }
+  }
+  return null;
+}
+
+String? _installConfigUrl(Uri uri) {
+  if (uri.host != 'install-config') {
+    return null;
+  }
+  final url = uri.queryParameters['url']?.trim();
+  return url == null || url.isEmpty ? null : url;
+}
 
 class LinkManager {
-
-  factory LinkManager() {
-    _instance ??= LinkManager._internal();
-    return _instance!;
-  }
-
-  LinkManager._internal() {
-    _appLinks = AppLinks();
-  }
   static LinkManager? _instance;
-  late AppLinks _appLinks;
   StreamSubscription? subscription;
+  Uri? _pendingUri;
 
-  Future<void> initAppLinksListen(installConfigCallBack) async {
-    commonPrint.log("initAppLinksListen");
+  LinkManager._internal();
+
+  @visibleForTesting
+  Stream<Uri> Function() uriLinkStream = () => AppLinks().uriLinkStream;
+
+  /// Linux argv: the gtk plugin hooks GApplication too late to see it.
+  void seedInitialLink(List<String> args) {
+    for (final arg in args) {
+      final uri = Uri.tryParse(arg);
+      if (uri != null && protocolSchemes.contains(uri.scheme)) {
+        _pendingUri = uri;
+        return;
+      }
+    }
+  }
+
+  Future<void> initAppLinksListen(
+    Function(String url) installConfigCallBack,
+  ) async {
     destroy();
-    subscription = _appLinks.uriLinkStream.listen(
-      (uri) {
-        commonPrint.log('onAppLink: $uri');
-        if (uri.host == 'install-config') {
-          final parameters = uri.queryParameters;
-          final url = parameters['url'];
-          if (url != null) {
-            installConfigCallBack(url);
-          }
-        }
-      },
+    subscription = uriLinkStream().listen((uri) {
+      _handle(uri, installConfigCallBack);
+    });
+    final pending = _pendingUri;
+    _pendingUri = null;
+    if (pending != null) {
+      _handle(pending, installConfigCallBack);
+    }
+  }
+
+  /// The nested url carries the subscription's credentials, so the log
+  /// names only its host.
+  void _handle(Uri uri, Function(String url) installConfigCallBack) {
+    final url = _installConfigUrl(uri);
+    final target = url?.webUri?.host;
+    commonPrint.log(
+      'onAppLink: ${uri.scheme}://${uri.host}'
+      '${target == null ? '' : ' for $target'}',
     );
+    if (url != null) {
+      installConfigCallBack(url);
+    }
   }
 
   void destroy() {
@@ -42,6 +90,11 @@ class LinkManager {
       subscription?.cancel();
       subscription = null;
     }
+  }
+
+  factory LinkManager() {
+    _instance ??= LinkManager._internal();
+    return _instance!;
   }
 }
 

@@ -1,63 +1,44 @@
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/plugins/tile.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class TileManager extends StatefulWidget {
+import 'package:fl_clash/common/app_localizations.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/plugins/app.dart';
+import 'package:fl_clash/plugins/tile.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-  const TileManager({
-    super.key,
-    required this.child,
-  });
+class TileManager extends ConsumerStatefulWidget {
   final Widget child;
 
+  const TileManager({super.key, required this.child});
+
   @override
-  State<TileManager> createState() => _TileContainerState();
+  ConsumerState<TileManager> createState() => _TileContainerState();
 }
 
-class _TileContainerState extends State<TileManager> with TileListener {
+class _TileContainerState extends ConsumerState<TileManager> with TileListener {
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
 
-  // Defer to the boot-safe _MainTileListener until appController exists; both are
-  // registered, so this guard keeps exactly one of them handling each tile event
-  // (and avoids dereferencing a null appController during cold start).
+  bool get isStart => ref.read(isStartProvider);
+
   @override
-  void onStart() {
-    if (!globalState.isAppControllerReady) return;
-    globalState.appController.updateStatus(true);
+  Future<void> onStart() async {
+    if (isStart && ref.read(coreStatusProvider) == CoreStatus.connected) {
+      return;
+    }
+    unawaited(app?.tip(currentAppLocalizations.startVpn));
+    await ref.read(setupActionProvider.notifier).setRunning(true);
     super.onStart();
-  }
-
-  @override
-  Future<void> onStop() async {
-    if (!globalState.isAppControllerReady) return;
-    globalState.appController.updateStatus(false);
-    super.onStop();
-  }
-
-  @override
-  void onChangeMode(String mode) {
-    if (!globalState.isAppControllerReady) return;
-    try {
-      final modeEnum = Mode.values.byName(mode);
-      globalState.appController.changeMode(modeEnum);
-      // Reflect back to widget — updateClashConfigDebounce will push to core.
-      tile?.updateMode(mode);
-    } catch (_) {}
-    super.onChangeMode(mode);
   }
 
   @override
   void initState() {
     super.initState();
     tile?.addListener(this);
-    // Push current mode to native so widget picks up the right active button
-    // when the main engine comes online.
-    try {
-      final current = globalState.config.patchClashConfig.mode.name;
-      tile?.updateMode(current);
-    } catch (_) {}
   }
 
   @override

@@ -1,1040 +1,1115 @@
-// ignore_for_file: avoid_print
-
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
-import 'package:path/path.dart';
-import 'package:crypto/crypto.dart';
+import 'package:args/args.dart';
+import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
-enum Target {
-  windows,
-  linux,
-  android,
-  macos,
+const _appName = 'FlClashX';
+const _bundleId = 'com.follow.clashx';
+const _distDir = 'dist';
+
+const _allTargets = <String, String>{
+  'android': 'apk',
+  'linux': 'deb,appimage,rpm',
+  'macos': 'dmg',
+  'windows': 'exe,zip',
+};
+
+const _androidFlutterTarget = {
+  'arm': 'android-arm',
+  'arm64': 'android-arm64',
+  'amd64': 'android-x64',
+};
+
+const _androidAbi = {
+  'arm': 'armeabi-v7a',
+  'arm64': 'arm64-v8a',
+  'amd64': 'x86_64',
+};
+
+const _hostPlatform = {
+  'linux': 'linux',
+  'macos': 'macos',
+  'windows': 'windows',
+};
+
+Future<void> main(List<String> args) async {
+  final parser = createSetupArgParser();
+
+  if (args.contains('--help') || args.contains('-h')) {
+    _showHelp(parser);
+    exit(0);
+  }
+
+  final results = parser.parse(args);
+  final rest = results.rest;
+
+  final hostOs = Platform.operatingSystem;
+  final host = _hostPlatform[hostOs];
+  if (host == null) {
+    stderr.writeln('Unsupported host platform: $hostOs');
+    exit(1);
+  }
+
+  final platform = rest.isNotEmpty ? rest.first : host;
+
+  if (platform != host && platform != 'android') {
+    stderr.writeln(
+      'Cannot build "$platform" on $hostOs. Allowed: $host, android',
+    );
+    _showHelp(parser);
+    exit(1);
+  }
+
+  final env = results['env'] as String;
+  final rootDir = Directory.current.path;
+  final skipped = packagesNotBuildingAssets(
+    File(p.join(rootDir, 'pubspec.yaml')).readAsStringSync(),
+  );
+  if (skipped.isNotEmpty) {
+    stderr.writeln(
+      'pubspec.yaml sets hooks.user_defines.<package>.build_assets: false '
+      'for ${skipped.join(', ')}; a package built this way would ship '
+      'whatever is left in libclash/ and no Rust library. '
+      'Restore "build_assets: true".',
+    );
+    exit(1);
+  }
+  final arch = results['arch'] as String? ?? _detectArch();
+  final targets = createPackageTargets(platform, results['targets']);
+  final androidArch = platform == 'android' ? results['arch'] as String? : null;
+  final verbose = results['verbose'] as bool;
+
+  final exitCode = await _package(
+    platform,
+    env,
+    targets,
+    rootDir,
+    arch,
+    androidArch: androidArch,
+    verbose: verbose,
+  );
+  exit(exitCode);
 }
 
-extension TargetExt on Target {
-  String get os {
-    if (this == Target.macos) {
-      return "darwin";
-    }
-    return name;
-  }
-
-  bool get same {
-    if (this == Target.android) {
-      return true;
-    }
-    if (Platform.isWindows && this == Target.windows) {
-      return true;
-    }
-    if (Platform.isLinux && this == Target.linux) {
-      return true;
-    }
-    if (Platform.isMacOS && this == Target.macos) {
-      return true;
-    }
-    return false;
-  }
-
-  String get dynamicLibExtensionName {
-    final String extensionName;
-    switch (this) {
-      case Target.android || Target.linux:
-        extensionName = ".so";
-        break;
-      case Target.windows:
-        extensionName = ".dll";
-        break;
-      case Target.macos:
-        extensionName = ".dylib";
-        break;
-    }
-    return extensionName;
-  }
-
-  String get executableExtensionName {
-    final String extensionName;
-    switch (this) {
-      case Target.windows:
-        extensionName = ".exe";
-        break;
-      default:
-        extensionName = "";
-        break;
-    }
-    return extensionName;
-  }
+ArgParser createSetupArgParser() {
+  return ArgParser()
+    ..addOption(
+      'env',
+      defaultsTo: 'pre',
+      allowed: ['dev', 'pre', 'stable'],
+      help: 'Application environment',
+    )
+    ..addOption(
+      'targets',
+      valueHelp: 'exe,zip,dmg,apk,deb,rpm,appimage',
+      help: 'Package targets (default: all for platform)',
+    )
+    ..addOption(
+      'arch',
+      valueHelp: 'arm,arm64,amd64',
+      allowed: ['arm', 'arm64', 'amd64'],
+      help:
+          'Target architecture: one Android ABI (default: every ABI and a '
+          'universal APK), or the desktop architecture (default: the host)',
+    )
+    ..addFlag(
+      'verbose',
+      abbr: 'v',
+      negatable: false,
+      help: 'Enable verbose Flutter build output',
+    );
 }
 
-enum Mode { core, lib }
+/// The flutter_distributor-style build arguments, without their dashes.
+List<String> createFlutterBuildArgs({
+  required String platform,
+  required bool verbose,
+}) {
+  final flutterBuildArgs = <String>[
+    if (verbose) 'verbose',
+    'dart-define-from-file=env.json',
+  ];
+  if (platform == 'android') {
+    flutterBuildArgs.add('split-per-abi');
+  }
+  return flutterBuildArgs;
+}
 
-enum Arch { amd64, arm64, arm }
+Map<String, String> createBuildEnvironment(String env) {
+  return {'APP_ENV': env};
+}
 
-class BuildItem {
-  Target target;
-  Arch? arch;
-  String? archName;
+/// The versions a build carries into the app: the release tag it was made
+/// from, with its `-pre.N`, and the mihomo release its core was linked with.
+List<String> createBuildDefines({
+  required String appVersion,
+  required String coreVersion,
+}) => [
+  '--dart-define=APP_VERSION=$appVersion',
+  if (coreVersion.isNotEmpty) '--dart-define=CORE_VERSION=$coreVersion',
+];
 
-  BuildItem({
-    required this.target,
-    this.arch,
-    this.archName,
+/// The tag CI builds from when it is a release tag, else the pubspec version.
+String appVersionOf({
+  required String pubspecVersion,
+  Map<String, String> environment = const {},
+}) {
+  final ref = environment['GITHUB_REF_NAME'] ?? '';
+  if (RegExp(r'^v\d').hasMatch(ref)) {
+    return ref.substring(1);
+  }
+  return pubspecVersion;
+}
+
+/// Packages whose build hook `pubspec.yaml` turns into a no-op.
+List<String> packagesNotBuildingAssets(String pubspec) {
+  final document = loadYaml(pubspec);
+  if (document is! Map) return const [];
+  final defines = (document['hooks'] as Map?)?['user_defines'];
+  if (defines is! Map) return const [];
+  return [
+    for (final MapEntry(:key, :value) in defines.entries)
+      if (value is Map && value['build_assets'] == false) key.toString(),
+  ]..sort();
+}
+
+String createPackageTargets(String platform, String? customTargets) {
+  return customTargets ?? _allTargets[platform]!;
+}
+
+/// `FlClashX-<platform>-<arch>` plus the format's extension; the release
+/// templates and the AUR package link these names.
+String artifactName(String platform, String arch, String extension) =>
+    '$_appName-$platform-$arch$extension';
+
+void _showHelp(ArgParser parser) {
+  stderr.writeln('Usage: dart setup.dart [platform] [options]');
+  stderr.writeln('Platform: current host platform (default) or android');
+  stderr.writeln();
+  stderr.writeln('Default package targets:');
+  _allTargets.forEach((p, t) => stderr.writeln('  $p: $t'));
+  stderr.writeln();
+  stderr.writeln(parser.usage);
+}
+
+class _Build {
+  _Build({
+    required this.rootDir,
+    required this.platform,
+    required this.arch,
+    required this.verbose,
   });
 
-  @override
-  String toString() =>
-      'BuildLibItem{target: $target, arch: $arch, archName: $archName}';
-}
+  final String rootDir;
+  final String platform;
+  final String arch;
+  final bool verbose;
 
-class Build {
-  static List<BuildItem> get buildItems => [
-        BuildItem(
-          target: Target.macos,
-          arch: Arch.arm64,
-        ),
-        BuildItem(
-          target: Target.macos,
-          arch: Arch.amd64,
-        ),
-        BuildItem(
-          target: Target.linux,
-          arch: Arch.arm64,
-        ),
-        BuildItem(
-          target: Target.linux,
-          arch: Arch.amd64,
-        ),
-        BuildItem(
-          target: Target.windows,
-          arch: Arch.amd64,
-        ),
-        BuildItem(
-          target: Target.windows,
-          arch: Arch.arm64,
-        ),
-        BuildItem(
-          target: Target.android,
-          arch: Arch.arm,
-          archName: 'armeabi-v7a',
-        ),
-        BuildItem(
-          target: Target.android,
-          arch: Arch.arm64,
-          archName: 'arm64-v8a',
-        ),
-        BuildItem(
-          target: Target.android,
-          arch: Arch.amd64,
-          archName: 'x86_64',
-        ),
-      ];
+  late final String version = _readPubspecVersion();
+  late final String appVersion = appVersionOf(
+    pubspecVersion: version,
+    environment: Platform.environment,
+  );
+  late final String coreVersion = _readCoreVersion();
+  late final String distPath = p.join(rootDir, _distDir);
 
-  static String get appName => "FlClashX";
-
-  static String get coreName => "FlClashCore";
-
-  static String get libName => "libclash";
-
-  static String get outDir => join(current, libName);
-
-  static String get _coreDir => join(current, "core");
-
-  static String get _servicesDir => join(current, "services", "helper");
-
-  static String get distPath => join(current, "dist");
-
-  // Full release version for the User-Agent, taken from the CI tag
-  // (GITHUB_REF_NAME, e.g. "v0.4.1-pre.18"), baked in via --dart-define=APP_VERSION.
-  // Only a version tag counts — a branch name (e.g. "dev") is ignored, so local
-  // and branch builds fall back to the pubspec version at runtime.
-  static String get appVersion {
-    final ref = Platform.environment["GITHUB_REF_NAME"]?.trim() ?? "";
-    return RegExp(r'^v\d').hasMatch(ref) ? ref : "";
+  String _readPubspecVersion() {
+    final pubspec = loadYaml(
+      File(p.join(rootDir, 'pubspec.yaml')).readAsStringSync(),
+    );
+    final version = (pubspec as Map)['version'] as String;
+    return version.split('+').first;
   }
 
-  static String _getCc(BuildItem buildItem) {
-    final environment = Platform.environment;
-    if (buildItem.target == Target.android) {
-      final ndk = environment["ANDROID_NDK"];
-      assert(ndk != null);
-      final prebuiltDir =
-          Directory(join(ndk!, "toolchains", "llvm", "prebuilt"));
-      final prebuiltDirList = prebuiltDir.listSync();
-      final map = {
-        "armeabi-v7a": "armv7a-linux-androideabi21-clang",
-        "arm64-v8a": "aarch64-linux-android21-clang",
-        "x86": "i686-linux-android21-clang",
-        "x86_64": "x86_64-linux-android21-clang"
-      };
-      return join(
-        prebuiltDirList.first.path,
-        "bin",
-        map[buildItem.archName],
-      );
-    }
-    return "gcc";
+  String _readCoreVersion() {
+    final config = loadYaml(
+      File(p.join(rootDir, 'build_config.yaml')).readAsStringSync(),
+    );
+    return ((config as Map?)?['core_version'] as String?) ?? '';
   }
 
-  static String tagsFor(Target target) =>
-      target == Target.android ? "with_gvisor,cmfa" : "with_gvisor";
+  Map<dynamic, dynamic> packagingConfig(String format) {
+    final file = File(
+      p.join(rootDir, platform, 'packaging', format, 'make_config.yaml'),
+    );
+    return (loadYaml(file.readAsStringSync()) as Map?) ?? {};
+  }
 
-  static Future<void> exec(
-    List<String> executable, {
-    String? name,
-    Map<String, String>? environment,
+  List<String> flutterBuildArgs({String? androidArch}) => [
+    for (final arg in createFlutterBuildArgs(
+      platform: platform,
+      verbose: verbose,
+    ))
+      '--$arg',
+    if (androidArch != null)
+      '--target-platform=${_androidFlutterTarget[androidArch]!}',
+    ...createBuildDefines(appVersion: appVersion, coreVersion: coreVersion),
+  ];
+
+  Future<int> run(
+    String executable,
+    List<String> arguments, {
     String? workingDirectory,
-    bool runInShell = true,
+    Map<String, String>? environment,
   }) async {
-    if (name != null) print("run $name");
+    stdout.writeln('exec: $executable ${arguments.join(' ')}');
     final process = await Process.start(
-      executable[0],
-      executable.sublist(1),
+      executable,
+      arguments,
+      workingDirectory: workingDirectory ?? rootDir,
       environment: environment,
-      workingDirectory: workingDirectory,
-      runInShell: runInShell,
+      includeParentEnvironment: true,
+      runInShell: Platform.isWindows,
     );
     process.stdout.listen((data) {
-      print(utf8.decode(data, allowMalformed: true));
+      stdout.write(utf8.decode(data, allowMalformed: true));
     });
     process.stderr.listen((data) {
-      print(utf8.decode(data, allowMalformed: true));
+      stderr.write(utf8.decode(data, allowMalformed: true));
     });
-    final exitCode = await process.exitCode;
-    if (exitCode != 0 && name != null) throw "$name error";
+    return process.exitCode;
   }
 
-  static Future<String> calcSha256(String filePath) async {
-    final file = File(filePath);
-    if (!await file.exists()) {
-      throw "File not exists";
-    }
-    final stream = file.openRead();
-    return sha256.convert(await stream.reduce((a, b) => a + b)).toString();
-  }
-
-  /// Reads mihomo version from [core/go.mod] (single source of truth).
-  static Future<String> extractCoreVersion() async {
-    final goMod = File(join("core", "go.mod"));
-    if (!await goMod.exists()) {
-      throw "core/go.mod file not found";
-    }
-    final content = await goMod.readAsString();
-    final match = RegExp(r'github\.com/metacubex/mihomo\s+(v[\d.]+)').firstMatch(content);
-    if (match == null) {
-      throw "Could not extract mihomo version from core/go.mod";
-    }
-    return match.group(1)!;
-  }
-
-  /// Writes [lib/core_version.dart] so Flutter can show the same version without dart-define.
-  static Future<void> syncCoreVersionDartFile() async {
-    final v = await extractCoreVersion();
-    final out = File(join(current, "lib", "core_version.dart"));
-    await out.writeAsString(
-      "// GENERATED by setup.dart from core/constant/version.go — do not edit by hand\n"
-      "// ignore_for_file: constant_identifier_names\n"
-      "\n"
-      "/// Embedded mihomo version (see core/constant/version.go).\n"
-      "const String kCoreVersionFromSource = '$v';\n",
-    );
-  }
-
-  static Future<List<String>> buildCore({
-    required Mode mode,
-    required Target target,
-    required String coreVersion,
-    Arch? arch,
+  Future<void> mustRun(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
   }) async {
-    final isLib = mode == Mode.lib;
-
-    final items = buildItems.where(
-      (element) =>
-          element.target == target &&
-          (arch == null ? true : element.arch == arch),
-    ).toList();
-
-    final List<String> corePaths = [];
-
-    final targetOutFilePath = join(outDir, target.name);
-    final targetOutFile = File(targetOutFilePath);
-    if (await targetOutFile.exists()) {
-      await targetOutFile.delete(recursive: true);
-      await Directory(targetOutFilePath).create(recursive: true);
-    }
-
-    for (final item in items) {
-      final outFilePath = join(targetOutFilePath, item.archName);
-      final file = File(outFilePath);
-      if (file.existsSync()) {
-        file.deleteSync(recursive: true);
-      }
-
-      final fileName = isLib
-          ? "$libName${item.target.dynamicLibExtensionName}"
-          : "$coreName${item.target.executableExtensionName}";
-      final realOutPath = join(outFilePath, fileName);
-      corePaths.add(realOutPath);
-
-      final Map<String, String> env = {};
-      env["GOOS"] = item.target.os;
-      if (item.arch != null) {
-        env["GOARCH"] = item.arch!.name;
-      }
-      if (isLib) {
-        env["CGO_ENABLED"] = "1";
-        env["CC"] = _getCc(item);
-        env["CFLAGS"] = "-O3 -Werror";
-      } else {
-        env["CGO_ENABLED"] = "0";
-      }
-
-      final execLines = [
-        "go",
-        "build",
-        "-ldflags=-w -s -X github.com/metacubex/mihomo/constant.Version=$coreVersion",
-        "-tags=${tagsFor(target)}",
-        if (isLib) "-buildmode=c-shared",
-        "-o",
-        realOutPath,
-      ];
-      await exec(
-        execLines,
-        name: "build core",
-        environment: env,
-        workingDirectory: _coreDir,
-      );
-      if (isLib && item.archName != null) {
-        await adjustLibOut(
-          targetOutFilePath: targetOutFilePath,
-          outFilePath: outFilePath,
-          archName: item.archName!,
-        );
-      }
-    }
-
-    return corePaths;
-  }
-
-  static Future<void> adjustLibOut({
-    required String targetOutFilePath,
-    required String outFilePath,
-    required String archName,
-  }) async {
-    final includesPath = join(targetOutFilePath, "includes");
-    final realOutPath = join(includesPath, archName);
-    await Directory(realOutPath).create(recursive: true);
-    final targetOutFiles = Directory(outFilePath).listSync();
-    final coreFiles = Directory(_coreDir).listSync();
-    for (final file in [...targetOutFiles, ...coreFiles]) {
-      if (!file.path.endsWith('.h')) {
-        continue;
-      }
-      final targetFilePath = join(realOutPath, basename(file.path));
-      final realFile = File(file.path);
-      await realFile.copy(targetFilePath);
-      if (coreFiles.contains(file)) {
-        continue;
-      }
-      await realFile.delete();
+    final code = await run(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
+    if (code != 0) {
+      throw ProcessException(executable, arguments, 'exit code $code', code);
     }
   }
 
-  static buildHelper(Target target, String token, {Arch? arch}) async {
-    final List<String> buildArgs = [
-      "cargo",
-      "build",
-      "--release",
-      "--features",
-      "windows-service",
-    ];
-    
-    // Add target for cross-compilation
-    if (arch == Arch.arm64 && target == Target.windows) {
-      buildArgs.addAll(["--target", "aarch64-pc-windows-msvc"]);
-    }
-    
-    await exec(
-      buildArgs,
-      environment: {
-        "TOKEN": token,
-      },
-      name: "build helper",
-      workingDirectory: _servicesDir,
-    );
-    
-    // Determine output path based on architecture
-    final String releasePath;
-    if (arch == Arch.arm64 && target == Target.windows) {
-      releasePath = join(_servicesDir, "target", "aarch64-pc-windows-msvc", "release");
-    } else {
-      releasePath = join(_servicesDir, "target", "release");
-    }
-    
-    final outPath = join(
-      releasePath,
-      "helper${target.executableExtensionName}",
-    );
-    final targetPath = join(
-      outDir,
-      target.name,
-      "FlClashHelperService${target.executableExtensionName}",
-    );
-    await File(outPath).copy(targetPath);
+  String dist(String name) {
+    Directory(distPath).createSync(recursive: true);
+    return p.join(distPath, name);
   }
 
-  static List<String> getExecutable(String command) => command.split(" ");
-
-  static String readVersion() {
-    final pubspec = File(join(current, "pubspec.yaml")).readAsStringSync();
-    final match = RegExp(r'version:\s*(.+)').firstMatch(pubspec);
-    return match?.group(1)?.split('+').first ?? "0.0.0";
+  void copy(String from, String to) {
+    File(to).parent.createSync(recursive: true);
+    File(from).copySync(to);
+    stdout.writeln('created: $to');
   }
 
-  static copyFile(String sourceFilePath, String destinationFilePath) {
-    final sourceFile = File(sourceFilePath);
-    if (!sourceFile.existsSync()) {
-      throw "SourceFilePath not exists";
-    }
-    final destinationFile = File(destinationFilePath);
-    final destinationDirectory = destinationFile.parent;
-    if (!destinationDirectory.existsSync()) {
-      destinationDirectory.createSync(recursive: true);
-    }
-    try {
-      sourceFile.copySync(destinationFilePath);
-      print("File copied successfully!");
-    } catch (e) {
-      print("Failed to copy file: $e");
-    }
-  }
-}
-
-class BuildCommand extends Command {
-  Target target;
-
-  BuildCommand({
-    required this.target,
-  }) {
-    if (target == Target.android || target == Target.linux) {
-      argParser.addOption(
-        "arch",
-        valueHelp: arches.map((e) => e.name).join(','),
-        help: 'The $name build desc',
-      );
-    } else {
-      argParser.addOption(
-        "arch",
-        help: 'The $name build archName',
-      );
-    }
-    argParser.addOption(
-      "out",
-      valueHelp: [
-        if (target.same) "app",
-        "core",
-      ].join(','),
-      help: 'The $name build arch',
-    );
-    argParser.addOption(
-      "env",
-      valueHelp: [
-        "pre",
-        "stable",
-      ].join(','),
-      help: 'The $name build env',
-    );
-    if (target == Target.windows) {
-      argParser.addFlag(
-        "msix",
-        help: "Build MSIX package for Microsoft Store",
-        defaultsTo: false,
-      );
-    }
-  }
-
-  @override
-  String get description => "build $name application";
-
-  @override
-  String get name => target.name;
-
-  List<Arch> get arches => Build.buildItems
-      .where((element) => element.target == target && element.arch != null)
-      .map((e) => e.arch!)
-      .toList();
-
-  _getLinuxDependencies(Arch arch) async {
-    await Build.exec(
-      Build.getExecutable("sudo apt update -y"),
-    );
-    await Build.exec(
-      Build.getExecutable("sudo apt install -y ninja-build libgtk-3-dev"),
-    );
-    await Build.exec(
-      Build.getExecutable("sudo apt install -y libayatana-appindicator3-dev"),
-    );
-    await Build.exec(
-      Build.getExecutable("sudo apt-get install -y libkeybinder-3.0-dev"),
-    );
-    await Build.exec(
-      Build.getExecutable("sudo apt install -y locate"),
-    );
-    if (arch == Arch.amd64) {
-      await Build.exec(
-        Build.getExecutable("sudo apt install -y rpm patchelf"),
-      );
-      await Build.exec(
-        Build.getExecutable("sudo apt install -y libfuse2"),
-      );
-
-      final downloadName = arch == Arch.amd64 ? "x86_64" : "aarch64";
-      await Build.exec(
-        Build.getExecutable(
-          "wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$downloadName.AppImage",
-        ),
-      );
-      await Build.exec(
-        Build.getExecutable(
-          "chmod +x appimagetool",
-        ),
-      );
-      await Build.exec(
-        Build.getExecutable(
-          "sudo mv appimagetool /usr/local/bin/",
-        ),
-      );
-    }
-  }
-
-  _getMacosDependencies() async {
-    await Build.exec(
-      Build.getExecutable("npm install -g create-dmg"),
-    );
-  }
-
-  _buildMacosApp({
-    required Arch arch,
-    required String env,
-    required String coreVersion,
-  }) async {
-    await Build.exec(
-      name: "flutter build macos",
-      [
-        "flutter",
-        "build",
-        "macos",
-        "--release",
-        "--dart-define=APP_ENV=$env",
-        "--dart-define=CORE_VERSION=$coreVersion",
-        "--dart-define=APP_VERSION=${Build.appVersion}",
-      ],
-    );
-
-    final pubspecFile = File(join(current, "pubspec.yaml"));
-    final pubspecContent = pubspecFile.readAsStringSync();
-    final versionMatch = RegExp(r'version:\s*(.+)').firstMatch(pubspecContent);
-    final version = versionMatch?.group(1)?.split('+').first ?? "0.0.0";
-
-    final appName = Build.appName;
-    final appPath = join(current, "build", "macos", "Build", "Products",
-        "Release", "$appName.app");
-
-    final distDir = Directory(Build.distPath);
-    if (!distDir.existsSync()) {
-      distDir.createSync(recursive: true);
-    }
-
-    print("Creating DMG with create-dmg...");
-
-    await Build.exec(
-      name: "create-dmg",
-      [
-        "create-dmg",
-        "--overwrite",
-        "--dmg-title",
-        appName,
-        appPath,
-        Build.distPath,
-      ],
-    );
-
-    final createdDmgName = "$appName $version.dmg";
-    final createdDmgPath = join(Build.distPath, createdDmgName);
-    final targetDmgName = "$appName-macos-${arch.name}.dmg";
-    final targetDmgPath = join(Build.distPath, targetDmgName);
-
-    final createdDmg = File(createdDmgPath);
-    if (createdDmg.existsSync()) {
-      final targetDmg = File(targetDmgPath);
-      if (targetDmg.existsSync()) {
-        targetDmg.deleteSync();
-      }
-
-      createdDmg.renameSync(targetDmgPath);
-      print("✅ DMG created: $targetDmgPath");
-    } else {
-      throw "DMG file not created: $createdDmgPath";
-    }
-  }
-
-  _buildWindowsApp({
-    required Arch arch,
-    required String env,
-    required String coreVersion,
-    required String token,
-    bool msix = false,
-  }) async {
-    await Build.exec(
-      name: "flutter build windows",
-      [
-        "flutter", "build", "windows", "--release",
-        "--dart-define=APP_ENV=$env",
-        "--dart-define=CORE_SHA256=$token",
-        "--dart-define=CORE_VERSION=$coreVersion",
-        "--dart-define=APP_VERSION=${Build.appVersion}",
-      ],
-    );
-
-    final winArch = arch == Arch.arm64 ? "arm64" : "x64";
-    final buildDir = join(current, "build", "windows", winArch, "runner", "Release");
-
-    final version = Build.readVersion();
-    final distDir = Directory(Build.distPath);
-    if (!distDir.existsSync()) distDir.createSync(recursive: true);
-
-    final archName = arch.name;
-    final zipName = "${Build.appName}-windows-$archName.zip";
-    final zipPath = join(Build.distPath, zipName);
-    await Build.exec(
-      name: "create zip",
-      ["powershell", "Compress-Archive", "-Path", "$buildDir\\*", "-DestinationPath", zipPath, "-Force"],
-    );
-    print("✅ ZIP created: $zipPath");
-
-    final issTemplate = File(join(current, "windows", "packaging", "exe", "inno_setup.iss"));
-    if (issTemplate.existsSync()) {
-      final issContent = issTemplate.readAsStringSync()
-          .replaceAll("{{APP_ID}}", "728B3532-C74B-4870-9068-BE70FE12A3E6")
-          .replaceAll("{{APP_VERSION}}", version)
-          .replaceAll("{{DISPLAY_NAME}}", Build.appName)
-          .replaceAll("{{PUBLISHER_NAME}}", "pluralplay")
-          .replaceAll("{{PUBLISHER_URL}}", "https://github.com/pluralplay/FlClashX")
-          .replaceAll("{{INSTALL_DIR_NAME}}", "{autopf}\\${Build.appName}")
-          .replaceAll("{{OUTPUT_BASE_FILENAME}}", "${Build.appName}-windows-$archName-setup")
-          .replaceAll("{{SETUP_ICON_FILE}}", join(current, "windows", "runner", "resources", "app_icon.ico"))
-          .replaceAll("{{PRIVILEGES_REQUIRED}}", "admin")
-          .replaceAll("{{ARCH}}", archName == "amd64" ? "x64compatible" : "arm64")
-          .replaceAll("{{SOURCE_DIR}}", buildDir)
-          .replaceAll("{{EXECUTABLE_NAME}}", "${Build.appName}.exe");
-
-      var processed = issContent;
-      final locales = [
-        {"lang": "ru"},
-        {"lang": "en"},
-      ];
-      final langLines = <String>[];
-      for (final locale in locales) {
-        final lang = locale["lang"]!;
-        if (lang == "en") langLines.add('Name: "english"; MessagesFile: "compiler:Default.isl"');
-        if (lang == "ru") langLines.add('Name: "russian"; MessagesFile: "compiler:Languages\\Russian.isl"');
-      }
-      processed = processed.replaceAll(
-        RegExp(r'\{% for locale in LOCALES %\}.*?\{% endfor %\}', dotAll: true),
-        langLines.join('\n'),
-      );
-      processed = processed.replaceAllMapped(
-        RegExp(r"\{%\s*if\s+PRIVILEGES_REQUIRED\s*==\s*'admin'\s*%\}(.*?)\{%\s*endif\s*%\}", dotAll: true),
-        (m) => m.group(1)!,
-      );
-
-      final issOut = File(join(Build.distPath, "setup.iss"));
-      issOut.writeAsStringSync(processed);
-      await Build.exec(
-        name: "inno setup",
-        [r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe", issOut.path],
-      );
-      issOut.deleteSync();
-      print("✅ EXE installer created");
-    }
-
-    if (msix) {
-      await Build.exec(
-        name: "create msix",
-        ["dart", "run", "msix:create"],
-      );
-      final winArch2 = arch == Arch.arm64 ? "arm64" : "x64";
-      final msixDir = join(current, "build", "windows", winArch2, "runner", "Release");
-      final msixFiles = Directory(msixDir).listSync().where((f) => f.path.endsWith(".msix"));
-      if (msixFiles.isNotEmpty) {
-        final msixOutPath = join(Build.distPath, "${Build.appName}-windows-${arch.name}.msix");
-        Build.copyFile(msixFiles.first.path, msixOutPath);
-        print("✅ MSIX created: $msixOutPath");
-      }
-    }
-  }
-
-  _buildLinuxApp({
-    required Arch arch,
-    required String env,
-    required String coreVersion,
-  }) async {
-    final targetMap = {
-      Arch.arm64: "linux-arm64",
-      Arch.amd64: "linux-x64",
-    };
-    await Build.exec(
-      name: "flutter build linux",
-      [
-        "flutter", "build", "linux", "--release",
-        "--target-platform=${targetMap[arch]}",
-        "--dart-define=APP_ENV=$env",
-        "--dart-define=CORE_VERSION=$coreVersion",
-        "--dart-define=APP_VERSION=${Build.appVersion}",
-      ],
-    );
-
-    final version = Build.readVersion();
-    final appName = Build.appName;
-    final archName = arch.name;
-    final bundleDir = join(current, "build", "linux", targetMap[arch]!.replaceAll("linux-", ""), "release", "bundle");
-    final distDir = Directory(Build.distPath);
-    if (!distDir.existsSync()) distDir.createSync(recursive: true);
-
-    final iconPath = join(current, "assets", "images", "icon.png");
-    final debArch = arch == Arch.amd64 ? "amd64" : "arm64";
-    final rpmArch = arch == Arch.amd64 ? "x86_64" : "aarch64";
-
-    // --- DEB ---
-    final debRoot = join(current, "build", "deb_root");
-    final debInstallDir = join(debRoot, "opt", appName);
-    final debDesktopDir = join(debRoot, "usr", "share", "applications");
-    final debIconDir = join(debRoot, "usr", "share", "icons", "hicolor", "256x256", "apps");
-    final debControlDir = join(debRoot, "DEBIAN");
-
-    for (final d in [debInstallDir, debDesktopDir, debIconDir, debControlDir]) {
-      await Directory(d).create(recursive: true);
-    }
-    await Build.exec(["cp", "-r", "$bundleDir/.", debInstallDir]);
-    File(join(debIconDir, "$appName.png")).writeAsBytesSync(File(iconPath).readAsBytesSync());
-    File(join(debDesktopDir, "com.follow.clashx.desktop")).writeAsStringSync(
-      "[Desktop Entry]\n"
-      "Type=Application\n"
-      "Name=$appName\n"
-      "GenericName=$appName\n"
-      "Comment=$appName\n"
-      "Exec=/opt/$appName/$appName\n"
-      "Icon=$appName\n"
-      "Terminal=false\n"
-      "Categories=Network;\n"
-      "Keywords=FlClashX;Clash;Proxy;\n"
-      "StartupNotify=true\n",
-    );
-    File(join(debControlDir, "control")).writeAsStringSync(
-      "Package: flclashx\n"
-      "Version: $version\n"
-      "Section: x11\n"
-      "Priority: optional\n"
-      "Architecture: $debArch\n"
-      "Depends: libayatana-appindicator3-dev, libkeybinder-3.0-dev\n"
-      "Maintainer: pluralplay <mail@pluralplay.rw>\n"
-      "Description: $appName\n",
-    );
-    final debPath = join(Build.distPath, "$appName-linux-$archName.deb");
-    await Build.exec(name: "build deb", ["dpkg-deb", "--build", debRoot, debPath]);
-    await Directory(debRoot).delete(recursive: true);
-    print("✅ DEB created: $debPath");
-
-    // --- RPM (amd64 only) ---
-    if (arch == Arch.amd64) {
-      final rpmBuildRoot = join(current, "build", "rpm_root");
-      final rpmInstallDir = join(rpmBuildRoot, "opt", appName);
-      final rpmDesktopDir = join(rpmBuildRoot, "usr", "share", "applications");
-      final rpmIconDir = join(rpmBuildRoot, "usr", "share", "icons", "hicolor", "256x256", "apps");
-      for (final d in [rpmInstallDir, rpmDesktopDir, rpmIconDir]) {
-        await Directory(d).create(recursive: true);
-      }
-      await Build.exec(["cp", "-r", "$bundleDir/.", rpmInstallDir]);
-      File(join(rpmIconDir, "$appName.png")).writeAsBytesSync(File(iconPath).readAsBytesSync());
-      File(join(rpmDesktopDir, "com.follow.clashx.desktop")).writeAsStringSync(
-        "[Desktop Entry]\n"
-        "Type=Application\n"
-        "Name=$appName\n"
-        "GenericName=$appName\n"
-        "Comment=$appName\n"
-        "Exec=/opt/$appName/$appName\n"
-        "Icon=$appName\n"
-        "Terminal=false\n"
-        "Categories=Network;\n"
-        "Keywords=FlClashX;Clash;Proxy;\n"
-        "StartupNotify=true\n",
-      );
-
-      final specPath = join(current, "build", "$appName.spec");
-      File(specPath).writeAsStringSync(
-        "Name: flclashx\n"
-        "Version: $version\n"
-        "Release: 1\n"
-        "Summary: $appName\n"
-        "License: Other\n"
-        "Group: Applications/Internet\n"
-        "Packager: pluralplay <mail@pluralplay.rw>\n"
-        "AutoReqProv: no\n"
-        "\n"
-        "%description\n"
-        "$appName proxy client\n"
-        "\n"
-        "%install\n"
-        "cp -r %{_builddir}/root/* %{buildroot}/\n"
-        "\n"
-        "%files\n"
-        "/opt/$appName/*\n"
-        "/usr/share/applications/com.follow.clashx.desktop\n"
-        "/usr/share/icons/hicolor/256x256/apps/$appName.png\n",
-      );
-
-      final rpmBuildDir = join(current, "build", "rpmbuild");
-      await Directory(join(rpmBuildDir, "BUILD", "root")).create(recursive: true);
-      await Build.exec(["cp", "-r", "$rpmBuildRoot/.", join(rpmBuildDir, "BUILD", "root")]);
-      await Build.exec(name: "build rpm", [
-        "rpmbuild", "-bb", specPath,
-        "--define", "_topdir $rpmBuildDir",
-        "--define", "_builddir ${join(rpmBuildDir, "BUILD")}",
-        "--target", rpmArch,
-      ]);
-
-      final rpmOutputDir = join(rpmBuildDir, "RPMS", rpmArch);
-      final rpmFiles = Directory(rpmOutputDir).listSync().where((f) => f.path.endsWith(".rpm"));
-      if (rpmFiles.isNotEmpty) {
-        final rpmOutPath = join(Build.distPath, "$appName-linux-$archName.rpm");
-        Build.copyFile(rpmFiles.first.path, rpmOutPath);
-        print("✅ RPM created: $rpmOutPath");
-      }
-      await Directory(rpmBuildRoot).delete(recursive: true);
-      await Directory(rpmBuildDir).delete(recursive: true);
-      File(specPath).deleteSync();
-    }
-
-    // --- AppImage (amd64 only) ---
-    if (arch == Arch.amd64) {
-      final appDir = join(current, "build", "AppDir");
-      final appBinDir = join(appDir, "usr", "bin");
-      final appLibDir = join(appDir, "usr", "lib");
-      final appShareDesktop = join(appDir, "usr", "share", "applications");
-      final appShareIcon = join(appDir, "usr", "share", "icons", "hicolor", "256x256", "apps");
-      for (final d in [appBinDir, appLibDir, appShareDesktop, appShareIcon]) {
-        await Directory(d).create(recursive: true);
-      }
-
-      final bundleFiles = Directory(bundleDir).listSync();
-      for (final f in bundleFiles) {
-        final name = basename(f.path);
-        if (name == "lib") {
-          await Build.exec(["cp", "-r", f.path, appDir + "/usr/"]);
-        } else if (f is File) {
-          Build.copyFile(f.path, join(appBinDir, name));
-        } else {
-          await Build.exec(["cp", "-r", f.path, join(appBinDir, name)]);
-        }
-      }
-
-      // Bundle libkeybinder-3.0.so.0 — a system dependency of the global-hotkey
-      // plugin that is NOT part of the Flutter bundle. Without it the AppImage
-      // crashes on hosts that lack libkeybinder ("error while loading shared
-      // libraries: libkeybinder-3.0.so.0: cannot open shared object file").
-      var keybinderSrc = "";
-      final ldconfig = await Process.run(
-        "bash",
-        ["-c", "ldconfig -p | grep -m1 'libkeybinder-3.0.so.0'"],
-      );
-      final ldOut = ldconfig.stdout.toString().trim();
-      if (ldOut.contains("=>")) {
-        keybinderSrc = ldOut.split("=>").last.trim();
-      }
-      if (keybinderSrc.isEmpty || !File(keybinderSrc).existsSync()) {
-        keybinderSrc = const [
-          "/usr/lib/x86_64-linux-gnu/libkeybinder-3.0.so.0",
-          "/usr/lib/libkeybinder-3.0.so.0",
-          "/lib/x86_64-linux-gnu/libkeybinder-3.0.so.0",
-          "/usr/local/lib/libkeybinder-3.0.so.0",
-        ].firstWhere((p) => File(p).existsSync(), orElse: () => "");
-      }
-      if (keybinderSrc.isNotEmpty) {
-        // -L resolves the symlink so the real .so.0 file is copied into the AppDir.
-        await Build.exec(["cp", "-L", keybinderSrc, join(appLibDir, "libkeybinder-3.0.so.0")]);
-        print("✅ bundled libkeybinder from $keybinderSrc");
-      } else {
-        print("⚠️  libkeybinder-3.0.so.0 not found; AppImage may fail on hosts without it");
-      }
-
-      File(join(appShareIcon, "$appName.png")).writeAsBytesSync(File(iconPath).readAsBytesSync());
-      Build.copyFile(iconPath, join(appDir, "$appName.png"));
-      File(join(appShareDesktop, "com.follow.clashx.desktop")).writeAsStringSync(
-        "[Desktop Entry]\n"
-        "Type=Application\n"
-        "Name=$appName\n"
-        "GenericName=$appName\n"
-        "Comment=$appName\n"
-        "Exec=$appName\n"
-        "Icon=$appName\n"
-        "Terminal=false\n"
-        "Categories=Network;\n"
-        "Keywords=FlClashX;Clash;Proxy;\n"
-        "StartupNotify=true\n",
-      );
-      Build.copyFile(join(appShareDesktop, "com.follow.clashx.desktop"), join(appDir, "com.follow.clashx.desktop"));
-      File(join(appDir, "AppRun")).writeAsStringSync(
-        "#!/bin/bash\n"
-        'SELF=\$(readlink -f "\$0")\n'
-        'HERE=\${SELF%/*}\n'
-        'export PATH="\${HERE}/usr/bin:\${PATH}"\n'
-        'export LD_LIBRARY_PATH="\${HERE}/usr/lib:\${LD_LIBRARY_PATH}"\n'
-        'exec "\${HERE}/usr/bin/$appName" "\$@"\n',
-      );
-      await Build.exec(["chmod", "+x", join(appDir, "AppRun")]);
-      await Build.exec(["chmod", "+x", join(appBinDir, appName)]);
-
-      final appImagePath = join(Build.distPath, "$appName-linux-$archName.AppImage");
-      await Build.exec(
-        name: "build AppImage",
-        ["appimagetool", appDir, appImagePath],
-        environment: {"ARCH": "x86_64"},
-      );
-      await Directory(appDir).delete(recursive: true);
-      print("✅ AppImage created: $appImagePath");
-    }
-  }
-
-  _buildAndroidApp({
-    required String env,
-    required String coreVersion,
-  }) async {
-    final distDir = Directory(Build.distPath);
-    if (!distDir.existsSync()) distDir.createSync(recursive: true);
-
-    await Build.exec(
-      name: "flutter build apk (split)",
-      [
-        "flutter", "build", "apk", "--release",
-        "--split-per-abi",
-        "--dart-define=APP_ENV=$env",
-        "--dart-define=CORE_VERSION=$coreVersion",
-        "--dart-define=APP_VERSION=${Build.appVersion}",
-      ],
-    );
-
-    final splitDir = join(current, "build", "app", "outputs", "flutter-apk");
-    final archMap = {
-      "app-arm64-v8a-release.apk": "${Build.appName}-android-arm64-v8a.apk",
-      "app-armeabi-v7a-release.apk": "${Build.appName}-android-armeabi-v7a.apk",
-      "app-x86_64-release.apk": "${Build.appName}-android-x86_64.apk",
-    };
-    for (final f in Directory(splitDir).listSync()) {
-      final name = basename(f.path);
-      if (archMap.containsKey(name)) {
-        Build.copyFile(f.path, join(Build.distPath, archMap[name]!));
-      }
-    }
-
-    await Build.exec(
-      name: "flutter build apk (universal)",
-      [
-        "flutter", "build", "apk", "--release",
-        "--dart-define=APP_ENV=$env",
-        "--dart-define=CORE_VERSION=$coreVersion",
-        "--dart-define=APP_VERSION=${Build.appVersion}",
-      ],
-    );
-    Build.copyFile(
-      join(splitDir, "app-release.apk"),
-      join(Build.distPath, "${Build.appName}-android-universal.apk"),
-    );
-    print("✅ APKs created in ${Build.distPath}");
-  }
-
-  Future<String?> get systemArch async {
+  Future<void> copyTree(String from, String to) async {
+    Directory(to).createSync(recursive: true);
     if (Platform.isWindows) {
-      return Platform.environment["PROCESSOR_ARCHITECTURE"];
-    } else if (Platform.isLinux || Platform.isMacOS) {
-      final result = await Process.run('uname', ['-m']);
-      return result.stdout.toString().trim();
-    }
-    return null;
-  }
-
-  @override
-  Future<void> run() async {
-    final mode = target == Target.android ? Mode.lib : Mode.core;
-    final String out = argResults?["out"] ?? (target.same ? "app" : "core");
-    final archName = argResults?["arch"];
-    final env = argResults?["env"] ?? "pre";
-    final currentArches =
-        arches.where((element) => element.name == archName).toList();
-    final arch = currentArches.isEmpty ? null : currentArches.first;
-
-    if (arch == null && target != Target.android) {
-      throw "Invalid arch parameter";
-    }
-
-    await Build.syncCoreVersionDartFile();
-    final coreVersion = await Build.extractCoreVersion();
-
-    final corePaths = await Build.buildCore(
-      target: target,
-      arch: arch,
-      mode: mode,
-      coreVersion: coreVersion,
-    );
-
-    if (out != "app") {
-      return;
-    }
-
-    switch (target) {
-      case Target.windows:
-        final token = await Build.calcSha256(corePaths.first);
-        final buildMsix = argResults?["msix"] == true;
-        await Build.buildHelper(target, token, arch: arch);
-        await _buildWindowsApp(
-          arch: arch!,
-          env: env,
-          coreVersion: coreVersion,
-          token: token,
-          msix: buildMsix,
-        );
-        return;
-      case Target.linux:
-        await _getLinuxDependencies(arch!);
-        await _buildLinuxApp(
-          arch: arch!,
-          env: env,
-          coreVersion: coreVersion,
-        );
-        return;
-      case Target.android:
-        await _buildAndroidApp(
-          env: env,
-          coreVersion: coreVersion,
-        );
-        return;
-      case Target.macos:
-        await _getMacosDependencies();
-        await _buildMacosApp(
-          arch: arch!,
-          env: env,
-          coreVersion: coreVersion,
-        );
-        return;
+      await mustRun('xcopy', [from, to, '/E', '/I', '/Y', '/Q']);
+    } else {
+      await mustRun('cp', ['-R', '$from/.', to]);
     }
   }
 }
 
-main(args) async {
-  final runner = CommandRunner("setup", "build Application");
-  runner.addCommand(BuildCommand(target: Target.android));
-  runner.addCommand(BuildCommand(target: Target.linux));
-  runner.addCommand(BuildCommand(target: Target.windows));
-  runner.addCommand(BuildCommand(target: Target.macos));
-  runner.run(args);
+Future<int> _package(
+  String platform,
+  String env,
+  String targets,
+  String rootDir,
+  String arch, {
+  String? androidArch,
+  required bool verbose,
+}) async {
+  final file = File(p.join(rootDir, 'env.json'));
+  await file.writeAsString(jsonEncode(createBuildEnvironment(env)));
+
+  final depExit = await _ensureDependencies(platform);
+  if (depExit != 0) return depExit;
+
+  final build = _Build(
+    rootDir: rootDir,
+    platform: platform,
+    arch: arch,
+    verbose: verbose,
+  );
+  final wanted = targets.split(',').map((t) => t.trim()).toSet();
+  try {
+    switch (platform) {
+      case 'android':
+        await _packageAndroid(build, androidArch: androidArch);
+      case 'macos':
+        await _packageMacos(build);
+      case 'windows':
+        await _packageWindows(build, wanted);
+      case 'linux':
+        await _packageLinux(build, wanted);
+    }
+  } on ProcessException catch (error) {
+    stderr.writeln('${error.executable} failed: ${error.message}');
+    return error.errorCode == 0 ? 1 : error.errorCode;
+  }
+  return 0;
+}
+
+Future<void> _packageAndroid(_Build build, {String? androidArch}) async {
+  const outputs = 'build/app/outputs/flutter-apk';
+  await build.mustRun('flutter', [
+    'build',
+    'apk',
+    '--release',
+    ...build.flutterBuildArgs(androidArch: androidArch),
+  ]);
+  for (final MapEntry(key: arch, value: abi) in _androidAbi.entries) {
+    if (androidArch != null && androidArch != arch) continue;
+    build.copy(
+      p.join(build.rootDir, outputs, 'app-$abi-release.apk'),
+      build.dist(artifactName('android', abi, '.apk')),
+    );
+  }
+  if (androidArch != null) return;
+  await build.mustRun('flutter', [
+    'build',
+    'apk',
+    '--release',
+    for (final arg in build.flutterBuildArgs())
+      if (arg != '--split-per-abi') arg,
+  ]);
+  build.copy(
+    p.join(build.rootDir, outputs, 'app-release.apk'),
+    build.dist(artifactName('android', 'universal', '.apk')),
+  );
+}
+
+Future<void> _packageMacos(_Build build) async {
+  await build.mustRun('flutter', [
+    'build',
+    'macos',
+    '--release',
+    ...build.flutterBuildArgs(),
+  ]);
+  final app = p.join(
+    build.rootDir,
+    'build/macos/Build/Products/Release',
+    '$_appName.app',
+  );
+  final identity = Platform.environment['APPLE_DEVELOPER_ID'] ?? '';
+  if (identity.isNotEmpty) {
+    await _signMacosApp(build, app, identity);
+  }
+  final staging = Directory(p.join(build.rootDir, 'build', 'dmg'));
+  if (staging.existsSync()) staging.deleteSync(recursive: true);
+  staging.createSync(recursive: true);
+  // Without a signing identity create-dmg still writes the image, then exits
+  // non-zero over the signature it could not add.
+  final code = await build.run('create-dmg', [
+    '--overwrite',
+    if (identity.isNotEmpty) '--no-code-sign',
+    '--dmg-title',
+    _appName,
+    app,
+    staging.path,
+  ]);
+  final created = staging
+      .listSync()
+      .whereType<File>()
+      .where((file) => file.path.endsWith('.dmg'))
+      .toList();
+  if (created.isEmpty || (identity.isNotEmpty && code != 0)) {
+    throw ProcessException('create-dmg', const [], 'no DMG was created', code);
+  }
+  if (identity.isNotEmpty) {
+    await _codesign(build, identity, created.first.path);
+  } else if (code != 0) {
+    stderr.writeln('create-dmg exited with $code; the DMG is unsigned.');
+  }
+  build.copy(
+    created.first.path,
+    build.dist(artifactName('macos', build.arch, '.dmg')),
+  );
+  staging.deleteSync(recursive: true);
+}
+
+List<String> macosSigningOrder(String app) {
+  final contents = p.join(app, 'Contents');
+  List<String> entries(String dir, bool Function(String path) take) {
+    final directory = Directory(p.join(contents, dir));
+    if (!directory.existsSync()) return [];
+    return [
+      for (final entry in directory.listSync())
+        if (take(entry.path)) entry.path,
+    ]..sort();
+  }
+
+  return [
+    ...entries(
+      'Frameworks',
+      (path) => path.endsWith('.framework') || path.endsWith('.dylib'),
+    ),
+    ...entries(
+      p.join('Library', 'LoginItems'),
+      (path) => path.endsWith('.app'),
+    ),
+    ...entries('MacOS', (path) => p.basename(path) != _appName),
+    app,
+  ];
+}
+
+Future<void> _signMacosApp(_Build build, String app, String identity) async {
+  final entitlements = {
+    // Xcode's ad-hoc signature carries get-task-allow, which notarization rejects.
+    app: 'Release.entitlements',
+    // EasyTier's wazero makes the writable pages it compiled into executable.
+    p.join(app, 'Contents', 'MacOS', 'FlClashCore'): 'Core.entitlements',
+  };
+  for (final code in macosSigningOrder(app)) {
+    final file = entitlements[code];
+    await _codesign(build, identity, code, [
+      '--options=runtime',
+      if (file != null) ...[
+        '--entitlements',
+        p.join(build.rootDir, 'macos', 'Runner', file),
+      ] else
+        '--preserve-metadata=entitlements',
+    ]);
+  }
+  await build.mustRun('codesign', [
+    '--verify',
+    '--deep',
+    '--strict',
+    '--verbose=2',
+    app,
+  ]);
+}
+
+Future<void> _codesign(
+  _Build build,
+  String identity,
+  String path, [
+  List<String> options = const [],
+]) async {
+  final arguments = [
+    '--force',
+    '--timestamp',
+    '--sign',
+    identity,
+    ...options,
+    path,
+  ];
+  // Apple's timestamp service turns a request away now and then.
+  for (var attempt = 1; ; attempt++) {
+    final code = await build.run('codesign', arguments);
+    if (code == 0) return;
+    if (attempt == 3) {
+      throw ProcessException('codesign', arguments, 'exit code $code', code);
+    }
+    await Future<void>.delayed(Duration(seconds: 5 * attempt));
+  }
+}
+
+Future<void> _packageWindows(_Build build, Set<String> targets) async {
+  await build.mustRun('flutter', [
+    'build',
+    'windows',
+    '--release',
+    ...build.flutterBuildArgs(),
+  ]);
+  final winArch = build.arch == 'arm64' ? 'arm64' : 'x64';
+  final bundle = p.join(
+    build.rootDir,
+    'build',
+    'windows',
+    winArch,
+    'runner',
+    'Release',
+  );
+  if (targets.contains('zip')) {
+    final zip = build.dist(artifactName('windows', build.arch, '.zip'));
+    if (File(zip).existsSync()) File(zip).deleteSync();
+    await build.mustRun('powershell', [
+      '-NoProfile',
+      '-Command',
+      'Compress-Archive -Path "$bundle\\*" -DestinationPath "$zip" -Force',
+    ]);
+    stdout.writeln('created: $zip');
+  }
+  if (targets.contains('exe')) {
+    final config = build.packagingConfig('exe');
+    final script = renderInnoSetup(
+      File(
+        p.join(build.rootDir, 'windows', 'packaging', 'exe', 'inno_setup.iss'),
+      ).readAsStringSync(),
+      config: config,
+      version: build.version,
+      arch: build.arch,
+      sourceDir: bundle,
+      outputDir: build.distPath,
+      outputBaseName: artifactName('windows', build.arch, '-setup'),
+      rootDir: build.rootDir,
+    );
+    final scriptFile = File(p.join(build.rootDir, 'build', 'setup.iss'));
+    scriptFile.parent.createSync(recursive: true);
+    scriptFile.writeAsStringSync(script);
+    await build.mustRun(_innoSetupCompiler(), [scriptFile.path]);
+    stdout.writeln(
+      'created: ${build.dist(artifactName('windows', build.arch, '-setup.exe'))}',
+    );
+  }
+}
+
+String _innoSetupCompiler() {
+  const installed = r'C:\Program Files (x86)\Inno Setup 6\ISCC.exe';
+  return File(installed).existsSync() ? installed : 'ISCC';
+}
+
+const _innoLanguages = {
+  'en': 'Name: "english"; MessagesFile: "compiler:Default.isl"',
+  'ru': 'Name: "russian"; MessagesFile: "compiler:Languages\\Russian.isl"',
+  'zh':
+      'Name: "chineseSimplified"; MessagesFile: "compiler:Languages\\ChineseSimplified.isl"',
+  'ja': 'Name: "japanese"; MessagesFile: "compiler:Languages\\Japanese.isl"',
+  'ko': 'Name: "korean"; MessagesFile: "compiler:Languages\\Korean.isl"',
+  'fr': 'Name: "french"; MessagesFile: "compiler:Languages\\French.isl"',
+  'es': 'Name: "spanish"; MessagesFile: "compiler:Languages\\Spanish.isl"',
+};
+
+/// Fills the Inno Setup script from `windows/packaging/exe/make_config.yaml`.
+String renderInnoSetup(
+  String template, {
+  required Map<dynamic, dynamic> config,
+  required String version,
+  required String arch,
+  required String sourceDir,
+  required String outputDir,
+  required String outputBaseName,
+  required String rootDir,
+}) {
+  final displayName = (config['display_name'] ?? _appName) as String;
+  final privileges = (config['privileges_required'] ?? 'admin') as String;
+  final locales = (config['locales'] as List?) ?? const [];
+  final languages = [
+    for (final locale in locales)
+      if (locale is Map && _innoLanguages[locale['lang']] != null)
+        _innoLanguages[locale['lang']]!,
+  ];
+  if (languages.isEmpty) languages.add(_innoLanguages['en']!);
+  final iconFile = (config['setup_icon_file'] as String?) ?? '';
+  final values = {
+    'APP_ID': config['app_id'] as String,
+    'APP_VERSION': version,
+    'DISPLAY_NAME': displayName,
+    'PUBLISHER_NAME': (config['publisher'] ?? '') as String,
+    'PUBLISHER_URL': (config['publisher_url'] ?? '') as String,
+    'INSTALL_DIR_NAME': '{autopf}\\$displayName',
+    'OUTPUT_DIR': outputDir,
+    'OUTPUT_BASE_FILENAME': outputBaseName,
+    'SETUP_ICON_FILE': p.isAbsolute(iconFile)
+        ? iconFile
+        : p.join(rootDir, iconFile),
+    'PRIVILEGES_REQUIRED': privileges,
+    'ARCH': arch == 'arm64' ? 'arm64' : 'x64compatible',
+    'SOURCE_DIR': sourceDir,
+    'EXECUTABLE_NAME': (config['executable_name'] ?? '$_appName.exe') as String,
+    'LANGUAGES': languages.join('\n'),
+    'RUN_FLAGS': privileges == 'admin' ? 'runascurrentuser' : '',
+    'CLEAR_PROXY_SCRIPT': p.join(
+      rootDir,
+      'windows',
+      'packaging',
+      'exe',
+      'clear_stale_proxy.ps1',
+    ),
+  };
+  var rendered = template;
+  values.forEach((key, value) {
+    rendered = rendered.replaceAll('{{$key}}', value);
+  });
+  return rendered;
+}
+
+Future<void> _packageLinux(_Build build, Set<String> targets) async {
+  final flutterArch = build.arch == 'arm64' ? 'arm64' : 'x64';
+  await build.mustRun('flutter', [
+    'build',
+    'linux',
+    '--release',
+    '--target-platform=linux-$flutterArch',
+    ...build.flutterBuildArgs(),
+  ]);
+  final bundle = p.join(
+    build.rootDir,
+    'build',
+    'linux',
+    flutterArch,
+    'release',
+    'bundle',
+  );
+  if (targets.contains('deb')) await _packageDeb(build, bundle);
+  if (targets.contains('rpm')) await _packageRpm(build, bundle);
+  if (targets.contains('appimage')) await _packageAppImage(build, bundle);
+}
+
+String _desktopEntry(Map<dynamic, dynamic> config, {required String exec}) {
+  List<String> list(String key) => [
+    for (final item in (config[key] as List?) ?? const []) item.toString(),
+  ];
+  final name = (config['display_name'] ?? _appName) as String;
+  return [
+    '[Desktop Entry]',
+    'Type=Application',
+    'Name=$name',
+    'GenericName=${config['generic_name'] ?? name}',
+    'Comment=$name',
+    'Exec=$exec %u',
+    'Icon=$_appName',
+    'Terminal=false',
+    if (list('categories').isNotEmpty)
+      'Categories=${list('categories').join(';')};',
+    if (list('keywords').isNotEmpty) 'Keywords=${list('keywords').join(';')};',
+    if (list('supported_mime_type').isNotEmpty)
+      'MimeType=${list('supported_mime_type').join(';')};',
+    'StartupNotify=${config['startup_notify'] ?? true}',
+    if (config['startup_wm_class'] != null)
+      'StartupWMClass=${config['startup_wm_class']}',
+    '',
+  ].join('\n');
+}
+
+List<String> _scripts(Map<dynamic, dynamic> config, String key) => [
+  for (final line in (config[key] as List?) ?? const []) line.toString(),
+];
+
+void _writeExecutable(String path, String content) {
+  final file = File(path);
+  file.parent.createSync(recursive: true);
+  file.writeAsStringSync(content);
+  if (!Platform.isWindows) {
+    Process.runSync('chmod', ['755', path]);
+  }
+}
+
+Future<void> _installTree(
+  _Build build,
+  String root,
+  String bundle,
+  Map<dynamic, dynamic> config, {
+  required String exec,
+}) async {
+  await build.copyTree(bundle, p.join(root, 'opt', _appName));
+  build.copy(
+    p.join(build.rootDir, 'assets', 'images', 'icon.png'),
+    p.join(root, 'usr/share/icons/hicolor/256x256/apps', '$_appName.png'),
+  );
+  final desktop = File(
+    p.join(root, 'usr/share/applications', '$_bundleId.desktop'),
+  );
+  desktop.parent.createSync(recursive: true);
+  desktop.writeAsStringSync(_desktopEntry(config, exec: exec));
+  _normalizeModes(root);
+}
+
+/// dpkg-deb, rpmbuild and appimagetool record modes verbatim, and the Linux
+/// Helper refuses an `/opt/FlClashX` that a umask of 002 left group-writable.
+void _normalizeModes(String root) {
+  Process.runSync('chmod', ['-R', 'u+rwX,go+rX,go-w', root]);
+}
+
+Future<void> _packageDeb(_Build build, String bundle) async {
+  final config = build.packagingConfig('deb');
+  final root = p.join(build.rootDir, 'build', 'deb_root');
+  if (Directory(root).existsSync()) Directory(root).deleteSync(recursive: true);
+  await _installTree(
+    build,
+    root,
+    bundle,
+    config,
+    exec: '/opt/$_appName/$_appName',
+  );
+  final depends = [
+    for (final item in (config['dependencies'] as List?) ?? const [])
+      item.toString(),
+  ];
+  final maintainer = (config['maintainer'] as Map?) ?? const {};
+  final control = File(p.join(root, 'DEBIAN', 'control'));
+  control.parent.createSync(recursive: true);
+  control.writeAsStringSync(
+    [
+      'Package: ${_appName.toLowerCase()}',
+      'Version: ${build.version}',
+      'Section: ${config['section'] ?? 'x11'}',
+      'Priority: ${config['priority'] ?? 'optional'}',
+      'Architecture: ${build.arch}',
+      if (config['installed_size'] != null)
+        'Installed-Size: ${config['installed_size']}',
+      if (depends.isNotEmpty) 'Depends: ${depends.join(', ')}',
+      'Maintainer: ${maintainer['name']} <${maintainer['email']}>',
+      'Description: ${config['display_name'] ?? _appName}',
+      '',
+    ].join('\n'),
+  );
+  final postrm = _scripts(config, 'postuninstall_scripts');
+  if (postrm.isNotEmpty) {
+    _writeExecutable(
+      p.join(root, 'DEBIAN', 'postrm'),
+      ['#!/bin/sh', 'set -e', ...postrm, ''].join('\n'),
+    );
+  }
+  await build.mustRun('dpkg-deb', [
+    '--build',
+    '--root-owner-group',
+    root,
+    build.dist(artifactName('linux', build.arch, '.deb')),
+  ]);
+  Directory(root).deleteSync(recursive: true);
+}
+
+Future<void> _packageRpm(_Build build, String bundle) async {
+  final config = build.packagingConfig('rpm');
+  final rpmArch = build.arch == 'arm64' ? 'aarch64' : 'x86_64';
+  final top = p.join(build.rootDir, 'build', 'rpmbuild');
+  if (Directory(top).existsSync()) Directory(top).deleteSync(recursive: true);
+  final root = p.join(top, 'BUILD', 'root');
+  await _installTree(
+    build,
+    root,
+    bundle,
+    config,
+    exec: '/opt/$_appName/$_appName',
+  );
+  final requires = [
+    for (final item in (config['requires'] as List?) ?? const [])
+      item.toString(),
+  ];
+  final spec = File(p.join(top, '$_appName.spec'));
+  spec.writeAsStringSync(
+    [
+      ..._scripts(config, 'spec_macros'),
+      'Name: ${_appName.toLowerCase()}',
+      'Version: ${build.version}',
+      'Release: 1',
+      'Summary: ${config['display_name'] ?? _appName}',
+      'License: ${config['license'] ?? 'Other'}',
+      'Group: ${config['group'] ?? 'Applications/Internet'}',
+      'Packager: ${config['packager']} <${config['packagerEmail']}>',
+      'AutoReqProv: no',
+      for (final item in requires) 'Requires: $item',
+      '',
+      '%description',
+      '${config['display_name'] ?? _appName} proxy client',
+      '',
+      '%install',
+      'cp -r %{_builddir}/root/* %{buildroot}/',
+      '',
+      if (_scripts(config, 'postinstall_scripts').isNotEmpty) ...[
+        '%post',
+        ..._scripts(config, 'postinstall_scripts'),
+        '',
+      ],
+      if (_scripts(config, 'postuninstall_scripts').isNotEmpty) ...[
+        '%postun',
+        ..._scripts(config, 'postuninstall_scripts'),
+        '',
+      ],
+      '%files',
+      '/opt/$_appName/*',
+      '/usr/share/applications/$_bundleId.desktop',
+      '/usr/share/icons/hicolor/256x256/apps/$_appName.png',
+      '',
+    ].join('\n'),
+  );
+  await build.mustRun('rpmbuild', [
+    '-bb',
+    spec.path,
+    '--define',
+    '_topdir $top',
+    '--define',
+    '_builddir ${p.join(top, 'BUILD')}',
+    '--target',
+    rpmArch,
+  ]);
+  final built = Directory(
+    p.join(top, 'RPMS', rpmArch),
+  ).listSync().whereType<File>().where((f) => f.path.endsWith('.rpm'));
+  if (built.isEmpty) {
+    throw const ProcessException('rpmbuild', [], 'no RPM was created', 1);
+  }
+  build.copy(
+    built.first.path,
+    build.dist(artifactName('linux', build.arch, '.rpm')),
+  );
+  Directory(top).deleteSync(recursive: true);
+}
+
+Future<void> _packageAppImage(_Build build, String bundle) async {
+  final config = build.packagingConfig('appimage');
+  final appDir = p.join(build.rootDir, 'build', 'AppDir');
+  if (Directory(appDir).existsSync()) {
+    Directory(appDir).deleteSync(recursive: true);
+  }
+  final usr = p.join(appDir, 'usr');
+  // Flutter loads its AOT code from lib/libapp.so beside the executable, so
+  // the bundle keeps the layout Flutter built.
+  await build.copyTree(bundle, p.join(usr, 'bin'));
+  for (final extra in (config['include'] as List?) ?? const []) {
+    final source = extra.toString();
+    if (File(source).existsSync()) {
+      build.copy(source, p.join(usr, 'lib', p.basename(source)));
+    }
+  }
+  final trayPlugin = p.join(bundle, 'lib', 'libtray_plugin.so');
+  final ldd = Process.runSync('ldd', [trayPlugin]);
+  final indicatorLibraries = appIndicatorLibraries(ldd.stdout.toString());
+  if (indicatorLibraries.isEmpty) {
+    throw ProcessException(
+      'ldd',
+      [trayPlugin],
+      'the tray plugin links no AppIndicator library to bundle',
+      1,
+    );
+  }
+  for (final library in indicatorLibraries) {
+    build.copy(library, p.join(usr, 'lib', p.basename(library)));
+  }
+  final icon = p.join(build.rootDir, 'assets', 'images', 'icon.png');
+  build.copy(
+    icon,
+    p.join(usr, 'share/icons/hicolor/256x256/apps', '$_appName.png'),
+  );
+  build.copy(icon, p.join(appDir, '$_appName.png'));
+  final desktop = _desktopEntry(config, exec: _appName);
+  for (final path in [
+    p.join(usr, 'share/applications', '$_bundleId.desktop'),
+    p.join(appDir, '$_bundleId.desktop'),
+  ]) {
+    File(path).parent.createSync(recursive: true);
+    File(path).writeAsStringSync(desktop);
+  }
+  _writeExecutable(
+    p.join(appDir, 'AppRun'),
+    [
+      '#!/bin/bash',
+      r'SELF=$(readlink -f "$0")',
+      r'HERE=${SELF%/*}',
+      r'export PATH="${HERE}/usr/bin:${PATH}"',
+      r'export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"',
+      'exec "\${HERE}/usr/bin/$_appName" "\$@"',
+      '',
+    ].join('\n'),
+  );
+  Process.runSync('chmod', ['755', p.join(usr, 'bin', _appName)]);
+  _normalizeModes(appDir);
+  await build.mustRun(
+    'appimagetool',
+    [appDir, build.dist(artifactName('linux', build.arch, '.AppImage'))],
+    environment: {'ARCH': appImageEnvArch(build.arch)},
+  );
+  Directory(appDir).deleteSync(recursive: true);
+}
+
+String _detectArch() {
+  if (Platform.isWindows) {
+    final pa = Platform.environment['PROCESSOR_ARCHITECTURE'] ?? 'AMD64';
+    return pa.toUpperCase() == 'ARM64' ? 'arm64' : 'amd64';
+  }
+  final result = Process.runSync('uname', ['-m']);
+  final machine = (result.stdout as String).trim();
+  if (machine == 'aarch64' || machine == 'arm64') return 'arm64';
+  if (machine == 'x86_64') return 'amd64';
+  return machine;
+}
+
+Future<bool> _hasCommand(String cmd) async {
+  final which = Platform.isWindows ? 'where' : 'command';
+  final args = Platform.isWindows ? [cmd] : ['-v', cmd];
+  final result = await Process.run(
+    which,
+    args,
+    runInShell: !Platform.isWindows,
+  );
+  return result.exitCode == 0;
+}
+
+Future<int> _ensureDependencies(String platform) async {
+  switch (platform) {
+    case 'macos':
+      return _ensureMacosDependencies();
+    case 'linux':
+      return _ensureLinuxDependencies();
+    default:
+      return 0;
+  }
+}
+
+Future<int> _ensureMacosDependencies() async {
+  if (await _hasCommand('create-dmg')) {
+    stdout.writeln('create-dmg already installed, skipping.');
+    return 0;
+  }
+  stdout.writeln('Installing create-dmg...');
+  // create-dmg's native helpers build on install, which npm blocks by default.
+  final result = await Process.run('npm', [
+    'install',
+    '-g',
+    '--allow-scripts=fs-xattr,macos-alias',
+    'create-dmg',
+  ]);
+  if (result.exitCode != 0) {
+    stderr.write(result.stderr);
+  }
+  return result.exitCode;
+}
+
+Future<int> _ensureLinuxDependencies() async {
+  const pkgGroups = <List<String>>[
+    ['ninja-build', 'libgtk-3-dev'],
+    ['libayatana-appindicator3-dev'],
+    ['libsecret-1-dev'],
+    ['locate'],
+    ['rpm', 'patchelf'],
+    ['libfuse2'],
+  ];
+
+  final missingGroups = <List<String>>[];
+  for (final group in pkgGroups) {
+    final missingPkgs = <String>[];
+    for (final pkg in group) {
+      if (!await _isDebianPackageInstalled(pkg)) {
+        missingPkgs.add(pkg);
+      }
+    }
+    if (missingPkgs.isNotEmpty) {
+      missingGroups.add(missingPkgs);
+    }
+  }
+
+  if (missingGroups.isEmpty) {
+    stdout.writeln('All Linux build dependencies already installed, skipping.');
+  } else {
+    stdout.writeln('Updating apt package lists...');
+    final updateExit = await _runLinuxDependencyCommand([
+      'apt-get',
+      'update',
+      '-y',
+    ]);
+    if (updateExit != 0) {
+      stderr.writeln(
+        'apt-get update exited with $updateExit; continuing and verifying '
+        'dependency installation directly.',
+      );
+    }
+
+    for (final missingPkgs in missingGroups) {
+      stdout.writeln(
+        'Installing Linux build dependencies: ${missingPkgs.join(', ')}...',
+      );
+      final installExit = await _installLinuxPackages(missingPkgs);
+      if (installExit != 0) return installExit;
+    }
+  }
+
+  const appimagetool = '/usr/local/bin/appimagetool';
+  if (File(appimagetool).existsSync()) {
+    stdout.writeln('appimagetool already installed, skipping.');
+    return 0;
+  }
+  stdout.writeln('Downloading appimagetool...');
+  final downloadName =
+      'appimagetool-${appImageToolArch(_detectArch())}.AppImage';
+  final dlResult = await Process.run('sudo', [
+    'wget',
+    '-O',
+    appimagetool,
+    'https://github.com/AppImage/AppImageKit/releases/download/continuous/$downloadName',
+  ]);
+  if (dlResult.exitCode != 0) {
+    stderr.write(dlResult.stderr);
+    return dlResult.exitCode;
+  }
+  await Process.run('sudo', ['chmod', '+x', appimagetool]);
+  return 0;
+}
+
+/// The tray links AppIndicator, which most desktops without one installed
+/// cannot load; the AppImage carries it and the libraries it pulls in.
+List<String> appIndicatorLibraries(String lddOutput) {
+  final library = RegExp(
+    r'^\s*(lib(?:ayatana-)?(?:appindicator|indicator|ido|dbusmenu)\S*)\s+=>\s+(\S+)',
+    multiLine: true,
+  );
+  return [for (final match in library.allMatches(lddOutput)) match.group(2)!];
+}
+
+String appImageToolArch(String arch) {
+  return arch == 'arm64' ? 'aarch64' : 'x86_64';
+}
+
+/// The continuous appimagetool spells arm64 `arm_aarch64` in `ARCH`; given
+/// `aarch64` it guesses from the libraries instead and refuses a mixed AppDir.
+String appImageEnvArch(String arch) {
+  return arch == 'arm64' ? 'arm_aarch64' : 'x86_64';
+}
+
+/// Ubuntu 24.04 ships libfuse2 under its time64 name, which `dpkg -s libfuse2` cannot see.
+const _debianPackageAliases = <String, List<String>>{
+  'libfuse2': ['libfuse2t64'],
+};
+
+Future<bool> _isDebianPackageInstalled(String pkg) async {
+  for (final name in [pkg, ...?_debianPackageAliases[pkg]]) {
+    final result = await Process.run('dpkg', ['-s', name]);
+    if (result.exitCode == 0 &&
+        (result.stdout as String).contains('Status: install ok installed')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Future<bool> _areDebianPackagesInstalled(List<String> pkgs) async {
+  for (final pkg in pkgs) {
+    if (!await _isDebianPackageInstalled(pkg)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Future<int> _installLinuxPackages(List<String> pkgs) async {
+  final exitCode = await _runLinuxDependencyCommand([
+    'apt-get',
+    'install',
+    '-y',
+    ...pkgs,
+  ]);
+  if (exitCode == 0) return 0;
+
+  if (await _areDebianPackagesInstalled(pkgs)) {
+    stderr.writeln(
+      'apt-get install exited with $exitCode, but all requested packages are '
+      'installed; continuing.',
+    );
+    return 0;
+  }
+
+  return exitCode;
+}
+
+Future<int> _runLinuxDependencyCommand(List<String> command) async {
+  final sudoCommand = [
+    'env',
+    'DEBIAN_FRONTEND=noninteractive',
+    'NEEDRESTART_MODE=a',
+    ...command,
+  ];
+  stdout.writeln('exec: sudo ${sudoCommand.join(' ')}');
+  final result = await Process.start('sudo', sudoCommand);
+  result.stdout.listen((data) {
+    stdout.write(utf8.decode(data));
+  });
+  result.stderr.listen((data) {
+    stderr.write(utf8.decode(data));
+  });
+  final exitCode = await result.exitCode;
+  if (exitCode != 0) {
+    stderr.writeln('Linux dependency command failed with exit code $exitCode.');
+  }
+  return exitCode;
 }

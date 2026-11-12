@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -10,40 +11,33 @@
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Lets the app prompt the user to whitelist itself from battery optimization,
-         the single most effective lever against MIUI/Samsung killing the VPN's
-         :remote process (which START_STICKY does NOT recover from). -->
-    <uses-permission
-        android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-        tools:ignore="BatteryLife" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
-    <!-- Vendor runtime permission (ITGSA standard on vivo/OPPO/Xiaomi ROMs) gating
-         the installed-app list. Without it those ROMs silently return a near-empty
-         list from getInstalledPackages even though QUERY_ALL_PACKAGES is held, so
-         AccessControl shows no apps. Unknown and ignored on AOSP-like ROMs. -->
     <uses-permission android:name="com.android.permission.GET_INSTALLED_APPS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <application
-        android:name=".FlClashXApplication"
+        android:name=".FlClashApplication"
         android:banner="@mipmap/ic_banner"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
-        android:allowBackup="false"
-        android:label="FlClashX"
-        android:memtagMode="off"
-        android:networkSecurityConfig="@xml/network_security_config">
-
+        android:label="@string/app_name">
         <activity
-            android:name="com.follow.clashx.MainActivity"
+            android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:exported="true"
             android:hardwareAccelerated="true"
@@ -53,53 +47,39 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+            <!-- install-config links go through app_links; Flutter would also push them as routes. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
-            <!-- One filter per scheme so scheme+host are paired explicitly
-                 (clash://install-config etc.), not merged into a loose any-scheme/any-host set. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="clash" android:host="install-config" />
+
+                <data android:scheme="clash" />
+                <data android:scheme="clashmeta" />
+                <data android:scheme="flclash" />
+                <data android:scheme="flclashx" />
+                <data android:scheme="clashx" />
+
+                <data android:host="install-config" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="flclash" android:host="install-config" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="flclashx" android:host="install-config" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- Impeller OFF (Skia): Impeller's Vulkan backend janks animations on some
-             Pixel GPUs (Tensor) even at a forced 120 Hz, while other devices are
-             fine — the classic device-specific Impeller regression. Skia renders
-             smoothly here. Revisit if a future Flutter drops the Skia backend. -->
-        <meta-data
-            android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="false" />
-
-        <!-- Public automation entry point (MacroDroid/Tasker send START/STOP/CHANGE
-             intents): must stay callable by third-party apps, so no signature
-             permission here. -->
         <activity
-            android:name=".TempActivity"
+            android:name=".QuickActionActivity"
+            android:excludeFromRecents="true"
             android:exported="true"
             android:theme="@style/TransparentTheme">
             <intent-filter>
@@ -112,57 +92,16 @@
             </intent-filter>
             <intent-filter>
                 <category android:name="android.intent.category.DEFAULT" />
-                <action android:name="${applicationId}.action.CHANGE" />
+                <action android:name="${applicationId}.action.TOGGLE" />
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".widgets.ModeWidgetProvider"
-            android:exported="false"
-            android:label="@string/fl_clashx">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.follow.clashx.widget.ACTION_TOGGLE" />
-                <action android:name="com.follow.clashx.widget.ACTION_MODE_RULE" />
-                <action android:name="com.follow.clashx.widget.ACTION_MODE_GLOBAL" />
-                <action android:name="com.follow.clashx.widget.ACTION_MODE_DIRECT" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_mode_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widgets.OnOffWidgetProvider"
-            android:exported="false"
-            android:label="@string/fl_clashx">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.follow.clashx.widget.ACTION_ONOFF_TOGGLE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_on_off_info" />
-        </receiver>
-
         <service
-            android:name=".services.FlClashXTileService"
+            android:name=".TileService"
             android:exported="true"
             android:icon="@drawable/ic"
-            android:label="FlClashX"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            tools:targetApi="n">
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
@@ -171,14 +110,25 @@
                 android:value="true" />
         </service>
 
+        <receiver
+            android:name=".ServiceBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="${applicationId}.permission.RECEIVE_BROADCASTS">
+            <intent-filter>
+                <action android:name="${applicationId}.intent.action.VPN_START_REQUESTED" />
+                <action android:name="${applicationId}.intent.action.VPN_REVOKED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileProvider"
+            android:authorities="${applicationId}.share"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+                android:resource="@xml/share_paths" />
         </provider>
 
         <meta-data

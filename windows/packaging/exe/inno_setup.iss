@@ -1,3 +1,4 @@
+; Rendered by setup.dart from make_config.yaml: every {{NAME}} is filled there.
 [Setup]
 AppId={{APP_ID}}
 AppVersion={{APP_VERSION}}
@@ -8,7 +9,7 @@ AppSupportURL={{PUBLISHER_URL}}
 AppUpdatesURL={{PUBLISHER_URL}}
 DefaultDirName={{INSTALL_DIR_NAME}}
 DisableProgramGroupPage=yes
-OutputDir=.
+OutputDir={{OUTPUT_DIR}}
 OutputBaseFilename={{OUTPUT_BASE_FILENAME}}
 Compression=lzma
 SolidCompression=yes
@@ -19,7 +20,6 @@ ArchitecturesAllowed={{ARCH}}
 ArchitecturesInstallIn64BitMode={{ARCH}}
 UninstallDisplayIcon={uninstallexe}
 ChangesAssociations=yes
-; Update mode settings
 UsePreviousAppDir=yes
 UsePreviousGroup=yes
 UsePreviousTasks=yes
@@ -28,38 +28,80 @@ UsePreviousTasks=yes
 const
   SHCNE_ASSOCCHANGED = $08000000;
   SHCNF_IDLIST = $0000;
+  HelperService = 'FlClashXHelperService';
+  LegacyUninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\728B3532-C74B-4870-9068-BE70FE12A3E6_is1';
+  LegacyHelperService = 'FlClashHelperService';
 
 var
   IsUpgrade: Boolean;
   PreviousVersion: String;
+  HelperHeld: Boolean;
+  LegacyRoot: Integer;
+  LegacyDir: String;
 
 procedure SHChangeNotify(wEventId: Integer; uFlags: Integer; dwItem1: Integer; dwItem2: Integer); external 'SHChangeNotify@shell32.dll stdcall';
 
-procedure KillProcesses;
+function RunHidden(const Filename, Params: String): Integer;
 var
-  Processes: TArrayOfString;
-  i: Integer;
   ResultCode: Integer;
 begin
-  Processes := ['FlClashX.exe', 'FlClashCore.exe', 'FlClashHelperService.exe'];
+  ResultCode := -1;
+  Exec(Filename, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := ResultCode;
+end;
 
-  // First try graceful shutdown
-  for i := 0 to GetArrayLength(Processes)-1 do
-  begin
-    Exec('taskkill', '/im ' + Processes[i], '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  end;
-  
-  // Wait for processes to terminate gracefully
-  Sleep(1000);
+procedure KillProcess(const Name: String);
+begin
+  RunHidden('taskkill.exe', '/f /t /im ' + Name);
+end;
 
-  // Force kill any remaining processes
-  for i := 0 to GetArrayLength(Processes)-1 do
-  begin
-    Exec('taskkill', '/f /im ' + Processes[i], '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  end;
-  
-  // Give time for cleanup
+// The client goes first so it cannot bring the Helper back, and the Helper is
+// disabled before it stops because the SCM restarts a killed Helper in 5 s.
+procedure ShutDownApp;
+begin
+  KillProcess('{{EXECUTABLE_NAME}}');
+  HelperHeld := RunHidden('sc.exe', 'config "' + HelperService + '" start= disabled') = 0;
+  RunHidden('net.exe', 'stop "' + HelperService + '"');
+  KillProcess(HelperService + '.exe');
+  KillProcess('FlClashCore.exe');
   Sleep(1000);
+end;
+
+// Killing the app skips its exit path, which is what turns the system proxy
+// off; the executable clears a proxy left on a port nothing listens on. The
+// proxy is a per-user setting, so Setup runs it as the user who started it,
+// which the uninstaller cannot.
+procedure ClearStaleProxy;
+var
+  AppPath: String;
+  ResultCode: Integer;
+begin
+  AppPath := ExpandConstant('{app}\{{EXECUTABLE_NAME}}');
+  if not FileExists(AppPath) then
+    Exit;
+  if IsUninstaller then
+    Exec(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+  else
+    ExecAsOriginalUser(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+// The install may abort before any 0.5 executable is in place, and 0.4.x
+// has no --clear-stale-proxy, so Setup clears the proxy without the app.
+procedure ClearStaleProxyBeforeInstall;
+var
+  ResultCode: Integer;
+begin
+  ExtractTemporaryFile('clear_stale_proxy.ps1');
+  ExecAsOriginalUser('powershell.exe', '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\clear_stale_proxy.ps1') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+procedure ReleaseHelper;
+begin
+  if not HelperHeld then
+    Exit;
+  HelperHeld := False;
+  RunHidden('sc.exe', 'config "' + HelperService + '" start= auto');
+  RunHidden('sc.exe', 'start "' + HelperService + '"');
 end;
 
 function IsAppInstalled(): Boolean;
@@ -67,7 +109,7 @@ var
   UninstallKey: String;
 begin
   UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{{APP_ID}}_is1';
-  Result := RegKeyExists(HKEY_LOCAL_MACHINE, UninstallKey) or 
+  Result := RegKeyExists(HKEY_LOCAL_MACHINE, UninstallKey) or
             RegKeyExists(HKEY_CURRENT_USER, UninstallKey);
 end;
 
@@ -83,47 +125,107 @@ var
 begin
   Result := '';
   UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{{APP_ID}}_is1';
-  
   if RegQueryStringValue(HKEY_LOCAL_MACHINE, UninstallKey, 'DisplayVersion', Version) then
     Result := Version
   else if RegQueryStringValue(HKEY_CURRENT_USER, UninstallKey, 'DisplayVersion', Version) then
     Result := Version;
 end;
 
-function InitializeSetup(): Boolean;
+// 0.4.x registered under upstream FlClash's AppId, so only an entry that
+// names FlClashX is ours.
+function FindLegacyInstall(Root: Integer): Boolean;
 var
-  ResultCode: Integer;
+  Name: String;
 begin
-  // Check if app is already installed
+  Result := RegQueryStringValue(Root, LegacyUninstallKey, 'DisplayName', Name) and
+            (Pos('FlClashX', Name) = 1) and
+            RegQueryStringValue(Root, LegacyUninstallKey, 'InstallLocation', LegacyDir);
+  if Result then
+  begin
+    LegacyRoot := Root;
+    LegacyDir := RemoveBackslashUnlessRoot(LegacyDir);
+  end;
+end;
+
+function HasLegacyInstall(): Boolean;
+begin
+  Result := LegacyDir <> '';
+end;
+
+// The old uninstaller would remove the new files and offer to delete the
+// user data both versions share, so its entry goes without running it.
+procedure RetireLegacyInstall;
+var
+  Uninstaller: String;
+  ImagePath: String;
+begin
+  if not HasLegacyInstall or (CompareText(LegacyDir, ExpandConstant('{app}')) <> 0) then
+    Exit;
+  if RegQueryStringValue(LegacyRoot, LegacyUninstallKey, 'UninstallString', Uninstaller) then
+  begin
+    Uninstaller := RemoveQuotes(Uninstaller);
+    if CompareText(Uninstaller, ExpandConstant('{uninstallexe}')) <> 0 then
+    begin
+      DeleteFile(Uninstaller);
+      DeleteFile(ChangeFileExt(Uninstaller, '.dat'));
+      DeleteFile(ChangeFileExt(Uninstaller, '.msg'));
+    end;
+  end;
+  RegDeleteKeyIncludingSubkeys(LegacyRoot, LegacyUninstallKey);
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SYSTEM\CurrentControlSet\Services\' + LegacyHelperService, 'ImagePath', ImagePath) and
+     (Pos(Lowercase(AddBackslash(LegacyDir)), Lowercase(ImagePath)) > 0) then
+  begin
+    RunHidden('net.exe', 'stop "' + LegacyHelperService + '"');
+    RunHidden('sc.exe', 'delete "' + LegacyHelperService + '"');
+    KillProcess(LegacyHelperService + '.exe');
+    DeleteFile(AddBackslash(LegacyDir) + LegacyHelperService + '.exe');
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  if not FindLegacyInstall(HKEY_LOCAL_MACHINE) and not FindLegacyInstall(HKEY_LOCAL_MACHINE_32) then
+    FindLegacyInstall(HKEY_CURRENT_USER);
   IsUpgrade := IsAppInstalled();
   if IsUpgrade then
-    PreviousVersion := GetInstalledVersion();
-  
-  // Stop service if running
-  Exec('sc.exe', 'stop "FlClashHelperService"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(1000);
-  
-  // Kill all processes
-  KillProcesses;
-  
+    PreviousVersion := GetInstalledVersion()
+  else if HasLegacyInstall then
+  begin
+    IsUpgrade := True;
+    RegQueryStringValue(LegacyRoot, LegacyUninstallKey, 'DisplayVersion', PreviousVersion);
+  end;
   Result := True;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  ShutDownApp;
+  ClearStaleProxyBeforeInstall;
+  Result := '';
+end;
+
+procedure DeinitializeSetup();
+begin
+  ReleaseHelper;
 end;
 
 procedure InitializeWizard();
 begin
+  if HasLegacyInstall and not IsAppInstalled() then
+    WizardForm.DirEdit.Text := LegacyDir;
   if IsUpgrade then
   begin
-    WizardForm.Caption := '{{DISPLAY_NAME}} - Обновление';
+    WizardForm.Caption := '{{DISPLAY_NAME}} - ' + CustomMessage('Upgrade');
     if PreviousVersion <> '' then
-      WizardForm.WelcomeLabel2.Caption := 
-        'Обнаружена установленная версия ' + PreviousVersion + '.' + #13#10 + #13#10 +
-        'Программа установит версию {{APP_VERSION}}.' + #13#10 + #13#10 +
-        'Нажмите «Далее», чтобы продолжить обновление, или «Отмена», чтобы выйти.'
+      WizardForm.WelcomeLabel2.Caption :=
+        FmtMessage(CustomMessage('InstalledVersion'), [PreviousVersion]) + #13#10 + #13#10 +
+        FmtMessage(CustomMessage('WillInstall'), ['{{APP_VERSION}}']) + #13#10 + #13#10 +
+        CustomMessage('ContinueHint')
     else
-      WizardForm.WelcomeLabel2.Caption := 
-        'Обнаружена установленная версия программы.' + #13#10 + #13#10 +
-        'Программа установит версию {{APP_VERSION}}.' + #13#10 + #13#10 +
-        'Нажмите «Далее», чтобы продолжить обновление, или «Отмена», чтобы выйти.';
+      WizardForm.WelcomeLabel2.Caption :=
+        CustomMessage('InstalledUnknown') + #13#10 + #13#10 +
+        FmtMessage(CustomMessage('WillInstall'), ['{{APP_VERSION}}']) + #13#10 + #13#10 +
+        CustomMessage('ContinueHint');
   end;
 end;
 
@@ -132,14 +234,13 @@ function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoType
 begin
   if IsUpgrade then
   begin
-    Result := 'Обновление' + NewLine;
+    Result := CustomMessage('Upgrade') + NewLine;
     if PreviousVersion <> '' then
-      Result := Result + 'Текущая версия: ' + PreviousVersion + NewLine;
-    Result := Result + 'Новая версия: {{APP_VERSION}}' + NewLine + NewLine;
+      Result := Result + FmtMessage(CustomMessage('CurrentVersion'), [PreviousVersion]) + NewLine;
+    Result := Result + FmtMessage(CustomMessage('NewVersion'), ['{{APP_VERSION}}']) + NewLine + NewLine;
   end
   else
-    Result := 'Новая установка' + NewLine + NewLine;
-    
+    Result := CustomMessage('FreshInstall') + NewLine + NewLine;
   if MemoDirInfo <> '' then
     Result := Result + MemoDirInfo + NewLine + NewLine;
   if MemoGroupInfo <> '' then
@@ -149,92 +250,69 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
-var
-  ResultCode: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
-    // Refresh icon cache/associations
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0);
-    Sleep(500);
-    // Ensure helper service is started after install/upgrade, independent of app
-    try
-      Exec('sc.exe', 'start "FlClashHelperService"', '', SW_HIDE, ewNoWait, ResultCode);
-    except
-    end;
+    ClearStaleProxy;
+    RetireLegacyInstall;
+    ReleaseHelper;
   end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var
-  ResultCode: Integer;
 begin
   case CurUninstallStep of
     usUninstall:
     begin
-      // Stop service first
-      Exec('sc.exe', 'stop "FlClashHelperService"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Sleep(1000);
-      
-      // Kill all processes
-      KillProcesses;
-      
-      // Delete service
-      Exec('sc.exe', 'delete "FlClashHelperService"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Sleep(500);
+      ShutDownApp;
+      ClearStaleProxy;
+      RunHidden('sc.exe', 'delete "' + HelperService + '"');
     end;
-    
     usPostUninstall:
     begin
       if DirExists(ExpandConstant('{userappdata}\com.follow\clashx')) then
       begin
-        if MsgBox('Удалить пользовательские данные программы?', mbConfirmation, MB_YESNO) = IDYES then
-        begin
+        if MsgBox(CustomMessage('RemoveUserData'), mbConfirmation, MB_YESNO) = IDYES then
           DelTree(ExpandConstant('{userappdata}\com.follow\clashx'), True, True, True);
-        end;
       end;
     end;
   end;
 end;
+
 [Languages]
-{% for locale in LOCALES %}
-{% if locale.lang == 'en' %}Name: "english"; MessagesFile: "compiler:Default.isl"{% endif %}
-{% if locale.lang == 'hy' %}Name: "armenian"; MessagesFile: "compiler:Languages\\Armenian.isl"{% endif %}
-{% if locale.lang == 'bg' %}Name: "bulgarian"; MessagesFile: "compiler:Languages\\Bulgarian.isl"{% endif %}
-{% if locale.lang == 'ca' %}Name: "catalan"; MessagesFile: "compiler:Languages\\Catalan.isl"{% endif %}
-{% if locale.lang == 'zh' %}
-Name: "chineseSimplified"; MessagesFile: {% if locale.file %}{{ locale.file }}{% else %}"compiler:Languages\\ChineseSimplified.isl"{% endif %}
-{% endif %}
-{% if locale.lang == 'co' %}Name: "corsican"; MessagesFile: "compiler:Languages\\Corsican.isl"{% endif %}
-{% if locale.lang == 'cs' %}Name: "czech"; MessagesFile: "compiler:Languages\\Czech.isl"{% endif %}
-{% if locale.lang == 'da' %}Name: "danish"; MessagesFile: "compiler:Languages\\Danish.isl"{% endif %}
-{% if locale.lang == 'nl' %}Name: "dutch"; MessagesFile: "compiler:Languages\\Dutch.isl"{% endif %}
-{% if locale.lang == 'fi' %}Name: "finnish"; MessagesFile: "compiler:Languages\\Finnish.isl"{% endif %}
-{% if locale.lang == 'fr' %}Name: "french"; MessagesFile: "compiler:Languages\\French.isl"{% endif %}
-{% if locale.lang == 'de' %}Name: "german"; MessagesFile: "compiler:Languages\\German.isl"{% endif %}
-{% if locale.lang == 'he' %}Name: "hebrew"; MessagesFile: "compiler:Languages\\Hebrew.isl"{% endif %}
-{% if locale.lang == 'is' %}Name: "icelandic"; MessagesFile: "compiler:Languages\\Icelandic.isl"{% endif %}
-{% if locale.lang == 'it' %}Name: "italian"; MessagesFile: "compiler:Languages\\Italian.isl"{% endif %}
-{% if locale.lang == 'ja' %}Name: "japanese"; MessagesFile: "compiler:Languages\\Japanese.isl"{% endif %}
-{% if locale.lang == 'no' %}Name: "norwegian"; MessagesFile: "compiler:Languages\\Norwegian.isl"{% endif %}
-{% if locale.lang == 'pl' %}Name: "polish"; MessagesFile: "compiler:Languages\\Polish.isl"{% endif %}
-{% if locale.lang == 'pt' %}Name: "portuguese"; MessagesFile: "compiler:Languages\\Portuguese.isl"{% endif %}
-{% if locale.lang == 'ru' %}Name: "russian"; MessagesFile: "compiler:Languages\\Russian.isl"{% endif %}
-{% if locale.lang == 'sk' %}Name: "slovak"; MessagesFile: "compiler:Languages\\Slovak.isl"{% endif %}
-{% if locale.lang == 'sl' %}Name: "slovenian"; MessagesFile: "compiler:Languages\\Slovenian.isl"{% endif %}
-{% if locale.lang == 'es' %}Name: "spanish"; MessagesFile: "compiler:Languages\\Spanish.isl"{% endif %}
-{% if locale.lang == 'tr' %}Name: "turkish"; MessagesFile: "compiler:Languages\\Turkish.isl"{% endif %}
-{% if locale.lang == 'uk' %}Name: "ukrainian"; MessagesFile: "compiler:Languages\\Ukrainian.isl"{% endif %}
-{% endfor %}
+{{LANGUAGES}}
+
+[CustomMessages]
+english.Upgrade=Upgrade
+english.FreshInstall=New installation
+english.InstalledVersion=Version %1 is installed.
+english.InstalledUnknown=An installed version was found.
+english.WillInstall=Setup will install version %1.
+english.ContinueHint=Click Next to continue the upgrade, or Cancel to exit.
+english.CurrentVersion=Current version: %1
+english.NewVersion=New version: %1
+english.RemoveUserData=Remove the application's user data?
+russian.Upgrade=Обновление
+russian.FreshInstall=Новая установка
+russian.InstalledVersion=Обнаружена установленная версия %1.
+russian.InstalledUnknown=Обнаружена установленная версия программы.
+russian.WillInstall=Программа установит версию %1.
+russian.ContinueHint=Нажмите «Далее», чтобы продолжить обновление, или «Отмена», чтобы выйти.
+russian.CurrentVersion=Текущая версия: %1
+russian.NewVersion=Новая версия: %1
+russian.RemoveUserData=Удалить пользовательские данные программы?
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce; Check: not IsUpgradeInstallation
+
 [Files]
-Source: "{{SOURCE_DIR}}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+Source: "{{SOURCE_DIR}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{{CLEAR_PROXY_SCRIPT}}"; Flags: dontcopy
 
 [Icons]
-Name: "{autoprograms}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"
-Name: "{autodesktop}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"; Tasks: desktopicon
+Name: "{autoprograms}\{{DISPLAY_NAME}}"; Filename: "{app}\{{EXECUTABLE_NAME}}"
+Name: "{autodesktop}\{{DISPLAY_NAME}}"; Filename: "{app}\{{EXECUTABLE_NAME}}"; Tasks: desktopicon
+
 [Run]
-Filename: "{app}\\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {% if PRIVILEGES_REQUIRED == 'admin' %}runascurrentuser{% endif %} nowait postinstall skipifsilent
+Filename: "{app}\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {{RUN_FLAGS}} nowait postinstall skipifsilent

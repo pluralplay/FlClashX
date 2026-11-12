@@ -1,116 +1,56 @@
 package com.follow.clashx
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
-import androidx.appcompat.app.AppCompatDelegate
 import com.follow.clashx.plugins.AppPlugin
+import com.follow.clashx.plugins.BatteryPlugin
 import com.follow.clashx.plugins.ServicePlugin
 import com.follow.clashx.plugins.TilePlugin
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
-import org.json.JSONObject
 
 class MainActivity : FlutterActivity() {
-
-    private var boundEngine: FlutterEngine? = null
+    private val highRefreshRate by lazy { HighRefreshRate(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        applyAppTheme()
         super.onCreate(savedInstanceState)
-        // High refresh rate is driven from Dart via the flutter_displaymode package
-        // (see main.dart) — it pins the fastest mode at the current resolution and
-        // handles the OEM quirks that a hand-rolled preferredDisplayModeId missed.
+        Haptics.applyTo(this)
+        if (savedInstanceState == null) {
+            Haptics.rise(this, LAUNCH_RISE_MS)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        highRefreshRate.pin()
+    }
+
+    override fun onPause() {
+        highRefreshRate.release()
+        super.onPause()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.follow.clashx/device_id")
-            .setMethodCallHandler { call, result ->
-                if (call.method == "getAndroidId") {
-                    try {
-                        val androidId = Settings.Secure.getString(
-                            contentResolver,
-                            Settings.Secure.ANDROID_ID,
-                        )
-                        result.success(androidId)
-                    } catch (e: Exception) {
-                        result.error("ANDROID_ID_ERROR", e.message, null)
-                    }
-                } else {
-                    result.notImplemented()
-                }
-            }
-
-        val appPlugin = AppPlugin()
-        flutterEngine.plugins.add(appPlugin)
+        flutterEngine.plugins.add(AppPlugin())
+        flutterEngine.plugins.add(BatteryPlugin())
         flutterEngine.plugins.add(ServicePlugin())
         flutterEngine.plugins.add(TilePlugin())
-        boundEngine = flutterEngine
-        GlobalState.flutterEngine = flutterEngine
-
-        appPlugin.requestNotificationsPermission()
-        maybeRequestBatteryExemption()
-        GlobalState.syncStatus()
+        ServiceState.attachFlutterEngine(flutterEngine)
+        flutterEngine.addEngineLifecycleListener(stopVibrationOnRestart)
     }
 
-    // Prompt once (ever) to whitelist from battery optimization. No-op if already
-    // exempt, and gated by a persisted flag so a user who declines is never nagged
-    // again. This is the most effective survival lever on MIUI/Samsung, where the
-    // OEM force-stops the :remote process and START_STICKY does not bring it back.
-    private fun maybeRequestBatteryExemption() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val pm = getSystemService(PowerManager::class.java) ?: return
-        if (pm.isIgnoringBatteryOptimizations(packageName)) return
-        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        if (prefs.getBoolean("flutter.battery_opt_prompted", false)) return
-        prefs.edit().putBoolean("flutter.battery_opt_prompted", true).apply()
-        runCatching {
-            startActivity(
-                Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:$packageName"),
-                ),
-            )
-        }
+    // A hot restart drops the Dart side mid-hold without letting it stop the motor.
+    private val stopVibrationOnRestart = object : FlutterEngine.EngineLifecycleListener {
+        override fun onPreEngineRestart() = Haptics.stop(this@MainActivity)
+
+        override fun onEngineWillDestroy() = Unit
     }
 
     override fun onDestroy() {
-        // Clear the global pointer only if it still references THIS activity's
-        // engine. During recreation (theme change, OEM relaunch) the new
-        // activity's configureFlutterEngine can run before this onDestroy; an
-        // unconditional null would wipe the live new engine, forcing tile/widget
-        // actions onto the headless path while a UI is actually on screen.
-        if (GlobalState.flutterEngine === boundEngine) {
-            GlobalState.flutterEngine = null
-        }
-        boundEngine = null
+        flutterEngine?.removeEngineLifecycleListener(stopVibrationOnRestart)
+        flutterEngine?.let(ServiceState::detachFlutterEngine)
         super.onDestroy()
     }
-
-    private fun applyAppTheme() {
-        try {
-            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val configJson = prefs.getString("flutter.config", null)
-            val themeMode = configJson
-                ?.let { JSONObject(it).optJSONObject("themeProps")?.optString("themeMode", "ThemeMode.system") }
-                ?: "ThemeMode.system"
-            when {
-                themeMode.contains("light", ignoreCase = true) ->
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-                themeMode.contains("dark", ignoreCase = true) ->
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-                else ->
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-            }
-        } catch (_: Exception) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        }
-    }
 }
+
+private const val LAUNCH_RISE_MS = 600L

@@ -1,8 +1,8 @@
-// ignore_for_file: invalid_annotation_target
-
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/ui/color.dart';
+import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'models.dart';
@@ -11,94 +11,280 @@ part 'generated/config.freezed.dart';
 part 'generated/config.g.dart';
 
 const defaultBypassDomain = [
-  "*zhihu.com",
-  "*zhimg.com",
-  "*jd.com",
-  "100ime-iat-api.xfyun.cn",
-  "*360buyimg.com",
-  "localhost",
-  "*.local",
-  "127.*",
-  "10.*",
-  "172.16.*",
-  "172.17.*",
-  "172.18.*",
-  "172.19.*",
-  "172.2*",
-  "172.30.*",
-  "172.31.*",
-  "192.168.*"
+  'localhost',
+  '*.local',
+  '127.*',
+  '10.*',
+  '172.16.*',
+  '172.17.*',
+  '172.18.*',
+  '172.19.*',
+  '172.2*',
+  '172.30.*',
+  '172.31.*',
+  '192.168.*',
+];
+
+const defaultFilters = [
+  Filter(
+    label: 'Hong Kong',
+    regex: r'(?i)🇭🇰|港|(?<![a-z])hk(?![a-z])|hong\s*kong',
+  ),
+  Filter(
+    label: 'Taiwan',
+    regex: r'(?i)🇹🇼|台湾|台灣|台北|新北|彰化|(?<![a-z])tw(?![a-z])|taiwan',
+  ),
+  Filter(
+    label: 'Japan',
+    regex: r'(?i)🇯🇵|日本|东京|東京|大阪|埼玉|(?<![a-z])jp(?![a-z])|japan|tokyo|osaka',
+  ),
+  Filter(
+    label: 'Singapore',
+    regex: r'(?i)🇸🇬|新加坡|狮城|獅城|(?<![a-z])sg(?![a-z])|singapore',
+  ),
+  Filter(
+    label: 'United States',
+    regex:
+        r'(?i)🇺🇸|美国|美國|美西|美东|美東|洛杉矶|圣何塞|西雅图|硅谷|纽约'
+        r'|(?<![a-z])usa?(?![a-z])|united\s*states',
+  ),
+  Filter(
+    label: 'South Korea',
+    regex: r'(?i)🇰🇷|韩国|韓國|首尔|首爾|(?<![a-z])kr(?![a-z])|korea|seoul',
+  ),
+  Filter(
+    label: 'United Kingdom',
+    regex:
+        r'(?i)🇬🇧|英国|英國|伦敦|倫敦|(?<![a-z])(uk|gb)(?![a-z])'
+        r'|united\s*kingdom|britain|london',
+  ),
+  Filter(
+    label: 'Remaining Traffic',
+    regex: r'(?i)剩余|剩餘|已用|流量\s*[:：]|traffic|remaining',
+  ),
+  Filter(label: 'Expiry Date', regex: r'(?i)到期|过期|過期|有效期|expir'),
+  Filter(label: 'Traffic Reset', regex: r'(?i)重置|reset'),
+  Filter(
+    label: 'Website & Notices',
+    regex:
+        r'(?i)官网|官網|网址|網址|域名|公告|套餐|客服|群组|群組|频道|頻道'
+        r'|website|telegram|(?<![a-z])tg(?![a-z])',
+  ),
 ];
 
 const defaultAppSettingProps = AppSettingProps();
 const defaultVpnProps = VpnProps();
+const defaultAuthenticationProps = AuthenticationProps();
 const defaultNetworkProps = NetworkProps();
-const defaultProxiesStyle = ProxiesStyle();
+const defaultProxiesStyleProps = ProxiesStyleProps();
 const defaultWindowProps = WindowProps();
-const defaultAccessControl = AccessControl();
-const defaultThemeProps = ThemeProps(
-  primaryColor: defaultPrimaryColor,
-);
+const defaultAccessControlProps = AccessControlProps();
+const defaultThemeProps = ThemeProps(primaryColor: defaultPrimaryColor);
+
+HotKeyAction _defaultHotKeyAction(HotAction action, PhysicalKeyboardKey key) {
+  return HotKeyAction(
+    action: action,
+    key: key.usbHidUsage,
+    modifiers: const {KeyboardModifier.control, KeyboardModifier.alt},
+  );
+}
+
+// Windows reports AltGr as Ctrl+Alt, and every letter is an AltGr character
+// on some layout (@ on German Q, ś on Polish S), so a default there would fire
+// while the user types.
+final List<HotKeyAction> defaultHotKeyActions = system.isWindows
+    ? const []
+    : [
+        _defaultHotKeyAction(HotAction.view, PhysicalKeyboardKey.keyV),
+        _defaultHotKeyAction(HotAction.start, PhysicalKeyboardKey.keyS),
+        _defaultHotKeyAction(HotAction.mode, PhysicalKeyboardKey.keyM),
+        _defaultHotKeyAction(HotAction.proxy, PhysicalKeyboardKey.keyP),
+        _defaultHotKeyAction(HotAction.delayTest, PhysicalKeyboardKey.keyD),
+      ];
 
 const List<DashboardWidget> defaultDashboardWidgets = [
-  DashboardWidget.announce,
-  DashboardWidget.metainfo,
-  DashboardWidget.outboundModeV2,
+  DashboardWidget.currentOutbound,
+  DashboardWidget.profiles,
 ];
 
-List<DashboardWidget> dashboardWidgetsSafeFormJson(
+/// A phone starts without the VPN switch and the diagnostic cards, which stay
+/// addable. The field default keeps the shared list because it must be const.
+final List<DashboardWidget> platformDefaultDashboardWidgets = system.isAndroid
+    ? const [
+        DashboardWidget.currentOutbound,
+        DashboardWidget.networkSpeed,
+        DashboardWidget.outboundMode,
+        DashboardWidget.profiles,
+        DashboardWidget.proxyGroups,
+      ]
+    : defaultDashboardWidgets;
+
+const _legacyDefaultDashboardWidgets = {
+  'networkSpeed',
+  'systemProxyButton',
+  'tunButton',
+  'outboundMode',
+  'networkDetection',
+  'trafficUsage',
+  'intranetIp',
+};
+
+/// The run time has no replacement: it moved onto the current outbound card,
+/// as did the outbound IP, whose card became the intranet one.
+const _legacyDashboardWidgets = {
+  'announce': DashboardWidget.announcement,
+  'metainfo': DashboardWidget.profiles,
+  'serviceInfo': DashboardWidget.profiles,
+  'changeServerButton': DashboardWidget.currentOutbound,
+  'networkDetection': DashboardWidget.intranetIp,
+  'outboundModeV2': DashboardWidget.outboundMode,
+  'systemProxyButton': DashboardWidget.networkTakeover,
+  'tunButton': DashboardWidget.networkTakeover,
+  'connections': DashboardWidget.connectionStats,
+  'requests': DashboardWidget.connectionStats,
+  'dnsQueries': DashboardWidget.connectionStats,
+  'trafficUsage': DashboardWidget.networkSpeed,
+};
+
+const _retiredDashboardWidgets = {
+  'zashboardButton',
+  'runTime',
+  'overrideDnsButton',
+  'overrideNtpButton',
+};
+
+List<DashboardWidget> dashboardWidgetsNamed(Iterable<String> names) {
+  final byName = {
+    for (final widget in DashboardWidget.values)
+      widget.name.toLowerCase(): widget,
+  };
+  return {
+    for (final name in names) ?byName[name.trim().toLowerCase()],
+  }.toList();
+}
+
+/// The current outbound card cannot be removed: a list without it predates it.
+List<DashboardWidget> dashboardWidgetsFromJson(
   List<dynamic>? dashboardWidgets,
 ) {
-  try {
-    return dashboardWidgets
-            ?.map((e) => $enumDecode(_$DashboardWidgetEnumMap, e))
-            .toList() ??
-        defaultDashboardWidgets;
-  } catch (_) {
-    return defaultDashboardWidgets;
+  if (dashboardWidgets == null) {
+    return platformDefaultDashboardWidgets;
   }
+  final byName = DashboardWidget.values.asNameMap();
+  if (dashboardWidgets.contains(DashboardWidget.currentOutbound.name)) {
+    return dashboardWidgets
+        .map((e) => _legacyDashboardWidgets[e] ?? byName[e])
+        .nonNulls
+        .toSet()
+        .toList();
+  }
+  final names = {
+    for (final name in dashboardWidgets)
+      name == 'outboundModeV2' ? DashboardWidget.outboundMode.name : name,
+  };
+  if (names.length == _legacyDefaultDashboardWidgets.length &&
+      names.containsAll(_legacyDefaultDashboardWidgets)) {
+    return platformDefaultDashboardWidgets;
+  }
+  final kept = dashboardWidgets
+      .map((e) => _legacyDashboardWidgets[e] ?? byName[e])
+      .nonNulls;
+  if (kept.isEmpty &&
+      !dashboardWidgets.every(_retiredDashboardWidgets.contains)) {
+    return platformDefaultDashboardWidgets;
+  }
+  return {DashboardWidget.currentOutbound, ...kept}.toList();
+}
+
+Object? _readSidebarExpanded(Map<dynamic, dynamic> json, String key) {
+  return json.containsKey(key) ? json[key] : json['showLabel'];
+}
+
+Object? _readTabAnimation(Map<dynamic, dynamic> json, String key) {
+  if (json.containsKey(key)) {
+    return json[key];
+  }
+  return switch (json['isAnimateToPage']) {
+    true => TabAnimation.slide.name,
+    false => TabAnimation.fade.name,
+    _ => null,
+  };
 }
 
 @freezed
-class AppSettingProps with _$AppSettingProps {
+abstract class Filter with _$Filter {
+  const factory Filter({required String label, required String regex}) =
+      _Filter;
+
+  factory Filter.fromJson(Map<String, Object?> json) => _$FilterFromJson(json);
+}
+
+@freezed
+abstract class AppSettingProps with _$AppSettingProps {
   const factory AppSettingProps({
     String? locale,
     @Default(defaultDashboardWidgets)
-    @JsonKey(fromJson: dashboardWidgetsSafeFormJson)
+    @JsonKey(fromJson: dashboardWidgetsFromJson)
     List<DashboardWidget> dashboardWidgets,
     @Default(false) bool onlyStatisticsProxy,
+    @Default(true) bool showNotificationStopAction,
     @Default(false) bool autoLaunch,
     @Default(false) bool silentLaunch,
     @Default(false) bool autoRun,
     @Default(false) bool openLogs,
     @Default(true) bool closeConnections,
+    @Default(RequestFeed.live) RequestFeed requestFeed,
     @Default(defaultTestUrl) String testUrl,
-    @Default(true) bool isAnimateToPage,
+    @Default(defaultDelayTestTimeout) int delayTestTimeout,
+    @Default(TabAnimation.fade)
+    @JsonKey(readValue: _readTabAnimation)
+    TabAnimation tabAnimation,
+    @Default(true) bool floatingNavigationBar,
     @Default(false) bool autoCheckUpdate,
-    @Default(false) bool showLabel,
-    @Default(false) bool disclaimerAccepted,
+    @Default(true)
+    @JsonKey(readValue: _readSidebarExpanded)
+    bool sidebarExpanded,
+    @Default(0) int acceptedDisclaimerVersion,
     @Default(false) bool minimizeOnExit,
+    @Default(false) bool menuBarMode,
     @Default(false) bool hidden,
     @Default(false) bool developerMode,
-    @Default(true) bool crashlytics,
-    @Default(true) bool zashboardInApp,
-    @Default(false) bool overrideProviderSettings,
-    @Default(false) bool overrideNetworkSettings,
-    @Default(RecoveryStrategy.compatible) RecoveryStrategy recoveryStrategy,
-    bool? newDashboard,
+    @Default(RestoreStrategy.compatible) RestoreStrategy restoreStrategy,
+    @Default(true) bool showTrayTitle,
+    @Default(true) bool monochromeTrayIcon,
+    // Retired from the settings: a stored or restored false is never read back.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(true)
+    bool checkCertificate,
+    @Default(defaultFilters) List<Filter> filters,
+    @Default(false) bool hideIp,
+    @Default(true) bool vibration,
+    @Default(false) bool editorLineWrap,
+    @Default(EditorFontSize.standard) EditorFontSize editorFontSize,
+    @Default([]) List<String> serviceOrder,
+    @Default([]) List<String> disabledServices,
+    @Default({}) Map<String, Map<String, double>> tableColumnWidths,
+    @Default({}) Map<String, int> subscriptionNotices,
+    @Default({}) Set<String> ownedSettings,
+
+    /// The profile update whose panel headers the settings last took.
+    String? appliedHeadersUpdate,
   }) = _AppSettingProps;
 
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>
       _$AppSettingPropsFromJson(json);
 
-  factory AppSettingProps.safeFromJson(Map<String, Object?>? json) => json == null
-        ? defaultAppSettingProps
-        : AppSettingProps.fromJson(json);
+  factory AppSettingProps.safeFromJson(Map<String, Object?>? json) {
+    if (json == null) {
+      return defaultAppSettingProps;
+    }
+    return decodeSalvaging('app settings', json, AppSettingProps.fromJson);
+  }
 }
 
 @freezed
-class AccessControl with _$AccessControl {
-  const factory AccessControl({
+abstract class AccessControlProps with _$AccessControlProps {
+  const factory AccessControlProps({
     @Default(false) bool enable,
     @Default(AccessControlMode.rejectSelected) AccessControlMode mode,
     @Default([]) List<String> acceptList,
@@ -106,96 +292,228 @@ class AccessControl with _$AccessControl {
     @Default(AccessSortType.none) AccessSortType sort,
     @Default(true) bool isFilterSystemApp,
     @Default(true) bool isFilterNonInternetApp,
-  }) = _AccessControl;
+  }) = _AccessControlProps;
 
-  factory AccessControl.fromJson(Map<String, Object?> json) =>
-      _$AccessControlFromJson(json);
+  factory AccessControlProps.fromJson(Map<String, Object?> json) =>
+      _$AccessControlPropsFromJson(json);
 }
 
-extension AccessControlExt on AccessControl {
+extension AccessControlPropsExt on AccessControlProps {
+  bool get hasPackages => acceptList.isNotEmpty || rejectList.isNotEmpty;
+
   List<String> get currentList => switch (mode) {
-        AccessControlMode.acceptSelected => acceptList,
-        AccessControlMode.rejectSelected => rejectList,
-      };
+    AccessControlMode.acceptSelected => acceptList,
+    AccessControlMode.rejectSelected => rejectList,
+  };
+
+  AccessControlProps copyWithNewList(List<String> value) => switch (mode) {
+    AccessControlMode.acceptSelected => copyWith(acceptList: value),
+    AccessControlMode.rejectSelected => copyWith(rejectList: value),
+  };
+
+  /// The profile's app lists always bound the tunnel and the picked apps
+  /// only narrow them; Android's VPN allows apps or disallows them, never both.
+  AccessControlProps withPackages({
+    required List<String> include,
+    required List<String> exclude,
+  }) {
+    if (include.isEmpty && exclude.isEmpty) {
+      return this;
+    }
+    final accepting = enable && mode == AccessControlMode.acceptSelected;
+    final rejecting = enable && mode == AccessControlMode.rejectSelected;
+    if (include.isEmpty && !accepting) {
+      return copyWith(
+        enable: true,
+        mode: AccessControlMode.rejectSelected,
+        rejectList: {if (rejecting) ...rejectList, ...exclude}.toList(),
+      );
+    }
+    final picked = acceptList.toSet();
+    final excluded = {...exclude, if (rejecting) ...rejectList};
+    return copyWith(
+      enable: true,
+      mode: AccessControlMode.acceptSelected,
+      acceptList: {
+        for (final name in include.isEmpty ? acceptList : include)
+          if (!excluded.contains(name) &&
+              (!accepting || include.isEmpty || picked.contains(name)))
+            name,
+      }.toList(),
+    );
+  }
 }
 
 @freezed
-class WindowProps with _$WindowProps {
+abstract class WindowProps with _$WindowProps {
   const factory WindowProps({
-    @Default(450) double width,
-    @Default(900) double height,
+    @Default(0) double width,
+    @Default(0) double height,
     double? top,
     double? left,
+    double? scale,
   }) = _WindowProps;
 
   factory WindowProps.fromJson(Map<String, Object?>? json) =>
       json == null ? const WindowProps() : _$WindowPropsFromJson(json);
 }
 
+/// Four dashboard columns at full density beside the expanded sidebar, with
+/// room for the Windows and Linux title bar.
+/// Below maxMobileWidth, so a fresh install opens in the phone layout.
+const defaultWindowSize = Size(450, 900);
+
+extension WindowPropsExt on WindowProps {
+  Size? get savedSize {
+    final size = Size(width, height);
+    return size.isEmpty ? null : size;
+  }
+
+  Size get size => savedSize ?? defaultWindowSize;
+}
+
 @freezed
-class VpnProps with _$VpnProps {
+abstract class VpnProps with _$VpnProps {
   const factory VpnProps({
     @Default(true) bool enable,
     @Default(false) bool systemProxy,
     @Default(true) bool ipv6,
     @Default(false) bool allowBypass,
-    @Default(defaultAccessControl) AccessControl accessControl,
+    @Default(false) bool dnsHijacking,
+    @Default(defaultAccessControlProps) AccessControlProps accessControlProps,
   }) = _VpnProps;
 
-  factory VpnProps.fromJson(Map<String, Object?> json) =>
-      _$VpnPropsFromJson(json);
+  factory VpnProps.fromJson(Map<String, Object?>? json) =>
+      json == null ? defaultVpnProps : _$VpnPropsFromJson(json);
 }
 
 @freezed
-class NetworkProps with _$NetworkProps {
+abstract class AuthenticationProps with _$AuthenticationProps {
+  const factory AuthenticationProps({
+    @Default(false) bool enable,
+    @Default('') String username,
+    @Default('') String password,
+  }) = _AuthenticationProps;
+
+  factory AuthenticationProps.fromJson(Map<String, Object?>? json) =>
+      json == null
+      ? defaultAuthenticationProps
+      : _$AuthenticationPropsFromJson(json);
+}
+
+extension AuthenticationPropsExt on AuthenticationProps {
+  List<String> get credentials =>
+      enable && username.isNotEmpty ? ['$username:$password'] : [];
+}
+
+@freezed
+abstract class NetworkProps with _$NetworkProps {
   const factory NetworkProps({
     @Default(false) bool systemProxy,
     @Default(defaultBypassDomain) List<String> bypassDomain,
-    @Default(RouteMode.config) RouteMode routeMode,
+    @Default(true) bool bypassPrivateRoute,
     @Default(true) bool autoSetSystemDns,
+    @Default(false) bool appendSystemDns,
+    @Default(defaultAuthenticationProps) AuthenticationProps authentication,
   }) = _NetworkProps;
 
   factory NetworkProps.fromJson(Map<String, Object?>? json) =>
       json == null ? const NetworkProps() : _$NetworkPropsFromJson(json);
 }
 
-@freezed
-class ProxiesStyle with _$ProxiesStyle {
-  const factory ProxiesStyle({
-    @Default(ProxiesType.list) ProxiesType type,
-    @Default(ProxiesSortType.none) ProxiesSortType sortType,
-    @Default(ProxiesLayout.standard) ProxiesLayout layout,
-    @JsonKey(unknownEnumValue: ProxiesIconStyle.icon)
-    @Default(ProxiesIconStyle.icon)
-    ProxiesIconStyle iconStyle,
-    @Default(ProxyCardType.expand) ProxyCardType cardType,
-    @Default({}) Map<String, String> iconMap,
-  }) = _ProxiesStyle;
+/// Reads the styles named `standard`, `icon` and `none` before they became
+/// [ProxiesIconStyle.filled], [ProxiesIconStyle.plain] and
+/// [ProxiesIconStyle.hidden].
+ProxiesIconStyle proxiesIconStyleSafeFromJson(Object? iconStyle) {
+  return switch (iconStyle) {
+    'filled' || 'standard' => ProxiesIconStyle.filled,
+    'plain' || 'icon' => ProxiesIconStyle.plain,
+    'hidden' || 'none' => ProxiesIconStyle.hidden,
+    _ => ProxiesIconStyle.filled,
+  };
+}
 
-  factory ProxiesStyle.fromJson(Map<String, Object?>? json) =>
-      json == null ? defaultProxiesStyle : _$ProxiesStyleFromJson(json);
+ProxyCardType proxyCardTypeSafeFromJson(Object? cardType) {
+  return switch (cardType) {
+    'loose' || 'expand' => ProxyCardType.loose,
+    'standard' || 'shrink' => ProxyCardType.standard,
+    'compact' || 'min' => ProxyCardType.compact,
+    'oneline' => ProxyCardType.oneline,
+    _ => ProxyCardType.standard,
+  };
 }
 
 @freezed
-class TextScale with _$TextScale {
+abstract class ProxiesStyleProps with _$ProxiesStyleProps {
+  const factory ProxiesStyleProps({
+    @Default(ProxiesType.list) ProxiesType type,
+    @Default(ProxiesSortType.none) ProxiesSortType sortType,
+    @Default(ProxiesLayout.standard) ProxiesLayout layout,
+    @Default(ProxiesIconStyle.filled)
+    @JsonKey(fromJson: proxiesIconStyleSafeFromJson)
+    ProxiesIconStyle iconStyle,
+    @Default(ProxyCardType.standard)
+    @JsonKey(fromJson: proxyCardTypeSafeFromJson)
+    ProxyCardType cardType,
+    @Default(false) bool hideTimeoutProxies,
+  }) = _ProxiesStyleProps;
+
+  factory ProxiesStyleProps.fromJson(Map<String, Object?>? json) => json == null
+      ? defaultProxiesStyleProps
+      : _$ProxiesStylePropsFromJson(json);
+}
+
+@freezed
+abstract class TextScale with _$TextScale {
   const factory TextScale({
-    @Default(false) enable,
-    @Default(1.0) scale,
+    @Default(false) bool enable,
+    @Default(1.0) double scale,
   }) = _TextScale;
 
   factory TextScale.fromJson(Map<String, Object?> json) =>
       _$TextScaleFromJson(json);
 }
 
+// Older configs name one of Material's nine scheme variants instead.
+Object? _readColorStyle(Map<dynamic, dynamic> json, String key) {
+  if (json.containsKey(key)) {
+    return json[key];
+  }
+  return switch (json['schemeVariant']) {
+    'monochrome' => ColorStyle.monochrome.name,
+    'tonalSpot' || 'neutral' => ColorStyle.soft.name,
+    _ => null,
+  };
+}
+
+// Older configs say whether glass is on.
+Object? _readLiquidGlass(Map<dynamic, dynamic> json, String key) {
+  return switch (json[key]) {
+    true => LiquidGlassMode.standard.name,
+    false => LiquidGlassMode.none.name,
+    final value => value,
+  };
+}
+
 @freezed
-class ThemeProps with _$ThemeProps {
+abstract class ThemeProps with _$ThemeProps {
   const factory ThemeProps({
     int? primaryColor,
     @Default(defaultPrimaryColors) List<int> primaryColors,
     @Default(ThemeMode.system) ThemeMode themeMode,
-    @Default(DynamicSchemeVariant.content) DynamicSchemeVariant schemeVariant,
+    @Default(ThemeStyle.original) ThemeStyle style,
+    @Default(ColorStyle.vivid)
+    @JsonKey(readValue: _readColorStyle)
+    ColorStyle colorStyle,
     @Default(false) bool pureBlack,
+    @Default(false) bool sidebarBlur,
+    @Default(LiquidGlassMode.none)
+    @JsonKey(readValue: _readLiquidGlass)
+    LiquidGlassMode liquidGlass,
     @Default(TextScale()) TextScale textScale,
+    // `fontFamily` held the names of a removed enum, which old configs may
+    // still carry.
+    @JsonKey(name: 'systemFontFamily') String? fontFamily,
   }) = _ThemeProps;
 
   factory ThemeProps.fromJson(Map<String, Object?> json) =>
@@ -205,98 +523,89 @@ class ThemeProps with _$ThemeProps {
     if (json == null) {
       return defaultThemeProps;
     }
-    try {
-      return ThemeProps.fromJson(json);
-    } catch (_) {
-      return defaultThemeProps;
-    }
+    return decodeSalvaging('theme settings', json, ThemeProps.fromJson);
   }
 }
 
 @freezed
-class ScriptProps with _$ScriptProps {
-  const factory ScriptProps({
-    String? currentId,
-    @Default([]) List<Script> scripts,
-  }) = _ScriptProps;
-
-  factory ScriptProps.fromJson(Map<String, Object?> json) =>
-      _$ScriptPropsFromJson(json);
-}
-
-extension ScriptPropsExt on ScriptProps {
-  String? get realId {
-    final index = scripts.indexWhere((script) => script.id == currentId);
-    if (index != -1) {
-      return currentId;
-    }
-    return null;
-  }
-
-  Script? get currentScript {
-    final index = scripts.indexWhere((script) => script.id == currentId);
-    if (index != -1) {
-      return scripts[index];
-    }
-    return null;
-  }
-}
-
-@freezed
-class Config with _$Config {
+abstract class Config with _$Config {
   const factory Config({
+    int? currentProfileId,
+    @Default([]) List<HotKeyAction> hotKeyActions,
     @JsonKey(fromJson: AppSettingProps.safeFromJson)
     @Default(defaultAppSettingProps)
-    AppSettingProps appSetting,
-    @Default([]) List<Profile> profiles,
-    @Default([]) List<HotKeyAction> hotKeyActions,
-    String? currentProfileId,
-    @Default(false) bool overrideDns,
-    DAV? dav,
+    AppSettingProps appSettingProps,
+    DAVProps? davProps,
     @Default(defaultNetworkProps) NetworkProps networkProps,
     @Default(defaultVpnProps) VpnProps vpnProps,
     @JsonKey(fromJson: ThemeProps.safeFromJson) required ThemeProps themeProps,
-    @Default(defaultProxiesStyle) ProxiesStyle proxiesStyle,
-    @Default(defaultWindowProps) WindowProps windowProps,
-    @Default(defaultClashConfig) ClashConfig patchClashConfig,
-    @Default(ScriptProps()) ScriptProps scriptProps,
+    @Default(defaultProxiesStyleProps) ProxiesStyleProps proxiesStyleProps,
+    // A new key opens every window once at defaultWindowSize.
+    @Default(defaultWindowProps)
+    @JsonKey(name: 'windowGeometry')
+    WindowProps windowProps,
+    @Default(defaultClashConfig) PatchClashConfig patchClashConfig,
+    @Default([]) List<String> excludeSSIDs,
   }) = _Config;
 
-  factory Config.fromJson(Map<String, Object?> json) => _$ConfigFromJson(json);
+  factory Config.fromJson(Map<String, Object?> json) =>
+      decodeSalvaging('config', json, Config.strictFromJson);
 
-  factory Config.compatibleFromJson(Map<String, Object?> json) {
-    try {
-      final accessControlMap = json["accessControl"];
-      final isAccessControl = json["isAccessControl"];
-      if (accessControlMap != null) {
-        (accessControlMap as Map)["enable"] = isAccessControl;
-        if (json["vpnProps"] != null) {
-          (json["vpnProps"]! as Map)["accessControl"] = accessControlMap;
-        }
-      }
+  factory Config.strictFromJson(Map<String, Object?> json) =>
+      _withLegacyOverrideDns(
+        _$ConfigFromJson(_withLegacyRouteMode(json)),
+        json,
+      );
 
-      // Migration: Replace deprecated "standard" iconStyle with "icon"
-      final proxiesStyle = json["proxiesStyle"];
-      if (proxiesStyle is Map) {
-        if (proxiesStyle["iconStyle"] == "standard") {
-          proxiesStyle["iconStyle"] = "icon";
-        }
-      }
-
-      // Migration: strip removed fields from profiles
-      final profiles = json["profiles"];
-      if (profiles is List) {
-        for (final p in profiles) {
-          if (p is Map) {
-            p.remove("updateMethod");
-          }
-        }
-      }
-    } catch (_) {}
+  factory Config.realFromJson(Map<String, Object?>? json) {
+    if (json == null) {
+      return Config(
+        themeProps: defaultThemeProps,
+        hotKeyActions: defaultHotKeyActions,
+        appSettingProps: AppSettingProps(
+          dashboardWidgets: platformDefaultDashboardWidgets,
+        ),
+      );
+    }
     return Config.fromJson(json);
   }
 }
 
-extension ConfigExt on Config {
-  Profile? get currentProfile => profiles.getProfile(currentProfileId);
+const _legacyOverrideDnsKey = 'overrideDns';
+
+/// An off `overrideDns` left a profile's own DNS section alone.
+Config _withLegacyOverrideDns(Config config, Map<String, Object?> json) {
+  if (!json.containsKey(_legacyOverrideDnsKey)) {
+    return config;
+  }
+  final keys = json[_legacyOverrideDnsKey] == true
+      ? config.patchClashConfig.dnsOverrideKeys.intersection(
+          DnsOverrideKey.normalProfileKeys,
+        )
+      : <DnsOverrideKey>{};
+  return config.copyWith.patchClashConfig(dnsOverrideKeys: keys);
+}
+
+Map<String, Object?> _withLegacyRouteMode(Map<String, Object?> json) {
+  final network = json['networkProps'];
+  if (network is! Map ||
+      !network.containsKey('routeMode') ||
+      network.containsKey('bypassPrivateRoute')) {
+    return json;
+  }
+  final bypassPrivate = network['routeMode'] == 'bypassPrivate';
+  final clash = json['patchClashConfig'];
+  final tun = clash is Map ? clash['tun'] : null;
+  return {
+    ...json,
+    'networkProps': {
+      ...Map<String, Object?>.from(network),
+      'bypassPrivateRoute': bypassPrivate,
+    },
+    if (bypassPrivate && clash is Map && tun is Map)
+      'patchClashConfig': {
+        ...Map<String, Object?>.from(clash),
+        'tun': {...Map<String, Object?>.from(tun), 'route-address': <String>[]},
+      },
+  };
 }

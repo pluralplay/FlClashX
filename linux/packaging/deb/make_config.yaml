@@ -2,7 +2,7 @@ display_name: FlClashX
 package_name: FlClashX
 maintainer:
   name: pluralplay
-  email: mail@pluralplay.rw
+  email: pluralplay@icloud.com
 
 priority: optional
 section: x11
@@ -11,13 +11,28 @@ essential: false
 icon: ./assets/images/icon.png
 
 dependencies:
-  - libayatana-appindicator3-dev
-  - libkeybinder-3.0-dev
+  - libayatana-appindicator3-1
+  - libsecret-1-0
+
+# The Helper unit is written on demand by the app, not at install time, so only
+# its teardown belongs here; the binary is already gone when postrm runs.
+postuninstall_scripts:
+  - 'case "${1:-}" in remove|purge) ;; *) exit 0 ;; esac'
+  - 'systemctl disable --now flclashx-helper.service >/dev/null 2>&1 || true'
+  - 'rm -f /etc/systemd/system/flclashx-helper.service'
+  - 'systemctl daemon-reload >/dev/null 2>&1 || true'
+
+supported_mime_type:
+  - x-scheme-handler/clash
+  - x-scheme-handler/clashmeta
+  - x-scheme-handler/flclash
+  - x-scheme-handler/flclashx
+  - x-scheme-handler/clashx
 
 keywords:
   - FlClashX
   - Clash
-  - ClashMeta
+  - Mihomo
   - Proxy
 
 generic_name: FlClashX
@@ -26,3 +41,5 @@ categories:
   - Network
 
 startup_notify: true
+
+startup_wm_class: com.follow.clashx

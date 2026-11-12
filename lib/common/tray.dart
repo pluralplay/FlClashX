@@ -1,172 +1,313 @@
-import 'dart:io';
+import 'dart:async';
 
-import 'package:flclashx/common/system.dart';
-import 'package:flclashx/common/utils.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
-import 'package:tray_manager/tray_manager.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:flutter/foundation.dart' show VoidCallback, visibleForTesting;
+import 'package:tray/tray.dart';
 
 import 'app_localizations.dart';
+import 'l10n_labels.dart';
+import 'app_ports.dart';
 import 'constant.dart';
+import 'keyboard.dart';
+import 'provider_reader.dart';
+import 'system.dart';
 import 'window.dart';
 
-class Tray {
-  Future _updateSystemTray({
-    required Brightness? brightness,
-    required bool isRunning,
-    bool force = false,
-  }) async {
-    if (Platform.isAndroid || Platform.isMacOS) {
-      // Skip tray on Android and macOS (macOS uses native status bar)
-      return;
-    }
-    if (Platform.isLinux || force) {
-      await trayManager.destroy();
-    }
-    await trayManager.setIcon(
-      utils.getTrayIconPath(
-        brightness: brightness ??
-            WidgetsBinding.instance.platformDispatcher.platformBrightness,
-        isRunning: isRunning,
-        isSystemDark: Platform.isWindows ? system.isWindowsSystemDark : null,
-      ),
-      isTemplate: true,
+class AppTray implements TrayPort {
+  static AppTray? _instance;
+
+  final bool isMacOS;
+  final bool isWindows;
+
+  bool _isShutDown = false;
+
+  AppTray._internal({required this.isMacOS, required this.isWindows});
+
+  factory AppTray() {
+    _instance ??= AppTray._internal(
+      isMacOS: system.isMacOS,
+      isWindows: system.isWindows,
     );
-    if (!Platform.isLinux) {
-      await trayManager.setToolTip(
-        appName,
-      );
-    }
+    return _instance!;
   }
 
-  Future<void> update({
-    required TrayState trayState,
-    bool focus = false,
-  }) async {
-    if (Platform.isAndroid || Platform.isMacOS) {
-      // Skip tray on Android and macOS (macOS uses native status bar)
+  @visibleForTesting
+  factory AppTray.forPlatform({
+    required bool isMacOS,
+    required bool isWindows,
+  }) {
+    return AppTray._internal(isMacOS: isMacOS, isWindows: isWindows);
+  }
+
+  String get _trayIconSuffix {
+    return isWindows ? 'ico' : 'png';
+  }
+
+  bool _isTemplate(bool monochrome) => isMacOS && monochrome;
+
+  String _trayIconDir(bool monochrome) {
+    if (isWindows) {
+      return 'assets/images/tray/windows';
+    }
+    return _isTemplate(monochrome)
+        ? 'assets/images/tray/macos'
+        : 'assets/images/tray/unix';
+  }
+
+  String getTrayIcon({
+    required bool isStart,
+    required bool tunEnable,
+    required bool safeMode,
+    bool monochrome = true,
+  }) {
+    final status = switch ((
+      safeMode,
+      _isTemplate(monochrome) || !isStart,
+      tunEnable,
+    )) {
+      (true, _, _) => 4,
+      (false, true, _) => 1,
+      (false, false, false) => 2,
+      (false, false, true) => 3,
+    };
+    return '${_trayIconDir(monochrome)}/status_$status.$_trayIconSuffix';
+  }
+
+  @override
+  Future<void> shutdown() async {
+    _isShutDown = true;
+    // Removing a status item makes macOS forget where the user dragged it in
+    // the menu bar; one that goes away with the process keeps its place.
+    if (isMacOS) {
       return;
     }
-    if (!Platform.isLinux) {
-      await _updateSystemTray(
-        brightness: trayState.brightness,
-        isRunning: trayState.isStart,
-        force: focus,
-      );
+    await Tray.instance.hide();
+  }
+
+  @override
+  Future<void> update({
+    required TrayState trayState,
+    required Traffic traffic,
+    required ProviderReader read,
+  }) async {
+    if (_isShutDown) {
+      return;
     }
-    final menuItems = <MenuItem>[];
-    final showMenuItem = MenuItem(
+    await Tray.instance.show(
+      TraySpec(
+        icon: TrayIcon.asset(
+          getTrayIcon(
+            isStart: trayState.isStart && !trayState.suspended,
+            tunEnable: trayState.tunEnable,
+            safeMode: trayState.safeMode,
+            monochrome: trayState.monochromeTrayIcon,
+          ),
+          isTemplate: _isTemplate(trayState.monochromeTrayIcon),
+          size: isMacOS ? 18 : 16,
+        ),
+        toolTip: trayState.safeMode
+            ? currentAppLocalizations.safeModeAppTitle(appName)
+            : appName,
+        menu: _buildMenu(trayState: trayState, read: read),
+      ),
+    );
+    await updateTitle(showTrayTitle: trayState.showTrayTitle, traffic: traffic);
+  }
+
+  Future<void> updateTitle({
+    required bool showTrayTitle,
+    required Traffic traffic,
+  }) async {
+    if (_isShutDown || !isMacOS) {
+      return;
+    }
+    await Tray.instance.setTitle(showTrayTitle ? traffic.trayTitle : '');
+  }
+
+  List<TrayMenuItem> _buildMenu({
+    required TrayState trayState,
+    required ProviderReader read,
+  }) {
+    final commonAction = read(commonActionProvider.notifier);
+    final systemAction = read(systemActionProvider.notifier);
+    final setupAction = read(setupActionProvider.notifier);
+    final appLocalizations = currentAppLocalizations;
+    String? shortcut(HotAction action) => _shortcut(trayState, action);
+    final showItem = TrayMenuAction(
       label: appLocalizations.show,
-      onClick: (_) {
+      detail: shortcut(HotAction.view),
+      onSelected: () {
         window?.show();
       },
     );
-    menuItems.add(showMenuItem);
-    final startMenuItem = MenuItem.checkbox(
-      label: trayState.isStart ? appLocalizations.stop : appLocalizations.start,
-      onClick: (_) async {
-        globalState.appController.updateStart();
-      },
-      checked: false,
-    );
-    menuItems.add(startMenuItem);
-    if (trayState.globalModeEnabled) {
-      menuItems.add(MenuItem.separator());
-      for (final mode in Mode.values) {
-        menuItems.add(
-          MenuItem.checkbox(
-            label: Intl.message(mode.name),
-            onClick: (_) {
-              globalState.appController.changeMode(mode);
-            },
-            checked: mode == trayState.mode,
-          ),
-        );
-      }
-    }
-    menuItems.add(MenuItem.separator());
-    if (trayState.isStart) {
-      menuItems.add(
-        MenuItem.checkbox(
-          label: appLocalizations.tun,
-          onClick: (_) {
-            globalState.appController.updateTun();
-          },
-          checked: trayState.tunEnable,
-        ),
-      );
-      menuItems.add(
-        MenuItem.checkbox(
-          label: appLocalizations.systemProxy,
-          onClick: (_) {
-            globalState.appController.updateSystemProxy();
-          },
-          checked: trayState.systemProxy,
-        ),
-      );
-      menuItems.add(MenuItem.separator());
-    }
-    final autoStartMenuItem = MenuItem.checkbox(
-      label: appLocalizations.autoLaunch,
-      onClick: (_) async {
-        globalState.appController.updateAutoLaunch();
-      },
-      checked: trayState.autoLaunch,
-    );
-    final copyEnvVarMenuItem = MenuItem(
-      label: appLocalizations.copyEnvVar,
-      onClick: (_) async {
-        await _copyEnv(trayState.port);
-      },
-    );
-    menuItems.add(autoStartMenuItem);
-    menuItems.add(copyEnvVarMenuItem);
-    menuItems.add(MenuItem.separator());
-    final restartMenuItem = MenuItem(
-      label: appLocalizations.restart,
-      onClick: (_) async {
-        await globalState.appController.handleRestart();
-      },
-    );
-    menuItems.add(restartMenuItem);
-    final exitMenuItem = MenuItem(
+    final exitItem = TrayMenuAction(
       label: appLocalizations.exit,
-      onClick: (_) async {
-        await globalState.appController.handleExit();
+      detail: shortcut(HotAction.exit),
+      onSelected: () {
+        systemAction.handleExit();
       },
     );
-    menuItems.add(exitMenuItem);
-    final menu = Menu(items: menuItems);
-    await trayManager.setContextMenu(menu);
-    if (Platform.isLinux) {
-      await _updateSystemTray(
-        brightness: trayState.brightness,
-        isRunning: trayState.isStart,
-        force: focus,
-      );
-    }
+
+    return [
+      showItem,
+      TrayMenuCheckbox(
+        label: trayState.isStart
+            ? appLocalizations.stop
+            : appLocalizations.start,
+        checked: false,
+        detail: shortcut(HotAction.start),
+        onSelected: commonAction.toggleRunning,
+      ),
+      if (isMacOS)
+        TrayMenuCheckbox(
+          label: appLocalizations.menuBarMode,
+          checked: trayState.menuBarMode,
+          onSelected: () => read(appSettingProvider.notifier).update(
+            (state) => state.copyWith(menuBarMode: !trayState.menuBarMode),
+          ),
+        ),
+      if (isMacOS)
+        TrayMenuCheckbox(
+          label: appLocalizations.speedStatistics,
+          checked: trayState.showTrayTitle,
+          onSelected: commonAction.updateSpeedStatistics,
+        ),
+      if (isMacOS)
+        TrayMenuCheckbox(
+          label: appLocalizations.monochromeIcon,
+          checked: trayState.monochromeTrayIcon,
+          onSelected: commonAction.updateMonochromeTrayIcon,
+        ),
+      if (trayState.globalModeAllowed) ...[
+        const TrayMenuSeparator(),
+        for (final mode in Mode.values)
+          TrayMenuCheckbox(
+            label: mode.label,
+            checked: mode == trayState.mode,
+            detail: shortcut(switch (mode) {
+              Mode.rule => HotAction.ruleMode,
+              Mode.global => HotAction.globalMode,
+              Mode.direct => HotAction.directMode,
+            }),
+            onSelected: () {
+              unawaited(setupAction.pickMode(mode, ask: false));
+            },
+          ),
+      ],
+      const TrayMenuSeparator(),
+      if (isMacOS) ..._buildGroupMenu(trayState: trayState, read: read),
+      if (trayState.isStart) ...[
+        TrayMenuCheckbox(
+          label: appLocalizations.tun,
+          checked: trayState.tunEnable,
+          detail: shortcut(HotAction.tun),
+          onSelected: systemAction.updateTun,
+        ),
+        TrayMenuCheckbox(
+          label: appLocalizations.systemProxy,
+          checked: trayState.systemProxy,
+          detail: shortcut(HotAction.proxy),
+          onSelected: systemAction.updateSystemProxy,
+        ),
+        const TrayMenuSeparator(),
+      ],
+      exitItem,
+    ];
   }
 
-  Future<void> updateTrayTitle([Traffic? traffic]) async {}
+  String? _shortcut(TrayState trayState, HotAction action) {
+    final hotKey = trayState.hotKeys[action];
+    final key = hotKey?.key;
+    if (hotKey == null || key == null) {
+      return null;
+    }
+    return ShortcutLabels(
+      isMacOS: isMacOS,
+      isWindows: isWindows,
+    ).text(hotKey.modifiers, key);
+  }
 
+  String? _delayText(int? delay) {
+    if (delay == null) {
+      return null;
+    }
+    return delay > 0
+        ? '$delay'
+        : delayFailureText(delay, currentAppLocalizations);
+  }
 
-  Future<void> _copyEnv(int port) async {
-    final url = "http://127.0.0.1:$port";
-
-    final cmdline = Platform.isWindows
-        ? "set \$env:all_proxy=$url"
-        : "export all_proxy=$url";
-
-    await Clipboard.setData(
-      ClipboardData(
-        text: cmdline,
+  List<TrayMenuItem> _buildGroupMenu({
+    required TrayState trayState,
+    required ProviderReader read,
+  }) {
+    if (trayState.groups.isEmpty) {
+      return const [];
+    }
+    final delays = read(trayDelaysProvider);
+    final proxiesAction = read(proxiesActionProvider.notifier);
+    return [
+      for (final group in trayState.groups)
+        _buildGroupSubmenu(
+          group,
+          selectedName: read(selectedProxyNameProvider(group.name)),
+          delays: delays[group.name] ?? const {},
+          onSelected: (proxyName) {
+            proxiesAction.changeProxy(
+              groupName: group.name,
+              proxyName: proxyName,
+            );
+          },
+          onMore: () {
+            proxiesAction.updateCurrentGroupName(group.name);
+            read(currentPageLabelProvider.notifier).toPage(PageLabel.proxies);
+            window?.show();
+          },
+        ),
+      TrayMenuAction(
+        label: HotAction.delayTest.label,
+        detail: _shortcut(trayState, HotAction.delayTest),
+        onSelected: () {
+          proxiesAction.delayTestGroups(trayState.groups);
+        },
       ),
+      const TrayMenuSeparator(),
+    ];
+  }
+
+  TrayMenuSubmenu _buildGroupSubmenu(
+    Group group, {
+    required String? selectedName,
+    required Map<String, int> delays,
+    required void Function(String proxyName) onSelected,
+    required VoidCallback onMore,
+  }) {
+    final shown = group.trayProxies(selectedName);
+    final hidden = group.all.length - shown.length;
+    return TrayMenuSubmenu(
+      label: group.name,
+      detail: _delayText(delays[selectedName]),
+      items: [
+        for (final proxy in shown)
+          TrayMenuCheckbox(
+            label: proxy.name,
+            checked: selectedName == proxy.name,
+            detail: _delayText(delays[proxy.name]),
+            onSelected: () {
+              onSelected(proxy.name);
+            },
+          ),
+        if (hidden > 0) ...[
+          const TrayMenuSeparator(),
+          TrayMenuAction(
+            label: '${currentAppLocalizations.more} ($hidden)…',
+            onSelected: onMore,
+          ),
+        ],
+      ],
     );
   }
 }
 
-final tray = Tray();
+final appTray = system.isDesktop ? AppTray() : null;

@@ -1,15 +1,16 @@
 name: build-core
 run-name: build-core ${{ github.event.inputs.version }}
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
+# A desktop core alone, for a mihomo release the app has not shipped with yet.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Core version (e.g. v1.19.24)"
+        description: "mihomo release (e.g. v1.19.32)"
         required: true
+
+env:
+  GO_VERSION: '1.27.1'
 
 jobs:
   build:
@@ -18,93 +19,64 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: windows
-            os: ubuntu-latest
-            arch: amd64
-            goos: windows
-            goarch: amd64
-            ext: .exe
-          - platform: windows
-            os: ubuntu-latest
-            arch: arm64
-            goos: windows
-            goarch: arm64
-            ext: .exe
-          - platform: linux
-            os: ubuntu-latest
-            arch: amd64
-            goos: linux
-            goarch: amd64
-            ext: ""
-          - platform: linux
-            os: ubuntu-latest
-            arch: arm64
-            goos: linux
-            goarch: arm64
-            ext: ""
-          - platform: macos
-            os: macos-latest
-            arch: amd64
-            goos: darwin
-            goarch: amd64
-            ext: ""
-          - platform: macos
-            os: macos-latest
-            arch: arm64
-            goos: darwin
-            goarch: arm64
-            ext: ""
+          - { platform: windows, arch: amd64, goos: windows, goarch: amd64, ext: .exe, os: ubuntu-24.04 }
+          - { platform: windows, arch: arm64, goos: windows, goarch: arm64, ext: .exe, os: ubuntu-24.04 }
+          - { platform: linux, arch: amd64, goos: linux, goarch: amd64, ext: "", os: ubuntu-24.04 }
+          - { platform: linux, arch: arm64, goos: linux, goarch: arm64, ext: "", os: ubuntu-24.04 }
+          - { platform: macos, arch: amd64, goos: darwin, goarch: amd64, ext: "", os: macos-15 }
+          - { platform: macos, arch: arm64, goos: darwin, goarch: arm64, ext: "", os: macos-15 }
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.26.0"
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
 
-      - name: Update mihomo dependency
+      - name: Pin the mihomo release
+        working-directory: core
         run: |
-          cd core
           go get github.com/metacubex/mihomo@${{ github.event.inputs.version }}
           go mod tidy
 
       - name: Build core
+        working-directory: core
         env:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          cd core
+          tags="$(sed -n 's/^tags: *//p' ../build_config.yaml)"
+          ldflags="$(sed -n 's/^go_ldflags: *//p' ../build_config.yaml | tr -d '"')"
           go build \
-            -ldflags="-w -s -X github.com/metacubex/mihomo/constant.Version=${{ github.event.inputs.version }}" \
-            -tags="with_gvisor,cmfa" \
-            -o "../FlClashCore-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}"
+            -ldflags="$ldflags -X github.com/metacubex/mihomo/constant.Version=${{ github.event.inputs.version }}" \
+            -tags="$tags" \
+            -o "../FlClashCore-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}" \
+            ./cmd/core
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: core-${{ matrix.platform }}-${{ matrix.arch }}
           path: FlClashCore-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: "core-${{ github.event.inputs.version }}"
           name: "Core ${{ github.event.inputs.version }}"

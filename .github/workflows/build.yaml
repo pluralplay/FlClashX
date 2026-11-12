@@ -3,159 +3,506 @@ name: build
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
 env:
   IS_STABLE: ${{ !contains(github.ref, '-') }}
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # See CI Caches in .agents/commands.md.
+  BRANCH_CACHE: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  FLUTTER_VERSION: '3.47.6'
+  GO_VERSION: '1.27.1'
+  NDK_VERSION: r28c
 
 jobs:
+  dart:
+    name: Dart
+    # A private copy pays for its Actions minutes, so it runs the checks only when
+    # started by hand.
+    if: &checks github.event_name == 'workflow_dispatch' || !github.event.repository.private
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Test git hooks
+        run: bash tool/hooks/test.sh
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: plugins/rust_api/rust
+          cache-directories: .dart_tool/hooks_runner
+          save-if: ${{ env.BRANCH_CACHE }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The model tests read mihomo's structs out of the Go module cache.
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+          cache-dependency-path: core/go.sum
+
+      - name: Download the core's modules
+        working-directory: core
+        run: go mod download
+
+      - name: Check format
+        run: dart format --output=none --set-exit-if-changed lib test tool plugins setup.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Skip the Go core build hook
+        run: |
+          yq -i '.hooks.user_defines.setup.build_assets = false' pubspec.yaml
+
+      - name: Verify changelog
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        run: dart run tool/changelog.dart verify
+
+      - name: Run tests
+        run: dart run tool/test.dart -- --reporter expanded --coverage
+
+      - name: Check coverage
+        run: dart run tool/check_coverage.dart coverage/lcov.info 75
+
+  plugins:
+    name: Plugins
+    if: *checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+
+      - name: Validate local Flutter packages
+        run: bash tool/check_plugins.sh
+
+      - name: Validate setup hooks package
+        working-directory: plugins/setup/setup_hooks
+        run: |
+          dart pub get
+          dart analyze
+          dart test
+
+  desktop:
+    name: Desktop ${{ matrix.platform }}
+    if: (github.event_name == 'workflow_dispatch' || !github.event.repository.private) && !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-24.04
+          - platform: windows
+            os: windows-2022
+          - platform: macos
+            os: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            core/go.sum
+            plugins/setup/setup_hooks/lib/src/go_builder.dart
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-${{ matrix.platform }}
+          workspaces: |
+            services/helper
+            plugins/rust_api/rust
+          cache-directories: .dart_tool/hooks_runner
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev
+
+      - name: Setup Xcode
+        if: matrix.platform == 'macos'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+
+      - name: Enable git long paths (Windows)
+        if: matrix.platform == 'windows'
+        run: git config --global core.longpaths true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Compiles the desktop runners and the native plugin code that only the
+      # tagged release matrix built before; the bundle itself is discarded.
+      - name: Build debug bundle
+        run: flutter build ${{ matrix.platform }} --debug
+
+  go:
+    name: Go core
+    if: *checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+          cache-dependency-path: core/go.sum
+
+      - name: Validate Go core wrapper
+        working-directory: core
+        env:
+          CGO_ENABLED: 0
+        run: |
+          if ! compgen -G '*_test.go' > /dev/null; then
+            echo 'No Go tests found in core/; the test step would pass vacuously.' >&2
+            exit 1
+          fi
+          test -z "$(gofmt -l ./*.go ./cmd ./mobile ./platform ./tun)" || {
+            gofmt -l ./*.go ./cmd ./mobile ./platform ./tun >&2
+            exit 1
+          }
+          go test -count=1 . ./platform
+          go vet . ./cmd/...
+          GOOS=linux go vet ./platform
+
+      - name: Validate the Android core library
+        working-directory: core
+        env:
+          CGO_ENABLED: 0
+        run: |
+          tags="$(sed -n 's/^android_tags: *//p' ../build_config.yaml)"
+          test -n "$tags" || { echo 'Could not read android_tags from build_config.yaml' >&2; exit 1; }
+          GOOS=android GOARCH=arm64 go vet "-tags=$tags" . ./mobile ./tun ./platform
+
+  android:
+    name: Android unit tests
+    if: *checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+          cache-dependency-path: |
+            core/go.sum
+            android/core/build.gradle.kts
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          link-to-sdk: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev' }}
+
+      - name: Run Android unit tests
+        working-directory: android
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          {
+            echo "flutter.sdk=$FLUTTER_ROOT"
+            echo "sdk.dir=$ANDROID_HOME"
+          } > local.properties
+          wrapper="$FLUTTER_ROOT/bin/cache/artifacts/gradle_wrapper"
+          test -d "$wrapper" || flutter precache
+          cp -R "$wrapper/." .
+          chmod +x gradlew
+          # No JVM unit test loads the Core or the Flutter build, but `:core` compiles against
+          # the gomobile AAR, so one ABI of it is built.
+          ./gradlew :common:testDebugUnitTest :service:testDebugUnitTest :app:testDebugUnitTest \
+            -Ptarget-platform=android-arm64 \
+            -x :app:compileFlutterBuildDebug -x :app:copyFlutterAssetsDebug
+
+  rust:
+    name: Rust
+    if: *checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            services/helper
+            plugins/rust_api/rust
+          save-if: ${{ env.BRANCH_CACHE }}
+
+      - name: Check format
+        run: |
+          cargo fmt --manifest-path services/helper/Cargo.toml -- --check
+          cargo fmt --manifest-path plugins/rust_api/rust/Cargo.toml -- --check
+
+      - name: Run tests
+        run: |
+          cargo test --manifest-path services/helper/Cargo.toml
+          cargo test --manifest-path plugins/rust_api/rust/Cargo.toml
+
+  windows-helper-test:
+    name: Windows helper test
+    if: *checks
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/helper
+          save-if: ${{ env.BRANCH_CACHE }}
+
+      - name: Check format
+        run: cargo fmt --manifest-path services/helper/Cargo.toml -- --check
+
+      - name: Run Windows service tests
+        run: cargo test --manifest-path services/helper/Cargo.toml --features windows-service
+
   build:
+    # Releases publish where the release links point: the public repository.
+    if: github.repository == 'pluralplay/FlClashX' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: android
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - platform: windows
-            os: windows-latest
+            os: windows-2022
             arch: amd64
           - platform: linux
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             arch: amd64
           - platform: macos
-            os: macos-latest
+            os: macos-15-intel
             arch: amd64
           - platform: macos
-            os: macos-latest
+            os: macos-15
             arch: arm64
           - platform: windows
             os: windows-11-arm
             arch: arm64
+            flutter-channel: master
           - platform: linux
             os: ubuntu-24.04-arm
             arch: arm64
+            flutter-channel: master
 
     steps:
-      - name: Setup Rust for Windows ARM64
+      - name: Setup rust
         if: startsWith(matrix.os, 'windows-11-arm')
+        shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
           .\rustup-init.exe -y --default-toolchain stable
           $cargoPath = "$env:USERPROFILE\.cargo\bin"
           Add-Content $env:GITHUB_PATH $cargoPath
-      
-      - name: Setup Rust ARM64 target for cross-compilation
-        if: matrix.platform == 'windows' && matrix.arch == 'arm64' && !startsWith(matrix.os, 'windows-11-arm')
-        run: rustup target add aarch64-pc-windows-msvc
 
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup macOS Signing Certificate
-        if: matrix.platform == 'macos'
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          KEYCHAIN_PASSWORD=$(uuidgen)
-
-          echo "🔐 Creating temporary keychain..."
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          echo "📥 Importing certificate..."
-          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
-          security import certificate.p12 \
-            -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -A \
-            -t cert \
-            -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
-
-
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-
-          security default-keychain -s "$KEYCHAIN_PATH"
-
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          echo "✅ Verifying identity..."
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-
-          rm certificate.p12
-
-          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
-          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
-
-      - name: Setup Android Signing
+      - name: Setup Android signing
         if: startsWith(matrix.platform,'android')
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/keystore.jks
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/local.properties
-          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> android/local.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/local.properties
-
-      - name: Setup Firebase Config
-        if: startsWith(matrix.platform,'android')
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
-          fi
+          {
+            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+            echo "storePassword=${{ secrets.STORE_PASSWORD }}"
+            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+          } >> android/local.properties
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26.0"
-          cache-dependency-path: |
-            core/go.sum
+          go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+          cache-dependency-path: core/go.sum
 
-      - name: Setup Flutter (ARM)
-        if: startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')
-        uses: subosito/flutter-action@v2
-        with:
-          channel: "master"
-          cache: true
+      - name: Setup Gradle
+        if: startsWith(matrix.platform,'android')
+        uses: gradle/actions/setup-gradle@v6
 
-      - name: Setup Flutter
-        if: ${{ !(startsWith(matrix.os, 'windows-11-arm') || startsWith(matrix.os, 'ubuntu-24.04-arm')) }}
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.7"
-          cache: true
-
-      - run: flutter --version
-
-      - name: Get Flutter Dependency
-        run: flutter pub get
-
-      - name: Setup Xcode Signing Configuration
-        if: matrix.platform == 'macos'
-        env:
-          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          cat > macos/Runner/Configs/Local.xcconfig << EOF
-          CODE_SIGN_IDENTITY = $APPLE_DEVELOPER_ID
-          DEVELOPMENT_TEAM = $APPLE_TEAM_ID
-          EOF
-
-          echo "✅ Created Local.xcconfig for signing"
+      - name: Enable git long paths (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: git config --global core.longpaths true
 
       - name: Setup Inno Setup
         if: matrix.platform == 'windows'
+        shell: pwsh
         run: |
           choco install innosetup -y
           echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      # Stable publishes no Windows or Linux arm64 archive; master makes the action
+      # clone the SDK at the pinned tag and let it fetch the host's own Dart SDK.
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.flutter-channel || 'stable' }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+
+      - name: Setup Xcode
+        if: startsWith(matrix.platform,'macos')
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+
+      - name: Setup NDK
+        if: startsWith(matrix.platform,'android')
+        uses: nttld/setup-ndk@v1
+        id: build-ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: true
+          link-to-sdk: true
+
+      - name: Get Flutter dependency
+        run: |
+          flutter --version
+          flutter pub get
+
+      # See .agents/flutter-upgrade.md before bumping FLUTTER_VERSION.
+      - name: Disable Impeller on Intel macOS
+        if: matrix.platform == 'macos' && matrix.arch == 'amd64'
+        run: plutil -replace FLTEnableImpeller -bool NO macos/Runner/Info.plist
+
+      # FlClashHttpOverrides.trustCoreRoots trusts this bundle beside the system roots.
+      # Pinned by hash, so a new bundle from https://curl.se/docs/caextract.html is a reviewed bump.
+      - name: Fetch CA certificates
+        shell: bash
+        env:
+          CA_BUNDLE: cacert-2026-10-20.pem
+          CA_BUNDLE_SHA256: 796f1389bfea13c0ed78f663b765baaff54a508e5483786bd6ece73c5e3e3cbe
+        run: |
+          bundle=assets/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" "https://curl.se/ca/$CA_BUNDLE"
+          echo "$CA_BUNDLE_SHA256  $bundle" | sha256sum -c -
+
+      # A prerelease ships macOS unsigned; only a stable release is signed and notarized.
+      # The certificate chains to Apple's first Developer ID intermediate, which
+      # the runner image does not carry; it expires 2027-02-01, as the certificate does.
+      - name: Import macOS signing certificate
+        if: startsWith(matrix.platform,'macos') && env.IS_STABLE == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          INTERMEDIATE_SHA256: 7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          intermediate="$RUNNER_TEMP/DeveloperIDCA.cer"
+          curl -fsSL --retry 3 -o "$intermediate" https://www.apple.com/certificateauthority/DeveloperIDCA.cer
+          echo "$INTERMEDIATE_SHA256  $intermediate" | shasum -a 256 -c -
+          security import "$intermediate" -k "$keychain"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$keychain"
+
       - name: Setup
-        run: dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }}
+        env:
+          ANDROID_NDK_HOME: ${{ steps.build-ndk.outputs.ndk-path }}
+          APPLE_DEVELOPER_ID: ${{ startsWith(matrix.platform,'macos') && env.IS_STABLE == 'true' && secrets.APPLE_DEVELOPER_ID || '' }}
+        run: dart setup.dart ${{ matrix.platform }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} -v
+
+      - name: Notarize macOS
+        if: startsWith(matrix.platform,'macos') && env.IS_STABLE == 'true'
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          key="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY_ID.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key"
+          auth=(--key "$key" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
+          for dmg in dist/*.dmg; do
+            result="$(xcrun notarytool submit "$dmg" "${auth[@]}" --wait --timeout 1h --output-format json)" || true
+            echo "$result"
+            if [ "$(jq -r '.status // empty' <<<"$result")" != Accepted ]; then
+              id="$(jq -r '.id // empty' <<<"$result")"
+              [ -n "$id" ] && xcrun notarytool log "$id" "${auth[@]}"
+              exit 1
+            fi
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+            spctl --assess --type open --context context:primary-signature -vv "$dmg"
+          done
+          spctl --assess --type execute -vv build/macos/Build/Products/Release/FlClashX.app
+          rm "$key"
 
       - name: Upload
         uses: actions/upload-artifact@v6
@@ -164,111 +511,17 @@ jobs:
           path: ./dist
           overwrite: true
 
-      - name: Cleanup macOS Keychain
-        if: always() && matrix.platform == 'macos'
-        run: |
-          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
-            echo "🧹 Cleaning up keychain..."
-            security delete-keychain "$KEYCHAIN_PATH" || true
-          fi
-
-
-          if [ -f macos/Runner/Configs/Local.xcconfig ]; then
-            echo "🧹 Cleaning up Local.xcconfig..."
-            rm macos/Runner/Configs/Local.xcconfig || true
-          fi
-
-  sign-macos:
-    needs: [build]
-    if: startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      matrix:
-        include:
-          - platform: macos
-            arch: arm64
-          - platform: macos
-            arch: amd64
-    uses: ./.github/workflows/macos-sign-notarize.yaml
-    with:
-      artifact-name: artifact-${{ matrix.platform }}-${{ matrix.arch }}
-      arch: ${{ matrix.arch }}
-    secrets:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-
-  changelog:
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        if: ${{ env.IS_STABLE == 'true' }}
-        with:
-          fetch-depth: 0
-          ref: refs/heads/main
-      - name: Generate
-        if: ${{ env.IS_STABLE == 'true' }}
-        run: |
-          tags=($(git tag --merged $(git rev-parse HEAD) --sort=-creatordate))
-          preTag=$(grep -oP '^## \K.*' CHANGELOG.md | head -n 1)
-          currentTag=""
-          for ((i = 0; i <= ${#tags[@]}; i++)); do
-            if (( i < ${#tags[@]} )); then
-              tag=${tags[$i]}
-            else
-              tag=""
-            fi
-            if [ -n "$currentTag" ]; then
-              if [ "$(echo -e "$currentTag\n$preTag" | sort -V | head -n 1)" == "$currentTag" ]; then
-                break
-              fi
-            fi
-            if [ -n "$currentTag" ]; then
-              echo "## $currentTag" >> NEW_CHANGELOG.md
-              echo "" >> NEW_CHANGELOG.md
-              if [ -n "$tag" ]; then
-                git log --pretty=format:"%B" "$tag..$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> NEW_CHANGELOG.md
-              else
-                git log --pretty=format:"%B" "$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> NEW_CHANGELOG.md
-              fi
-              echo "" >> NEW_CHANGELOG.md
-            fi
-            currentTag=$tag
-          done
-          cat CHANGELOG.md >> NEW_CHANGELOG.md
-          cat NEW_CHANGELOG.md > CHANGELOG.md
-
-      - name: Commit
-        if: ${{ env.IS_STABLE == 'true' }}
-        run: |
-          git add CHANGELOG.md
-          if ! git diff --cached --quiet; then
-            echo "Commit pushing"
-            git config --local user.email "flclashx@pluralplay.ru"
-            git config --local user.name "pluralplay"
-            git commit -m "Update changelog"
-            git push
-            if [ $? -eq 0 ]; then
-              echo "Push succeeded"
-            else
-              echo "Push failed"
-              exit 1
-            fi
-          fi
-
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   upload:
-    permissions: write-all
-    needs: [build, sign-macos]
-    if: always() && (needs.build.result == 'success')
-    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: [ build, dart, plugins, go, android, rust, windows-helper-test ]
+    # The checks are skipped where the repository is private, so a skipped one
+    # passes; one that failed or was cancelled holds the release back.
+    if: >-
+      always() && needs.build.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -276,65 +529,39 @@ jobs:
           fetch-depth: 0
 
       - name: Download
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: ./dist/
           pattern: artifact-*
           merge-multiple: true
 
-      - name: Download signed macOS artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/download-artifact@v6
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          path: ./dist/
-          pattern: artifact-macos-*-signed
-          merge-multiple: true
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
 
-      - name: Generate release.md
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Skip native build hooks
         run: |
-          tags=($(git tag --merged $(git rev-parse HEAD) --sort=-creatordate))
-          
-          # Determine previous tag based on release type
-          if [ "${{ env.IS_STABLE }}" == "true" ]; then
-            # For stable: get latest stable release from API
-            preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
+          yq -i '.hooks.user_defines.setup.build_assets = false | .hooks.user_defines.rust_api.build_assets = false' pubspec.yaml
+
+      - name: Generate release notes
+        shell: bash
+        env:
+          IS_STABLE: ${{ env.IS_STABLE }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          target=()
+          if [[ "$IS_STABLE" == 'true' ]]; then
+            target=(--tag "$TAG")
           else
-            # For pre-release: get the latest pre-release tag (last tag with '-' in name before current)
-            preTag=""
-            for tag in "${tags[@]}"; do
-              if [ "$tag" != "${tags[0]}" ] && [[ "$tag" == *-* ]]; then
-                preTag="$tag"
-                break
-              fi
-            done
-            # If no previous pre-release found, use latest stable
-            if [ -z "$preTag" ]; then
-              preTag=$(curl --silent "https://api.github.com/repos/pluralplay/FlClashX/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")' || echo "")
-            fi
+            dart run tool/changelog.dart build --unreleased
           fi
-          
-          currentTag=""
-          for ((i = 0; i <= ${#tags[@]}; i++)); do
-            if (( i < ${#tags[@]} )); then
-              tag=${tags[$i]}
-            else
-              tag=""
-            fi
-            if [ -n "$currentTag" ]; then
-              if [ "$(echo -e "$currentTag\n$preTag" | sort -V | head -n 1)" == "$currentTag" ]; then
-                break
-              fi
-            fi
-            if [ -n "$currentTag" ]; then
-              if [ -n "$tag" ]; then
-                git log --pretty=format:"%B" "$tag..$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> release.md
-              else
-                git log --pretty=format:"%B" "$currentTag" | awk 'NF {print "- " $0} !NF {print ""}' >> release.md
-              fi
-              echo "" >> release.md
-            fi
-            currentTag=$tag
-          done
+          dart run tool/changelog.dart render release "${target[@]}" --out release.md
 
       - name: Patch release.md
         run: |
@@ -346,28 +573,19 @@ jobs:
           fi
 
       - name: Generate sha256
-        if: env.IS_STABLE == 'true'
+        if: ${{ env.IS_STABLE == 'true' }}
         run: |
           cd ./dist
           for file in $(find . -type f -not -name "*.sha256"); do
             sha256sum "$file" > "${file}.sha256"
           done
 
-      - name: Release (Stable)
-        if: ${{ env.IS_STABLE == 'true' }}
-        uses: softprops/action-gh-release@v2
+      - name: Release
+        uses: softprops/action-gh-release@v3
         with:
           files: ./dist/*
-          body_path: "./release.md"
-          prerelease: false
-
-      - name: Release (Pre-release)
-        if: ${{ env.IS_STABLE != 'true' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./dist/*
-          body_path: "./release.md"
-          prerelease: true
+          body_path: './release.md'
+          prerelease: ${{ env.IS_STABLE != 'true' }}
 
       - name: Upload release notes for notification
         uses: actions/upload-artifact@v6
@@ -377,12 +595,12 @@ jobs:
           retention-days: 1
 
   aur-publish:
-    needs: [upload]
+    needs: [ upload ]
     if: always() && needs.upload.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup SSH for AUR
         env:
@@ -421,23 +639,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/aur-assets
-
-          gh release download "$GITHUB_REF_NAME" \
-            -p "FlClashX-linux-amd64.deb" \
-            -D /tmp/aur-assets \
-            -R "$GITHUB_REPOSITORY"
+          gh release download "$GITHUB_REF_NAME" -p "FlClashX-linux-amd64.deb" -D /tmp/aur-assets -R "$GITHUB_REPOSITORY"
           echo "sha_x86=$(sha256sum /tmp/aur-assets/FlClashX-linux-amd64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
-          if gh release download "$GITHUB_REF_NAME" \
-            -p "FlClashX-linux-arm64.deb" \
-            -D /tmp/aur-assets \
-            -R "$GITHUB_REPOSITORY" 2>/dev/null; then
+          if gh release download "$GITHUB_REF_NAME" -p "FlClashX-linux-arm64.deb" -D /tmp/aur-assets -R "$GITHUB_REPOSITORY" 2>/dev/null; then
             echo "sha_arm=$(sha256sum /tmp/aur-assets/FlClashX-linux-arm64.deb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
             echo "has_arm=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_arm=false" >> "$GITHUB_OUTPUT"
           fi
-
           rm -rf /tmp/aur-assets
 
       - name: Update PKGBUILD
@@ -452,7 +661,6 @@ jobs:
           sed -i "s/^pkgver=.*/pkgver=${PKGVER}/" PKGBUILD
           sed -i "s/^pkgrel=.*/pkgrel=${PKGREL}/" PKGBUILD
           sed -i "s/^sha256sums_x86_64=.*/sha256sums_x86_64=('${SHA_X86}')/" PKGBUILD
-
           if [ "$HAS_ARM" == "true" ]; then
             sed -i "s/^sha256sums_aarch64=.*/sha256sums_aarch64=('${SHA_ARM}')/" PKGBUILD
           else
@@ -479,11 +687,10 @@ jobs:
           fi
 
   notify:
-    needs: [upload, aur-publish]
-    # Runs after AUR publish; posts as long as the GitHub release succeeded,
-    # regardless of the AUR result.
+    needs: [ upload, aur-publish ]
+    # Posts as long as the GitHub release succeeded, whatever AUR did.
     if: always() && needs.upload.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -491,19 +698,15 @@ jobs:
           fetch-depth: 0
 
       - name: Download release notes
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: release-notes
 
       - name: Prepare commit list for notification
         id: prepare_commits
         run: |
-          main_commit=$(git log -1 --pretty=format:"%s" ${{ github.ref_name }})
-          other_commits=$(head -n 20 release.md | grep "^- " | grep -v "^- ${main_commit}$" | head -n 9)
-          commits="• ${main_commit}"
-          if [ -n "$other_commits" ]; then
-            commits="${commits}"$'\n'"${other_commits}"
-          fi
+          # The tag commit is the version bump, not a change worth announcing.
+          commits=$(head -n 20 release.md | grep "^- " | head -n 9 || true)
           commits_escaped=$(echo "$commits" | jq -Rs .)
           echo "commits=$commits_escaped" >> $GITHUB_OUTPUT
 

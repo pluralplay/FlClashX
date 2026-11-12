@@ -6,208 +6,617 @@ part of '../config.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$appSettingHash() => r'bdfb909f056bf7aec165ceffd218254c33f91aaa';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [AppSetting].
 @ProviderFor(AppSetting)
-final appSettingProvider =
-    AutoDisposeNotifierProvider<AppSetting, AppSettingProps>.internal(
-  AppSetting.new,
-  name: r'appSettingProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$appSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final appSettingProvider = AppSettingProvider._();
 
-typedef _$AppSetting = AutoDisposeNotifier<AppSettingProps>;
-String _$windowSettingHash() => r'20cadc0c1b26ede68fb38a74699b1753ed997dbf';
+final class AppSettingProvider
+    extends $NotifierProvider<AppSetting, AppSettingProps> {
+  AppSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appSettingProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [WindowSetting].
+  @override
+  String debugGetCreateSourceHash() => _$appSettingHash();
+
+  @$internal
+  @override
+  AppSetting create() => AppSetting();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppSettingProps value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppSettingProps>(value),
+    );
+  }
+}
+
+String _$appSettingHash() => r'520a3125e1d0baca1fb65abb2110ad4419f8b2d9';
+
+abstract class _$AppSetting extends $Notifier<AppSettingProps> {
+  AppSettingProps build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AppSettingProps, AppSettingProps>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AppSettingProps, AppSettingProps>,
+              AppSettingProps,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(WindowSetting)
-final windowSettingProvider =
-    AutoDisposeNotifierProvider<WindowSetting, WindowProps>.internal(
-  WindowSetting.new,
-  name: r'windowSettingProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$windowSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final windowSettingProvider = WindowSettingProvider._();
 
-typedef _$WindowSetting = AutoDisposeNotifier<WindowProps>;
-String _$vpnSettingHash() => r'63758e196c3d31cebaac87d82998f3c9566a4656';
+final class WindowSettingProvider
+    extends $NotifierProvider<WindowSetting, WindowProps> {
+  WindowSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'windowSettingProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [VpnSetting].
+  @override
+  String debugGetCreateSourceHash() => _$windowSettingHash();
+
+  @$internal
+  @override
+  WindowSetting create() => WindowSetting();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WindowProps value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WindowProps>(value),
+    );
+  }
+}
+
+String _$windowSettingHash() => r'b466fe4c113bb896939b5f0c96795cb09dd2759a';
+
+abstract class _$WindowSetting extends $Notifier<WindowProps> {
+  WindowProps build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<WindowProps, WindowProps>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<WindowProps, WindowProps>,
+              WindowProps,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(VpnSetting)
-final vpnSettingProvider =
-    AutoDisposeNotifierProvider<VpnSetting, VpnProps>.internal(
-  VpnSetting.new,
-  name: r'vpnSettingProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$vpnSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final vpnSettingProvider = VpnSettingProvider._();
 
-typedef _$VpnSetting = AutoDisposeNotifier<VpnProps>;
-String _$networkSettingHash() => r'2ff25bb6f4bc2050c0ac1aa07dcd3c78ee6325bd';
+final class VpnSettingProvider extends $NotifierProvider<VpnSetting, VpnProps> {
+  VpnSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'vpnSettingProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [NetworkSetting].
+  @override
+  String debugGetCreateSourceHash() => _$vpnSettingHash();
+
+  @$internal
+  @override
+  VpnSetting create() => VpnSetting();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(VpnProps value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<VpnProps>(value),
+    );
+  }
+}
+
+String _$vpnSettingHash() => r'dd0ff8720c2c4f22fc973305de8c87bcbee4536e';
+
+abstract class _$VpnSetting extends $Notifier<VpnProps> {
+  VpnProps build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<VpnProps, VpnProps>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<VpnProps, VpnProps>,
+              VpnProps,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(NetworkSetting)
-final networkSettingProvider =
-    AutoDisposeNotifierProvider<NetworkSetting, NetworkProps>.internal(
-  NetworkSetting.new,
-  name: r'networkSettingProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$networkSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final networkSettingProvider = NetworkSettingProvider._();
 
-typedef _$NetworkSetting = AutoDisposeNotifier<NetworkProps>;
-String _$themeSettingHash() => r'122de0c801a77ffdd08a0a4fbda7c27e9aa824ce';
+final class NetworkSettingProvider
+    extends $NotifierProvider<NetworkSetting, NetworkProps> {
+  NetworkSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'networkSettingProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [ThemeSetting].
+  @override
+  String debugGetCreateSourceHash() => _$networkSettingHash();
+
+  @$internal
+  @override
+  NetworkSetting create() => NetworkSetting();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(NetworkProps value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<NetworkProps>(value),
+    );
+  }
+}
+
+String _$networkSettingHash() => r'fa204b5ad21bc3e73c07aa6989f68c288ca20aaf';
+
+abstract class _$NetworkSetting extends $Notifier<NetworkProps> {
+  NetworkProps build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<NetworkProps, NetworkProps>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<NetworkProps, NetworkProps>,
+              NetworkProps,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(ThemeSetting)
-final themeSettingProvider =
-    AutoDisposeNotifierProvider<ThemeSetting, ThemeProps>.internal(
-  ThemeSetting.new,
-  name: r'themeSettingProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$themeSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final themeSettingProvider = ThemeSettingProvider._();
 
-typedef _$ThemeSetting = AutoDisposeNotifier<ThemeProps>;
-String _$profilesHash() => r'1c1f51b953964b13df442c5789a4217313defed7';
+final class ThemeSettingProvider
+    extends $NotifierProvider<ThemeSetting, ThemeProps> {
+  ThemeSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'themeSettingProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [Profiles].
-@ProviderFor(Profiles)
-final profilesProvider =
-    AutoDisposeNotifierProvider<Profiles, List<Profile>>.internal(
-  Profiles.new,
-  name: r'profilesProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$profilesHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+  @override
+  String debugGetCreateSourceHash() => _$themeSettingHash();
 
-typedef _$Profiles = AutoDisposeNotifier<List<Profile>>;
-String _$currentProfileIdHash() => r'6a11a2c9c98b102e8cc59bf73828dc20b0356901';
+  @$internal
+  @override
+  ThemeSetting create() => ThemeSetting();
 
-/// See also [CurrentProfileId].
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ThemeProps value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ThemeProps>(value),
+    );
+  }
+}
+
+String _$themeSettingHash() => r'47c656bdac6ea1320d54c4599ce1fde993e989a1';
+
+abstract class _$ThemeSetting extends $Notifier<ThemeProps> {
+  ThemeProps build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<ThemeProps, ThemeProps>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<ThemeProps, ThemeProps>,
+              ThemeProps,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(CurrentProfileId)
-final currentProfileIdProvider =
-    AutoDisposeNotifierProvider<CurrentProfileId, String?>.internal(
-  CurrentProfileId.new,
-  name: r'currentProfileIdProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$currentProfileIdHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final currentProfileIdProvider = CurrentProfileIdProvider._();
 
-typedef _$CurrentProfileId = AutoDisposeNotifier<String?>;
-String _$appDAVSettingHash() => r'1b9ea2d3a5d836a930ba8579425fa74707921c1c';
+final class CurrentProfileIdProvider
+    extends $NotifierProvider<CurrentProfileId, int?> {
+  CurrentProfileIdProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'currentProfileIdProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [AppDAVSetting].
-@ProviderFor(AppDAVSetting)
-final appDAVSettingProvider =
-    AutoDisposeNotifierProvider<AppDAVSetting, DAV?>.internal(
-  AppDAVSetting.new,
-  name: r'appDAVSettingProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$appDAVSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+  @override
+  String debugGetCreateSourceHash() => _$currentProfileIdHash();
 
-typedef _$AppDAVSetting = AutoDisposeNotifier<DAV?>;
-String _$overrideDnsHash() => r'fa005b753247745d5fbeb5f3a78c3bd904da3c74';
+  @$internal
+  @override
+  CurrentProfileId create() => CurrentProfileId();
 
-/// See also [OverrideDns].
-@ProviderFor(OverrideDns)
-final overrideDnsProvider =
-    AutoDisposeNotifierProvider<OverrideDns, bool>.internal(
-  OverrideDns.new,
-  name: r'overrideDnsProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$overrideDnsHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int?>(value),
+    );
+  }
+}
 
-typedef _$OverrideDns = AutoDisposeNotifier<bool>;
-String _$hotKeyActionsHash() => r'7665ae5f39621a7adbc407dd3ff4c6bfd77cab25';
+String _$currentProfileIdHash() => r'98ff7a3a0b8ed420d086993839f4d629df7590a6';
 
-/// See also [HotKeyActions].
+abstract class _$CurrentProfileId extends $Notifier<int?> {
+  int? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<int?, int?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<int?, int?>,
+              int?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(DavSetting)
+final davSettingProvider = DavSettingProvider._();
+
+final class DavSettingProvider
+    extends $NotifierProvider<DavSetting, DAVProps?> {
+  DavSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'davSettingProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$davSettingHash();
+
+  @$internal
+  @override
+  DavSetting create() => DavSetting();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DAVProps? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DAVProps?>(value),
+    );
+  }
+}
+
+String _$davSettingHash() => r'5c85725b0d988c8f44ef6ba373953e551e09e857';
+
+abstract class _$DavSetting extends $Notifier<DAVProps?> {
+  DAVProps? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<DAVProps?, DAVProps?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<DAVProps?, DAVProps?>,
+              DAVProps?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(HotKeyActions)
-final hotKeyActionsProvider =
-    AutoDisposeNotifierProvider<HotKeyActions, List<HotKeyAction>>.internal(
-  HotKeyActions.new,
-  name: r'hotKeyActionsProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$hotKeyActionsHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final hotKeyActionsProvider = HotKeyActionsProvider._();
 
-typedef _$HotKeyActions = AutoDisposeNotifier<List<HotKeyAction>>;
-String _$proxiesStyleSettingHash() =>
-    r'f5be490206fac5ae452b5c3ec1f1091b1519772c';
+final class HotKeyActionsProvider
+    extends $NotifierProvider<HotKeyActions, List<HotKeyAction>> {
+  HotKeyActionsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'hotKeyActionsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [ProxiesStyleSetting].
+  @override
+  String debugGetCreateSourceHash() => _$hotKeyActionsHash();
+
+  @$internal
+  @override
+  HotKeyActions create() => HotKeyActions();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(List<HotKeyAction> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<List<HotKeyAction>>(value),
+    );
+  }
+}
+
+String _$hotKeyActionsHash() => r'5512b83196646a49fa7307282315d9dccc658dc8';
+
+abstract class _$HotKeyActions extends $Notifier<List<HotKeyAction>> {
+  List<HotKeyAction> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<List<HotKeyAction>, List<HotKeyAction>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<List<HotKeyAction>, List<HotKeyAction>>,
+              List<HotKeyAction>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(ProxiesStyleSetting)
-final proxiesStyleSettingProvider =
-    AutoDisposeNotifierProvider<ProxiesStyleSetting, ProxiesStyle>.internal(
-  ProxiesStyleSetting.new,
-  name: r'proxiesStyleSettingProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$proxiesStyleSettingHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final proxiesStyleSettingProvider = ProxiesStyleSettingProvider._();
 
-typedef _$ProxiesStyleSetting = AutoDisposeNotifier<ProxiesStyle>;
-String _$scriptStateHash() => r'1f3b6a22cc4011c5084244220e512f6c226b2129';
+final class ProxiesStyleSettingProvider
+    extends $NotifierProvider<ProxiesStyleSetting, ProxiesStyleProps> {
+  ProxiesStyleSettingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'proxiesStyleSettingProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-/// See also [ScriptState].
-@ProviderFor(ScriptState)
-final scriptStateProvider =
-    AutoDisposeNotifierProvider<ScriptState, ScriptProps>.internal(
-  ScriptState.new,
-  name: r'scriptStateProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$scriptStateHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+  @override
+  String debugGetCreateSourceHash() => _$proxiesStyleSettingHash();
 
-typedef _$ScriptState = AutoDisposeNotifier<ScriptProps>;
-String _$patchClashConfigHash() => r'91df66ba3c9871dbc9739d02e4fece40fc69d45b';
+  @$internal
+  @override
+  ProxiesStyleSetting create() => ProxiesStyleSetting();
 
-/// See also [PatchClashConfig].
-@ProviderFor(PatchClashConfig)
-final patchClashConfigProvider =
-    AutoDisposeNotifierProvider<PatchClashConfig, ClashConfig>.internal(
-  PatchClashConfig.new,
-  name: r'patchClashConfigProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$patchClashConfigHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ProxiesStyleProps value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ProxiesStyleProps>(value),
+    );
+  }
+}
 
-typedef _$PatchClashConfig = AutoDisposeNotifier<ClashConfig>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+String _$proxiesStyleSettingHash() =>
+    r'af5e94bbe4145170f8a8c4771830b115a89e8c3c';
+
+abstract class _$ProxiesStyleSetting extends $Notifier<ProxiesStyleProps> {
+  ProxiesStyleProps build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<ProxiesStyleProps, ProxiesStyleProps>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<ProxiesStyleProps, ProxiesStyleProps>,
+              ProxiesStyleProps,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(_PatchClashConfig)
+final patchClashConfigProvider = _PatchClashConfigProvider._();
+
+final class _PatchClashConfigProvider
+    extends $NotifierProvider<_PatchClashConfig, PatchClashConfig> {
+  _PatchClashConfigProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'patchClashConfigProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$_patchClashConfigHash();
+
+  @$internal
+  @override
+  _PatchClashConfig create() => _PatchClashConfig();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PatchClashConfig value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PatchClashConfig>(value),
+    );
+  }
+}
+
+String _$_patchClashConfigHash() => r'2a02c8f1ff5746c6c0b2248343bd729d4f2a5886';
+
+abstract class _$PatchClashConfig extends $Notifier<PatchClashConfig> {
+  PatchClashConfig build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<PatchClashConfig, PatchClashConfig>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<PatchClashConfig, PatchClashConfig>,
+              PatchClashConfig,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(ExcludeSSIDs)
+final excludeSSIDsProvider = ExcludeSSIDsProvider._();
+
+final class ExcludeSSIDsProvider
+    extends $NotifierProvider<ExcludeSSIDs, List<String>> {
+  ExcludeSSIDsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'excludeSSIDsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$excludeSSIDsHash();
+
+  @$internal
+  @override
+  ExcludeSSIDs create() => ExcludeSSIDs();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(List<String> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<List<String>>(value),
+    );
+  }
+}
+
+String _$excludeSSIDsHash() => r'a67805c76b58d19da1656783f4514111d6bf4e35';
+
+abstract class _$ExcludeSSIDs extends $Notifier<List<String>> {
+  List<String> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<List<String>, List<String>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<List<String>, List<String>>,
+              List<String>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(_config)
+final configProvider = _ConfigProvider._();
+
+final class _ConfigProvider extends $FunctionalProvider<Config, Config, Config>
+    with $Provider<Config> {
+  _ConfigProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'configProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$_configHash();
+
+  @$internal
+  @override
+  $ProviderElement<Config> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  Config create(Ref ref) {
+    return _config(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Config value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Config>(value),
+    );
+  }
+}
+
+String _$_configHash() => r'a9e717216fc1ca6b3526907bd578c4982bb6961a';

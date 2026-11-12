@@ -1,0 +1,54 @@
+[package]
+name = "rust_api"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rust_api"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.13.0"
+rquickjs = { version = "0.12", default-features = false }
+ropey = { version = "1.6.1", default-features = false, features = ["simd"] }
+
+# The IPC server exists so a desktop Core process can talk to the app. Android
+# loads the Core in-process, so nothing below is built into the Android library.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+interprocess = { version = "2", features = ["tokio"] }
+tokio = { version = "1.36", features = ["io-util", "macros", "rt", "sync"] }
+global-hotkey = "0.8"
+
+[target.'cfg(all(unix, not(target_os = "android")))'.dependencies]
+libc = "0.2"
+
+# rquickjs ships pre-generated bindings for every target this project builds
+# except the Android ones, which have to be generated during the build.
+[target.'cfg(target_os = "android")'.dependencies]
+rquickjs = { version = "0.12", default-features = false, features = ["bindgen"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+dispatch2 = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+[dev-dependencies]
+serde_json = "1"

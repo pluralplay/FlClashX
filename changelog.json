@@ -1,0 +1,473 @@
+{
+  "schemaVersion": 2,
+  "versions": [
+    {
+      "version": "0.5.0",
+      "tag": "v0.5.0",
+      "date": "2026-11-12",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "breaking",
+          "entries": [
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "Custom overwrites are removed; rebuild them as custom profiles"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "The DNS and NTP override toggles are removed; DNS, NTP, sniffer and TUN are set per key, and picked keys apply to every profile"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "tun",
+              "text": "Desktop TUN settings follow the profile until you pick them; values you changed carry over"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "Settings the subscription sets belong to the provider; each one can be taken over and handed back"
+            },
+            {
+              "id": "bb0e6d6",
+              "scope": "settings",
+              "text": "TLS certificates are always checked; the toggle to turn the check off is gone"
+            }
+          ]
+        },
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "c2f57e9",
+              "scope": "core",
+              "text": "Built on FlClash 0.9.2 with the mihomo v1.19.34 core"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "headers",
+              "text": "Subscription headers: flclashx-view, widgets, settings, special, newdomain, service name and logo, serverinfo, buyplan, buytraffic and background"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "headers",
+              "text": "hideip hides the outbound IP, and app.theme lets the panel set the app theme"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "headers",
+              "text": "flclashx-override works on the profile's own GLOBAL group"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "Subscription expiry notices; the renewal button appears on its day without waiting for an update"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "External controller and Zashboard from the subscription"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Group and server descriptions; a group's description shows in place of the node it picked"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "The subscription's authentication sets the proxy account"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "App links add a profile without a confirmation and say so"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "Every setting the config names (ports, mode, TUN, stack, MTU, congestion control, routes, geo and more) is locked to the provider: a closed lock marks the provider's, an open one yours"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "Take any provider setting over and hand it back one at a time; settings the config leaves out stay yours"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "Panel header settings apply once per subscription update or profile switch"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "settings",
+              "text": "strict as a third process-finding mode"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "ui",
+              "text": "iOS-style interface: stretchy stacked sheets, context menus and slide-to-pick, drag to go back, docked search and long-press reordering"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "ui",
+              "text": "Sidebar and floating dock; bar buttons lift on hover"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "ui",
+              "text": "Optional two-tier Liquid Glass with frosted dashboard cards, sheets and setting groups, stepping down for good, and out of the subscription's hands, when the GPU falls behind"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "theme",
+              "text": "Redesigned theme colors, a higher-contrast dark mode, a refreshed app icon, new glyphs, empty states and theme page"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "l10n",
+              "text": "French, Spanish and Korean translations, seven languages in all, and a reviewed Russian translation"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "dashboard",
+              "text": "A redesigned dashboard around the current exit, with more cards and IP quality cached for 3 days"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "dashboard",
+              "text": "Enhanced view on new installs; movable status card and announcement"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "dashboard",
+              "text": "Provider logo and name on one row, with the logo cached on disk"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "dashboard",
+              "text": "Tapping the delay opens the server picker; core restart button, now on Android too"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "dashboard",
+              "text": "Service checks through the proxy for Gosuslugi, Sberbank, VK, Yandex and Kinopoisk, and outbound IP risk kept off Cloudflare"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Groups as cards and group tabs as chips"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Search, mode, test all and fold all in one button group, the rest under More; expand or collapse every group at once"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Hide timed-out nodes and search every list"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Add proxies to local proxies; adjustable delay test timeout"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "A profile just added opens on its first group"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "Custom profiles, with include-all in custom groups"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "Profile QR codes and phone-to-TV links"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "Share link import, .mrs rule sets and more proxy fields"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "editor",
+              "text": "Word wrap and snippets"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "config",
+              "text": "DNS, NTP, sniffer and TUN set per key; DNS, Hosts and ports apply without a restart; optional general overrides"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "config",
+              "text": "DNS query log; clear the DNS cache by hand or on a network change"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "views",
+              "text": "Sortable tables for connections, requests and DNS; recent requests and live connections on one page; punycode hosts shown in Unicode"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "core",
+              "text": "mihomo v1.19.34: Firefox 148 and Safari 26.3 TLS fingerprints, Snell v6 and several users on a Shadowsocks listener"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "core",
+              "text": "A crashed desktop Core restarts on its own, at most twice in a row, and names the cause"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "A rising vibration as the app opens; holding the start/stop button for five seconds toggles the proxy under a rising vibration"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "Constant 120 Hz; the Core runs in its own process and restarts without restarting the app"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "The VPN notification shows the service or profile name, optionally with a stop button only"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "TUN include and exclude packages always apply and override access control; smart selection of Russian apps and a status bar in access control; TUN routes from the subscription"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "Launcher shortcuts and one-step on-demand access; no Firebase analytics or crash reporting"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "Share today's logs from the settings"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "Says why the VPN did not start when its permission is refused, pointing Android 17 users at the Nearby devices permission"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "desktop",
+              "text": "The first window opens in the phone layout at the top of the screen, so it can always be moved on small screens"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "tray",
+              "text": "Colored tray status icons with a monochrome option on macOS; tray hotkeys, nodes and a delay test"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "app",
+              "text": "File logs and app reset; no China presets; disclaimer and About updated; README rewritten with the subscription headers documented on flclashx.app"
+            },
+            {
+              "id": "ebfe1af",
+              "scope": "migration",
+              "text": "Profiles and settings carry over from FlClashX 0.4 on macOS"
+            },
+            {
+              "id": "ec1fc89",
+              "scope": "proxies",
+              "text": "A one-line proxy card size, also set by proxies.card:oneline"
+            },
+            {
+              "id": "ea1c50c",
+              "scope": "settings",
+              "text": "A switch turns vibration off, and a panel can turn it off with novibrate"
+            },
+            {
+              "id": "4bd9cbb",
+              "scope": "ui",
+              "text": "An animated GIF or WebP works as the panel background; animated WebP is recommended, being several times smaller than a GIF. It stops on its first frame under reduced motion or when the GPU falls behind"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Updating a subscription no longer switches url-test and fallback groups to a dead first node"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "A node picked while a subscription update applies is no longer lost"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "proxies",
+              "text": "Load balancers are tested by their nodes, and groups without a URL by the app's test URL, without doubled pings"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "profiles",
+              "text": "A profile chosen while the app is still starting is no longer ignored, and changes typed during a save are kept"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "core",
+              "text": "Long-lived connections keep their route; traffic of a UDP session that moved routes is counted on the new route at once"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "core",
+              "text": "A rule set or geo download past 128 MiB, a malformed .mrs file or a profile with runaway YAML aliases can no longer exhaust memory or freeze the app"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "core",
+              "text": "Updating the GeoIP or ASN database no longer risks crashing the Core"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "backup",
+              "text": "A damaged or oversized backup is rejected instead of restored"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "A VPN start from Quick Settings while the app is starting is no longer lost, and opening the app no longer reloads a running VPN"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "A start cancelled right before the VPN permission prompt no longer blocks later starts"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "A stop on an excluded Wi-Fi network keeps the VPN off after leaving it, and VPN settings changed before exiting apply to the next Quick Settings start"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "Per-app rules on Android 7–9 no longer apply another app's policy to a shared UDP socket"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "desktop",
+              "text": "Making the window narrow no longer closes an open profile editor or loses its changes"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "desktop",
+              "text": "A system proxy FlClashX did not set is left alone; it is released while the Core is down and cleared after a crashed or killed run"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "tun",
+              "text": "A desktop TUN that fails to start is reported and turned off instead of showing as on"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "macos",
+              "text": "TUN runs through a root-owned copy of the Core outside the app and no longer fails after the password prompt"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "macos",
+              "text": "The menu bar popover survives a Dock reopen; logout, restart and shutdown are no longer cancelled; launch at login works on macOS 12; tray groups are capped at 100 nodes"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "linux",
+              "text": "TUN without systemd runs through a per-user copy of the Core and no longer locks other users out; the AppImage starts again"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "windows",
+              "text": "The Helper and client shut down fully before installing, and a stale system proxy is cleared"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "ui",
+              "text": "Many fixes to the interface, keyboard and TV remote focus, and to keeping data through downloads, backups and header updates"
+            },
+            {
+              "id": "82fb0a0",
+              "scope": "android",
+              "text": "Any Android APK now installs over any earlier one, whichever ABI variant either is"
+            },
+            {
+              "id": "2ef7698",
+              "scope": "android",
+              "text": "The VPN follows a move from one Wi-Fi network to another when networks are excluded"
+            },
+            {
+              "id": "802fe79",
+              "scope": "linux",
+              "text": "The Linux RPM and AppImage start on desktops that have no AppIndicator library installed"
+            },
+            {
+              "id": "61437ab",
+              "scope": "windows",
+              "text": "The Windows installer upgrades a 0.4 install in place instead of installing beside it"
+            },
+            {
+              "id": "9319a55",
+              "scope": "proxy",
+              "text": "The copied proxy variable on Windows works when pasted into PowerShell"
+            },
+            {
+              "id": "5b7d97e",
+              "scope": "proxy",
+              "text": "Stopping the system proxy on macOS no longer turns off an automatic proxy (PAC) configuration"
+            },
+            {
+              "id": "a34e9da",
+              "scope": "migration",
+              "text": "An upgrade from 0.4 keeps a rule list that replaced the subscription's rules"
+            },
+            {
+              "id": "37af2b9",
+              "scope": "migration",
+              "text": "An upgrade from 0.4 keeps running the selected script"
+            },
+            {
+              "id": "c79eb6c",
+              "scope": "migration",
+              "text": "An upgrade from 0.4 keeps the settings its override switches protected from the subscription"
+            }
+          ]
+        },
+        {
+          "type": "perf",
+          "entries": [
+            {
+              "id": "c2f57e9",
+              "scope": "editor",
+              "text": "Smoother editing of large files; a bracket next to the cursor or thousands of same-named share links no longer stall it"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "rules",
+              "text": "Quick Edit no longer freezes the app on very long rule lists"
+            },
+            {
+              "id": "c2f57e9",
+              "scope": "android",
+              "text": "Smoother UI while the proxy is busy"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

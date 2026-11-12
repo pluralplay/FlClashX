@@ -2,26 +2,60 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flclashx/clash/clash.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/l10n/l10n.dart';
-import 'package:flclashx/manager/hotkey_manager.dart';
-import 'package:flclashx/manager/manager.dart';
-import 'package:flclashx/plugins/app.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_displaymode/flutter_displaymode.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/window.dart';
+import 'package:fl_clash/bootstrap.dart';
+import 'package:fl_clash/common/system_dns.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/manager/hotkey_manager.dart';
+import 'package:fl_clash/manager/manager.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/app.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/ui.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'controller.dart';
 import 'pages/pages.dart';
 
+Widget buildManagerStack({
+  required bool isDesktop,
+  required Future<void> Function(List<ConnectivityResult> results)
+  onConnectivityChanged,
+  Stream<ProcessSignal>? terminateSignals,
+  required Widget child,
+}) {
+  final platformApp = isDesktop
+      ? WindowHeaderContainer(child: child)
+      : VpnManager(child: child);
+  final state = AppStateManager(
+    child: CoreManager(
+      child: ConnectivityManager(
+        onConnectivityChanged: onConnectivityChanged,
+        child: platformApp,
+      ),
+    ),
+  );
+  final platformState = isDesktop
+      ? WindowManager(
+          terminateSignals: terminateSignals,
+          child: TrayManager(
+            child: HotKeyManager(child: ProxyManager(child: state)),
+          ),
+        )
+      : AndroidManager(child: TileManager(child: state));
+  return AppEnvManager(
+    child: LocaleManager(
+      child: StatusManager(child: ThemeManager(child: platformState)),
+    ),
+  );
+}
+
 class Application extends ConsumerStatefulWidget {
-  const Application({
-    super.key,
-  });
+  const Application({super.key});
 
   @override
   ConsumerState<Application> createState() => ApplicationState();
@@ -29,211 +63,133 @@ class Application extends ConsumerStatefulWidget {
 
 class ApplicationState extends ConsumerState<Application> {
   Timer? _autoUpdateProfilesTaskTimer;
-
-  final _pageTransitionsTheme = const PageTransitionsTheme(
-    builders: <TargetPlatform, PageTransitionsBuilder>{
-      TargetPlatform.android: CommonPageTransitionsBuilder(),
-      TargetPlatform.windows: CommonPageTransitionsBuilder(),
-      TargetPlatform.linux: CommonPageTransitionsBuilder(),
-      TargetPlatform.macOS: CommonPageTransitionsBuilder(),
-    },
-  );
-
-  ColorScheme _getAppColorScheme({
-    required Brightness brightness,
-    int? primaryColor,
-  }) =>
-      ref.read(genColorSchemeProvider(brightness));
+  bool _preHasVpn = false;
+  // Windows can only watch SIGINT and SIGHUP.
+  final _terminateSignals = system.isDesktop && !system.isWindows
+      ? ProcessSignal.sigterm.watch()
+      : null;
 
   @override
   void initState() {
     super.initState();
-
-    if (Platform.isWindows) {
-      windows?.enableDarkModeForApp();
-    }
-
-    if (Platform.isAndroid) {
-      // Pin the highest refresh rate (per session) so the Flutter engine samples
-      // 120 Hz at surface creation. A hand-rolled preferredDisplayModeId left LTPO
-      // Pixel panels showing 120 Hz while the engine rendered at 60 (visible jank);
-      // flutter_displaymode handles the OEM quirks. Best-effort, never fatal.
-      unawaited(FlutterDisplayMode.setHighRefreshRate().catchError((_) {}));
-    }
-
-    globalState.startGroupsUpdateTask();
-    _autoUpdateProfilesTask();
-    globalState.appController = AppController(context, ref);
+    SystemNavigator.setFrameworkHandlesBack(true);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-      final currentContext = globalState.navigatorKey.currentContext;
-      if (currentContext != null) {
-        globalState.appController = AppController(currentContext, ref);
+      if (globalState.navigatorKey.currentContext != null) {
+        await bootstrap.attach();
+      } else {
+        exit(0);
       }
-      await globalState.appController.init();
-      globalState.appController.initLink();
-      app?.initShortcuts();
+      _autoUpdateProfilesTask();
+      _initLink();
+      if (!safeModeBuild) {
+        unawaited(app?.initShortcuts());
+      }
+    });
+  }
+
+  void _initLink() {
+    linkManager.initAppLinksListen((url) async {
+      unawaited(window?.show());
+      final profile = await ref
+          .read(profilesActionProvider.notifier)
+          .addProfileFromLink(url);
+      if (profile != null) {
+        dialogs.showNotifier(
+          currentAppLocalizations.profileAddedTip(profile.realLabel),
+        );
+      }
     });
   }
 
   void _autoUpdateProfilesTask() {
     _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
-      await globalState.appController.autoUpdateProfiles();
-      // dispose() may have landed during the await; don't arm a fresh
-      // post-dispose timer that would keep firing.
-      if (!mounted) return;
+      try {
+        await ref.read(profilesActionProvider.notifier).autoUpdateProfiles();
+        await ref.read(resourcesActionProvider.notifier).autoUpdate();
+      } catch (error) {
+        commonPrint.log(
+          'auto update pass failed: $error',
+          logLevel: LogLevel.error,
+        );
+      }
+      if (!mounted) {
+        return;
+      }
       _autoUpdateProfilesTask();
     });
   }
 
-  Widget _buildPlatformState(Widget child) {
-    if (system.isDesktop) {
-      return WindowManager(
-        child: TrayManager(
-          child: HotKeyManager(
-            child: ProxyManager(
-              child: child,
-            ),
-          ),
-        ),
-      );
+  Future<void> _handleConnectivityChanged(
+    List<ConnectivityResult> results,
+  ) async {
+    commonPrint.log('connectivityChanged ${results.toString()}');
+    unawaited(systemDnsCoordinator?.resync() ?? Future.value());
+    unawaited(ref.read(systemActionProvider.notifier).updateLocalIp());
+    final hasVpn = results.contains(ConnectivityResult.vpn);
+    if (_preHasVpn == hasVpn) {
+      ref.read(routeTrackerProvider.notifier).bumpHostEpoch();
+      // Android's NetworkObserver tells the Core about a new network itself.
+      if (system.isDesktop) {
+        debouncer.call(
+          FunctionTag.clearDnsCache,
+          ref.read(coreActionProvider.notifier).clearDnsCacheOnNetworkChange,
+          duration: const Duration(milliseconds: 200),
+        );
+      }
     }
-    return AndroidManager(
-      child: TileManager(
-        child: child,
-      ),
-    );
+    _preHasVpn = hasVpn;
   }
-
-  Widget _buildState(Widget child) => AppStateManager(
-        child: ClashManager(
-          child: ConnectivityManager(
-            onConnectivityChanged: (results) async {
-              if (!results.contains(ConnectivityResult.vpn)) {
-                clashCore.closeConnections();
-              }
-              globalState.appController.updateLocalIp();
-              globalState.appController.addCheckIpNumDebounce();
-            },
-            child: child,
-          ),
-        ),
-      );
-
-  Widget _buildPlatformApp(Widget child) {
-    if (system.isDesktop) {
-      return WindowHeaderContainer(
-        child: child,
-      );
-    }
-    return VpnManager(
-      child: child,
-    );
-  }
-
-  Widget _buildApp(Widget child) => MessageManager(
-        child: ThemeManager(
-          child: child,
-        ),
-      );
 
   @override
-  Widget build(BuildContext context) => _buildPlatformState(
-        _buildState(
-          Consumer(
-            builder: (_, ref, child) {
-              final locale =
-                  ref.watch(appSettingProvider.select((state) => state.locale));
-              final themeProps = ref.watch(themeSettingProvider);
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                navigatorKey: globalState.navigatorKey,
-                checkerboardRasterCacheImages: false,
-                checkerboardOffscreenLayers: false,
-                showPerformanceOverlay: false,
-                localizationsDelegates: const [
-                  AppLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate
-                ],
-                builder: (_, child) {
-                  final Widget app = AppEnvManager(
-                    child: _buildPlatformApp(
-                      _buildApp(child!),
-                    ),
-                  );
-
-                  if (Platform.isMacOS) {
-                    return FittedBox(
-                      fit: BoxFit.contain,
-                      alignment: Alignment.topCenter,
-                      child: SizedBox(
-                        width: 500,
-                        height: 800,
-                        child: app,
-                      ),
-                    );
-                  }
-
-                  return app;
-                },
-                scrollBehavior: BaseScrollBehavior(),
-                title: appName,
-                locale: utils.getLocaleForString(locale),
-                supportedLocales: AppLocalizations.delegate.supportedLocales,
-                themeMode: themeProps.themeMode,
-                theme: ThemeData(
-                  useMaterial3: true,
-                  pageTransitionsTheme: _pageTransitionsTheme,
-                  colorScheme: _getAppColorScheme(
-                    brightness: Brightness.light,
-                    primaryColor: themeProps.primaryColor,
-                  ),
-                  // Reduce animation duration for snappier feel
-                  visualDensity: VisualDensity.adaptivePlatformDensity,
+  Widget build(context) {
+    return Consumer(
+      builder: (_, ref, child) {
+        final locale = ref.watch(
+          appSettingProvider.select((state) => state.locale),
+        );
+        final themeProps = ref.watch(themeSettingProvider);
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          navigatorKey: globalState.navigatorKey,
+          onNavigationNotification: (_) => true,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            AppUiLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
+          ],
+          builder: (context, child) {
+            return ThemeCrossFade(
+              child: buildManagerStack(
+                isDesktop: system.isDesktop,
+                onConnectivityChanged: _handleConnectivityChanged,
+                terminateSignals: _terminateSignals,
+                child: RemoteFocusAdapter(
+                  enabled: system.isTV,
+                  floatingKeyboard: app?.floatingKeyboard,
+                  child: child!,
                 ),
-                darkTheme: ThemeData(
-                  useMaterial3: true,
-                  pageTransitionsTheme: _pageTransitionsTheme,
-                  colorScheme: _getAppColorScheme(
-                    brightness: Brightness.dark,
-                    primaryColor: themeProps.primaryColor,
-                  ).toPureBlack(themeProps.pureBlack),
-                  // Reduce animation duration for snappier feel
-                  visualDensity: VisualDensity.adaptivePlatformDensity,
-                ),
-                home: child,
-              );
-            },
-            child: const HomePage(),
-          ),
-        ),
-      );
+              ),
+            );
+          },
+          scrollBehavior: const BaseScrollBehavior(),
+          title: appName,
+          locale: getLocaleForString(locale),
+          supportedLocales: AppLocalizations.delegate.supportedLocales,
+          themeMode: themeProps.themeMode,
+          theme: watchAppTheme(ref, Brightness.light),
+          darkTheme: watchAppTheme(ref, Brightness.dark),
+          themeAnimationStyle: AnimationStyle.noAnimation,
+          home: KeyboardInsetHold(child: child!),
+        );
+      },
+      child: const HomePage(),
+    );
+  }
 
   @override
   void dispose() {
     linkManager.destroy();
-    globalState.stopGroupsUpdateTask();
     _autoUpdateProfilesTaskTimer?.cancel();
-    if (Platform.isAndroid) {
-      // Activity teardown (recreation, "don't keep activities", OEM kill) must
-      // not shut the core down: the FGS/tunnel outlives the UI by design, and
-      // handleExit()/destroy() here killed the executor under a live VPN.
-      // savePreferences() is debounced/saved-on-pause, so fire-and-forget it to
-      // honor the synchronous State.dispose() contract.
-      unawaited(globalState.appController.savePreferences());
-      super.dispose();
-      return;
-    }
-    // Desktop teardown ends in system.exit(); run it detached so dispose() stays
-    // synchronous (no await before super.dispose()).
-    unawaited(_desktopTeardown());
     super.dispose();
-  }
-
-  Future<void> _desktopTeardown() async {
-    await clashCore.destroy();
-    await globalState.appController.savePreferences();
-    await globalState.appController.handleExit();
   }
 }

@@ -1,0 +1,116 @@
+import 'package:fl_clash/common/common.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../helpers/test_app.dart';
+
+void main() {
+  group('DateTimeExtension', () {
+    test('detects dates before now', () {
+      expect(
+        DateTime.now().subtract(const Duration(milliseconds: 1)).isBeforeNow,
+        isTrue,
+      );
+    });
+
+    test('formats date, full datetime, and time slices', () {
+      final dateTime = DateTime(2026, 5, 27, 14, 3, 9);
+
+      expect(dateTime.show, '2026-05-27');
+      expect(dateTime.showFull, '27-05-2026 14:03:09');
+      expect(dateTime.showTime, ' 14:03:09');
+    });
+
+    test('formats offset timestamps in the system time zone', () {
+      final parsed = DateTime.parse('2026-05-27T14:03:09+08:00');
+      final local = DateTime.fromMillisecondsSinceEpoch(
+        parsed.millisecondsSinceEpoch,
+      );
+
+      expect(parsed.isUtc, isTrue);
+      expect(
+        parsed.showFull,
+        '${local.showDate} ${local.toString().substring(11, 19)}',
+      );
+      expect(parsed.show, local.toString().substring(0, 10));
+    });
+
+    testWidgets(
+      'getLastUpdateTimeDesc returns unknown for epoch or year <= 1970',
+      (tester) async {
+        late BuildContext buildContext;
+        await tester.pumpWidget(
+          TestApp(
+            child: Builder(
+              builder: (context) {
+                buildContext = context;
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+
+        final epochZero = DateTime.fromMillisecondsSinceEpoch(0);
+        final year1970 = DateTime.utc(1970, 1, 1);
+        final year1 = DateTime.utc(1, 1, 1);
+
+        final l10n = buildContext.appLocalizations;
+        expect(epochZero.getLastUpdateTimeDesc(buildContext), l10n.unknown);
+        expect(year1970.getLastUpdateTimeDesc(buildContext), l10n.unknown);
+        expect(year1.getLastUpdateTimeDesc(buildContext), l10n.unknown);
+      },
+    );
+
+    testWidgets(
+      'getLastUpdateTimeDesc returns relative times for valid dates',
+      (tester) async {
+        late BuildContext buildContext;
+        await tester.pumpWidget(
+          TestApp(
+            child: Builder(
+              builder: (context) {
+                buildContext = context;
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+
+        final l10n = buildContext.appLocalizations;
+        final now = DateTime.now();
+
+        expect(now.getLastUpdateTimeDesc(buildContext), l10n.justNow);
+        expect(
+          now
+              .subtract(const Duration(minutes: 5))
+              .getLastUpdateTimeDesc(buildContext),
+          l10n.minutesAgo(5),
+        );
+        expect(
+          now
+              .subtract(const Duration(hours: 3))
+              .getLastUpdateTimeDesc(buildContext),
+          l10n.hoursAgo(3),
+        );
+        expect(
+          now
+              .subtract(const Duration(days: 4))
+              .getLastUpdateTimeDesc(buildContext),
+          l10n.daysAgo(4),
+        );
+        expect(
+          now
+              .subtract(const Duration(minutes: 5))
+              .getLastUpdateTimeDesc(buildContext, compact: true),
+          '5m ago',
+        );
+        expect(
+          now
+              .subtract(const Duration(days: 60))
+              .getLastUpdateTimeDesc(buildContext, compact: true),
+          '2mo ago',
+        );
+      },
+    );
+  });
+}

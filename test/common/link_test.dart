@@ -1,0 +1,198 @@
+import 'dart:async';
+
+import 'package:fl_clash/common/link.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  late StreamController<Uri> links;
+  late List<String> received;
+
+  setUp(() {
+    links = StreamController<Uri>.broadcast();
+    received = [];
+    linkManager.uriLinkStream = () => links.stream;
+  });
+
+  tearDown(() async {
+    linkManager.destroy();
+    await links.close();
+  });
+
+  Future<void> listen() async {
+    await linkManager.initAppLinksListen(received.add);
+  }
+
+  Future<void> emit(String uri) async {
+    links.add(Uri.parse(uri));
+    await Future<void>.delayed(Duration.zero);
+  }
+
+  test('LinkManager is a singleton', () {
+    expect(LinkManager(), same(linkManager));
+  });
+
+  test('an install-config link reports its url', () async {
+    await listen();
+
+    await emit('flclash://install-config?url=https://example.com/a.yaml');
+
+    expect(received, ['https://example.com/a.yaml']);
+  });
+
+  test('the log names the link without the subscription secrets', () async {
+    final printed = <String>[];
+    final original = debugPrint;
+    debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+    addTearDown(() => debugPrint = original);
+    await listen();
+    const url =
+        'https://user:FAKE_PASS@example.com/FAKE_PATH_SECRET/sub'
+        '?token=FAKE_BEARER_TOKEN';
+
+    await emit('flclash://install-config?url=${Uri.encodeComponent(url)}');
+
+    expect(received, [url]);
+    final log = printed.join('\n');
+    expect(
+      log,
+      contains('onAppLink: flclash://install-config for example.com'),
+    );
+    expect(log, isNot(contains('FAKE_PASS')));
+    expect(log, isNot(contains('FAKE_PATH_SECRET')));
+    expect(log, isNot(contains('FAKE_BEARER_TOKEN')));
+  });
+
+  test('an install-config link without a url is ignored', () async {
+    await listen();
+
+    await emit('flclash://install-config');
+
+    expect(received, isEmpty);
+  });
+
+  test('an install-config link with a blank url is ignored', () async {
+    await listen();
+
+    await emit('flclash://install-config?url=');
+    await emit('flclash://install-config?url=%20');
+
+    expect(received, isEmpty);
+  });
+
+  test('a link for another host is ignored', () async {
+    await listen();
+
+    await emit('flclash://open-profile?url=https://example.com/a.yaml');
+
+    expect(received, isEmpty);
+  });
+
+  test('listening again replaces the previous subscription', () async {
+    await listen();
+    final first = linkManager.subscription;
+
+    await listen();
+
+    expect(linkManager.subscription, isNot(same(first)));
+
+    await emit('flclash://install-config?url=https://example.com/a.yaml');
+
+    expect(received, ['https://example.com/a.yaml']);
+  });
+
+  test(
+    'a seeded launch argument is delivered once a listener attaches',
+    () async {
+      linkManager.seedInitialLink([
+        '--verbose',
+        'flclash://install-config?url=https://example.com/a.yaml',
+      ]);
+
+      expect(received, isEmpty);
+
+      await listen();
+
+      expect(received, ['https://example.com/a.yaml']);
+
+      await listen();
+
+      expect(received, ['https://example.com/a.yaml']);
+    },
+  );
+
+  test('launch arguments without a known scheme are ignored', () async {
+    linkManager.seedInitialLink(['https://example.com/a.yaml', 'not a uri']);
+
+    await listen();
+
+    expect(received, isEmpty);
+  });
+
+  test('destroy stops delivery and is safe to repeat', () async {
+    await listen();
+
+    linkManager.destroy();
+    linkManager.destroy();
+    await emit('flclash://install-config?url=https://example.com/a.yaml');
+
+    expect(linkManager.subscription, isNull);
+    expect(received, isEmpty);
+  });
+
+  group('profileUrlFromQrCodes', () {
+    test('accepts a bare url with surrounding whitespace', () {
+      expect(
+        profileUrlFromQrCodes([' https://example.com/sub?token=1\n']),
+        'https://example.com/sub?token=1',
+      );
+    });
+
+    test('unwraps the url of an install-config link for every scheme', () {
+      for (final scheme in ['clash', 'clashmeta', 'flclash']) {
+        expect(
+          profileUrlFromQrCodes([
+            '$scheme://install-config?url=https%3A%2F%2Fexample.com%2Fa.yaml',
+          ]),
+          'https://example.com/a.yaml',
+        );
+      }
+    });
+
+    test('rejects codes that carry no profile url', () {
+      expect(
+        profileUrlFromQrCodes([
+          null,
+          '',
+          'plain text',
+          'https://',
+          'clash://install-config?url=not-a-url',
+          'clash://open-profile?url=https://example.com/a.yaml',
+          'other://install-config?url=https://example.com/a.yaml',
+        ]),
+        isNull,
+      );
+    });
+
+    test('accepts a proxy share link', () {
+      expect(
+        profileUrlFromQrCodes([
+          'plain text',
+          'vmess://eyJhZGQiOiIxLjIuMy40In0=',
+        ]),
+        'vmess://eyJhZGQiOiIxLjIuMy40In0=',
+      );
+    });
+
+    test('returns the first code that carries a profile url', () {
+      expect(
+        profileUrlFromQrCodes([
+          'plain text',
+          'flclash://install-config?url=https://example.com/first.yaml',
+          'https://example.com/second.yaml',
+        ]),
+        'https://example.com/first.yaml',
+      );
+    });
+  });
+}

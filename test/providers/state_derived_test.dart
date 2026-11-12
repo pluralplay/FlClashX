@@ -1,0 +1,1206 @@
+import 'package:fl_clash/common/app_ports.dart';
+import 'package:fl_clash/common/cidr.dart';
+import 'package:fl_clash/common/compute.dart';
+import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/system.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/database.dart';
+import 'package:fl_clash/providers/state.dart';
+import 'package:fl_clash/ui/color.dart';
+import 'package:fl_clash/views/navigation.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:riverpod/riverpod.dart';
+
+import '../helpers/test_profiles.dart';
+
+void main() {
+  late ProviderContainer container;
+
+  setUp(() {
+    navigationPort = navigation;
+    addTearDown(() => navigationPort = null);
+    container = ProviderContainer(
+      overrides: [profilesProvider.overrideWith(TestProfiles.new)],
+    );
+  });
+
+  tearDown(() {
+    container.dispose();
+  });
+
+  test('group flags walk groups, not memberships, and are kept while the '
+      'groups stay', () {
+    const flags = ['🇳🇱', '🇩🇪', '🇫🇷', '🇬🇧', '🇺🇸'];
+    final proxies = [
+      for (var index = 0; index < 10000; index++)
+        Proxy(name: '${flags[index % flags.length]} node $index', type: 'ss'),
+    ];
+    final groups = indexGroupMembers([
+      Group(
+        name: 'Auto',
+        type: GroupType.Selector,
+        all: [
+          for (var index = 0; index < 100; index++)
+            Proxy(name: 'G$index', type: 'Selector'),
+        ],
+      ),
+      for (var index = 0; index < 100; index++)
+        Group(name: 'G$index', type: GroupType.Selector, all: proxies),
+    ]);
+    container.read(groupsProvider.notifier).update((_) => groups);
+
+    final subscription = container.listen(
+      groupFlagsProvider('Auto'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    final first = subscription.read();
+
+    expect(first, unorderedEquals(['NL', 'DE', 'FR', 'GB', 'US']));
+    expect(container.read(groupFlagsProvider('Auto')), same(first));
+  });
+
+  test('a group with a flag of its own counts as that flag, not its nodes', () {
+    final groups = indexGroupMembers([
+      const Group(
+        name: 'Auto',
+        type: GroupType.Selector,
+        all: [
+          Proxy(name: '🇳🇱 Europe', type: 'Selector'),
+          Proxy(name: 'Asia', type: 'Selector'),
+        ],
+      ),
+      const Group(
+        name: '🇳🇱 Europe',
+        type: GroupType.Selector,
+        all: [Proxy(name: '🇩🇪 Berlin', type: 'ss')],
+      ),
+      const Group(
+        name: 'Asia',
+        type: GroupType.Selector,
+        all: [Proxy(name: '🇯🇵 Tokyo', type: 'ss')],
+      ),
+    ]);
+    container.read(groupsProvider.notifier).update((_) => groups);
+
+    expect(
+      container.read(groupFlagsProvider('Auto')),
+      unorderedEquals(['NL', 'JP']),
+    );
+  });
+
+  test('group derivation sanitizes runtime state and respects clash mode', () {
+    final groups = [
+      const Group(
+        name: 'Visible',
+        type: GroupType.Selector,
+        now: 'Selected',
+        hidden: false,
+        all: [Proxy(name: 'Selected', type: 'Direct', now: 'runtime')],
+      ),
+      const Group(name: 'Hidden', type: GroupType.Selector, hidden: true),
+      Group(
+        name: GroupName.GLOBAL.name,
+        type: GroupType.Selector,
+        hidden: true,
+      ),
+    ];
+    container.read(groupsProvider.notifier).update((_) => groups);
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+
+    final ruleGroups = container.read(currentGroupsStateProvider).value;
+    expect(ruleGroups.map((group) => group.name), ['Visible']);
+    expect(ruleGroups.single.now, isEmpty);
+    expect(ruleGroups.single.all.single.now, isEmpty);
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.global));
+    expect(container.read(currentGroupsStateProvider).value, hasLength(3));
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.direct));
+    expect(container.read(currentGroupsStateProvider).value, isEmpty);
+  });
+
+  test('a GLOBAL group of the profile\'s own shows in rule mode', () {
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => [
+            Group(
+              name: GroupName.GLOBAL.name,
+              type: GroupType.Selector,
+              hidden: false,
+            ),
+          ],
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+
+    expect(
+      container
+          .read(currentGroupsStateProvider)
+          .value
+          .map((group) => group.name),
+      [GroupName.GLOBAL.name],
+    );
+  });
+
+  test('an overriding GLOBAL is alone in global mode and out of rule mode', () {
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => [
+            const Group(
+              name: 'Service',
+              type: GroupType.Selector,
+              hidden: false,
+            ),
+            Group(
+              name: GroupName.GLOBAL.name,
+              type: GroupType.Selector,
+              hidden: false,
+            ),
+          ],
+        );
+    container.read(globalOverrideProvider.notifier).value = true;
+    List<String> shown(Mode mode) {
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update((state) => state.copyWith(mode: mode));
+      return [
+        for (final group in container.read(currentGroupsStateProvider).value)
+          group.name,
+      ];
+    }
+
+    expect(shown(Mode.rule), ['Service']);
+    expect(shown(Mode.global), [GroupName.GLOBAL.name]);
+  });
+
+  test('group derivation ignores a change of selection only', () {
+    Group group(String now, String nestedNow) => Group(
+      name: 'Visible',
+      type: GroupType.Selector,
+      now: now,
+      hidden: false,
+      all: [
+        const Proxy(name: 'Node', type: 'Direct'),
+        Proxy(name: 'Auto', type: 'URLTest', now: nestedNow),
+      ],
+    );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+    container.read(groupsProvider.notifier).update((_) => [group('Node', 'a')]);
+    var notified = 0;
+    container.listen(currentGroupsStateProvider, (_, _) => notified++);
+
+    container.read(groupsProvider.notifier).update((_) => [group('Auto', 'b')]);
+    container.read(currentGroupsStateProvider);
+
+    expect(notified, 0);
+  });
+
+  test('hiding timed-out nodes leaves the rest of the group alone', () {
+    const testUrl = 'https://default.test';
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => [
+            const Group(
+              name: 'Visible',
+              type: GroupType.Selector,
+              hidden: false,
+              all: [
+                Proxy(name: 'fast', type: 'ss'),
+                Proxy(name: 'slow', type: 'ss'),
+              ],
+            ),
+          ],
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(testUrl: testUrl));
+    container
+        .read(delayDataSourceProvider.notifier)
+        .setDelay(const Delay(url: testUrl, name: 'slow', value: -1));
+
+    expect(
+      container.read(visibleGroupsStateProvider).value.single.all,
+      hasLength(2),
+    );
+
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: true));
+    expect(
+      container
+          .read(visibleGroupsStateProvider)
+          .value
+          .single
+          .all
+          .map((proxy) => proxy.name),
+      ['fast'],
+    );
+  });
+
+  test('hidden timed-out nodes follow test batches and cleared delays', () {
+    const testUrl = 'https://default.test';
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(testUrl: testUrl));
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: true));
+    void setGroup(String now) {
+      container
+          .read(groupsProvider.notifier)
+          .update(
+            (_) => [
+              Group(
+                name: 'Visible',
+                type: GroupType.Selector,
+                now: now,
+                hidden: false,
+                all: const [
+                  Proxy(name: 'a', type: 'ss'),
+                  Proxy(name: 'b', type: 'ss'),
+                  Proxy(name: 'c', type: 'ss'),
+                ],
+              ),
+            ],
+          );
+    }
+
+    Iterable<String> visibleNames() => container
+        .read(visibleGroupsStateProvider)
+        .value
+        .single
+        .all
+        .map((proxy) => proxy.name);
+
+    setGroup('a');
+    expect(visibleNames(), ['a', 'b', 'c']);
+
+    container
+        .read(delayDataSourceProvider.notifier)
+        .setDelay(const Delay(url: testUrl, name: 'b', value: -1));
+    setGroup('c');
+    expect(visibleNames(), ['a', 'b', 'c']);
+
+    container.read(sortNumProvider.notifier).add();
+    expect(visibleNames(), ['a', 'c']);
+
+    container
+        .read(delayDataSourceProvider.notifier)
+        .setDelay(const Delay(url: testUrl, name: 'c', value: -1));
+    setGroup('a');
+    expect(visibleNames(), ['a', 'c']);
+
+    container.read(delayDataSourceProvider.notifier).value = {};
+    expect(visibleNames(), ['a', 'b', 'c']);
+  });
+
+  test('hiding timed-out nodes keeps the core pick, never empties a group', () {
+    const testUrl = 'https://default.test';
+    const nodes = [Proxy(name: 'a', type: 'ss'), Proxy(name: 'b', type: 'ss')];
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => [
+            const Group(
+              name: 'Auto',
+              type: GroupType.URLTest,
+              now: 'b',
+              hidden: false,
+              all: nodes,
+            ),
+            const Group(
+              name: 'Balance',
+              type: GroupType.LoadBalance,
+              hidden: false,
+              all: nodes,
+            ),
+          ],
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(testUrl: testUrl));
+    for (final node in nodes) {
+      container
+          .read(delayDataSourceProvider.notifier)
+          .setDelay(Delay(url: testUrl, name: node.name, value: -1));
+    }
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: true));
+
+    final groups = container.read(visibleGroupsStateProvider).value;
+    expect(groups.first.all.map((proxy) => proxy.name), ['b']);
+    expect(groups.last.all.map((proxy) => proxy.name), ['a', 'b']);
+  });
+
+  test('hiding timed-out nodes keeps a group listed in another', () {
+    const testUrl = 'https://default.test';
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => const [
+            Group(
+              name: 'Proxy',
+              type: GroupType.Selector,
+              now: 'a',
+              hidden: false,
+              all: [
+                Proxy(name: 'a', type: 'ss'),
+                Proxy(name: 'HK', type: 'Selector'),
+              ],
+            ),
+            Group(
+              name: 'HK',
+              type: GroupType.Selector,
+              now: 'b',
+              hidden: true,
+              all: [Proxy(name: 'b', type: 'ss')],
+            ),
+          ],
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(testUrl: testUrl));
+    container
+        .read(delayDataSourceProvider.notifier)
+        .setDelay(const Delay(url: testUrl, name: 'b', value: -1));
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: true));
+
+    expect(
+      container
+          .read(visibleGroupsStateProvider)
+          .value
+          .single
+          .all
+          .map((proxy) => proxy.name),
+      ['a', 'HK'],
+    );
+  });
+
+  test('a search whose matches all timed out keeps them and their group', () {
+    const testUrl = 'https://default.test';
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => const [
+            Group(
+              name: 'Proxy',
+              type: GroupType.Selector,
+              now: 'JP',
+              hidden: false,
+              all: [
+                Proxy(name: 'HK 01', type: 'ss'),
+                Proxy(name: 'HK 02', type: 'ss'),
+                Proxy(name: 'JP', type: 'ss'),
+              ],
+            ),
+          ],
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(testUrl: testUrl));
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: true));
+    final delays = container.read(delayDataSourceProvider.notifier);
+    delays.setDelay(const Delay(url: testUrl, name: 'HK 01', value: -1));
+    delays.setDelay(const Delay(url: testUrl, name: 'HK 02', value: -1));
+
+    List<String> names(String query) => [
+      for (final proxy
+          in container.read(filterGroupsStateProvider(query)).value.single.all)
+        proxy.name,
+    ];
+
+    expect(names(''), ['JP']);
+    expect(names('hk'), ['HK 01', 'HK 02']);
+
+    delays.setDelay(const Delay(url: testUrl, name: 'HK 02', value: 80));
+    container.read(sortNumProvider.notifier).add();
+    expect(names('hk'), ['HK 02']);
+  });
+
+  test('navigation providers select items for width and current page', () {
+    container
+        .read(viewSizeProvider.notifier)
+        .update((_) => Size(maxMobileWidth.toDouble(), 800));
+    final mobile = container.read(currentNavigationItemsStateProvider).value;
+    expect(
+      mobile.map((item) => item.label),
+      containsAll([PageLabel.dashboard, PageLabel.profiles, PageLabel.tools]),
+    );
+    expect(
+      mobile.map((item) => item.label),
+      isNot(contains(PageLabel.connections)),
+    );
+
+    container
+        .read(viewSizeProvider.notifier)
+        .update((_) => const Size(1200, 800));
+    container
+        .read(currentPageLabelProvider.notifier)
+        .toPage(PageLabel.connections);
+    final desktop = container.read(navigationStateProvider);
+    expect(desktop.viewMode, ViewMode.desktop);
+    expect(desktop.currentIndex, greaterThan(0));
+    expect(
+      desktop.navigationItems[desktop.currentIndex].label,
+      PageLabel.connections,
+    );
+
+    container
+        .read(currentPageLabelProvider.notifier)
+        .toPage(PageLabel.resources);
+    expect(container.read(navigationStateProvider).currentIndex, 0);
+  });
+
+  test('layout and page state providers compose their dependencies', () {
+    final profile = Profile.normal(label: 'Primary');
+    _profiles(container).replace([profile]);
+    container.read(currentProfileIdProvider.notifier).update((_) => profile.id);
+    container
+        .read(viewSizeProvider.notifier)
+        .update((_) => const Size(1000, 800));
+    container.read(sideWidthProvider.notifier).update((_) => 200);
+
+    final profiles = container.read(profilesStateProvider);
+    expect(profiles.profiles.single.label, 'Primary');
+    expect(profiles.currentProfileId, profile.id);
+
+    final dashboard = container.read(dashboardStateProvider);
+    expect(dashboard.dashboardWidgets, isNotEmpty);
+  });
+
+  test(
+    'proxy list and tab providers filter groups and preserve selections',
+    () {
+      final profile = Profile.normal().copyWith(
+        currentGroupName: 'Group B',
+        unfoldSet: {'Group A'},
+      );
+      final groups = [
+        const Group(
+          name: 'Group A',
+          type: GroupType.Selector,
+          hidden: false,
+          all: [
+            Proxy(name: 'Alpha', type: 'Direct'),
+            Proxy(name: 'Beta', type: 'Direct'),
+          ],
+        ),
+        const Group(
+          name: 'Group B',
+          type: GroupType.URLTest,
+          hidden: false,
+          testUrl: 'https://group.test',
+          all: [Proxy(name: 'Gamma', type: 'Direct')],
+        ),
+      ];
+      _profiles(container).replace([profile]);
+      container
+          .read(currentProfileIdProvider.notifier)
+          .update((_) => profile.id);
+      container.read(groupsProvider.notifier).update((_) => groups);
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update((state) => state.copyWith(mode: Mode.rule));
+      container
+          .read(viewSizeProvider.notifier)
+          .update((_) => const Size(900, 800));
+
+      expect(container.read(filterGroupsStateProvider('')).value, hasLength(2));
+      final filtered = container.read(filterGroupsStateProvider('ALP')).value;
+      expect(filtered, hasLength(1));
+      expect(filtered.single.all.single.name, 'Alpha');
+
+      container
+          .read(queryProvider(QueryTag.proxies).notifier)
+          .update((_) => 'ga');
+      final list = container.read(proxiesListStateProvider);
+      expect(list.groups.single.name, 'Group B');
+      expect(list.currentUnfoldSet, {'Group A'});
+
+      final tab = container.read(proxiesTabStateProvider);
+      expect(tab.currentGroupName, 'Group B');
+      expect(tab.groups.single.all.single.name, 'Gamma');
+      final controller = container.read(proxiesTabControllerStateProvider);
+      expect(controller.groupNames, ['Group B']);
+      expect(controller.currentGroupName, 'Group B');
+    },
+  );
+
+  test('proxy search matches the proxy type and needs every term', () {
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => const [
+            Group(
+              name: 'Group A',
+              type: GroupType.Selector,
+              hidden: false,
+              all: [
+                Proxy(name: 'HK 01', type: 'Vmess'),
+                Proxy(name: 'HK 02', type: 'Trojan'),
+                Proxy(name: 'JP 01', type: 'Trojan'),
+              ],
+            ),
+          ],
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.rule));
+
+    List<String> names(String query) => [
+      for (final proxy
+          in container.read(filterGroupsStateProvider(query)).value.single.all)
+        proxy.name,
+    ];
+
+    expect(names('trojan'), ['HK 02', 'JP 01']);
+    expect(names('hk TROJAN'), ['HK 02']);
+    expect(container.read(filterGroupsStateProvider('hk jp')).value, isEmpty);
+  });
+
+  test('runtime, VPN, tray, and DNS states follow live state', () async {
+    container
+        .read(runTimeProvider.notifier)
+        .update((_) => DateTime(2026).millisecondsSinceEpoch);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    container
+        .read(networkSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            systemProxy: false,
+            bypassDomain: const ['localhost'],
+            autoSetSystemDns: true,
+          ),
+        );
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            mixedPort: 8899,
+            mode: Mode.global,
+            tun: state.tun.copyWith(enable: true),
+          ),
+        );
+    expect(container.read(shouldPatchSystemDnsProvider), isFalse);
+
+    container
+        .read(authorizedTunEnableProvider.notifier)
+        .update((_) => TunAuthorizationState.authorized);
+
+    final proxy = container.read(proxyStateProvider);
+    expect(proxy.isStart, isTrue);
+    expect(proxy.systemProxy, isFalse);
+    expect(proxy.bassDomain, ['localhost']);
+    expect(proxy.port, 8899);
+    expect(container.read(isStartProvider), isTrue);
+
+    final tray = container.read(trayStateProvider);
+    expect(tray.mode, Mode.global);
+    expect(tray.port, 8899);
+    expect(tray.tunEnable, isTrue);
+    expect(tray.isStart, isTrue);
+
+    final vpn = await container.read(vpnOptionsProvider.future);
+    expect(vpn.stack, container.read(patchClashConfigProvider).tun.stack.name);
+    expect(vpn.port, 8899);
+    expect(vpn.bypassDomain, ['localhost']);
+
+    expect(container.read(shouldPatchSystemDnsProvider), isTrue);
+
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(autoSetSystemDns: false));
+    expect(container.read(shouldPatchSystemDnsProvider), isFalse);
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(autoSetSystemDns: true));
+
+    container
+        .read(authorizedTunEnableProvider.notifier)
+        .update((_) => TunAuthorizationState.unauthorized);
+    expect(container.read(shouldPatchSystemDnsProvider), isFalse);
+
+    container.read(excludeSSIDsProvider.notifier).update((_) => ['Office']);
+    container.read(currentSSIDProvider.notifier).update((_) => 'Office');
+    expect(container.read(suspendProvider), isTrue);
+    expect(container.read(proxyStateProvider).isStart, isFalse);
+  });
+
+  test('the VPN notification is titled with the service, not the profile '
+      'label', () async {
+    await AppLocalizations.load(const Locale('en'));
+    Profile profile(Map<String, String> headers) => Profile(
+      id: 7,
+      label: 'user-42',
+      type: ProfileType.url,
+      url: 'https://sub.example.com/link',
+      autoUpdateDuration: Duration.zero,
+      providerHeaders: headers,
+    );
+    for (final (headers, title) in [
+      (const {'flclashx-servicename': 'Example VPN'}, 'Example VPN'),
+      (const <String, String>{}, 'user-42'),
+    ]) {
+      final scoped = ProviderContainer(
+        overrides: [
+          profilesProvider.overrideWith(() => TestProfiles([profile(headers)])),
+        ],
+      );
+      addTearDown(scoped.dispose);
+      scoped.listen(currentProfileIdProvider, (_, _) {});
+      scoped.read(currentProfileIdProvider.notifier).value = 7;
+      scoped.listen(sharedStateProvider, (_, _) {});
+
+      expect(scoped.read(sharedStateProvider).currentProfileName, title);
+    }
+  });
+
+  test('safe mode keeps every host integration off', () async {
+    await AppLocalizations.load(const Locale('en'));
+    final scoped = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(TestProfiles.new),
+        safeModeProvider.overrideWithValue(true),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    scoped.listen(sharedStateProvider, (_, _) {});
+    scoped.read(runTimeProvider.notifier).update((_) => 1);
+    scoped
+        .read(networkSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(systemProxy: true, autoSetSystemDns: true),
+        );
+    scoped
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(tun: state.tun.copyWith(enable: true)),
+        );
+    scoped
+        .read(authorizedTunEnableProvider.notifier)
+        .update((_) => TunAuthorizationState.authorized);
+    scoped
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(enable: true, systemProxy: true));
+
+    scoped
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(showTrayTitle: true));
+    scoped.listen(trayStateProvider, (_, _) {});
+    scoped
+        .read(hotKeyActionsProvider.notifier)
+        .update(
+          (_) => const [
+            HotKeyAction(
+              action: HotAction.view,
+              key: 1,
+              modifiers: {KeyboardModifier.control},
+            ),
+          ],
+        );
+
+    final tray = scoped.read(trayStateProvider);
+    expect(tray.safeMode, isTrue);
+    expect(tray.showTrayTitle, isTrue);
+    expect(tray.hotKeys.keys, [HotAction.view]);
+    expect(scoped.read(trayTitleStateProvider).showTrayTitle, isTrue);
+    expect(scoped.read(shouldPatchSystemDnsProvider), isFalse);
+    await scoped.read(vpnOptionsProvider.future);
+    final vpnOptions = scoped.read(sharedStateProvider).vpnOptions!;
+    expect(vpnOptions.enable, isFalse);
+    expect(vpnOptions.systemProxy, isFalse);
+  });
+
+  test('selection and delay providers resolve groups and profile state', () {
+    final profile = Profile.normal().copyWith(
+      selectedMap: {'Selector': 'Leaf'},
+      unfoldSet: {'Selector'},
+    );
+    const groups = [
+      Group(
+        name: 'Selector',
+        type: GroupType.Selector,
+        all: [Proxy(name: 'Leaf', type: 'Direct')],
+      ),
+    ];
+    _profiles(container).replace([profile]);
+    container.read(currentProfileIdProvider.notifier).update((_) => profile.id);
+    container.read(groupsProvider.notifier).update((_) => groups);
+    container
+        .read(delayDataSourceProvider.notifier)
+        .setDelay(
+          const Delay(
+            name: 'Leaf',
+            url: 'https://www.gstatic.com/generate_204',
+            value: 42,
+          ),
+        );
+
+    expect(container.read(selectedMapProvider), {'Selector': 'Leaf'});
+    expect(container.read(unfoldSetProvider), {'Selector'});
+    expect(container.read(proxyNameProvider('Selector')), 'Leaf');
+    expect(container.read(selectedProxyNameProvider('Selector')), 'Leaf');
+    expect(
+      container.read(realSelectedProxyStateProvider('Selector')).proxyName,
+      'Leaf',
+    );
+    expect(container.read(delayProvider(proxyName: 'Selector')), 42);
+  });
+
+  test('tray delays follow the listed groups and their test URLs', () {
+    const probeUrl = 'https://probe.example/204';
+    container
+        .read(groupsProvider.notifier)
+        .update(
+          (_) => const [
+            Group(
+              name: 'Selector',
+              type: GroupType.Selector,
+              hidden: false,
+              all: [
+                Proxy(name: 'Leaf', type: 'Direct'),
+                Proxy(name: 'Idle', type: 'Direct'),
+              ],
+            ),
+            Group(
+              name: 'Probe',
+              type: GroupType.URLTest,
+              hidden: false,
+              testUrl: probeUrl,
+              all: [Proxy(name: 'Leaf', type: 'Direct')],
+            ),
+          ],
+        );
+    container.read(delayDataSourceProvider.notifier)
+      ..setDelay(const Delay(name: 'Leaf', url: defaultTestUrl, value: 42))
+      ..setDelay(const Delay(name: 'Leaf', url: probeUrl, value: -1));
+
+    expect(container.read(trayDelaysProvider), {
+      'Selector': {'Leaf': 42},
+      'Probe': {'Leaf': -1},
+    });
+  });
+
+  test('tray hotkeys leave out bindings that cannot fire', () {
+    container.listen(trayStateProvider, (_, _) {});
+    container
+        .read(hotKeyActionsProvider.notifier)
+        .update(
+          (_) => const [
+            HotKeyAction(
+              action: HotAction.view,
+              key: 1,
+              modifiers: {KeyboardModifier.control},
+            ),
+            HotKeyAction(
+              action: HotAction.start,
+              key: 2,
+              modifiers: {KeyboardModifier.capsLock},
+            ),
+            HotKeyAction(
+              action: HotAction.tun,
+              key: 3,
+              modifiers: {KeyboardModifier.control},
+            ),
+          ],
+        );
+    container.read(hotKeyFailuresProvider.notifier).value = {
+      HotAction.tun: 'taken',
+    };
+
+    expect(container.read(trayStateProvider).hotKeys.keys, [HotAction.view]);
+  });
+
+  test('theme and simple derived providers cover fallback branches', () {
+    expect(container.read(currentBrightnessProvider), Brightness.dark);
+    container
+        .read(systemBrightnessProvider.notifier)
+        .update((_) => Brightness.light);
+    container
+        .read(themeSettingProvider.notifier)
+        .update((state) => state.copyWith(themeMode: ThemeMode.system));
+    expect(container.read(currentBrightnessProvider), Brightness.light);
+
+    final fallback = container.read(
+      genColorSchemeProvider(Brightness.light, ignoreConfig: true),
+    );
+    expect(fallback.brightness, Brightness.light);
+    final explicit = container.read(
+      genColorSchemeProvider(Brightness.dark, color: Colors.purple),
+    );
+    expect(explicit.brightness, Brightness.dark);
+
+    expect(
+      container.read(realTestUrlProvider('https://custom.test')),
+      'https://custom.test',
+    );
+  });
+
+  test('a color scheme outlives the provider that generated it', () {
+    final provider = genColorSchemeProvider(
+      Brightness.dark,
+      color: Colors.teal,
+    );
+    final first = container.read(provider);
+    container.invalidate(provider);
+
+    expect(container.read(provider), same(first));
+
+    container
+        .read(themeSettingProvider.notifier)
+        .update((state) => state.copyWith(colorStyle: ColorStyle.soft));
+    expect(container.read(provider), isNot(same(first)));
+  });
+
+  test('hotkey, profile, and extend providers expose defaults', () {
+    const action = HotKeyAction(
+      action: HotAction.start,
+      key: 1,
+      modifiers: {KeyboardModifier.control},
+    );
+    container.read(hotKeyActionsProvider.notifier).update((_) => [action]);
+    expect(container.read(getHotKeyActionProvider(HotAction.start)), action);
+    expect(
+      container.read(getHotKeyActionProvider(HotAction.tun)).action,
+      HotAction.tun,
+    );
+
+    final profile = Profile.normal().copyWith(extendType: ExtendType.script);
+    _profiles(container).replace([profile]);
+    expect(container.read(profileProvider(profile.id)), profile);
+    expect(container.read(extendTypeProvider(profile.id)), ExtendType.script);
+    expect(container.read(extendTypeProvider(-1)), ExtendType.standard);
+
+    expect(
+      container.read(accessControlStateProvider),
+      const AccessControlProps(),
+    );
+  });
+
+  test(
+    'a custom profile is no proxy provider and has no config file',
+    () async {
+      final subscription = Profile.normal(label: 'Sub');
+      final file = Profile.normal(label: 'File');
+      final custom = Profile.custom(label: 'Mine');
+      _profiles(container).replace([subscription, file, custom]);
+
+      expect(container.read(profileProvidersProvider), {
+        'Sub': subscription.id,
+        'File': file.id,
+      });
+      expect(
+        await container.read(clashConfigProvider(custom.id).future),
+        const ClashConfig(),
+      );
+    },
+  );
+
+  test('shared state hands the VPN service the resolved route list', () async {
+    await AppLocalizations.load(const Locale('en'));
+    container.listen(sharedStateProvider, (_, _) {});
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(bypassPrivateRoute: false));
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            tun: state.tun.copyWith(routeAddress: const ['10.0.0.0/8']),
+          ),
+        );
+    await container.read(vpnOptionsProvider.future);
+    expect(container.read(sharedStateProvider).vpnOptions?.routeAddress, [
+      '10.0.0.0/8',
+      '::/0',
+    ]);
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(tun: state.tun.copyWith(routeAddress: [])),
+        );
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(bypassPrivateRoute: true));
+    await container.read(vpnOptionsProvider.future);
+    expect(
+      container.read(sharedStateProvider).vpnOptions?.routeAddress,
+      subtractCidrs(const [], privateRouteAddress, wholeWhenEmpty: true),
+    );
+  });
+
+  test(
+    'exclusions that leave no route route nothing, not everything',
+    () async {
+      await AppLocalizations.load(const Locale('en'));
+      container.listen(sharedStateProvider, (_, _) {});
+      container
+          .read(networkSettingProvider.notifier)
+          .update((state) => state.copyWith(bypassPrivateRoute: false));
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              tun: state.tun.copyWith(
+                routeExcludeAddress: const ['0.0.0.0/0', '::/0'],
+              ),
+            ),
+          );
+      await container.read(vpnOptionsProvider.future);
+      var vpnOptions = container.read(sharedStateProvider).vpnOptions!;
+      expect(vpnOptions.routeAddress, isEmpty);
+      expect(vpnOptions.excludesAllRoutes, isTrue);
+
+      container
+          .read(patchClashConfigProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              tun: state.tun.copyWith(routeExcludeAddress: []),
+            ),
+          );
+      await container.read(vpnOptionsProvider.future);
+      vpnOptions = container.read(sharedStateProvider).vpnOptions!;
+      expect(vpnOptions.routeAddress, isEmpty);
+      expect(vpnOptions.excludesAllRoutes, isFalse);
+    },
+  );
+
+  test('only the route lists recompute the VPN routes', () async {
+    final computed = <List<String>?>[];
+    container.listen(
+      vpnRouteAddressProvider,
+      (_, next) => computed.add(next.value),
+      fireImmediately: true,
+    );
+    await container.read(vpnRouteAddressProvider.future);
+    computed.clear();
+
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(ipv6: !state.ipv6));
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            mixedPort: state.mixedPort + 1,
+            tun: state.tun.copyWith(mtu: state.tun.mtu - 1),
+          ),
+        );
+    await container.read(vpnOptionsProvider.future);
+    expect(computed, isEmpty);
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            tun: state.tun.copyWith(routeExcludeAddress: ['10.0.0.0/8']),
+          ),
+        );
+    await container.read(vpnRouteAddressProvider.future);
+    expect(computed.last, isNot(contains('0.0.0.0/0')));
+  });
+
+  test('shared state keeps the last routes while new ones compute', () async {
+    await AppLocalizations.load(const Locale('en'));
+    container.listen(sharedStateProvider, (_, _) {});
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(bypassPrivateRoute: false));
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            tun: state.tun.copyWith(routeAddress: const ['10.0.0.0/8']),
+          ),
+        );
+    await container.read(vpnOptionsProvider.future);
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            tun: state.tun.copyWith(routeAddress: const ['172.16.0.0/12']),
+          ),
+        );
+    expect(container.read(sharedStateProvider).vpnOptions?.routeAddress, [
+      '10.0.0.0/8',
+      '::/0',
+    ]);
+
+    await container.read(vpnOptionsProvider.future);
+    expect(container.read(sharedStateProvider).vpnOptions?.routeAddress, [
+      '172.16.0.0/12',
+      '::/0',
+    ]);
+  });
+
+  // VpnService.setHttpProxy cannot carry credentials.
+  test('local authentication withholds the VPN system proxy', () async {
+    await AppLocalizations.load(const Locale('en'));
+    container.listen(sharedStateProvider, (_, _) {});
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+    await container.read(vpnOptionsProvider.future);
+    expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, true);
+
+    container
+        .read(networkSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            authentication: const AuthenticationProps(
+              enable: true,
+              username: 'user',
+              password: 'pass',
+            ),
+          ),
+        );
+    await container.read(vpnOptionsProvider.future);
+    expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, false);
+    expect(container.read(updateParamsProvider).authentication, ['user:pass']);
+
+    container
+        .read(networkSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            authentication: const AuthenticationProps(enable: false),
+          ),
+        );
+    await container.read(vpnOptionsProvider.future);
+    expect(container.read(sharedStateProvider).vpnOptions?.systemProxy, true);
+    expect(container.read(updateParamsProvider).authentication, isEmpty);
+  });
+
+  test('androidsecure withholds the VPN system proxy', () async {
+    final scoped = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(TestProfiles.new),
+        androidSecureProvider.overrideWithValue(true),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    scoped.listen(sharedStateProvider, (_, _) {});
+    scoped
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+
+    await scoped.read(vpnOptionsProvider.future);
+
+    expect(scoped.read(sharedStateProvider).vpnOptions?.systemProxy, false);
+  });
+
+  test('the setup patch changes only with what a re-apply carries', () {
+    container.listen(setupPatchProvider, (_, _) {});
+    final initial = container.read(setupPatchProvider);
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            mode: Mode.global,
+            mixedPort: 8899,
+            tun: state.tun.copyWith(enable: true),
+          ),
+        );
+    expect(container.read(setupPatchProvider), initial);
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(hosts: const {'a.test': '1.1.1.1'}));
+    final withHosts = container.read(setupPatchProvider);
+    expect(withHosts, isNot(initial));
+
+    container
+        .read(networkSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(appendSystemDns: !state.appendSystemDns),
+        );
+    final withSystemDns = container.read(setupPatchProvider);
+    expect(withSystemDns, isNot(withHosts));
+
+    container
+        .read(networkSettingProvider.notifier)
+        .update(
+          (state) =>
+              state.copyWith(bypassPrivateRoute: !state.bypassPrivateRoute),
+        );
+    expect(
+      container.read(setupPatchProvider),
+      system.isDesktop ? isNot(withSystemDns) : withSystemDns,
+    );
+  });
+
+  test('shared state carries the notification stop action switch', () async {
+    await AppLocalizations.load(const Locale('en'));
+    container.listen(sharedStateProvider, (_, _) {});
+    expect(container.read(sharedStateProvider).showStopAction, true);
+
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(showNotificationStopAction: false));
+    expect(container.read(sharedStateProvider).showStopAction, false);
+  });
+
+  test('shared state follows the locale whose messages are loaded', () async {
+    container.listen(sharedStateProvider, (_, _) {});
+    await AppLocalizations.load(const Locale('en'));
+    container.read(loadedLocaleProvider.notifier).value = const Locale('en');
+    final en = container.read(sharedStateProvider);
+
+    await AppLocalizations.load(const Locale('zh', 'CN'));
+    addTearDown(() => AppLocalizations.load(const Locale('en')));
+    expect(container.read(sharedStateProvider).stopText, en.stopText);
+
+    container.read(loadedLocaleProvider.notifier).value = const Locale(
+      'zh',
+      'CN',
+    );
+    final zh = container.read(sharedStateProvider);
+    expect(zh.stopText, isNot(en.stopText));
+    expect(zh.stopTip, isNot(en.stopTip));
+    expect(zh.startTip, isNot(en.startTip));
+  });
+}
+
+TestProfiles _profiles(ProviderContainer container) {
+  return container.read(profilesProvider.notifier) as TestProfiles;
+}

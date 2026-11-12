@@ -1,101 +1,77 @@
-import 'package:flclashx/clash/clash.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/state.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/typography.dart';
+import 'package:flutter/widgets.dart';
+
+const proxyGridSpacing = 8.0;
 
 double get listHeaderHeight {
   final measure = globalState.measure;
-  return 20 + measure.titleMediumHeight + 4 + measure.bodyMediumHeight;
+  return 20 +
+      measure.textHeight(AppTextStyle.callout) +
+      2 +
+      measure.textHeight(AppTextStyle.caption1) +
+      2;
 }
 
 double getItemHeight(ProxyCardType proxyCardType) {
   final measure = globalState.measure;
   final baseHeight =
-      16 + measure.bodyMediumHeight * 2 + measure.bodySmallHeight + 8 + 4;
+      16 +
+      measure.textHeight(AppTextStyle.subheadline) * 2 +
+      measure.textHeight(AppTextStyle.footnote) +
+      8 +
+      4;
   return switch (proxyCardType) {
-    ProxyCardType.expand => baseHeight + measure.labelSmallHeight + 6,
-    ProxyCardType.shrink => baseHeight,
-    ProxyCardType.min => baseHeight - measure.bodyMediumHeight,
-    ProxyCardType.oneline => 16 + measure.bodyMediumHeight + 4,
+    ProxyCardType.loose =>
+      baseHeight + measure.textHeight(AppTextStyle.caption2) + 6,
+    ProxyCardType.standard => baseHeight,
+    ProxyCardType.compact =>
+      baseHeight - measure.textHeight(AppTextStyle.subheadline),
+    ProxyCardType.oneline => 20 + measure.textHeight(AppTextStyle.subheadline),
   };
 }
 
-Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) async {
-  final appController = globalState.appController;
-  final state = appController.getProxyCardState(proxy.name);
-  final url = state.testUrl.getSafeValue(
-    appController.getRealTestUrl(testUrl),
-  );
-  if (state.proxyName.isEmpty) {
-    return;
-  }
-  appController.setDelay(
-    Delay(
-      url: url,
-      name: state.proxyName,
-      value: 0,
-    ),
-  );
-  try {
-    appController.setDelay(
-      await clashCore.getDelay(
-        url,
-        state.proxyName,
-      ),
-    );
-  } catch (_) {
-    appController.setDelay(
-      Delay(
-        url: url,
-        name: state.proxyName,
-        value: -1,
-      ),
-    );
+double getRowExtent(ProxyCardType proxyCardType) =>
+    getItemHeight(proxyCardType) + proxyGridSpacing;
+
+class GroupOffsets {
+  const GroupOffsets(this.groups, this.offsets);
+
+  final List<Group> groups;
+  final List<double> offsets;
+
+  double offsetOf(String groupName) {
+    final index = groups.indexWhere((group) => group.name == groupName);
+    if (index < 0 || index >= offsets.length) {
+      return 0;
+    }
+    return offsets[index];
   }
 }
 
-Future<void> delayTest(List<Proxy> proxies, [String? testUrl]) async {
-  final appController = globalState.appController;
-  final proxyNames = proxies.map((proxy) => proxy.name).toSet().toList();
-
-  final delayProxies = proxyNames.map<Future>((proxyName) async {
-    final state = appController.getProxyCardState(proxyName);
-    final url = state.testUrl.getSafeValue(
-      appController.getRealTestUrl(testUrl),
-    );
-    final name = state.proxyName;
-    if (name.isEmpty) {
-      return;
-    }
-    appController.setDelay(
-      Delay(
-        url: url,
-        name: name,
-        value: 0,
-      ),
-    );
-    try {
-      appController.setDelay(
-        await clashCore.getDelay(
-          url,
-          name,
-        ),
-      );
-    } catch (_) {
-      appController.setDelay(
-        Delay(
-          url: url,
-          name: name,
-          value: -1,
-        ),
-      );
-    }
-  }).toList();
-
-  final batchesDelayProxies = delayProxies.batch(100);
-  for (final batchDelayProxies in batchesDelayProxies) {
-    await Future.wait(batchDelayProxies);
+double? selectedRowOffset({
+  required List<Proxy> proxies,
+  required String? selectedProxyName,
+  required int columns,
+  required double rowExtent,
+}) {
+  final index = proxies.indexWhere((proxy) => proxy.name == selectedProxyName);
+  if (index < 0) {
+    return null;
   }
-  appController.addSortNum();
+  return (index ~/ columns) * rowExtent;
+}
+
+void animateScrollTo(ScrollController controller, double offset) {
+  if (!controller.hasClients) {
+    return;
+  }
+  final position = controller.position;
+  controller.animateTo(
+    offset.clamp(position.minScrollExtent, position.maxScrollExtent),
+    duration: const Duration(milliseconds: 300),
+    curve: Curves.easeOutCubic,
+  );
 }

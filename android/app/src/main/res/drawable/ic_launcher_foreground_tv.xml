@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    <!-- The glyph of assets_source/images/icon/glyph.svg on its 240 box, held inside the TV safe zone. -->
+    <group
+        android:scaleX="0.9"
+        android:scaleY="0.9"
+        android:translateX="15.23"
+        android:translateY="12.22">
+        <group
+            android:scaleX="0.148"
+            android:scaleY="0.148"
+            android:translateX="41.6"
+            android:translateY="40.8">
+            <path
+                android:fillColor="#C8D6E5"
+                android:pathData="M247,1019.1L247,1019.1A80.2,80.2 75,0 1,217.6 909.5L702.6,69.5A80.2,80.2 75,0 1,812.2 40.1L812.2,40.1A80.2,80.2 75,0 1,841.5 149.7L356.5,989.7A80.2,80.2 75,0 1,247 1019.1z" />
+            <path
+                android:fillColor="#3FA6BC"
+                android:pathData="M842.6,909.3C864.8,947.7 851.6,996.7 813.3,1018.9C774.9,1041 725.8,1027.9 703.7,989.5L547.7,719.4C545.9,716.3 545.9,712.5 547.7,709.4L628.8,568.9C632.6,562.3 642.3,562.3 646.1,568.9L842.6,909.3ZM248.1,39.9C286.4,17.8 335.5,30.9 357.6,69.3L514.2,340.4C515.9,343.5 515.9,347.3 514.2,350.4L433.1,490.8C429.2,497.5 419.6,497.5 415.8,490.8L218.7,149.5C196.6,111.1 209.7,62.1 248.1,39.9Z" />
+        </group>
+    </group>
+</vector>

@@ -8,25 +8,31 @@ import 'constant.dart';
 import 'system.dart';
 
 class AutoLaunch {
+  static AutoLaunch? _instance;
+
+  AutoLaunch._internal() {
+    launcher.setup(appName: appName, appPath: Platform.resolvedExecutable);
+  }
 
   factory AutoLaunch() {
     _instance ??= AutoLaunch._internal();
     return _instance!;
   }
 
-  AutoLaunch._internal() {
-    launchAtStartup.setup(
-      appName: appName,
-      appPath: Platform.resolvedExecutable,
-    );
+  @visibleForTesting
+  static LaunchAtStartup launcher = launchAtStartup;
+
+  Future<bool> get isEnable async {
+    return launcher.isEnabled();
   }
-  static AutoLaunch? _instance;
 
-  Future<bool> get isEnable async => launchAtStartup.isEnabled();
+  Future<bool> enable() async {
+    return launcher.enable();
+  }
 
-  Future<bool> enable() async => launchAtStartup.enable();
-
-  Future<bool> disable() async => launchAtStartup.disable();
+  Future<bool> disable() async {
+    return launcher.disable();
+  }
 
   Future<void> updateStatus(bool isAutoLaunch) async {
     if (kDebugMode) {
@@ -34,11 +40,11 @@ class AutoLaunch {
     }
     if (await isEnable == isAutoLaunch) return;
     if (isAutoLaunch == true) {
-      enable();
+      unawaited(enable());
     } else {
-      disable();
+      unawaited(disable());
     }
   }
 }
 
-final autoLaunch = system.isDesktop ? AutoLaunch() : null;
+final autoLaunch = system.isDesktop && !safeModeBuild ? AutoLaunch() : null;

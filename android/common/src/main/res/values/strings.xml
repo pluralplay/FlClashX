@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="notification_stop">Stop</string>
-    <string name="notification_channel_name">FlClashX</string>
+    <string name="app_name">FlClashX</string>
+    <string name="service_channel_name">FlClashX Service</string>
 </resources>

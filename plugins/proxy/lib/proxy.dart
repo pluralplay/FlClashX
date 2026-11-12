@@ -1,264 +1,101 @@
 import 'dart:io';
 
-import "package:path/path.dart";
-
 import 'proxy_platform_interface.dart';
+import 'src/linux_proxy.dart';
+import 'src/macos_proxy.dart';
+import 'src/proxy_command.dart';
+import 'src/windows_proxy.dart';
 
-enum ProxyTypes { http, https, socks }
+export 'src/proxy_command.dart' show ProxyExecutableChecker, ProxyProcessRunner;
 
-class Proxy extends ProxyPlatform {
-  static String url = "127.0.0.1";
+typedef ProxyPortProbe = Future<bool> Function(int port);
 
-  @override
-  Future<bool?> startProxy(
+class Proxy {
+  static const int _minPort = 1;
+  static const int _maxPort = 65535;
+
+  late final LinuxProxy _linuxProxy;
+  late final MacosProxy _macosProxy;
+  final ProxyPortProbe _isListening;
+
+  Proxy({
+    ProxyProcessRunner? processRunner,
+    ProxyExecutableChecker? executableChecker,
+    ProxyPortProbe? isListening,
+  }) : _isListening = isListening ?? _acceptsConnections {
+    final commandRunner = ProxyCommandRunner(processRunner ?? Process.run);
+    _linuxProxy = LinuxProxy(
+      commandRunner: commandRunner,
+      executableChecker: executableChecker,
+    );
+    _macosProxy = MacosProxy(commandRunner: commandRunner);
+  }
+
+  Future<bool> startProxy(
     int port, [
     List<String> bypassDomain = const [],
   ]) async {
+    if (port < _minPort || port > _maxPort) {
+      return false;
+    }
     return switch (Platform.operatingSystem) {
-      "macos" => await _startProxyWithMacos(port, bypassDomain),
-      "linux" => await _startProxyWithLinux(port, bypassDomain),
-      "windows" => await ProxyPlatform.instance.startProxy(port, bypassDomain),
+      'macos' => await _macosProxy.start(port, bypassDomain),
+      'linux' => await _linuxProxy.start(
+        port,
+        bypassDomain,
+        desktop: Platform.environment['XDG_CURRENT_DESKTOP'],
+        homeDir: Platform.environment['HOME'],
+      ),
+      'windows' => await ProxyPlatform.instance.startProxy(
+        port,
+        windowsBypassList(bypassDomain),
+      ),
       String() => false,
     };
   }
 
-  @override
-  Future<bool?> stopProxy() async {
+  /// Turns off a proxy left on 127.0.0.1 at a port nothing listens on, which
+  /// is broken whoever set it, and leaves any other setting alone.
+  Future<bool> clearStaleProxy() async {
     return switch (Platform.operatingSystem) {
-      "macos" => await _stopProxyWithMacos(),
-      "linux" => await _stopProxyWithLinux(),
-      "windows" => await ProxyPlatform.instance.stopProxy(),
+      'macos' => await _macosProxy.clearStale(_isListening),
+      'linux' => await _linuxProxy.clearStale(
+        _isListening,
+        desktop: Platform.environment['XDG_CURRENT_DESKTOP'],
+        homeDir: Platform.environment['HOME'],
+      ),
+      'windows' => await ProxyPlatform.instance.clearStaleProxy(),
       String() => false,
     };
   }
 
-  Future<bool> _startProxyWithLinux(int port, List<String> bypassDomain) async {
+  /// Only a refused connection shows the port is dead; a probe that fails
+  /// any other way may be blocked while browsers still get through.
+  static Future<bool> _acceptsConnections(int port) async {
     try {
-      final homeDir = Platform.environment['HOME']!;
-      final configDir = join(homeDir, ".config");
-      final cmdList = List<List<String>>.empty(growable: true);
-      final desktop = Platform.environment['XDG_CURRENT_DESKTOP'];
-      final isKDE = desktop == "KDE";
-      if (isKDE) {
-        cmdList.add(
-          [
-            "kwriteconfig5",
-            "--file",
-            "$configDir/kioslaverc",
-            "--group",
-            "Proxy Settings",
-            "--key",
-            "ProxyType",
-            "1"
-          ],
-        );
-        cmdList.add(
-          [
-            "kwriteconfig5",
-            "--file",
-            "$configDir/kioslaverc",
-            "--group",
-            "Proxy Settings",
-            "--key",
-            "NoProxyFor",
-            bypassDomain.join(",")
-          ],
-        );
-      } else {
-        cmdList.add(
-          ["gsettings", "set", "org.gnome.system.proxy", "mode", "manual"],
-        );
-        final ignoreHosts = "\"['${bypassDomain.join("', '")}']\"";
-        cmdList.add(
-          [
-            "gsettings",
-            "set",
-            "org.gnome.system.proxy",
-            "ignore-hosts",
-            ignoreHosts
-          ],
-        );
-      }
-      for (final type in ProxyTypes.values) {
-        if (!isKDE) {
-          cmdList.add(
-            [
-              "gsettings",
-              "set",
-              "org.gnome.system.proxy.${type.name}",
-              "host",
-              url
-            ],
-          );
-          cmdList.add(
-            [
-              "gsettings",
-              "set",
-              "org.gnome.system.proxy.${type.name}",
-              "port",
-              "$port"
-            ],
-          );
-          cmdList.add(
-            [
-              "gsettings",
-              "set",
-              "org.gnome.system.proxy.${type.name}",
-              "port",
-              "$port"
-            ],
-          );
-          cmdList.add(
-            [
-              "gsettings",
-              "set",
-              "org.gnome.system.proxy.${type.name}",
-              "port",
-              "$port"
-            ],
-          );
-        }
-        if (isKDE) {
-          cmdList.add(
-            [
-              "kwriteconfig5",
-              "--file",
-              "$configDir/kioslaverc",
-              "--group",
-              "Proxy Settings",
-              "--key",
-              "${type.name}Proxy",
-              "${type.name}://$url:$port"
-            ],
-          );
-        }
-      }
-      for (final cmd in cmdList) {
-        await Process.run(cmd[0], cmd.sublist(1), runInShell: true);
-      }
+      final socket = await Socket.connect(
+        InternetAddress.loopbackIPv4,
+        port,
+        timeout: const Duration(seconds: 1),
+      );
+      socket.destroy();
       return true;
-    } catch (_) {
-      return false;
+    } on SocketException catch (error) {
+      return error.osError?.errorCode != _connectionRefused;
     }
   }
 
-  Future<bool> _stopProxyWithLinux() async {
-    try {
-      final homeDir = Platform.environment['HOME']!;
-      final configDir = join(homeDir, ".config/");
-      final cmdList = List<List<String>>.empty(growable: true);
-      final desktop = Platform.environment['XDG_CURRENT_DESKTOP'];
-      final isKDE = desktop == "KDE";
-      if (isKDE) {
-        cmdList.add(
-          [
-            "kwriteconfig5",
-            "--file",
-            "$configDir/kioslaverc",
-            "--group",
-            "Proxy Settings",
-            "--key",
-            "ProxyType",
-            "0"
-          ],
-        );
-      } else {
-        cmdList.add(
-          ["gsettings", "set", "org.gnome.system.proxy", "mode", "none"],
-        );
-      }
-      for (final cmd in cmdList) {
-        await Process.run(cmd[0], cmd.sublist(1));
-      }
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
+  static int get _connectionRefused => Platform.isMacOS ? 61 : 111;
 
-  Future<bool> _startProxyWithMacos(int port, List<String> bypassDomain) async {
-    try {
-      final devices = await _getNetworkDeviceListWithMacos();
-      for (final dev in devices) {
-        await Future.wait([
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setwebproxystate", dev, "on"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setwebproxy", dev, url, "$port"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setsecurewebproxystate", dev, "on"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setsecurewebproxy", dev, url, "$port"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setsocksfirewallproxystate", dev, "on"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setsocksfirewallproxy", dev, url, "$port"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            [
-              "-setproxybypassdomains",
-              dev,
-              bypassDomain.join(","),
-            ],
-          ),
-        ]);
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> _stopProxyWithMacos() async {
-    try {
-      final devices = await _getNetworkDeviceListWithMacos();
-      for (final dev in devices) {
-        await Future.wait([
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setautoproxystate", dev, "off"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setwebproxystate", dev, "off"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setsecurewebproxystate", dev, "off"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setsocksfirewallproxystate", dev, "off"],
-          ),
-          Process.run(
-            "/usr/sbin/networksetup",
-            ["-setproxybypassdomains", dev, ""],
-          ),
-        ]);
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<List<String>> _getNetworkDeviceListWithMacos() async {
-    final res = await Process.run(
-        "/usr/sbin/networksetup", ["-listallnetworkservices"]);
-    final lines = res.stdout.toString().split("\n");
-    lines.removeWhere((element) => element.contains("*"));
-    return lines;
+  Future<bool> stopProxy() async {
+    return switch (Platform.operatingSystem) {
+      'macos' => await _macosProxy.stop(),
+      'linux' => await _linuxProxy.stop(
+        desktop: Platform.environment['XDG_CURRENT_DESKTOP'],
+        homeDir: Platform.environment['HOME'],
+      ),
+      'windows' => await ProxyPlatform.instance.stopProxy(),
+      String() => false,
+    };
   }
 }

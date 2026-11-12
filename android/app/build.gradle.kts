@@ -1,38 +1,31 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Firebase only activates when the config is present — building without it stays
-// valid (contributors and CI runs without the secret).
-if (file("google-services.json").exists()) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
-}
-
-val localPropertiesFile = rootProject.file("local.properties")
 val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
     if (localPropertiesFile.exists()) {
         localPropertiesFile.inputStream().use { load(it) }
     }
 }
 
-val mStoreFile: File = file("keystore.jks")
-val mStorePassword: String? = localProperties.getProperty("storePassword")
-val mKeyAlias: String? = localProperties.getProperty("keyAlias")
-val mKeyPassword: String? = localProperties.getProperty("keyPassword")
-val isRelease = mStoreFile.exists()
-        && mStorePassword != null
-        && mKeyAlias != null
-        && mKeyPassword != null
+val releaseStoreFile = file("keystore.jks")
+val releaseStorePassword = localProperties.getProperty("storePassword")
+val releaseKeyAlias = localProperties.getProperty("keyAlias")
+val releaseKeyPassword = localProperties.getProperty("keyPassword")
+val hasReleaseSigning = releaseStoreFile.exists() &&
+    releaseStorePassword != null &&
+    releaseKeyAlias != null &&
+    releaseKeyPassword != null
 
 android {
     namespace = "com.follow.clashx"
-    compileSdk = 36
-    ndkVersion = "28.0.13004108"
+    compileSdk = libs.versions.compileSdk.get().toInt()
+    ndkVersion = libs.versions.ndkVersion.get()
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -40,25 +33,23 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
         applicationId = "com.follow.clashx"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
+        targetSdk = libs.versions.targetSdk.get().toInt()
+        // Releases up to 0.5.0-pre.8 gave split APKs Flutter's ABI offset of up to +4000, so the
+        // code every variant now shares sits above it and any earlier APK upgrades to any variant.
+        versionCode = flutter.versionCode + 5000
         versionName = flutter.versionName
     }
 
     signingConfigs {
-        if (isRelease) {
+        if (hasReleaseSigning) {
             create("release") {
-                storeFile = mStoreFile
-                storePassword = mStorePassword
-                keyAlias = mKeyAlias
-                keyPassword = mKeyPassword
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
@@ -72,24 +63,35 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            applicationIdSuffix = ".dev"
         }
 
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            isDebuggable = false
-
-            signingConfig = if (isRelease) {
-                signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                signingConfig = signingConfigs.getByName("debug")
+                applicationIdSuffix = ".dev"
             }
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
+    }
+
+    sourceSets {
+        // Unit tests live under android/tests/ instead of each module's src/test.
+        getByName("test").java.setSrcDirs(listOf("../tests/app"))
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -98,17 +100,12 @@ flutter {
 }
 
 dependencies {
-    implementation(project(":core"))
-    implementation(project(":common"))
     implementation(project(":service"))
-    implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.android.tools.smali:smali-dexlib2:3.0.9") {
-        exclude(group = "com.google.guava", module = "guava")
-    }
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-    implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
-    implementation("com.google.firebase:firebase-crashlytics-ndk")
-    implementation("com.google.firebase:firebase-analytics")
+    implementation(project(":common"))
+    implementation(project(":core"))
+    implementation(libs.core.splashscreen)
+    implementation(libs.gson)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

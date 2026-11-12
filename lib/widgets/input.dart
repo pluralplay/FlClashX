@@ -1,595 +1,268 @@
-import 'package:flclashx/common/app_localizations.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/models/common.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/dialog.dart';
-import 'package:flclashx/widgets/null_status.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/models/common.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/ui.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'card.dart';
-import 'effect.dart';
-import 'float_layout.dart';
-import 'list.dart';
+part 'edit_view.dart';
 
-class OptionsDialog<T> extends StatelessWidget {
+class BatchInput<T> {
+  static const maxShownIssues = 3;
 
-  const OptionsDialog({
-    super.key,
-    required this.title,
-    required this.options,
-    required this.textBuilder,
-    required this.value,
+  final String label;
+  final String formatTip;
+  final ParsedInput<T> Function(String text) parse;
+  final String Function(InputIssue issue) issueMessage;
+
+  const BatchInput({
+    required this.label,
+    required this.formatTip,
+    required this.parse,
+    required this.issueMessage,
   });
-  final String title;
-  final List<T> options;
-  final T value;
-  final String Function(T value) textBuilder;
 
-  @override
-  Widget build(BuildContext context) => CommonDialog(
-      title: title,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 16,
-      ),
-      child: Wrap(
-        children: [
-          for (final option in options)
-            Builder(
-              builder: (context) {
-                if (value == option) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    Scrollable.ensureVisible(context);
-                  });
-                }
-                return ListItem.radio(
-                  delegate: RadioDelegate(
-                    value: option,
-                    groupValue: value,
-                    onChanged: (value) {
-                      Navigator.of(context).pop(value);
-                    },
-                  ),
-                  title: Text(textBuilder(option)),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-}
-
-class CommonCheckBox extends StatelessWidget {
-
-  const CommonCheckBox({
-    required this.value,
-    required this.onChanged,
-    this.isCircle = false,
-    super.key,
-  });
-  final bool? value;
-  final ValueChanged<bool?>? onChanged;
-  final bool isCircle;
-
-  @override
-  Widget build(BuildContext context) => Checkbox(
-      shape: isCircle ? const CircleBorder() : null,
-      value: value,
-      onChanged: onChanged,
-    );
-}
-
-class InputDialog extends StatefulWidget {
-
-  const InputDialog({
-    super.key,
-    required this.title,
-    required this.value,
-    this.suffixText,
-    this.resetValue,
-    this.hintText,
-    this.validator,
-    this.labelText,
-    this.autovalidateMode = AutovalidateMode.onUserInteraction,
-  });
-  final String title;
-  final String value;
-  final String? suffixText;
-  final String? labelText;
-  final String? resetValue;
-  final String? hintText;
-  final FormFieldValidator<String>? validator;
-  final AutovalidateMode? autovalidateMode;
-
-  @override
-  State<InputDialog> createState() => _InputDialogState();
-}
-
-class _InputDialogState extends State<InputDialog> {
-  final _formKey = GlobalKey<FormState>();
-
-  late TextEditingController textController;
-
-  String get value => widget.value;
-
-  String get title => widget.title;
-
-  String? get suffixText => widget.suffixText;
-
-  @override
-  void initState() {
-    super.initState();
-    textController = TextEditingController(
-      text: value,
-    );
-  }
-
-  Future<void> _handleUpdate() async {
-    if (_formKey.currentState?.validate() == false) return;
-    final text = textController.value.text;
-    Navigator.of(context).pop<String>(text);
-  }
-
-  Future<void> _handleReset() async {
-    if (widget.resetValue == null) {
-      return;
+  String? issuesOf(AppLocalizations appLocalizations, ParsedInput<T>? parsed) {
+    if (parsed == null || parsed.isValid) {
+      return null;
     }
-    Navigator.of(context).pop<String>(widget.resetValue);
-  }
-
-  @override
-  Widget build(BuildContext context) => CommonDialog(
-      title: title,
-      actions: [
-        if (widget.resetValue != null &&
-            textController.value.text != widget.resetValue) ...[
-          TextButton(
-            onPressed: _handleReset,
-            child: Text(appLocalizations.reset),
-          ),
-          const SizedBox(
-            width: 4,
-          ),
-        ],
-        TextButton(
-          onPressed: _handleUpdate,
-          child: Text(appLocalizations.submit),
+    return parsed.issues
+        .take(maxShownIssues)
+        .map(
+          (issue) =>
+              appLocalizations.lineIssueTip(issue.line, issueMessage(issue)),
         )
-      ],
-      child: Form(
-        autovalidateMode: widget.autovalidateMode,
-        key: _formKey,
-        child: Wrap(
-          runSpacing: 16,
-          children: [
-            TextFormField(
-              keyboardType: TextInputType.url,
-              maxLines: 5,
-              minLines: 1,
-              controller: textController,
-              onFieldSubmitted: (_) {
-                _handleUpdate();
-              },
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                suffixText: suffixText,
-                hintText: widget.hintText,
-                labelText: widget.labelText,
-              ),
-              validator: widget.validator,
-            ),
-          ],
-        ),
-      ),
-    );
+        .join('\n');
+  }
+
+  /// [issuesOf], or once a save was [attempted], that nothing was entered.
+  String? errorOf(
+    AppLocalizations appLocalizations,
+    ParsedInput<T>? parsed, {
+    required bool attempted,
+  }) {
+    final issues = issuesOf(appLocalizations, parsed);
+    if (issues != null) {
+      return issues;
+    }
+    if (attempted && parsed?.entries.isNotEmpty != true) {
+      return appLocalizations.emptyTip(label);
+    }
+    return null;
+  }
 }
 
-class ListInputPage extends StatelessWidget {
-
-  const ListInputPage({
-    super.key,
-    required this.title,
-    required this.items,
-    required this.titleBuilder,
-    required this.onChange,
-    this.leadingBuilder,
-    this.valueLabel,
-    this.subtitleBuilder,
-  });
+/// Pops a list so a single entry and a batch return through the same path.
+class EntryDialog<T> extends StatefulWidget {
   final String title;
-  final List<String> items;
-  final Widget Function(String item) titleBuilder;
-  final Widget Function(String item)? subtitleBuilder;
-  final Widget Function(String item)? leadingBuilder;
-  final String? valueLabel;
-  final Function(List<String> items) onChange;
-
-  Future<void> _handleAddOrEdit([String? item]) async {
-    String? uniqueValidator(String? value) {
-      final index = items.indexWhere(
-        (entry) => entry == value,
-      );
-      final current = item == value;
-      if (index != -1 && !current) {
-        return appLocalizations.existsTip(appLocalizations.value);
-      }
-      return null;
-    }
-
-    final valueField = Field(
-      label: valueLabel ?? appLocalizations.value,
-      value: item ?? "",
-      validator: uniqueValidator,
-    );
-    final value = await globalState.showCommonDialog<String>(
-      child: AddDialog(
-        valueField: valueField,
-        title: title,
-      ),
-    );
-    if (value == null) return;
-    final index = items.indexWhere(
-      (entry) => entry == item,
-    );
-    final nextItems = List<String>.from(items);
-    if (item != null) {
-      nextItems[index] = value;
-    } else {
-      nextItems.add(value);
-    }
-    onChange(nextItems);
-  }
-
-  void _handleDelete(String? item) {
-    final entries = List<String>.from(
-      items,
-    );
-    final index = entries.indexWhere(
-      (entry) => entry == item,
-    );
-    if (index != -1) {
-      entries.removeAt(index);
-    }
-    onChange(entries);
-  }
-
-  @override
-  Widget build(BuildContext context) => FloatLayout(
-      floatingWidget: FloatWrapper(
-        child: FloatingActionButton(
-          onPressed: () async {
-            _handleAddOrEdit();
-          },
-          child: const Icon(Icons.add),
-        ),
-      ),
-      child: items.isEmpty
-          ? NullStatus(label: appLocalizations.noData)
-          : ReorderableListView.builder(
-              padding: const EdgeInsets.only(
-                bottom: 16 + 64,
-              ),
-              buildDefaultDragHandles: false,
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final e = items[index];
-                return _InputItem(
-                  key: ValueKey(e),
-                  ReorderableDelayedDragStartListener(
-                    index: index,
-                    child: CommonCard(
-                      child: ListItem(
-                        leading:
-                            leadingBuilder != null ? leadingBuilder!(e) : null,
-                        title: titleBuilder(e),
-                        subtitle: subtitleBuilder != null
-                            ? subtitleBuilder!(e)
-                            : null,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {
-                            _handleDelete(e);
-                          },
-                        ),
-                      ),
-                      onPressed: () {
-                        _handleAddOrEdit(e);
-                      },
-                    ),
-                  ),
-                );
-              },
-              onReorder: (oldIndex, newIndex) {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final nextItems = List<String>.from(items);
-                final item = nextItems.removeAt(oldIndex);
-                nextItems.insert(newIndex, item);
-                onChange(nextItems);
-              },
-            ),
-    );
-}
-
-class MapInputPage extends StatelessWidget {
-
-  const MapInputPage({
-    super.key,
-    required this.title,
-    required this.map,
-    required this.titleBuilder,
-    required this.onChange,
-    this.leadingBuilder,
-    this.keyLabel,
-    this.valueLabel,
-    this.subtitleBuilder,
-  });
-  final String title;
-  final Map<String, String> map;
-  final Widget Function(MapEntry<String, String> item) titleBuilder;
-  final Widget Function(MapEntry<String, String> item)? subtitleBuilder;
-  final Widget Function(MapEntry<String, String> item)? leadingBuilder;
-  final String? keyLabel;
-  final String? valueLabel;
-  final Function(Map<String, String> items) onChange;
-
-  List<MapEntry<String, String>> get items =>
-      List<MapEntry<String, String>>.from(
-        map.entries,
-      );
-
-  Future<void> _handleAddOrEdit([MapEntry<String, String>? item]) async {
-    String? uniqueValidator(String? value) {
-      final index = items.indexWhere(
-        (entry) => entry.key == value,
-      );
-      final current = item?.key == value;
-      if (index != -1 && !current) {
-        return appLocalizations.existsTip(appLocalizations.key);
-      }
-      return null;
-    }
-
-    final keyField = Field(
-      label: keyLabel ?? appLocalizations.key,
-      value: item == null ? "" : item.key,
-      validator: uniqueValidator,
-    );
-
-    final valueField = Field(
-      label: valueLabel ?? appLocalizations.value,
-      value: item == null ? "" : item.value,
-    );
-
-    final value = await globalState.showCommonDialog<MapEntry<String, String>>(
-      child: AddDialog(
-        keyField: keyField,
-        valueField: valueField,
-        title: title,
-      ),
-    );
-    if (value == null) return;
-    final index = items.indexWhere(
-      (entry) => entry.key == item?.key,
-    );
-
-    final nextItems = List<MapEntry<String, String>>.from(items);
-    if (item != null) {
-      nextItems[index] = value;
-    } else {
-      nextItems.add(value);
-    }
-    onChange(Map.fromEntries(nextItems));
-  }
-
-  void _handleDelete(MapEntry<String, String> item) {
-    final entries = List<MapEntry<String, String>>.from(
-      items,
-    );
-    final index = entries.indexWhere(
-      (entry) => entry.key == item.key && item.value == entry.value,
-    );
-    if (index != -1) {
-      entries.removeAt(index);
-    }
-    onChange(Map.fromEntries(entries));
-  }
-
-  @override
-  Widget build(BuildContext context) => FloatLayout(
-      floatingWidget: FloatWrapper(
-        child: FloatingActionButton(
-          onPressed: () async {
-            _handleAddOrEdit();
-          },
-          child: const Icon(Icons.add),
-        ),
-      ),
-      child: items.isEmpty
-          ? NullStatus(label: appLocalizations.noData)
-          : ReorderableListView.builder(
-              padding: const EdgeInsets.only(
-                bottom: 16 + 64,
-              ),
-              proxyDecorator: proxyDecorator,
-              buildDefaultDragHandles: false,
-              itemCount: items.length,
-              itemBuilder: (_, index) {
-                final e = items[index];
-                return _InputItem(
-                  key: ValueKey(e.key),
-                  ReorderableDelayedDragStartListener(
-                    index: index,
-                    child: CommonCard(
-                      child: ListItem(
-                        leading:
-                            leadingBuilder != null ? leadingBuilder!(e) : null,
-                        title: titleBuilder(e),
-                        subtitle: subtitleBuilder != null
-                            ? subtitleBuilder!(e)
-                            : null,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {
-                            _handleDelete(e);
-                          },
-                        ),
-                      ),
-                      onPressed: () {
-                        _handleAddOrEdit(e);
-                      },
-                    ),
-                  ),
-                );
-              },
-              onReorder: (oldIndex, newIndex) {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final nextItems = List<MapEntry<String, String>>.from(items);
-                final item = nextItems.removeAt(oldIndex);
-                nextItems.insert(newIndex, item);
-                onChange(Map.fromEntries(nextItems));
-              },
-            ),
-    );
-}
-
-class AddDialog extends StatefulWidget {
-
-  const AddDialog({
-    super.key,
-    required this.title,
-    this.keyField,
-    required this.valueField,
-  });
-  final String title;
-  final Field? keyField;
   final Field valueField;
+  final int? valueMaxLength;
+  final T Function(String value) toEntry;
+  final BatchInput<T>? batch;
+
+  const EntryDialog({
+    super.key,
+    required this.title,
+    required this.valueField,
+    this.valueMaxLength,
+    required this.toEntry,
+    this.batch,
+  });
 
   @override
-  State<AddDialog> createState() => _AddDialogState();
+  State<EntryDialog<T>> createState() => _EntryDialogState<T>();
 }
 
-class _AddDialogState extends State<AddDialog> {
-  TextEditingController? keyController;
-  late TextEditingController valueController;
+class _EntryDialogState<T> extends State<EntryDialog<T>> {
+  late final TextEditingController _valueController;
+  final _batchController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  Field? get keyField => widget.keyField;
+  bool _isBatch = false;
+  ParsedInput<T>? _parsed;
 
   Field get valueField => widget.valueField;
 
+  bool get _canSubmit {
+    if (!_isBatch) {
+      return true;
+    }
+    final parsed = _parsed;
+    return parsed != null && parsed.isValid && parsed.entries.isNotEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
-    if (keyField != null) {
-      keyController = TextEditingController(
-        text: keyField!.value,
-      );
-    }
-    valueController = TextEditingController(
-      text: valueField.value,
-    );
+    _valueController = TextEditingController(text: valueField.value);
+  }
+
+  void _toggleBatch() {
+    setState(() {
+      _isBatch = !_isBatch;
+      if (_isBatch && _batchController.text.isEmpty) {
+        _batchController.text = _valueController.text.trim();
+      }
+      if (_isBatch) {
+        _parsed = widget.batch!.parse(_batchController.text);
+      }
+    });
+  }
+
+  void _handleBatchChanged(String text) {
+    setState(() {
+      _parsed = widget.batch!.parse(text);
+    });
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    if (keyField != null) {
-      Navigator.of(context).pop<MapEntry<String, String>>(
-        MapEntry(
-          keyController!.text,
-          valueController.text,
-        ),
-      );
-    } else {
-      Navigator.of(context).pop<String>(
-        valueController.text,
-      );
+    if (!_canSubmit) return;
+    if (_isBatch) {
+      Navigator.of(context).pop<List<T>>(_parsed!.entries);
+      return;
     }
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop<List<T>>([widget.toEntry(_valueController.text)]);
   }
 
   @override
-  Widget build(BuildContext context) => CommonDialog(
-      title: widget.title,
-      actions: [
-        TextButton(
-          onPressed: _submit,
-          child: Text(appLocalizations.confirm),
-        )
-      ],
-      child: Form(
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        key: _formKey,
-        child: Wrap(
-          runSpacing: 16,
-          children: [
-            if (keyField != null)
-              TextFormField(
-                maxLines: 2,
-                minLines: 1,
-                controller: keyController,
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: keyField!.label,
-                ),
-                validator: (value) {
-                  String? res;
-                  if (keyField!.validator != null) {
-                    res = keyField!.validator!(value);
-                  }
-                  if (res != null) {
-                    return res;
-                  }
-                  if (value == null || value.isEmpty) {
-                    return appLocalizations.emptyTip(appLocalizations.key);
-                  }
-                  return null;
-                },
-              ),
-            TextFormField(
-              maxLines: 3,
-              minLines: 1,
-              controller: valueController,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                labelText: valueField.label,
-              ),
-              validator: (value) {
-                String? res;
-                if (valueField.validator != null) {
-                  res = valueField.validator!(value);
-                }
-                if (res != null) {
-                  return res;
-                }
-                if (value == null || value.isEmpty) {
-                  return appLocalizations.emptyTip(appLocalizations.value);
-                }
-                return null;
-              },
-            ),
-          ],
-        ),
+  void dispose() {
+    _valueController.dispose();
+    _batchController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildForm(AppLocalizations appLocalizations) {
+    return Form(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      key: _formKey,
+      child: TextFormField(
+        maxLines: null,
+        minLines: 1,
+        inputFormatters: widget.valueMaxLength == null
+            ? null
+            : TextInputLimits.limit(widget.valueMaxLength!),
+        keyboardType: TextInputType.text,
+        controller: _valueController,
+        decoration: InputDecoration(hintText: valueField.label),
+        onFieldSubmitted: (_) {
+          _submit();
+        },
+        validator: (String? value) {
+          String? res;
+          if (valueField.validator != null) {
+            res = valueField.validator!(value);
+          }
+          if (res != null) {
+            return res;
+          }
+          if (value == null || value.isEmpty) {
+            return appLocalizations.emptyTip(appLocalizations.value);
+          }
+          return null;
+        },
       ),
     );
-}
-
-class _InputItem extends StatelessWidget {
-
-  const _InputItem(this.child, {super.key});
-  final Widget child;
+  }
 
   @override
-  Widget build(BuildContext context) => Material(
-      elevation: 0,
-      key: key,
-      color: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: child,
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return CommonDialog(
+      title: _isBatch ? appLocalizations.batchAdd : widget.title,
+      hasFields: true,
+      trailing: widget.batch == null
+          ? null
+          : _BatchToggle(
+              isBatch: _isBatch,
+              tooltip: _isBatch
+                  ? appLocalizations.singleAdd
+                  : appLocalizations.batchAdd,
+              onPressed: _toggleBatch,
+            ),
+      actions: [
+        TextButton(
+          onPressed: _canSubmit ? _submit : null,
+          child: Text(appLocalizations.confirm),
+        ),
+      ],
+      child: _isBatch
+          ? _BatchInputField(
+              batch: widget.batch!,
+              controller: _batchController,
+              parsed: _parsed,
+              onChanged: _handleBatchChanged,
+            )
+          : _buildForm(appLocalizations),
+    );
+  }
+}
+
+class _BatchToggle extends StatelessWidget {
+  final bool isBatch;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _BatchToggle({
+    required this.isBatch,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CommonMinIconButtonTheme(
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: GlyphIcon(isBatch ? AppGlyphs.textShort : AppGlyphs.listAdd),
       ),
     );
+  }
+}
+
+class _BatchInputField<T> extends StatelessWidget {
+  final BatchInput<T> batch;
+  final TextEditingController controller;
+  final ParsedInput<T>? parsed;
+  final ValueChanged<String> onChanged;
+
+  const _BatchInputField({
+    required this.batch,
+    required this.controller,
+    required this.parsed,
+    required this.onChanged,
+  });
+
+  String _helperText(AppLocalizations appLocalizations) {
+    final parsed = this.parsed;
+    if (parsed == null || controller.text.trim().isEmpty) {
+      return batch.formatTip;
+    }
+    return appLocalizations.batchPreviewTip(
+      parsed.entries.length,
+      parsed.skippedExisting,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return TextField(
+      controller: controller,
+      autofocus: true,
+      minLines: 4,
+      maxLines: null,
+      keyboardType: TextInputType.multiline,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: batch.label,
+        helperText: _helperText(appLocalizations),
+        helperMaxLines: 2,
+        errorText: batch.issuesOf(appLocalizations, parsed),
+        errorMaxLines: BatchInput.maxShownIssues + 1,
+      ),
+    );
+  }
 }

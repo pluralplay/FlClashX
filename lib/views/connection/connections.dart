@@ -1,326 +1,217 @@
 import 'dart:async';
 
-import 'package:flclashx/clash/clash.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/views/zashboard.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/core/controller.dart';
+import 'package:fl_clash/core/method.dart';
+import 'package:fl_clash/features/features.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
-import 'item.dart';
-import 'requests.dart';
-
-enum _ConnTab { active, log }
-
-/// The merged "Connections" page: one nav entry hosting an Active/Log segmented
-/// switch over an IndexedStack of the two bodies. Owns the shared app-bar (actions,
-/// search, keyword chips) and routes the close-all action to the Active tab only.
 class ConnectionsView extends ConsumerStatefulWidget {
-  const ConnectionsView({super.key});
+  final ScrollController? scrollController;
+  final List<CommonPopupMenuItem> titleMenuItems;
+  final Future<List<TrackerInfo>> Function()? connectionsReader;
+
+  const ConnectionsView({
+    super.key,
+    this.scrollController,
+    this.titleMenuItems = const [],
+    @visibleForTesting this.connectionsReader,
+  });
 
   @override
   ConsumerState<ConnectionsView> createState() => _ConnectionsViewState();
 }
 
 class _ConnectionsViewState extends ConsumerState<ConnectionsView>
-    with PageMixin {
-  _ConnTab _tab = _ConnTab.active;
-  String _query = '';
-  List<String> _keywords = const [];
+    with
+        WidgetsBindingObserver,
+        ActivePollingMixin<ConnectionsView>,
+        RouteMotionHoldMixin<ConnectionsView> {
+  CoreController get _core => ref.read(coreHandlerProvider);
 
-  @override
-  List<Widget> get actions => [
-        if (_tab == _ConnTab.active)
-          IconButton(
-            onPressed: () {
-              clashCore.closeConnections();
-            },
-            icon: const Icon(Icons.delete_sweep_outlined),
-          ),
-        // Placed last so it sits to the right of the search button (default order).
-        const _ZashboardButton(),
-      ];
-
-  @override
-  Null Function(String value) get onSearch => (value) {
-        setState(() {
-          _query = value;
-        });
-      };
-
-  @override
-  Null Function(List<String> keywords) get onKeywordsUpdate => (keywords) {
-        setState(() {
-          _keywords = keywords;
-        });
-      };
+  final _listController = TrackerInfoListController();
+  final _speedRanker = TrackerSpeedRanker();
+  late final ScrollController _scrollController;
+  var _loaded = false;
 
   @override
   void initState() {
     super.initState();
-    ref.listenManual(
-      isCurrentPageProvider(
-        PageLabel.connections,
-        handler: (pageLabel, viewMode) =>
-            pageLabel == PageLabel.tools && viewMode == ViewMode.mobile,
+    _scrollController =
+        widget.scrollController ?? sheetScrollController(context);
+  }
+
+  @override
+  Duration get pollInterval => const Duration(seconds: 1);
+
+  List<IconButtonData> _buildActions() {
+    return [
+      IconButtonData(
+        glyph: AppGlyphs.clearAll,
+        tooltip: context.appLocalizations.closeConnections,
+        onPressed: () async {
+          unawaited(_core.closeConnections());
+          await _refreshConnections();
+        },
       ),
-      (prev, next) {
-        if (prev != next && next == true) {
-          initPageState();
-        }
-      },
-      fireImmediately: true,
-    );
-  }
-
-  void _selectTab(_ConnTab tab) {
-    if (_tab == tab) return;
-    setState(() => _tab = tab);
-    // Re-push the app-bar so the close-all action appears/disappears with the tab.
-    initPageState();
+    ];
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          child: Center(
-            child: CommonTabBar<_ConnTab>(
-              groupValue: _tab,
-              thumbColor: context.colorScheme.surface,
-              backgroundColor: context.colorScheme.surfaceContainerHighest,
-              onValueChanged: (value) {
-                if (value != null) _selectTab(value);
-              },
-              children: {
-                _ConnTab.active: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Text(appLocalizations.connectionsActive),
-                ),
-                _ConnTab.log: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Text(appLocalizations.connectionsLog),
-                ),
-              },
-            ),
-          ),
-        ),
-        Expanded(
-          child: IndexedStack(
-            index: _tab.index,
-            children: [
-              ActiveConnectionsBody(
-                query: _query,
-                keywords: _keywords,
-                active: _tab == _ConnTab.active,
-              ),
-              LogConnectionsBody(
-                query: _query,
-                keywords: _keywords,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Opens zashboard pointed at this client's external-controller — in the
-/// built-in webview or the external browser, per the zashboardInApp setting.
-/// URL building lives in [buildZashboardUrl].
-class _ZashboardButton extends ConsumerWidget {
-  const _ZashboardButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final inApp = ref.watch(
-      appSettingProvider.select((state) => state.zashboardInApp),
-    );
-    return IconButton(
-      tooltip: 'zashboard',
-      onPressed: () => openZashboard(context, inApp: inApp),
-      icon: SvgPicture.asset(
-        'assets/images/icons/zashboard.svg',
-        width: 20,
-        height: 20,
-        // Match the other app-bar icons (muted) rather than render pure white.
-        colorFilter: ColorFilter.mode(
-          context.colorScheme.onSurfaceVariant,
-          BlendMode.srcIn,
-        ),
-      ),
-    );
-  }
-}
-
-/// The "Active" tab body: a 2s snapshot poll of live connections (gated on the page
-/// being current AND this tab selected), with per-row block. Plain body — the parent
-/// owns the app-bar; search/keywords arrive as [query]/[keywords].
-class ActiveConnectionsBody extends ConsumerStatefulWidget {
-  const ActiveConnectionsBody({
-    super.key,
-    required this.query,
-    required this.keywords,
-    required this.active,
-  });
-
-  final String query;
-  final List<String> keywords;
-  final bool active;
-
-  @override
-  ConsumerState<ActiveConnectionsBody> createState() =>
-      _ActiveConnectionsBodyState();
-}
-
-class _ActiveConnectionsBodyState extends ConsumerState<ActiveConnectionsBody>
-    with WidgetsBindingObserver {
-  final _connectionsStateNotifier = ValueNotifier<ConnectionsState>(
-    const ConnectionsState(),
-  );
-  final ScrollController _scrollController = ScrollController(
-    keepScrollOffset: false,
-  );
-
-  Timer? timer;
-  bool _isPageVisible = false;
-
-  bool get _shouldPoll => widget.active && _isPageVisible;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _connectionsStateNotifier.value = _connectionsStateNotifier.value.copyWith(
-      query: widget.query,
-      keywords: widget.keywords,
-    );
-    ref.listenManual(
-      isCurrentPageProvider(
-        PageLabel.connections,
-        handler: (pageLabel, viewMode) =>
-            pageLabel == PageLabel.tools && viewMode == ViewMode.mobile,
-      ),
-      (prev, next) {
-        _isPageVisible = next == true;
-        _syncPolling();
-      },
-      fireImmediately: true,
-    );
+  Future<void> poll(PollGuard isCurrent) async {
+    final trackerInfos = await _readConnections();
+    if (!isCurrent()) {
+      return;
+    }
+    _showConnections(trackerInfos);
   }
 
-  @override
-  void didUpdateWidget(ActiveConnectionsBody oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.query != widget.query ||
-        !listEquals(oldWidget.keywords, widget.keywords)) {
-      _connectionsStateNotifier.value = _connectionsStateNotifier.value.copyWith(
-        query: widget.query,
-        keywords: widget.keywords,
+  Future<void> _refreshConnections() async {
+    final trackerInfos = await _readConnections();
+    if (!mounted) {
+      return;
+    }
+    _showConnections(trackerInfos);
+  }
+
+  Future<List<TrackerInfo>?> _readConnections() async {
+    try {
+      final connectionsReader = widget.connectionsReader;
+      return connectionsReader != null
+          ? await connectionsReader()
+          : await _core.getConnections();
+    } catch (error) {
+      commonPrint.log(
+        'updateConnections error: $error',
+        logLevel: coreFailureLogLevel(error),
       );
-    }
-    if (oldWidget.active != widget.active) {
-      _syncPolling();
+      return null;
     }
   }
 
-  void _syncPolling() {
-    timer?.cancel();
-    timer = null;
-    if (_shouldPoll) {
-      _updateConnections();
+  void _showConnections(List<TrackerInfo>? trackerInfos) {
+    final readAt = DateTime.now();
+    if (!_loaded) {
+      setState(() => _loaded = true);
+      _applyConnections(trackerInfos, readAt);
+      return;
     }
+    updateWhenRouteSettled(() => _applyConnections(trackerInfos, readAt));
   }
 
-  Future<void> _updateConnections() async {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted && _shouldPoll) {
-        _connectionsStateNotifier.value =
-            _connectionsStateNotifier.value.copyWith(
-          connections: await clashCore.getConnections(),
-        );
-        timer = Timer(const Duration(seconds: 2), () async {
-          _updateConnections();
-        });
-      }
-    });
+  void _applyConnections(List<TrackerInfo>? trackerInfos, DateTime readAt) {
+    if (trackerInfos == null) {
+      return;
+    }
+    _listController.setTrackerInfos(_speedRanker.rank(trackerInfos, readAt));
   }
 
   Future<void> _handleBlockConnection(String id) async {
-    clashCore.closeConnection(id);
-    if (!mounted) return;
-    _connectionsStateNotifier.value = _connectionsStateNotifier.value.copyWith(
-      connections: await clashCore.getConnections(),
-    );
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Don't keep polling getConnections() every 2s while the app is backgrounded.
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      timer?.cancel();
-      timer = null;
-    } else if (state == AppLifecycleState.resumed) {
-      _syncPolling();
-    }
+    await _core.closeConnection(id);
+    await _refreshConnections();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    timer?.cancel();
-    _connectionsStateNotifier.dispose();
-    _scrollController.dispose();
-    timer = null;
+    _listController.dispose();
+    if (widget.scrollController == null) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ValueListenableBuilder<ConnectionsState>(
-        valueListenable: _connectionsStateNotifier,
-        builder: (_, state, __) {
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return CommonScaffold(
+      title: appLocalizations.liveConnections,
+      titleMenuItems: widget.titleMenuItems,
+      onKeywordsUpdate: _listController.updateKeywords,
+      searchState: AppBarSearchState(onSearch: _listController.search),
+      iconActions: _buildActions(),
+      body: ValueListenableBuilder<TrackerInfosState>(
+        valueListenable: _listController,
+        builder: (context, state, _) {
           final connections = state.list;
-          if (connections.isEmpty) {
-            return NullStatus(
-              label: appLocalizations
-                  .nullTip(appLocalizations.connectionsActive),
+          Widget buildAction(TrackerInfo trackerInfo) {
+            return _BlockConnectionButton(
+              onPressed: () {
+                _handleBlockConnection(trackerInfo.id);
+              },
             );
           }
-          return CommonScrollBar(
-            controller: _scrollController,
-            child: ListView.separated(
-              controller: _scrollController,
-              itemBuilder: (_, index) {
-                final connection = connections[index];
-                return ConnectionRow(
-                  key: Key(connection.id),
-                  connection: connection,
-                  onClickKeyword: (value) {
-                    context.commonScaffoldState?.addKeyword(value);
-                  },
-                  onBlock: () {
-                    _handleBlockConnection(connection.id);
-                  },
-                );
-              },
-              separatorBuilder: (context, index) => const Divider(
-                height: 0,
+
+          return NullStatusSwitcher(
+            isLoading: !_loaded,
+            isEmpty: connections.isEmpty,
+            isSearching: state.isSearching,
+            nullStatus: NullStatus(
+              label: appLocalizations.nullTip(appLocalizations.connections),
+              illustration: NullStatusIllustration.connections,
+            ),
+            child: RecordTableFrame<TrackerInfo>(
+              tableId: 'connections',
+              items: connections,
+              columnsOf: (width) => trackerInfoColumns(
+                context,
+                width: width,
+                isLive: true,
+                actionBuilder: buildAction,
               ),
-              itemCount: connections.length,
+              builder: (context, table, connections) => TrackerInfoAnimatedList(
+                controller: _scrollController,
+                padding: EdgeInsets.only(
+                  top: context.contentTopPadding,
+                  bottom: 16 + context.bottomInset,
+                ),
+                trackerInfos: connections,
+                table: table,
+                detailTitle: appLocalizations.details(
+                  appLocalizations.connection,
+                ),
+                actionBuilder: buildAction,
+              ),
             ),
           );
         },
-      );
+      ),
+    );
+  }
+}
+
+// One per live row: an IconButton would add a theme animation to each.
+class _BlockConnectionButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _BlockConnectionButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: context.appLocalizations.blockConnection,
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          mouseCursor: clickableCursor,
+          onTap: onPressed,
+          customBorder: AppShape.circle,
+          child: SizedBox.square(
+            dimension: 28,
+            child: Center(
+              child: GlyphIcon(
+                AppGlyphs.block,
+                size: 16,
+                color: context.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

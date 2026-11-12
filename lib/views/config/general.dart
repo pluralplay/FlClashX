@@ -1,207 +1,35 @@
-import 'dart:io' show Platform;
+import 'dart:io';
 
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/models/models.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/form/form.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/app.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/views/config/on_demand.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class OverrideNetworkSettingsItem extends ConsumerWidget {
-  const OverrideNetworkSettingsItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListItem.switchItem(
-          title: Text(appLocalizations.overrideNetworkSettings),
-          subtitle: Text(appLocalizations.overrideNetworkSettingsDesc),
-          delegate: SwitchDelegate(
-            value: overrideNetworkSettings,
-            onChanged: (value) {
-              ref.read(appSettingProvider.notifier).updateState(
-                    (state) => state.copyWith(
-                      overrideNetworkSettings: value,
-                    ),
-                  );
-            },
-          ),
-        ),
-        if (!overrideNetworkSettings)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    appLocalizations.managedByProvider,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
+part 'general/port_form.dart';
 
 class LogLevelItem extends ConsumerWidget {
   const LogLevelItem({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uiLogLevel =
-        ref.watch(patchClashConfigProvider.select((state) => state.logLevel));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    return ValueListenableBuilder<String>(
-      valueListenable: globalState.effectiveLogLevel,
-      builder: (_, effectiveName, __) {
-        final effective = LogLevel.values.firstWhere(
-          (lv) => lv.name == effectiveName,
-          orElse: () => uiLogLevel,
-        );
-        final display = isEnabled ? uiLogLevel : effective;
-        return AbsorbPointer(
-          absorbing: !isEnabled,
-          child: Opacity(
-            opacity: isEnabled ? 1.0 : 0.5,
-            child: ListItem<LogLevel>.options(
-              leading: const Icon(Icons.info_outline),
-              title: Text(appLocalizations.logLevel),
-              subtitle: Text(display.name),
-              delegate: OptionsDelegate<LogLevel>(
-                title: appLocalizations.logLevel,
-                options: LogLevel.values,
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  ref.read(patchClashConfigProvider.notifier).updateState(
-                        (state) => state.copyWith(
-                          logLevel: value,
-                        ),
-                      );
-                },
-                textBuilder: (logLevel) => logLevel.name,
-                value: display,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class UaItem extends ConsumerWidget {
-  const UaItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final globalUa =
-        ref.watch(patchClashConfigProvider.select((state) => state.globalUa));
-    return ListItem<String?>.options(
-      leading: const Icon(Icons.computer_outlined),
-      title: const Text("UA"),
-      subtitle: Text(globalUa ?? appLocalizations.defaultText),
-      delegate: OptionsDelegate<String?>(
-        title: "UA",
-        options: [
-          null,
-          "clashx-verge/v1.6.6",
-          "ClashforWindows/0.19.23",
-        ],
-        value: globalUa,
-        onChanged: (value) {
-          ref.read(patchClashConfigProvider.notifier).updateState(
-                (state) => state.copyWith(
-                  globalUa: value,
-                ),
-              );
-        },
-        textBuilder: (ua) => ua ?? appLocalizations.defaultText,
-      ),
-    );
-  }
-}
-
-class KeepAliveIntervalItem extends ConsumerWidget {
-  const KeepAliveIntervalItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uiKeepAlive = ref.watch(
-        patchClashConfigProvider.select((state) => state.keepAliveInterval));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    return ValueListenableBuilder<int>(
-      valueListenable: globalState.effectiveKeepAliveInterval,
-      builder: (_, effective, __) {
-        final display = isEnabled ? uiKeepAlive : effective;
-        return AbsorbPointer(
-          absorbing: !isEnabled,
-          child: Opacity(
-            opacity: isEnabled ? 1.0 : 0.5,
-            child: ListItem.input(
-              leading: const Icon(Icons.timer_outlined),
-              title: Text(appLocalizations.keepAliveIntervalDesc),
-              subtitle: Text("$display ${appLocalizations.seconds}"),
-              delegate: InputDelegate(
-                title: appLocalizations.keepAliveIntervalDesc,
-                suffixText: appLocalizations.seconds,
-                resetValue: "$defaultKeepAliveInterval",
-                value: "$display",
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return appLocalizations.emptyTip(appLocalizations.interval);
-                  }
-                  final intValue = int.tryParse(value);
-                  if (intValue == null) {
-                    return appLocalizations.numberTip(appLocalizations.interval);
-                  }
-                  return null;
-                },
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  final intValue = int.parse(value);
-                  ref.read(patchClashConfigProvider.notifier).updateState(
-                        (state) => state.copyWith(
-                          keepAliveInterval: intValue,
-                        ),
-                      );
-                },
-              ),
-            ),
-          ),
-        );
-      },
+  Widget build(BuildContext context, ref) {
+    return ConfigOptionsItem<LogLevel>(
+      title: (l) => l.logLevel,
+      managedKey: 'clash.log-level',
+      options: LogLevel.values,
+      textBuilder: (logLevel) => logLevel.name,
+      selector: patchClashConfigProvider.select((state) => state.logLevel),
+      onChanged: (ref, value) => ref
+          .read(patchClashConfigProvider.notifier)
+          .update((state) => state.copyWith(logLevel: value)),
     );
   }
 }
@@ -210,37 +38,52 @@ class TestUrlItem extends ConsumerWidget {
   const TestUrlItem({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final testUrl =
-        ref.watch(appSettingProvider.select((state) => state.testUrl));
+  Widget build(BuildContext context, ref) {
+    final appLocalizations = context.appLocalizations;
+    final testUrl = ref.watch(
+      appSettingProvider.select((state) => state.testUrl),
+    );
     return ListItem.input(
-      leading: const Icon(Icons.timeline),
       title: Text(appLocalizations.testUrl),
       subtitle: Text(testUrl),
-      delegate: InputDelegate(
-        resetValue: defaultTestUrl,
-        title: appLocalizations.testUrl,
-        value: testUrl,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return appLocalizations.emptyTip(appLocalizations.testUrl);
-          }
-          if (!value.isUrl) {
-            return appLocalizations.urlTip(appLocalizations.testUrl);
-          }
-          return null;
-        },
-        onChanged: (value) {
-          if (value == null) {
-            return;
-          }
-          ref.read(appSettingProvider.notifier).updateState(
-                (state) => state.copyWith(
-                  testUrl: value,
-                ),
-              );
-        },
-      ),
+      resetValue: defaultTestUrl,
+      dialogTitle: appLocalizations.testUrl,
+      value: testUrl,
+      maxLength: TextInputLimits.url,
+      validator: (String? value) {
+        if (value == null || value.isEmpty) {
+          return appLocalizations.emptyTip(appLocalizations.testUrl);
+        }
+        if (!value.isUrl) {
+          return appLocalizations.urlTip(appLocalizations.testUrl);
+        }
+        return null;
+      },
+      onChanged: (String? value) {
+        if (value == null) {
+          return;
+        }
+        ref
+            .read(appSettingProvider.notifier)
+            .update((state) => state.copyWith(testUrl: value));
+      },
+    );
+  }
+}
+
+class DelayTestTimeoutItem extends ConsumerWidget {
+  const DelayTestTimeoutItem({super.key});
+
+  @override
+  Widget build(BuildContext context, ref) {
+    return ConfigOptionsItem<int>(
+      title: (l) => l.delayTestTimeout,
+      options: delayTestTimeoutOptions,
+      textBuilder: (value) => '$value ms',
+      selector: appSettingProvider.select((state) => state.delayTestTimeout),
+      onChanged: (ref, value) => ref
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(delayTestTimeout: value)),
     );
   }
 }
@@ -248,817 +91,557 @@ class TestUrlItem extends ConsumerWidget {
 class PortItem extends ConsumerWidget {
   const PortItem({super.key});
 
-  Future<void> handleShowPortDialog() async {
-    await globalState.showCommonDialog(
-      child: const _PortDialog(),
+  Future<void> handleShowPortForm(BuildContext context) async {
+    await showFormSheet<void>(
+      context: context,
+      builder: (_) => const _PortForm(),
     );
-    // inputDelegate.onChanged(value);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // flclashx-androidsecure header forces mixed-port=0 on Android. The port
-    // field becomes meaningless in that case, so hide it entirely rather than
-    // showing a disabled "0" row the user can't do anything about.
-    if (Platform.isAndroid) {
-      final secure = ref.watch(
-        currentProfileProvider.select(
-          (p) =>
-              p?.providerHeaders['flclashx-androidsecure']
-                  ?.trim()
-                  .toLowerCase() ==
-              'true',
-        ),
-      );
-      if (secure) {
-        return const SizedBox.shrink();
-      }
-    }
-
-    final mixedPort =
-        ref.watch(patchClashConfigProvider.select((state) => state.mixedPort));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
+  Widget build(BuildContext context, ref) {
+    final appLocalizations = context.appLocalizations;
+    final mixedPort = ref.watch(
+      patchClashConfigProvider.select((state) => state.mixedPort),
     );
-    final isEnabled = overrideNetworkSettings;
-
-    return AbsorbPointer(
-      absorbing: !isEnabled,
-      child: Opacity(
-        opacity: isEnabled ? 1.0 : 0.5,
-        child: ListItem(
-          leading: const Icon(Icons.adjust_outlined),
-          title: Text(appLocalizations.port),
-          subtitle: Text("$mixedPort"),
-          onTap: handleShowPortDialog,
-          // delegate: InputDelegate(
-          //   title: appLocalizations.port,
-          //   value: "$mixedPort",
-          //   validator: (String? value) {
-          //     if (value == null || value.isEmpty) {
-          //       return appLocalizations.emptyTip(appLocalizations.proxyPort);
-          //     }
-          //     final mixedPort = int.tryParse(value);
-          //     if (mixedPort == null) {
-          //       return appLocalizations.numberTip(appLocalizations.proxyPort);
-          //     }
-          //     if (mixedPort < 1024 || mixedPort > 49151) {
-          //       return appLocalizations.proxyPortTip;
-          //     }
-          //     return null;
-          //   },
-          //   onChanged: (String? value) {
-          //     if (value == null) {
-          //       return;
-          //     }
-          //     final mixedPort = int.parse(value);
-          //     ref.read(patchClashConfigProvider.notifier).updateState(
-          //           (state) => state.copyWith(
-          //             mixedPort: mixedPort,
-          //           ),
-          //         );
-          //   },
-          //   resetValue: "$defaultMixedPort",
-          // ),
-        ),
-      ),
+    return ListItem(
+      title: Text(appLocalizations.port),
+      subtitle: Text('$mixedPort'),
+      onTap: () {
+        handleShowPortForm(context);
+      },
     );
   }
 }
 
-class HostsItem extends StatelessWidget {
+class HostsItem extends ConsumerWidget {
   const HostsItem({super.key});
 
   @override
-  Widget build(BuildContext context) => ListItem.open(
-      leading: const Icon(Icons.view_list_outlined),
-      title: const Text("Hosts"),
-      subtitle: Text(appLocalizations.hostsDesc),
-      delegate: OpenDelegate(
-        blur: false,
-        title: "Hosts",
-        widget: Consumer(
-          builder: (_, ref, __) {
-            final hosts = ref
-                .watch(patchClashConfigProvider.select((state) => state.hosts));
-            return MapInputPage(
-              title: "Hosts",
-              map: hosts,
-              titleBuilder: (item) => Text(item.key),
-              subtitleBuilder: (item) => Text(item.value),
-              onChange: (value) {
-                ref.read(patchClashConfigProvider.notifier).updateState(
-                      (state) => state.copyWith(
-                        hosts: value,
-                      ),
-                    );
-              },
-            );
-          },
-        ),
+  Widget build(BuildContext context, ref) {
+    final appLocalizations = context.appLocalizations;
+    final hosts = ref.watch(
+      patchClashConfigProvider.select((state) => state.hosts),
+    );
+    return ListItem.open(
+      title: const Text('Hosts'),
+      subtitle: Text(
+        hosts.isEmpty
+            ? appLocalizations.none
+            : appLocalizations.itemsCount(hosts.length),
       ),
-    );
-}
-
-class SendHeadersToggle extends StatefulWidget {
-  const SendHeadersToggle({super.key});
-
-  @override
-  State<SendHeadersToggle> createState() => _SendHeadersToggleState();
-}
-
-class _SendHeadersToggleState extends State<SendHeadersToggle> {
-  static const _preferenceKey = 'sendDeviceHeaders';
-  bool _sendHeaders = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPreference();
-  }
-
-  Future<void> _loadPreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _sendHeaders = prefs.getBool(_preferenceKey) ?? true;
-      });
-    }
-  }
-
-  Future<void> _updatePreference(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_preferenceKey, value);
-    setState(() {
-      _sendHeaders = value;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => ListItem.switchItem(
-      leading: const Icon(Icons.perm_device_information_outlined),
-      title: Text(appLocalizations.settingsSendDeviceDataTitle),
-      subtitle: Text(appLocalizations.settingsSendDeviceDataSubtitle),
-      delegate: SwitchDelegate(
-        value: _sendHeaders,
-        onChanged: _updatePreference,
+      widget: MapEditView(
+        title: 'Hosts',
+        entries: hosts,
+        keyMaxLength: TextInputLimits.domain,
+        valueMaxLength: TextInputLimits.hostValue,
+        titleBuilder: (item) => Text(item.key),
+        subtitleBuilder: (item) => Text(item.value),
       ),
-    );
-}
-
-class Ipv6Item extends ConsumerWidget {
-  const Ipv6Item({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ipv6 =
-        ref.watch(patchClashConfigProvider.select((state) => state.ipv6));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    
-    return AbsorbPointer(
-      absorbing: !isEnabled,
-      child: Opacity(
-        opacity: isEnabled ? 1.0 : 0.5,
-        child: ListItem.switchItem(
-          leading: const Icon(Icons.water_outlined),
-          title: const Text("IPv6"),
-          subtitle: Text(appLocalizations.ipv6Desc),
-          delegate: SwitchDelegate(
-            value: ipv6,
-            onChanged: (value) async {
-              ref.read(patchClashConfigProvider.notifier).updateState(
-                    (state) => state.copyWith(
-                      ipv6: value,
-                    ),
-                  );
-              globalState.appController.updateClashConfigDebounce();
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class AllowLanItem extends ConsumerWidget {
-  const AllowLanItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final allowLan =
-        ref.watch(patchClashConfigProvider.select((state) => state.allowLan));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    
-    return AbsorbPointer(
-      absorbing: !isEnabled,
-      child: Opacity(
-        opacity: isEnabled ? 1.0 : 0.5,
-        child: ListItem.switchItem(
-          leading: const Icon(Icons.device_hub),
-          title: Text(appLocalizations.allowLan),
-          subtitle: Text(appLocalizations.allowLanDesc),
-          delegate: SwitchDelegate(
-            value: allowLan,
-            onChanged: (value) async {
-              ref.read(patchClashConfigProvider.notifier).updateState(
-                    (state) => state.copyWith(
-                      allowLan: value,
-                    ),
-                  );
-              globalState.appController.updateClashConfigDebounce();
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class UnifiedDelayItem extends ConsumerWidget {
-  const UnifiedDelayItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uiUnifiedDelay = ref
-        .watch(patchClashConfigProvider.select((state) => state.unifiedDelay));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    return ValueListenableBuilder<bool>(
-      valueListenable: globalState.effectiveUnifiedDelay,
-      builder: (_, effective, __) {
-        final display = isEnabled ? uiUnifiedDelay : effective;
-        return AbsorbPointer(
-          absorbing: !isEnabled,
-          child: Opacity(
-            opacity: isEnabled ? 1.0 : 0.5,
-            child: ListItem.switchItem(
-              leading: const Icon(Icons.compress_outlined),
-              title: Text(appLocalizations.unifiedDelay),
-              subtitle: Text(appLocalizations.unifiedDelayDesc),
-              delegate: SwitchDelegate(
-                value: display,
-                onChanged: (value) async {
-                  ref.read(patchClashConfigProvider.notifier).updateState(
-                        (state) => state.copyWith(
-                          unifiedDelay: value,
-                        ),
-                      );
-                },
-              ),
-            ),
-          ),
-        );
+      onChanged: (value) {
+        if (value is! Map<String, String>) {
+          return;
+        }
+        ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith(hosts: value));
       },
     );
   }
 }
 
-class FindProcessItem extends ConsumerWidget {
-  const FindProcessItem({super.key});
-
-  String _getFindProcessModeLabel(FindProcessMode mode) {
-    switch (mode) {
-      case FindProcessMode.off:
-        return 'Off';
-      case FindProcessMode.strict:
-        return 'Strict';
-      case FindProcessMode.always:
-        return 'Always';
-    }
-  }
+class AuthenticationItem extends ConsumerWidget {
+  const AuthenticationItem({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final findProcessMode = ref.watch(
-      patchClashConfigProvider.select((state) => state.findProcessMode),
-    );
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-
-    return AbsorbPointer(
-      absorbing: !isEnabled,
-      child: Opacity(
-        opacity: isEnabled ? 1.0 : 0.5,
-        child: ListItem<FindProcessMode>.options(
-          leading: const Icon(Icons.polymer_outlined),
-          title: Text(appLocalizations.findProcessMode),
-          subtitle: Text(_getFindProcessModeLabel(findProcessMode)),
-          delegate: OptionsDelegate<FindProcessMode>(
-            title: appLocalizations.findProcessMode,
-            options: FindProcessMode.values,
-            onChanged: (value) async {
-              if (value == null) return;
-              ref.read(patchClashConfigProvider.notifier).updateState(
-                    (state) => state.copyWith(
-                      findProcessMode: value,
-                    ),
-                  );
-              globalState.appController.updateClashConfigDebounce();
-            },
-            textBuilder: _getFindProcessModeLabel,
-            value: findProcessMode,
-          ),
-        ),
+  Widget build(BuildContext context, ref) {
+    return ConfigToggleItem(
+      title: (l) => l.authentication,
+      managedKey: 'clash.authentication',
+      selector: networkSettingProvider.select(
+        (state) => state.authentication.enable,
       ),
-    );
-  }
-}
-
-class TcpConcurrentItem extends ConsumerWidget {
-  const TcpConcurrentItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uiTcpConcurrent = ref
-        .watch(patchClashConfigProvider.select((state) => state.tcpConcurrent));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    return ValueListenableBuilder<bool>(
-      valueListenable: globalState.effectiveTcpConcurrent,
-      builder: (_, effective, __) {
-        final display = isEnabled ? uiTcpConcurrent : effective;
-        return AbsorbPointer(
-          absorbing: !isEnabled,
-          child: Opacity(
-            opacity: isEnabled ? 1.0 : 0.5,
-            child: ListItem.switchItem(
-              leading: const Icon(Icons.double_arrow_outlined),
-              title: Text(appLocalizations.tcpConcurrent),
-              subtitle: Text(appLocalizations.tcpConcurrentDesc),
-              delegate: SwitchDelegate(
-                value: display,
-                onChanged: (value) async {
-                  ref.read(patchClashConfigProvider.notifier).updateState(
-                        (state) => state.copyWith(
-                          tcpConcurrent: value,
-                        ),
-                      );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class GeodataLoaderItem extends ConsumerWidget {
-  const GeodataLoaderItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isMemconservative = ref.watch(patchClashConfigProvider.select(
-        (state) => state.geodataLoader == GeodataLoader.memconservative));
-    return ListItem.switchItem(
-      leading: const Icon(Icons.memory),
-      title: Text(appLocalizations.geodataLoader),
-      subtitle: Text(appLocalizations.geodataLoaderDesc),
-      delegate: SwitchDelegate(
-        value: isMemconservative,
-        onChanged: (value) async {
-          ref.read(patchClashConfigProvider.notifier).updateState(
-                (state) => state.copyWith(
-                  geodataLoader: value
-                      ? GeodataLoader.memconservative
-                      : GeodataLoader.standard,
-                ),
+      onChanged: (ref, value) =>
+          ref.read(networkSettingProvider.notifier).update((state) {
+            var authentication = state.authentication.copyWith(enable: value);
+            if (value && authentication.username.isEmpty) {
+              authentication = authentication.copyWith(
+                username: generateRandomSecret(8),
+                password: generateRandomSecret(16),
               );
-        },
-      ),
+            }
+            return state.copyWith(authentication: authentication);
+          }),
     );
   }
 }
 
-class ExternalControllerItem extends ConsumerWidget {
-  const ExternalControllerItem({super.key});
+class AuthenticationAccountItem extends ConsumerWidget {
+  const AuthenticationAccountItem({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasExternalController = ref.watch(patchClashConfigProvider.select(
-        (state) => state.externalController == ExternalControllerStatus.open));
-    final overrideNetworkSettings = ref.watch(
-      appSettingProvider.select((state) => state.overrideNetworkSettings),
-    );
-    final isEnabled = overrideNetworkSettings;
-    return ValueListenableBuilder<String>(
-      valueListenable: globalState.effectiveExternalController,
-      builder: (_, effective, __) {
-        final isEffective = effective.isNotEmpty;
-        final displayAddress =
-            isEffective ? effective : ExternalControllerStatus.open.value;
-        final subtitle =
-            '${appLocalizations.externalControllerDesc} ($displayAddress)';
-        return AbsorbPointer(
-          absorbing: !isEnabled,
-          child: Opacity(
-            opacity: isEnabled ? 1.0 : 0.5,
-            child: ListItem.switchItem(
-              leading: const Icon(Icons.api_outlined),
-              title: Text(appLocalizations.externalController),
-              subtitle: Text(subtitle),
-              delegate: SwitchDelegate(
-                // When override is ON, follow the UI toggle alone — the user
-                // explicitly controls the state. When OFF, reflect whichever
-                // value is effectively applied (provider or UI fallback) so
-                // the subscription's forced value is visible.
-                value: isEnabled ? hasExternalController : isEffective,
-                onChanged: (value) async {
-                  ref.read(patchClashConfigProvider.notifier).updateState(
-                        (state) => state.copyWith(
-                          externalController: value
-                              ? ExternalControllerStatus.open
-                              : ExternalControllerStatus.close,
-                        ),
-                      );
-                },
-              ),
-            ),
-          ),
-        );
-      },
+  Widget build(BuildContext context, ref) {
+    return ConfigTextItem(
+      title: (l) => l.account,
+      maxLength: TextInputLimits.userName,
+      managedKey: 'clash.authentication',
+      selector: networkSettingProvider.select(
+        (state) => state.authentication.username,
+      ),
+      // mihomo and the Dart proxy string both split user:pass on the first
+      // colon, so a colon in the username breaks authentication.
+      normalize: (value) => value.trim().replaceAll(':', ''),
+      onChanged: (ref, value) => ref
+          .read(networkSettingProvider.notifier)
+          .update((state) => state.copyWith.authentication(username: value)),
     );
   }
 }
 
-final generalItems = <Widget>[
-  const OverrideNetworkSettingsItem(),
-  const LogLevelItem(),
-  const UaItem(),
-  if (system.isDesktop) const KeepAliveIntervalItem(),
-  const TestUrlItem(),
-  const PortItem(),
-  const HostsItem(),
-  const SendHeadersToggle(),
-  const Ipv6Item(),
-  const AllowLanItem(),
-  const UnifiedDelayItem(),
-  const FindProcessItem(),
-  const TcpConcurrentItem(),
-  const GeodataLoaderItem(),
-  const ExternalControllerItem(),
-]
-    .separated(
-      const Divider(
-        height: 0,
+class AuthenticationPasswordItem extends ConsumerWidget {
+  const AuthenticationPasswordItem({super.key});
+
+  @override
+  Widget build(BuildContext context, ref) {
+    return ConfigTextItem(
+      title: (l) => l.password,
+      maxLength: TextInputLimits.password,
+      managedKey: 'clash.authentication',
+      selector: networkSettingProvider.select(
+        (state) => state.authentication.password,
       ),
-    )
-    .toList();
-
-class _PortDialog extends ConsumerStatefulWidget {
-  const _PortDialog();
-
-  @override
-  ConsumerState<_PortDialog> createState() => _PortDialogState();
-}
-
-class _PortDialogState extends ConsumerState<_PortDialog> {
-  final _formKey = GlobalKey<FormState>();
-  bool _isMore = false;
-
-  late TextEditingController _mixedPortController;
-  late TextEditingController _portController;
-  late TextEditingController _socksPortController;
-  late TextEditingController _redirPortController;
-  late TextEditingController _tProxyPortController;
-
-  @override
-  void initState() {
-    super.initState();
-    final vm5 = ref.read(patchClashConfigProvider.select((state) => VM5(
-        a: state.mixedPort,
-        b: state.port,
-        c: state.socksPort,
-        d: state.redirPort,
-        e: state.tproxyPort,
-      )));
-    _mixedPortController = TextEditingController(
-      text: vm5.a.toString(),
-    );
-    _portController = TextEditingController(
-      text: vm5.b.toString(),
-    );
-    _socksPortController = TextEditingController(
-      text: vm5.c.toString(),
-    );
-    _redirPortController = TextEditingController(
-      text: vm5.d.toString(),
-    );
-    _tProxyPortController = TextEditingController(
-      text: vm5.e.toString(),
+      normalize: (value) => value.trim(),
+      onChanged: (ref, value) => ref
+          .read(networkSettingProvider.notifier)
+          .update((state) => state.copyWith.authentication(password: value)),
     );
   }
+}
 
-  Future<void> _handleReset() async {
-    final res = await globalState.showMessage(
-      message: TextSpan(
-        text: appLocalizations.resetTip,
-      ),
+class ExternalControllerSecretItem extends ConsumerWidget {
+  const ExternalControllerSecretItem({super.key});
+
+  @override
+  Widget build(BuildContext context, ref) {
+    return ConfigTextItem(
+      title: (l) => l.externalControllerSecret,
+      managedKey: 'clash.secret',
+      maxLength: TextInputLimits.password,
+      selector: patchClashConfigProvider.select((state) => state.secret),
+      normalize: (value) => value.trim(),
+      allowEmpty: true,
+      onChanged: (ref, value) => ref
+          .read(patchClashConfigProvider.notifier)
+          .update((state) => state.copyWith(secret: value)),
     );
-    if (res != true) {
+  }
+}
+
+class OpenLogsFolderItem extends StatelessWidget {
+  const OpenLogsFolderItem({super.key});
+
+  Future<void> _open() async {
+    await system.openDirectory(await fileLogger.directoryPath);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListItem(
+      leading: const GlyphIcon(AppGlyphs.openExternal),
+      title: Text(context.appLocalizations.openLogsFolder),
+      onTap: _open,
+    );
+  }
+}
+
+class ShareLogsItem extends StatefulWidget {
+  const ShareLogsItem({super.key});
+
+  @override
+  State<ShareLogsItem> createState() => _ShareLogsItemState();
+}
+
+class _ShareLogsItemState extends State<ShareLogsItem> {
+  var _sharing = false;
+
+  Future<void> _share() async {
+    if (_sharing) {
       return;
     }
-    ref.read(patchClashConfigProvider.notifier).updateState(
-          (state) => state.copyWith(
-            mixedPort: 7890,
-            port: 0,
-            socksPort: 0,
-            redirPort: 0,
-            tproxyPort: 0,
-          ),
-        );
-    if (mounted) {
-      Navigator.of(context).pop();
+    _sharing = true;
+    final appLocalizations = context.appLocalizations;
+    try {
+      final shared = await globalState.safeRun(() async {
+        final directory = Directory(await appPath.shareDirPath);
+        await directory.create(recursive: true);
+        final archive = await fileLogger.archiveToday(directory.path);
+        if (archive == null) {
+          return false;
+        }
+        await app?.shareFile(archive, mimeType: 'application/zip');
+        return true;
+      }, title: appLocalizations.shareLogs);
+      if (shared == false) {
+        dialogs.showNotifier(appLocalizations.noLogsToday);
+      }
+    } finally {
+      _sharing = false;
     }
   }
 
-  void _handleUpdate() {
-    if (_formKey.currentState?.validate() == false) return;
-    ref.read(patchClashConfigProvider.notifier).updateState(
-          (state) => state.copyWith(
-            mixedPort: int.parse(_mixedPortController.text),
-            port: int.parse(_portController.text),
-            socksPort: int.parse(_socksPortController.text),
-            redirPort: int.parse(_redirPortController.text),
-            tproxyPort: int.parse(_tProxyPortController.text),
-          ),
-        );
-    Navigator.of(context).pop();
+  @override
+  Widget build(BuildContext context) {
+    return ListItem(
+      leading: const GlyphIcon(AppGlyphs.export),
+      title: Text(context.appLocalizations.shareLogs),
+      onTap: _share,
+    );
   }
+}
 
-  void _handleMore() {
-    setState(() {
-      _isMore = !_isMore;
-    });
+class ReturnToProviderItem extends ConsumerWidget {
+  const ReturnToProviderItem({super.key});
+
+  Future<void> _release(BuildContext context, WidgetRef ref) async {
+    final appLocalizations = context.appLocalizations;
+    final confirmed = await dialogs.showMessage(
+      title: appLocalizations.returnAllToProvider,
+      message: TextSpan(text: appLocalizations.returnAllToProviderTip),
+      confirmText: appLocalizations.confirm,
+    );
+    if (confirmed != true) {
+      return;
+    }
+    ref.read(managedSettingsActionProvider.notifier).releaseAll();
   }
 
   @override
-  Widget build(BuildContext context) => CommonDialog(
-      title: appLocalizations.port,
-      actions: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton.filledTonal(
-              onPressed: _handleMore,
-              icon: CommonExpandIcon(
-                expand: _isMore,
-              ),
-            ),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: _handleReset,
-                  child: Text(appLocalizations.reset),
-                ),
-                const SizedBox(
-                  width: 4,
-                ),
-                TextButton(
-                  onPressed: _handleUpdate,
-                  child: Text(appLocalizations.submit),
-                )
-              ],
-            )
-          ],
-        )
-      ],
-      child: Form(
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        key: _formKey,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: AnimatedSize(
-            duration: midDuration,
-            curve: Curves.easeOutQuad,
-            alignment: Alignment.topCenter,
-            child: Column(
-              spacing: 24,
-              children: [
-                TextFormField(
-                  keyboardType: TextInputType.url,
-                  maxLines: 1,
-                  minLines: 1,
-                  controller: _mixedPortController,
-                  onFieldSubmitted: (_) {
-                    _handleUpdate();
-                  },
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    labelText: appLocalizations.mixedPort,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return appLocalizations
-                          .emptyTip(appLocalizations.mixedPort);
-                    }
-                    final port = int.tryParse(value);
-                    if (port == null) {
-                      return appLocalizations
-                          .numberTip(appLocalizations.mixedPort);
-                    }
-                    if (port == 0) {
-                      return null;
-                    }
-                    if (port < 1024 || port > 49151) {
-                      return appLocalizations
-                          .portTip(appLocalizations.mixedPort);
-                    }
-                    final ports = [
-                      _portController.text,
-                      _socksPortController.text,
-                      _tProxyPortController.text,
-                      _redirPortController.text
-                    ].map((item) => item.trim());
-                    if (ports.contains(value.trim())) {
-                      return appLocalizations.portConflictTip;
-                    }
-                    return null;
-                  },
-                ),
-                if (_isMore) ...[
-                  TextFormField(
-                    keyboardType: TextInputType.url,
-                    maxLines: 1,
-                    minLines: 1,
-                    controller: _portController,
-                    onFieldSubmitted: (_) {
-                      _handleUpdate();
-                    },
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      labelText: appLocalizations.port,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return appLocalizations.emptyTip(appLocalizations.port);
-                      }
-                      final port = int.tryParse(value);
-                      if (port == null) {
-                        return appLocalizations.numberTip(
-                          appLocalizations.port,
-                        );
-                      }
-                      if (port == 0) {
-                        return null;
-                      }
-                      if (port < 1024 || port > 49151) {
-                        return appLocalizations.portTip(appLocalizations.port);
-                      }
-                      final ports = [
-                        _mixedPortController.text,
-                        _socksPortController.text,
-                        _tProxyPortController.text,
-                        _redirPortController.text
-                      ].map((item) => item.trim());
-                      if (ports.contains(value.trim())) {
-                        return appLocalizations.portConflictTip;
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    keyboardType: TextInputType.url,
-                    maxLines: 1,
-                    minLines: 1,
-                    controller: _socksPortController,
-                    onFieldSubmitted: (_) {
-                      _handleUpdate();
-                    },
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      labelText: appLocalizations.socksPort,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return appLocalizations
-                            .emptyTip(appLocalizations.socksPort);
-                      }
-                      final port = int.tryParse(value);
-                      if (port == null) {
-                        return appLocalizations
-                            .numberTip(appLocalizations.socksPort);
-                      }
-                      if (port == 0) {
-                        return null;
-                      }
-                      if (port < 1024 || port > 49151) {
-                        return appLocalizations
-                            .portTip(appLocalizations.socksPort);
-                      }
-                      final ports = [
-                        _portController.text,
-                        _mixedPortController.text,
-                        _tProxyPortController.text,
-                        _redirPortController.text
-                      ].map((item) => item.trim());
-                      if (ports.contains(value.trim())) {
-                        return appLocalizations.portConflictTip;
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    keyboardType: TextInputType.url,
-                    maxLines: 1,
-                    minLines: 1,
-                    controller: _redirPortController,
-                    onFieldSubmitted: (_) {
-                      _handleUpdate();
-                    },
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      labelText: appLocalizations.redirPort,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return appLocalizations
-                            .emptyTip(appLocalizations.redirPort);
-                      }
-                      final port = int.tryParse(value);
-                      if (port == null) {
-                        return appLocalizations
-                            .numberTip(appLocalizations.redirPort);
-                      }
-                      if (port == 0) {
-                        return null;
-                      }
-                      if (port < 1024 || port > 49151) {
-                        return appLocalizations
-                            .portTip(appLocalizations.redirPort);
-                      }
-                      final ports = [
-                        _portController.text,
-                        _socksPortController.text,
-                        _tProxyPortController.text,
-                        _mixedPortController.text
-                      ].map((item) => item.trim());
-                      if (ports.contains(value.trim())) {
-                        return appLocalizations.portConflictTip;
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    keyboardType: TextInputType.url,
-                    maxLines: 1,
-                    minLines: 1,
-                    controller: _tProxyPortController,
-                    onFieldSubmitted: (_) {
-                      _handleUpdate();
-                    },
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      labelText: appLocalizations.tproxyPort,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return appLocalizations
-                            .emptyTip(appLocalizations.tproxyPort);
-                      }
-                      final port = int.tryParse(value);
-                      if (port == null) {
-                        return appLocalizations
-                            .numberTip(appLocalizations.tproxyPort);
-                      }
-                      if (port == 0) {
-                        return null;
-                      }
-                      if (port < 1024 || port > 49151) {
-                        return appLocalizations.portTip(
-                          appLocalizations.tproxyPort,
-                        );
-                      }
-                      final ports = [
-                        _portController.text,
-                        _socksPortController.text,
-                        _mixedPortController.text,
-                        _redirPortController.text
-                      ].map((item) => item.trim());
-                      if (ports.contains(value.trim())) {
-                        return appLocalizations.portConflictTip;
-                      }
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListItem(
+      leading: const GlyphIcon(AppGlyphs.lock),
+      title: Text(context.appLocalizations.returnAllToProvider),
+      onTap: () => _release(context, ref),
+    );
+  }
+}
 
-                      return null;
-                    },
-                  ),
-                ]
-              ],
-            ),
-          ),
+class ResetAppItem extends ConsumerWidget {
+  const ResetAppItem({super.key});
+
+  Future<void> _reset(BuildContext context, WidgetRef ref) async {
+    final appLocalizations = context.appLocalizations;
+    final confirmed = await dialogs.showMessage(
+      title: appLocalizations.resetApp,
+      message: TextSpan(text: appLocalizations.resetAppTip),
+      confirmText: appLocalizations.resetApp,
+      destructive: true,
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await ref.read(storeActionProvider.notifier).handleClear(everything: true);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final error = context.colorScheme.error;
+    return ListItem(
+      leading: GlyphIcon(AppGlyphs.delete, color: error),
+      title: Text(
+        context.appLocalizations.resetApp,
+        style: TextStyle(color: error),
+      ),
+      onTap: () => _reset(context, ref),
+    );
+  }
+}
+
+ConfigToggleItem _clashToggle({
+  required ConfigLabel title,
+  required bool Function(PatchClashConfig state) select,
+  required PatchClashConfig Function(PatchClashConfig state, bool value) update,
+  String? managedKey,
+}) {
+  return ConfigToggleItem(
+    title: title,
+    managedKey: managedKey,
+    selector: patchClashConfigProvider.select(select),
+    onChanged: (ref, value) => ref
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => update(state, value)),
+  );
+}
+
+ConfigToggleItem _appSettingToggle({
+  required ConfigLabel title,
+  required bool Function(AppSettingProps state) select,
+  required AppSettingProps Function(AppSettingProps state, bool value) update,
+  String? managedKey,
+}) {
+  return ConfigToggleItem(
+    title: title,
+    managedKey: managedKey,
+    selector: appSettingProvider.select(select),
+    onChanged: (ref, value) => ref
+        .read(appSettingProvider.notifier)
+        .update((state) => update(state, value)),
+  );
+}
+
+class GeneralView extends ConsumerWidget {
+  const GeneralView({super.key});
+
+  List<Widget> _startupItems(AppLocalizations appLocalizations) {
+    return [
+      if (system.isDesktop) ...[
+        _appSettingToggle(
+          title: (l) => l.autoLaunch,
+          managedKey: 'app.autoLaunch',
+          select: (state) => state.autoLaunch,
+          update: (state, value) => state.copyWith(autoLaunch: value),
+        ),
+        _appSettingToggle(
+          title: (l) => l.silentLaunch,
+          managedKey: 'app.silentLaunch',
+          select: (state) => state.silentLaunch,
+          update: (state, value) => state.copyWith(silentLaunch: value),
+        ),
+      ],
+      if (system.isMacOS)
+        _appSettingToggle(
+          title: (l) => l.menuBarMode,
+          select: (state) => state.menuBarMode,
+          update: (state, value) => state.copyWith(menuBarMode: value),
+        ),
+      _appSettingToggle(
+        title: (l) => l.autoRun,
+        managedKey: 'app.autoRun',
+        select: (state) => state.autoRun,
+        update: (state, value) => state.copyWith(autoRun: value),
+      ),
+      ListItem.open(
+        title: Text(appLocalizations.onDemand),
+        widget: const OnDemandView(),
+      ),
+      _appSettingToggle(
+        title: (l) => l.minimizeOnExit,
+        managedKey: 'app.minimizeOnExit',
+        select: (state) => state.minimizeOnExit,
+        update: (state, value) => state.copyWith(minimizeOnExit: value),
+      ),
+      if (system.isAndroid) ...[
+        _appSettingToggle(
+          title: (l) => l.exclude,
+          select: (state) => state.hidden,
+          update: (state, value) => state.copyWith(hidden: value),
+        ),
+        _appSettingToggle(
+          title: (l) => l.showNotificationStopAction,
+          select: (state) => state.showNotificationStopAction,
+          update: (state, value) =>
+              state.copyWith(showNotificationStopAction: value),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _inboundItems({
+    required bool authentication,
+    required bool externalController,
+    required bool androidSecure,
+  }) {
+    return [
+      if (!androidSecure) const PortItem(),
+      _clashToggle(
+        title: (l) => l.allowLan,
+        managedKey: 'clash.allow-lan',
+        select: (state) => state.allowLan,
+        update: (state, value) => state.copyWith(allowLan: value),
+      ),
+      _clashToggle(
+        title: (l) => l.externalController,
+        managedKey: 'clash.external-controller',
+        select: (state) => state.externalController.isNotEmpty,
+        update: (state, value) => state.copyWith(
+          externalController: value ? defaultExternalController : '',
         ),
       ),
+      if (externalController) const ExternalControllerSecretItem(),
+      const AuthenticationItem(),
+      if (authentication) ...const [
+        AuthenticationAccountItem(),
+        AuthenticationPasswordItem(),
+      ],
+    ];
+  }
+
+  List<Widget> _connectionItems() {
+    return [
+      const TestUrlItem(),
+      const DelayTestTimeoutItem(),
+      _clashToggle(
+        title: (l) => l.unifiedDelay,
+        managedKey: 'clash.unified-delay',
+        select: (state) => state.unifiedDelay,
+        update: (state, value) => state.copyWith(unifiedDelay: value),
+      ),
+      _clashToggle(
+        title: (l) => l.tcpConcurrent,
+        managedKey: 'clash.tcp-concurrent',
+        select: (state) => state.tcpConcurrent,
+        update: (state, value) => state.copyWith(tcpConcurrent: value),
+      ),
+      ConfigOptionsItem<FindProcessMode>(
+        title: (l) => l.findProcessMode,
+        managedKey: 'clash.find-process-mode',
+        options: FindProcessMode.values,
+        textBuilder: (mode) => mode.label,
+        selector: patchClashConfigProvider.select(
+          (state) => state.findProcessMode,
+        ),
+        onChanged: (ref, value) => ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith(findProcessMode: value)),
+      ),
+      _appSettingToggle(
+        title: (l) => l.autoCloseConnections,
+        managedKey: 'app.closeConnections',
+        select: (state) => state.closeConnections,
+        update: (state, value) => state.copyWith(closeConnections: value),
+      ),
+      _appSettingToggle(
+        title: (l) => l.onlyStatisticsProxy,
+        select: (state) => state.onlyStatisticsProxy,
+        update: (state, value) => state.copyWith(onlyStatisticsProxy: value),
+      ),
+    ];
+  }
+
+  List<Widget> _requestItems() {
+    return [
+      _appSettingToggle(
+        title: (l) => l.autoCheckUpdate,
+        managedKey: 'app.autoCheckUpdate',
+        select: (state) => state.autoCheckUpdate,
+        update: (state, value) => state.copyWith(autoCheckUpdate: value),
+      ),
+    ];
+  }
+
+  List<Widget> _coreItems() {
+    return [
+      _clashToggle(
+        title: (l) => 'IPv6',
+        managedKey: 'clash.ipv6',
+        select: (state) => state.ipv6,
+        update: (state, value) => state.copyWith(ipv6: value),
+      ),
+      const HostsItem(),
+      ConfigToggleItem(
+        title: (l) => l.appendSystemDns,
+        selector: networkSettingProvider.select(
+          (state) => state.appendSystemDns,
+        ),
+        onChanged: (ref, value) => ref
+            .read(networkSettingProvider.notifier)
+            .update((state) => state.copyWith(appendSystemDns: value)),
+      ),
+      _clashToggle(
+        title: (l) => l.geodataLoader,
+        managedKey: 'clash.geodata-loader',
+        select: (state) => state.geodataLoader == GeodataLoader.memconservative,
+        update: (state, value) => state.copyWith(
+          geodataLoader: value
+              ? GeodataLoader.memconservative
+              : GeodataLoader.standard,
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _logItems() {
+    return [
+      const LogLevelItem(),
+      _appSettingToggle(
+        title: (l) => l.logcat,
+        managedKey: 'app.openLogs',
+        select: (state) => state.openLogs,
+        update: (state, value) => state.copyWith(openLogs: value),
+      ),
+      if (system.isDesktop) const OpenLogsFolderItem(),
+      if (system.isAndroid) const ShareLogsItem(),
+      const ReturnToProviderItem(),
+      const ResetAppItem(),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context, ref) {
+    final appLocalizations = context.appLocalizations;
+    final authentication = ref.watch(
+      networkSettingProvider.select((state) => state.authentication.enable),
     );
+    final controllerAddress = ref.watch(
+      patchClashConfigProvider.select((state) => state.externalController),
+    );
+    final externalController = controllerAddress.isNotEmpty;
+    final androidSecure = ref.watch(androidSecureProvider);
+    return BaseScaffold(
+      title: appLocalizations.general,
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
+          top: context.sectionsTopPadding,
+          bottom: 16 + context.bottomInset,
+        ),
+        children: [
+          const ManagedSettingsHint(keys: generalPageKeys),
+          generateSection(
+            title: appLocalizations.startupAndBackground,
+            items: _startupItems(appLocalizations),
+            footer: [
+              if (system.isDesktop) appLocalizations.silentLaunchDesc,
+              if (system.isMacOS) appLocalizations.menuBarModeDesc,
+              appLocalizations.autoRunDesc,
+              appLocalizations.onDemandDesc,
+            ].join('\n'),
+          ),
+          generateSection(
+            title: appLocalizations.requestsAndUpdates,
+            items: _requestItems(),
+          ),
+          generateSection(
+            title: appLocalizations.inbound,
+            items: _inboundItems(
+              authentication: authentication,
+              externalController: externalController,
+              androidSecure: androidSecure,
+            ),
+            footer: [
+              appLocalizations.externalControllerDesc(
+                externalController
+                    ? controllerAddress
+                    : defaultExternalController,
+              ),
+              appLocalizations.authenticationDesc,
+            ].join('\n'),
+          ),
+          generateSection(
+            title: appLocalizations.connection,
+            items: _connectionItems(),
+            footer: appLocalizations.autoCloseConnectionsDesc,
+          ),
+          generateSection(
+            title: appLocalizations.core,
+            items: _coreItems(),
+            footer: appLocalizations.ipv6Desc,
+          ),
+          generateSection(
+            title: appLocalizations.logsAndDiagnostics,
+            items: _logItems(),
+            footer: appLocalizations.logcatDesc,
+          ),
+        ],
+      ),
+    );
+  }
 }

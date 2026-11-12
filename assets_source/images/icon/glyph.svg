@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Logo glyph: the FlClashX "X", a light bar crossed by a cyan bar, on a 1060 lattice.
+     The Android notification drawables ic.xml and ic_service.xml carry the same geometry as fill paths. -->
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <title>glyph</title>
+  <defs>
+    <linearGradient id="bar-light" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#DBECFD"/>
+      <stop offset="100%" stop-color="#B5C0CC"/>
+    </linearGradient>
+    <linearGradient id="bar-cyan" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7BEFFF"/>
+      <stop offset="100%" stop-color="#025D78"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(41.6, 40.8) scale(0.148, 0.148)">
+    <path d="M247,1019.1L247,1019.1A80.2,80.2 75,0 1,217.6 909.5L702.6,69.5A80.2,80.2 75,0 1,812.2 40.1L812.2,40.1A80.2,80.2 75,0 1,841.5 149.7L356.5,989.7A80.2,80.2 75,0 1,247 1019.1z" fill="url(#bar-light)"/>
+    <path d="M842.6,909.3C864.8,947.7 851.6,996.7 813.3,1018.9C774.9,1041 725.8,1027.9 703.7,989.5L547.7,719.4C545.9,716.3 545.9,712.5 547.7,709.4L628.8,568.9C632.6,562.3 642.3,562.3 646.1,568.9L842.6,909.3ZM248.1,39.9C286.4,17.8 335.5,30.9 357.6,69.3L514.2,340.4C515.9,343.5 515.9,347.3 514.2,350.4L433.1,490.8C429.2,497.5 419.6,497.5 415.8,490.8L218.7,149.5C196.6,111.1 209.7,62.1 248.1,39.9Z" fill="url(#bar-cyan)"/>
+  </g>
+</svg>

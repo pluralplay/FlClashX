@@ -1,210 +1,232 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flclashx/common/path.dart';
-import 'package:flutter/widgets.dart';
-import 'package:intl/intl.dart';
+import 'package:archive/archive_io.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 
+import 'constant.dart';
+import 'path.dart';
+
+const logsDirectoryName = 'logs';
+
+typedef ArchiveRequest = ({String archivePath, List<String> files});
+
+/// Appends every log line to `logs/FlClashX_<day>.log` under the app home,
+/// starts `_<n>` files past [maxFileBytes] and drops days older than [keepDays].
 class FileLogger {
-  factory FileLogger() {
-    _instance ??= FileLogger._internal();
-    return _instance!;
+  FileLogger({
+    Future<String> Function()? directory,
+    DateTime Function()? now,
+    this.maxFileBytes = 10 * 1024 * 1024,
+    this.keepDays = 10,
+    @visibleForTesting Future<void> Function(ArchiveRequest)? writeArchive,
+  }) : _directory = directory ?? _defaultDirectory,
+       _now = now ?? DateTime.now,
+       _writeArchiveWith =
+           writeArchive ?? ((request) => compute(_writeArchive, request));
+
+  final Future<String> Function() _directory;
+  final DateTime Function() _now;
+  final Future<void> Function(ArchiveRequest) _writeArchiveWith;
+  final int maxFileBytes;
+  final int keepDays;
+
+  static const _pendingLimit = 2000;
+
+  final _pending = <String>[];
+  Future<void> _drain = Future.value();
+  Future<void> _archiving = Future.value();
+  bool _enabled = false;
+  String? _day;
+  File? _file;
+  int _size = 0;
+
+  static final _dayPattern = RegExp(
+    r'^FlClashX_(\d{4}-\d{2}-\d{2})(?:_\d+)?\.log$',
+  );
+
+  static Future<String> _defaultDirectory() async =>
+      join(await appPath.homeDirPath, logsDirectoryName);
+
+  Future<String> get directoryPath async {
+    final path = await _directory();
+    await Directory(path).create(recursive: true);
+    return path;
   }
 
-  FileLogger._internal();
-  static FileLogger? _instance;
+  /// Lines queue until the app paths can be resolved, then land in order.
+  void enable() {
+    _enabled = true;
+    _schedule();
+  }
 
-  static const int maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
-  static const int maxLogFiles = 7; // Keep 7 days of logs
+  void write(Log log) {
+    _pending.add(
+      '[${log.dateTime}] [${log.logLevel.name.toUpperCase()}] ${log.payload}',
+    );
+    if (_pending.length > _pendingLimit) {
+      _pending.removeRange(0, _pending.length - _pendingLimit);
+    }
+    _schedule();
+  }
 
-  IOSink? _currentSink;
-  String? _currentLogFilePath;
-  String? _currentDate;
-  final _writeQueue = <String>[];
-  bool _isWriting = false;
-  bool _isBindingInitialized = false;
+  void _schedule() {
+    if (!_enabled) {
+      return;
+    }
+    _drain = _drain.then((_) => _flush()).catchError((_) {});
+  }
 
-  /// Check if Flutter bindings are initialized
-  bool _checkBindingInitialized() {
-    if (_isBindingInitialized) return true;
-    
-    try {
-      // Try to access WidgetsBinding - this will throw if not initialized
-      WidgetsBinding.instance;
-      _isBindingInitialized = true;
-      return true;
-    } catch (_) {
-      return false;
+  Future<void> flush() => _drain;
+
+  /// How long [archiveToday] keeps an archive for the app still reading it.
+  static const shareRetention = Duration(days: 1);
+
+  /// Zips today's files, written lines included, into [directory]; null when
+  /// today has none.
+  Future<String?> archiveToday(String directory) {
+    final archived = _archiving.then((_) => _archiveToday(directory));
+    _archiving = archived.then<void>((_) {}, onError: (_) {});
+    return archived;
+  }
+
+  Future<String?> _archiveToday(String directory) async {
+    await flush();
+    final now = _now();
+    await _pruneArchives(directory, now);
+    final today = _dayOf(now);
+    final files = <String>[];
+    await for (final entity in Directory(
+      await directoryPath,
+    ).list(followLinks: false)) {
+      final match = _dayPattern.firstMatch(basename(entity.path));
+      if (entity is File && match?.group(1) == today) {
+        files.add(entity.path);
+      }
+    }
+    if (files.isEmpty) {
+      return null;
+    }
+    final archivePath = await _freshArchivePath(directory, now);
+    await _writeArchiveWith((archivePath: archivePath, files: files..sort()));
+    return archivePath;
+  }
+
+  static const _archivePrefix = '${appName}_logs_';
+
+  Future<String> _freshArchivePath(String directory, DateTime now) async {
+    final time = [
+      now.hour,
+      now.minute,
+      now.second,
+    ].map((part) => part.toString().padLeft(2, '0')).join('-');
+    final stem = join(directory, '$_archivePrefix${_dayOf(now)}_$time');
+    var path = '$stem.zip';
+    for (var copy = 2; await File(path).exists(); copy++) {
+      path = '${stem}_$copy.zip';
+    }
+    return path;
+  }
+
+  Future<void> _pruneArchives(String directory, DateTime now) async {
+    final folder = Directory(directory);
+    if (!await folder.exists()) {
+      return;
+    }
+    await for (final entity in folder.list(followLinks: false)) {
+      final name = basename(entity.path);
+      if (entity is! File ||
+          !name.startsWith(_archivePrefix) ||
+          extension(name) != '.zip') {
+        continue;
+      }
+      try {
+        if (now.difference(await entity.lastModified()) > shareRetention) {
+          await entity.delete();
+        }
+      } on FileSystemException {
+        // Gone already or still held; the next share tries again.
+      }
     }
   }
 
-  Future<String> _getLogsDir() async {
-    final homeDir = await appPath.homeDirPath;
-    final logsDir = join(homeDir, 'logs');
-    final dir = Directory(logsDir);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return logsDir;
+  Future<void> dispose() async {
+    await _drain;
+    _file = null;
+    _day = null;
   }
 
-  String _getTodayDate() => DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-  String _getLogFileName(String date, {int index = 0}) {
-    if (index == 0) {
-      return 'FlClashX_$date.log';
+  Future<void> _flush() async {
+    if (_pending.isEmpty) {
+      return;
     }
-    return 'FlClashX_$date\_$index.log';
+    final lines = '${_pending.join('\n')}\n';
+    _pending.clear();
+    final file = await _target(lines.length);
+    await file.writeAsString(lines, mode: FileMode.append, flush: true);
+    _size += lines.length;
   }
 
-  Future<void> _rotateLogs() async {
-    try {
-      final logsDir = await _getLogsDir();
-      final dir = Directory(logsDir);
+  Future<File> _target(int incoming) async {
+    final day = _dayOf(_now());
+    final current = _file;
+    if (current != null && _day == day && _size + incoming <= maxFileBytes) {
+      return current;
+    }
+    final directory = await directoryPath;
+    if (_day != day) {
+      await _prune(directory, day);
+    }
+    _day = day;
+    for (var index = 0; ; index++) {
+      final name = index == 0
+          ? '${appName}_$day.log'
+          : '${appName}_${day}_$index.log';
+      final file = File(join(directory, name));
+      final size = await file.exists() ? await file.length() : 0;
+      if (size + incoming <= maxFileBytes || size == 0) {
+        _file = file;
+        _size = size;
+        return file;
+      }
+    }
+  }
 
-      // Get all log files
-      final files = await dir
-          .list()
-          .where((entity) => entity is File && entity.path.endsWith('.log'))
-          .cast<File>()
-          .toList();
-
-      // Sort by modification time (oldest first)
-      files
-          .sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
-
-      // Remove old files if we exceed max count
-      while (files.length > maxLogFiles) {
-        final oldestFile = files.removeAt(0);
+  Future<void> _prune(String directory, String today) async {
+    final oldest = _parseDay(today).subtract(Duration(days: keepDays - 1));
+    await for (final entity in Directory(directory).list(followLinks: false)) {
+      final match = _dayPattern.firstMatch(basename(entity.path));
+      if (entity is! File || match == null) {
+        continue;
+      }
+      if (_parseDay(match.group(1)!).isBefore(oldest)) {
         try {
-          await oldestFile.delete();
-        } catch (_) {}
-      }
-    } catch (e) {
-      // Silently fail rotation
-    }
-  }
-
-  Future<File> _getCurrentLogFile() async {
-    final today = _getTodayDate();
-    final logsDir = await _getLogsDir();
-
-    // If date changed, close current file and rotate
-    if (_currentDate != today || _currentLogFilePath == null) {
-      await _closeSink();
-      _currentDate = today;
-      await _rotateLogs();
-    }
-
-    // Find appropriate log file for today
-    int index = 0;
-    File logFile;
-
-    while (true) {
-      final fileName = _getLogFileName(today, index: index);
-      final filePath = join(logsDir, fileName);
-      logFile = File(filePath);
-
-      // If file doesn't exist or is small enough, use it
-      if (!await logFile.exists()) {
-        _currentLogFilePath = filePath;
-        break;
-      }
-
-      final fileSize = await logFile.length();
-      if (fileSize < maxFileSizeBytes) {
-        _currentLogFilePath = filePath;
-        break;
-      }
-
-      // File is too large, try next index
-      index++;
-    }
-
-    return logFile;
-  }
-
-  Future<void> _ensureSink() async {
-    if (_currentSink == null || _currentLogFilePath == null) {
-      final logFile = await _getCurrentLogFile();
-      _currentSink = logFile.openWrite(mode: FileMode.append);
-    } else {
-      // Check if current file is too large
-      final currentFile = File(_currentLogFilePath!);
-      if (await currentFile.exists()) {
-        final fileSize = await currentFile.length();
-        if (fileSize >= maxFileSizeBytes) {
-          await _closeSink();
-          final logFile = await _getCurrentLogFile();
-          _currentSink = logFile.openWrite(mode: FileMode.append);
+          await entity.delete();
+        } on FileSystemException {
+          // Another process may hold it; the next day's write tries again.
         }
       }
     }
   }
 
-  Future<void> _closeSink() async {
-    if (_currentSink != null) {
-      try {
-        await _currentSink!.flush();
-        await _currentSink!.close();
-      } catch (_) {}
-      _currentSink = null;
+  static String _dayOf(DateTime time) =>
+      '${time.year.toString().padLeft(4, '0')}-'
+      '${time.month.toString().padLeft(2, '0')}-'
+      '${time.day.toString().padLeft(2, '0')}';
+
+  static DateTime _parseDay(String day) => DateTime.parse(day);
+}
+
+Future<void> _writeArchive(ArchiveRequest request) async {
+  final encoder = ZipFileEncoder()..create(request.archivePath);
+  try {
+    for (final path in request.files) {
+      await encoder.addFile(File(path));
     }
-  }
-
-  Future<void> _processQueue() async {
-    if (_isWriting || _writeQueue.isEmpty) {
-      return;
-    }
-
-    // Don't try to write to file if bindings aren't initialized yet
-    // Messages stay in queue and will be written when bindings are ready
-    if (!_checkBindingInitialized()) {
-      return;
-    }
-
-    _isWriting = true;
-
-    try {
-      await _ensureSink();
-
-      while (_writeQueue.isNotEmpty) {
-        final message = _writeQueue.removeAt(0);
-        final timestamp =
-            DateFormat('yyyy-MM-dd HH:mm:ss.SSS').format(DateTime.now());
-        _currentSink?.writeln('[$timestamp] $message');
-      }
-
-      await _currentSink?.flush();
-    } catch (e) {
-      // Silently fail write
-    } finally {
-      _isWriting = false;
-    }
-
-    // Process remaining items if any were added during write
-    if (_writeQueue.isNotEmpty) {
-      unawaited(_processQueue());
-    }
-  }
-
-  void log(String message) {
-    _writeQueue.add(message);
-    unawaited(_processQueue());
-  }
-
-  /// Call this method after WidgetsFlutterBinding.ensureInitialized()
-  /// to flush any queued messages that were logged before bindings were ready
-  void flushPendingLogs() {
-    if (_writeQueue.isNotEmpty && _checkBindingInitialized()) {
-      unawaited(_processQueue());
-    }
-  }
-
-  Future<void> dispose() async {
-    await _closeSink();
-    _writeQueue.clear();
+  } finally {
+    await encoder.close();
   }
 }
 

@@ -2,10 +2,17 @@ display_name: FlClashX
 
 icon: ./assets/images/icon.png
 
+supported_mime_type:
+  - x-scheme-handler/clash
+  - x-scheme-handler/clashmeta
+  - x-scheme-handler/flclash
+  - x-scheme-handler/flclashx
+  - x-scheme-handler/clashx
+
 keywords:
   - FlClashX
   - Clash
-  - ClashMeta
+  - Mihomo
   - Proxy
 
 generic_name: FlClashX
@@ -14,5 +21,7 @@ categories:
   - Network
 
 startup_notify: true
+
+startup_wm_class: com.follow.clashx
 
 include: []

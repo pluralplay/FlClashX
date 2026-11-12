@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#202020</color>
-    <color name="splash_background_light">#FFFFFF</color>
-    <color name="splash_background_dark">#202020</color>
+    <color name="shortcut_background">#03A9F4</color>
 </resources>

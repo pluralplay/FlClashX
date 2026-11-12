@@ -1,257 +1,629 @@
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/plugins/app.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/input.dart';
+import 'package:ffi/ffi.dart';
+import 'package:fl_clash/common/boot_record.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/system_dns.dart';
+import 'package:fl_clash/core/desktop/helper_client.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/plugins/app.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+typedef ProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 class System {
+  static System? _instance;
+  bool _isTV = false;
+
+  @visibleForTesting
+  ProcessRunner runProcess = Process.run;
+
+  System._internal();
 
   factory System() {
     _instance ??= System._internal();
     return _instance!;
   }
 
-  System._internal();
-  static System? _instance;
-  List<String>? originDns;
+  bool get isDesktop => isWindows || isMacOS || isLinux;
 
-  bool get isDesktop =>
-      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+  bool get isWindows => Platform.isWindows;
 
-  bool? get isWindowsSystemDark {
-    if (!Platform.isWindows) return null;
-    try {
-      final result = Process.runSync('reg', [
-        'query',
-        r'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize',
-        '/v', 'SystemUsesLightTheme',
-      ]);
-      if (result.exitCode != 0) return null;
-      final match = RegExp(r'0x(\d+)').firstMatch(result.stdout.toString());
-      if (match == null) return null;
-      return int.tryParse(match.group(1)!) == 0;
-    } catch (_) {
-      return null;
-    }
-  }
+  bool get isMacOS => Platform.isMacOS;
 
-  bool get isMobile => Platform.isAndroid || Platform.isIOS;
+  bool get isAndroid => Platform.isAndroid;
 
-  Future<bool> get isAndroidTV async {
-    if (!Platform.isAndroid) return false;
-    final deviceInfo = await DeviceInfoPlugin().androidInfo;
-    return deviceInfo.systemFeatures.contains('android.software.leanback');
-  }
+  bool get isLinux => Platform.isLinux;
 
-  Future<int> get version async {
+  bool get isTV => _isTV;
+
+  Future<int> init() async {
     final deviceInfo = await DeviceInfoPlugin().deviceInfo;
+    _isTV = switch (deviceInfo) {
+      AndroidDeviceInfo(:final systemFeatures) => systemFeatures.any(
+        const {
+          'android.hardware.type.television',
+          'android.software.leanback',
+        }.contains,
+      ),
+      _ => false,
+    };
     return switch (Platform.operatingSystem) {
-      "macos" => (deviceInfo as MacOsDeviceInfo).majorVersion,
-      "android" => (deviceInfo as AndroidDeviceInfo).version.sdkInt,
-      "windows" => (deviceInfo as WindowsDeviceInfo).majorVersion,
-      String() => 0
+      'macos' => (deviceInfo as MacOsDeviceInfo).majorVersion,
+      'android' => (deviceInfo as AndroidDeviceInfo).version.sdkInt,
+      'windows' => (deviceInfo as WindowsDeviceInfo).majorVersion,
+      String() => 0,
     };
   }
 
+  Future<AppExitInfo?> lastExitInfo() async {
+    if (!isAndroid) return null;
+    return app?.getLastExitInfo();
+  }
+
+  /// [corePath] is handed to `Process.run` as an argv entry, so it must stay
+  /// verbatim. Shell-quoting or escaping it here reaches `stat` as part of the
+  /// file name and turns every path containing a space into a miss.
+  @visibleForTesting
+  static List<String> statArguments(String corePath, {required bool isMacOS}) {
+    return isMacOS
+        ? ['-f', '%Su:%Sg %Sp', corePath]
+        : ['-c', '%U:%G %A', corePath];
+  }
+
+  /// Execute for others fails it, so an older `+sx` Core is re-authorized.
+  @visibleForTesting
+  static bool isPrivilegedStatOutput(
+    String output, {
+    required String ownerPrefix,
+  }) {
+    final trimmed = output.trim();
+    if (!trimmed.startsWith(ownerPrefix)) {
+      return false;
+    }
+    final mode = trimmed.split(RegExp(r'\s+')).last;
+    return mode.length >= 10 &&
+        mode[3] == 's' &&
+        mode[9] != 'x' &&
+        mode[9] != 't';
+  }
+
+  @visibleForTesting
+  static String macOSElevationShell(String corePath, String privilegedPath) {
+    final dir = _shellEscape(File(privilegedPath).parent.path);
+    // A planted symlink or ACL would let someone other than root swap the Core.
+    return 'dir=$dir && { [ ! -L "\$dir" ] || rm -f "\$dir"; } && '
+        'mkdir -p "\$dir" && chown root:wheel "\$dir" && '
+        'chmod -N "\$dir" && chmod 755 "\$dir" && '
+        'install -S -o root -g admin -m 4750 '
+        '${_shellEscape(corePath)} ${_shellEscape(privilegedPath)}';
+  }
+
+  /// Linux clears setuid on a chown, even by root, and the copy may be the
+  /// Core running now, so it is staged and renamed over the old one. Anyone
+  /// else able to write above the copy could swap the staged file before it
+  /// turns setuid, so every directory on its resolved path must be root's
+  /// alone; a symlink there would leave the check to its target.
+  ///
+  /// The setuid bit runs the copy as root for whoever may execute it, and the
+  /// user's group may hold others, so the copy sits in a directory only that
+  /// user may enter: theirs, readable and searchable by them alone, given to
+  /// them once the copy is in place.
+  @visibleForTesting
+  static String linuxElevationShell(String corePath, String privilegedPath) {
+    final file = File(privilegedPath);
+    final dir = _shellEscape(file.parent.path);
+    final name = _shellEscape(file.uri.pathSegments.last);
+    return 'dir=$dir && uid="\${dir##*/}" && group=\$(id -g "\$uid") && '
+        'app="\${dir%/*}" && base="\${app%/*}" && mkdir -p "\$base" && '
+        'base=\$(readlink -f "\$base") && app="\$base/\${app##*/}" && '
+        'dir="\$app/\$uid" && p="\$base" && while [ -n "\$p" ]; do '
+        '{ [ ! -L "\$p" ] && [ "\$(stat -c %u "\$p")" = 0 ] && '
+        '[ \$((0\$(stat -c %a "\$p") & 022)) = 0 ]; } || exit 1; '
+        'p="\${p%/*}"; done && '
+        '{ [ ! -L "\$app" ] || rm -f "\$app"; } && mkdir -p "\$app" && '
+        'chown root:root "\$app" && chmod 755 "\$app" && '
+        'staged=\$(mktemp "\$app/.FlClashCore.XXXXXX") && '
+        '{ cat ${_shellEscape(corePath)} > "\$staged" && '
+        'chown "root:\$group" "\$staged" && '
+        'rm -rf "\$dir" && mkdir -m 700 "\$dir" && '
+        'mv -f "\$staged" "\$dir"/$name && chmod 4750 "\$dir"/$name && '
+        'chown "\$uid:\$group" "\$dir" && chmod 500 "\$dir" || '
+        '{ rm -f "\$staged"; exit 1; }; }';
+  }
+
+  Future<bool> _isInAdminGroup() async {
+    try {
+      final result = await runProcess('id', ['-Gn']);
+      return result.exitCode == 0 &&
+          result.stdout
+              .toString()
+              .trim()
+              .split(RegExp(r'\s+'))
+              .contains('admin');
+    } on ProcessException {
+      return false;
+    }
+  }
+
+  /// A read-only nosuid mount at a path that changes every run: no elevation sticks.
+  bool get isAppImage =>
+      isLinux && Platform.environment.containsKey('APPIMAGE');
+
+  late final bool _hasSystemd = Directory('/run/systemd/system').existsSync();
+
+  bool get hasHelperService =>
+      isWindows || (isLinux && !isAppImage && _hasSystemd);
+
   Future<bool> checkIsAdmin() async {
-    final corePath = appPath.corePath.replaceAll(' ', r'\\ ');
-    if (Platform.isWindows) {
-      final result = await windows?.checkService();
-      return result == WindowsHelperServiceStatus.running;
-    } else if (Platform.isMacOS) {
-      final result = await Process.run('stat', ['-f', '%Su:%Sg %Sp', corePath]);
-      final output = result.stdout.trim();
-      if (output.startsWith('root:admin') && output.contains('rws')) {
-        return true;
-      }
-      return false;
-    } else if (Platform.isLinux) {
-      final result = await Process.run('stat', ['-c', '%U:%G %A', corePath]);
-      final output = result.stdout.trim();
-      if (output.startsWith('root:') && output.contains('rws')) {
-        return true;
-      }
-      return false;
+    if (hasHelperService) {
+      return await helperClient.readiness() == HelperReadiness.ready;
+    }
+    if (system.isMacOS || system.isLinux) {
+      return _isElevatedCopy(await appPath.privilegedCorePath);
     }
     return true;
   }
 
+  Future<String> launchableCorePath() async {
+    if ((isMacOS || isLinux && !hasHelperService) && !safeModeBuild) {
+      final privileged = await appPath.privilegedCorePath;
+      if (await _isElevatedCopy(privileged)) return privileged;
+    }
+    return appPath.corePath;
+  }
+
+  /// An app update leaves the old copy behind; only a byte-for-byte match counts.
+  /// A missing `stat` or `cmp` counts as no copy, so the bundled Core still runs.
+  Future<bool> _isElevatedCopy(String path) async {
+    try {
+      final result = await runProcess(
+        'stat',
+        statArguments(path, isMacOS: isMacOS),
+      );
+      if (!isPrivilegedStatOutput(
+        result.stdout.toString(),
+        ownerPrefix: isMacOS ? 'root:admin' : 'root:',
+      )) {
+        return false;
+      }
+      final compared = await runProcess('cmp', ['-s', appPath.corePath, path]);
+      return compared.exitCode == 0;
+    } on ProcessException catch (error) {
+      commonPrint.log(
+        'Elevated Core check failed: $error',
+        logLevel: LogLevel.warning,
+      );
+      return false;
+    }
+  }
+
+  static const _inheritedAclPermissions =
+      'list,search,add_file,add_subdirectory,delete,delete_child,'
+      'file_inherit,directory_inherit';
+
+  @visibleForTesting
+  static List<String> aclArguments(String homeDirPath, String userName) {
+    return [
+      '-R',
+      '+a',
+      'user:$userName allow $_inheritedAclPermissions',
+      homeDirPath,
+    ];
+  }
+
+  Future<void> grantHomeDirAccess(String homeDirPath) async {
+    if (!isMacOS) {
+      return;
+    }
+    final userName = Platform.environment['USER'];
+    if (userName == null || userName.isEmpty) {
+      return;
+    }
+    try {
+      final result = await runProcess(
+        'chmod',
+        aclArguments(homeDirPath, userName),
+      );
+      if (result.exitCode != 0) {
+        commonPrint.log(
+          'chmod +a exited with ${result.exitCode}: ${result.stderr.toString().trim()}',
+          logLevel: LogLevel.warning,
+        );
+      }
+    } catch (error) {
+      commonPrint.log(
+        'chmod +a failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+    }
+  }
+
+  static String _shellEscape(String value) {
+    return "'${value.replaceAll("'", "'\\''")}'";
+  }
+
   Future<AuthorizeCode> authorizeCore() async {
-    if (Platform.isAndroid) {
+    if (system.isAndroid) {
       return AuthorizeCode.error;
     }
-
-    if (Platform.isMacOS) {
-      return AuthorizeCode.none;
+    if (system.isWindows) {
+      return await windows?.registerService() ?? AuthorizeCode.error;
     }
-
-    final corePath = appPath.corePath.replaceAll(' ', r'\\ ');
+    if (hasHelperService) {
+      return await linux?.registerService() ?? AuthorizeCode.error;
+    }
+    if (isAppImage) {
+      commonPrint.log(
+        'TUN cannot be authorized inside an AppImage: '
+        'the bundled Core is on a read-only nosuid mount',
+        logLevel: LogLevel.error,
+      );
+      return AuthorizeCode.error;
+    }
     final isAdmin = await checkIsAdmin();
     if (isAdmin) {
       return AuthorizeCode.none;
     }
 
-    if (Platform.isWindows) {
-      // First, try to start existing service without UAC
-      final startedWithoutUac = await windows?.tryStartExistingService();
-      if (startedWithoutUac == true) {
-        return AuthorizeCode.success;
+    if (system.isMacOS) {
+      if (!await _isInAdminGroup()) {
+        commonPrint.log(
+          'TUN needs an administrator account: only the admin group may run '
+          'the elevated Core',
+          logLevel: LogLevel.error,
+        );
+        return AuthorizeCode.error;
       }
-      
-      // Service not installed or couldn't start - need to install with UAC
-      final result = await windows?.installService();
-      if (result == true) {
-        return AuthorizeCode.success;
-      }
-      return AuthorizeCode.error;
-    } else if (Platform.isLinux) {
-      final password = await globalState.showCommonDialog<String>(
-        child: InputDialog(
-          title: appLocalizations.pleaseInputAdminPassword,
-          value: '',
-        ),
+      final shell = macOSElevationShell(
+        appPath.corePath,
+        await appPath.privilegedCorePath,
       );
-      if (password == null) return AuthorizeCode.error;
-      final proc = await Process.start('sudo', [
-        '-S', 'sh', '-c',
-        'chown root:root "\$1" && chmod +sx "\$1"',
-        'sh', corePath,
-      ]);
-      proc.stdin.writeln(password);
-      await proc.stdin.close();
-      final exitCode = await proc.exitCode;
-      if (exitCode != 0) {
+      final arguments = [
+        '-e',
+        'on run argv',
+        '-e',
+        'do shell script (item 1 of argv) with administrator privileges',
+        '-e',
+        'end run',
+        shell,
+      ];
+      final result = await runProcess('osascript', arguments);
+      if (result.exitCode != 0) {
+        commonPrint.log(
+          'TUN authorization failed: ${result.stderr.toString().trim()}',
+          logLevel: LogLevel.error,
+        );
         return AuthorizeCode.error;
       }
       return AuthorizeCode.success;
+    } else if (system.isLinux) {
+      final elevated = await linuxElevation.elevate([
+        '/bin/sh',
+        '-c',
+        linuxElevationShell(appPath.corePath, await appPath.privilegedCorePath),
+      ]);
+      return elevated ? AuthorizeCode.success : AuthorizeCode.error;
     }
     return AuthorizeCode.error;
   }
 
-  Future<String?> getMacOSDefaultServiceName() async {
-    if (!Platform.isMacOS) {
-      return null;
-    }
-    final result = await Process.run('route', ['-n', 'get', 'default']);
-    final output = result.stdout.toString();
-    final deviceLine = output
-        .split('\n')
-        .firstWhere((s) => s.contains('interface:'), orElse: () => "");
-    final lineSplits = deviceLine.trim().split(' ');
-    if (lineSplits.length != 2) {
-      return null;
-    }
-    final device = lineSplits[1];
-    final serviceResult = await Process.run(
-      'networksetup',
-      ['-listnetworkserviceorder'],
-    );
-    final serviceResultOutput = serviceResult.stdout.toString();
-    final currentService = serviceResultOutput.split('\n\n').firstWhere(
-          (s) => s.contains("Device: $device"),
-          orElse: () => "",
-        );
-    if (currentService.isEmpty) {
-      return null;
-    }
-    final currentServiceNameLine = currentService.split("\n").firstWhere(
-        (line) => RegExp(r'^\(\d+\).*').hasMatch(line),
-        orElse: () => "");
-    // Strip the leading "(N) " index; the rest is the full service name, which can
-    // contain spaces ("Thunderbolt Ethernet", "USB 10/100/1000 LAN"). The old
-    // split(' ')[1] truncated multi-word names, silently breaking auto system-DNS
-    // (and poisoning originDns with networksetup's error text) on wired/USB adapters.
-    final name =
-        currentServiceNameLine.trim().replaceFirst(RegExp(r'^\(\d+\)\s*'), '');
-    return name.isEmpty ? null : name;
-  }
-
-  Future<List<String>?> getMacOSOriginDns() async {
-    if (!Platform.isMacOS) {
-      return null;
-    }
-    final deviceServiceName = await getMacOSDefaultServiceName();
-    if (deviceServiceName == null) {
-      return null;
-    }
-    final result = await Process.run(
-      'networksetup',
-      ['-getdnsservers', deviceServiceName],
-    );
-    final output = result.stdout.toString().trim();
-    if (output.startsWith("There aren't any DNS Servers set on")) {
-      originDns = [];
-    } else {
-      originDns = output.split("\n");
-    }
-    return originDns;
-  }
-
-  Future<void> setMacOSDns(bool restore) async {
-    if (!Platform.isMacOS) {
-      return;
-    }
-    final serviceName = await getMacOSDefaultServiceName();
-    if (serviceName == null) {
-      return;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    const originKey = "macos_origin_dns";
-    const needAddDns = "1.1.1.1"; // Cloudflare DNS
-    List<String>? nextDns;
-    if (restore) {
-      // Prefer the persisted true origin over the in-memory snapshot, then clear
-      // it so the next session starts clean.
-      nextDns = prefs.getStringList(originKey) ?? originDns;
-      await prefs.remove(originKey);
-    } else {
-      final saved = prefs.getStringList(originKey);
-      final origin = saved ?? await system.getMacOSOriginDns();
-      if (origin == null) {
-        return;
-      }
-      // Persist the TRUE pre-injection DNS exactly once. Preferring a persisted
-      // snapshot over the live read means a crash-polluted live value (already
-      // carrying 1.1.1.1 from a prior unclean exit) can never become the "origin"
-      // and get baked in permanently. A genuine 1.1.1.1 user keeps their value
-      // because we never strip it from the saved snapshot.
-      if (saved == null) {
-        await prefs.setStringList(originKey, origin);
-      }
-      nextDns = origin.contains(needAddDns)
-          ? List<String>.from(origin)
-          : (List<String>.from(origin)..add(needAddDns));
-    }
-    if (nextDns == null) {
-      return;
-    }
-    await Process.run(
-      'networksetup',
-      [
-        '-setdnsservers',
-        serviceName,
-        if (nextDns.isNotEmpty) ...nextDns,
-        if (nextDns.isEmpty) "Empty",
-      ],
-    );
+  Future<void> openDirectory(String path) async {
+    final command = isWindows
+        ? 'explorer'
+        : isMacOS
+        ? 'open'
+        : 'xdg-open';
+    await runProcess(command, [path]);
   }
 
   Future<void> back() async {
     await app?.moveTaskToBack();
-    await window?.hide();
   }
 
   Future<void> exit() async {
-    if (Platform.isAndroid) {
+    if (system.isAndroid) {
       await SystemNavigator.pop();
     }
-    await window?.close();
   }
 }
 
 final system = System();
+
+class Windows {
+  static Windows? _instance;
+  static const _swHide = 0;
+  static const _swShowNormal = 1;
+  late DynamicLibrary _shell32;
+
+  Windows._internal() {
+    _shell32 = DynamicLibrary.open('shell32.dll');
+  }
+
+  factory Windows() {
+    _instance ??= Windows._internal();
+    return _instance!;
+  }
+
+  bool runas(String command, String arguments, {bool showWindow = true}) {
+    final commandPtr = command.toNativeUtf16();
+    final argumentsPtr = arguments.toNativeUtf16();
+    final operationPtr = 'runas'.toNativeUtf16();
+
+    final shellExecute = _shell32
+        .lookupFunction<
+          Int32 Function(
+            Pointer<Utf16> hwnd,
+            Pointer<Utf16> lpOperation,
+            Pointer<Utf16> lpFile,
+            Pointer<Utf16> lpParameters,
+            Pointer<Utf16> lpDirectory,
+            Int32 nShowCmd,
+          ),
+          int Function(
+            Pointer<Utf16> hwnd,
+            Pointer<Utf16> lpOperation,
+            Pointer<Utf16> lpFile,
+            Pointer<Utf16> lpParameters,
+            Pointer<Utf16> lpDirectory,
+            int nShowCmd,
+          )
+        >('ShellExecuteW');
+
+    final result = shellExecute(
+      nullptr,
+      operationPtr,
+      commandPtr,
+      argumentsPtr,
+      nullptr,
+      showWindow ? _swShowNormal : _swHide,
+    );
+
+    calloc.free(commandPtr);
+    calloc.free(argumentsPtr);
+    calloc.free(operationPtr);
+
+    commonPrint.log(
+      'windows runas: $command $arguments resultCode:$result',
+      logLevel: LogLevel.warning,
+    );
+
+    if (result <= 32) {
+      return false;
+    }
+    return true;
+  }
+
+  /// The installer may be another administrator, so this process names the owner.
+  @visibleForTesting
+  static String installArguments(int ownerPid) =>
+      'install --owner-pid $ownerPid';
+
+  Future<AuthorizeCode> registerService() {
+    return registerHelperService(
+      () async =>
+          runas(appPath.helperPath, installArguments(pid), showWindow: false),
+    );
+  }
+}
+
+typedef ElevatedHelperInstaller = Future<bool> Function();
+
+@visibleForTesting
+Future<AuthorizeCode> registerHelperService(
+  ElevatedHelperInstaller install,
+) async {
+  final readiness = await helperClient.readiness();
+  switch (readiness) {
+    case HelperReadiness.ready:
+      commonPrint.log('helper service is ready');
+      return AuthorizeCode.none;
+    case HelperReadiness.manifestMissing:
+      commonPrint.log(
+        'Core manifest is missing or invalid; Helper service unavailable, '
+        'falling back to direct Core',
+        logLevel: LogLevel.warning,
+      );
+      dialogs.showNotifier(
+        currentAppLocalizations.helperCorruptTip,
+        level: MessageLevel.error,
+      );
+      return AuthorizeCode.error;
+    case HelperReadiness.notReady:
+      break;
+  }
+
+  commonPrint.log(
+    'helper service is unavailable, requesting elevated installation',
+    logLevel: LogLevel.warning,
+  );
+  if (!await install()) {
+    commonPrint.log(
+      'failed to launch elevated helper installation',
+      logLevel: LogLevel.error,
+    );
+    return AuthorizeCode.error;
+  }
+
+  final isRunning = await _waitForHelperService();
+  commonPrint.log(
+    isRunning
+        ? 'helper service installation completed'
+        : 'helper service did not become ready after installation',
+    logLevel: isRunning ? LogLevel.info : LogLevel.error,
+  );
+  return isRunning ? AuthorizeCode.success : AuthorizeCode.error;
+}
+
+Future<bool> _waitForHelperService() async {
+  const timeout = Duration(seconds: 6);
+  const interval = Duration(seconds: 1);
+  const maxAttempts = 6;
+  final stopwatch = Stopwatch()..start();
+  for (var attempt = 0; attempt < maxAttempts; attempt++) {
+    final remaining = timeout - stopwatch.elapsed;
+    if (remaining <= Duration.zero) return false;
+    final isRunning =
+        await helperClient.readiness(timeout: remaining, logFailure: false) ==
+        HelperReadiness.ready;
+    if (isRunning) return true;
+    final delay = timeout - stopwatch.elapsed;
+    if (delay <= Duration.zero || attempt == maxAttempts - 1) return false;
+    await Future.delayed(delay < interval ? delay : interval);
+  }
+  return false;
+}
+
+final windows = system.isWindows ? Windows() : null;
+
+class Linux {
+  static Linux? _instance;
+
+  Linux._internal();
+
+  factory Linux() {
+    _instance ??= Linux._internal();
+    return _instance!;
+  }
+
+  Future<AuthorizeCode> registerService() {
+    return registerHelperService(installService);
+  }
+
+  /// pkexec and sudo both name the requesting user to the installer, which is
+  /// where the unit takes the account it grants the Helper socket to.
+  @visibleForTesting
+  Future<bool> installService() {
+    return linuxElevation.elevate([appPath.helperPath, 'install']);
+  }
+}
+
+final linux = system.isLinux && system.hasHelperService ? Linux() : null;
+
+class MacOS implements SystemDnsPort {
+  static MacOS? _instance;
+
+  @visibleForTesting
+  ProcessRunner runProcess = Process.run;
+
+  MacOS._internal();
+
+  factory MacOS() {
+    _instance ??= MacOS._internal();
+    return _instance!;
+  }
+
+  @visibleForTesting
+  static String? parseDefaultInterface(String routeOutput) {
+    final deviceLine = routeOutput
+        .split('\n')
+        .firstWhere((s) => s.contains('interface:'), orElse: () => '');
+    final lineSplits = deviceLine.trim().split(' ');
+    if (lineSplits.length != 2) {
+      return null;
+    }
+    return lineSplits[1];
+  }
+
+  @visibleForTesting
+  static String? parseServiceName(String serviceOrderOutput, String device) {
+    final currentService = serviceOrderOutput
+        .split('\n\n')
+        .firstWhere((s) => s.contains('Device: $device'), orElse: () => '');
+    if (currentService.isEmpty) {
+      return null;
+    }
+    final nameLine = currentService
+        .split('\n')
+        .firstWhere(
+          (line) => RegExp(r'^\(\d+\).*').hasMatch(line),
+          orElse: () => '',
+        );
+    final name = RegExp(
+      r'^\(\d+\)\s+(.+)$',
+    ).firstMatch(nameLine.trim())?.group(1)?.trim();
+    if (name == null || name.isEmpty) {
+      return null;
+    }
+    return name;
+  }
+
+  @visibleForTesting
+  static List<String> parseDnsServers(String getDnsServersOutput) {
+    final output = getDnsServersOutput.trim();
+    if (output.startsWith("There aren't any DNS Servers set on")) {
+      return [];
+    }
+    return output.split('\n');
+  }
+
+  @override
+  Future<String?> resolveDefaultService() async {
+    final result = await _run('route', ['-n', 'get', 'default']);
+    if (result == null) {
+      return null;
+    }
+    final device = parseDefaultInterface(result.stdout.toString());
+    if (device == null) {
+      return null;
+    }
+    final serviceResult = await _run('networksetup', [
+      '-listnetworkserviceorder',
+    ]);
+    if (serviceResult == null) {
+      return null;
+    }
+    return parseServiceName(serviceResult.stdout.toString(), device);
+  }
+
+  @override
+  Future<List<String>?> readDnsServers(String service) async {
+    final result = await _run('networksetup', ['-getdnsservers', service]);
+    if (result == null) {
+      return null;
+    }
+    return parseDnsServers(result.stdout.toString());
+  }
+
+  @override
+  Future<bool> writeDnsServers(String service, List<String> servers) async {
+    final result = await _run('networksetup', [
+      '-setdnsservers',
+      service,
+      if (servers.isEmpty) 'Empty',
+      if (servers.isNotEmpty) ...servers,
+    ], logLevel: LogLevel.error);
+    return result != null;
+  }
+
+  Future<ProcessResult?> _run(
+    String executable,
+    List<String> arguments, {
+    LogLevel logLevel = LogLevel.warning,
+  }) async {
+    final label = '$executable ${arguments.first}';
+    try {
+      final result = await runProcess(executable, arguments);
+      if (result.exitCode != 0) {
+        commonPrint.log(
+          '$label exited with ${result.exitCode}: ${result.stderr.toString().trim()}',
+          logLevel: logLevel,
+        );
+        return null;
+      }
+      return result;
+    } catch (error) {
+      commonPrint.log(
+        '$label failed: ${compactError(error)}',
+        logLevel: logLevel,
+      );
+      return null;
+    }
+  }
+}
+
+final macOS = system.isMacOS ? MacOS() : null;

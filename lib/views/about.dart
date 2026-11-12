@@ -1,652 +1,420 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flclashx/clash/core.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/state.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
-
-@immutable
-class Contributor {
-  const Contributor({
-    this.avatar,
-    required this.name,
-    required this.link,
-    this.clickable = true,
-  });
-  final String? avatar;
-  final String name;
-  final String link;
-  final bool clickable;
-}
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 @immutable
-class ThanksPerson {
-  const ThanksPerson({
-    this.avatar,
-    required this.name,
-  });
-  final String? avatar;
+class Person {
+  const Person({required this.avatar, required this.name, this.link});
+
+  final String avatar;
   final String name;
+  final String? link;
 }
 
-class AboutView extends StatelessWidget {
+const _forkAuthors = [
+  Person(
+    avatar: 'assets/images/avatar/pluralplay.jpg',
+    name: 'pluralplay',
+    link: 'https://github.com/pluralplay',
+  ),
+];
+
+const _upstreamRepository = 'chen08209/FlClash';
+const _coreRepository = 'MetaCubeX/mihomo';
+const _telegram = 'https://t.me/flclashx';
+
+/// The running core's version when it answers, else the one this build was
+/// made with, else nothing.
+final coreVersionProvider = FutureProvider.autoDispose<String?>((ref) async {
+  String live = '';
+  if (ref.watch(coreStatusProvider) == CoreStatus.connected) {
+    try {
+      live = await ref.read(coreHandlerProvider).getCoreVersion();
+    } catch (_) {}
+  }
+  final version = live.isNotEmpty ? live : coreVersionDefine;
+  return version.isEmpty ? null : version;
+});
+
+class AboutView extends ConsumerWidget {
   const AboutView({super.key});
 
-  Future<void> _checkUpdate(BuildContext context) async {
-    final commonScaffoldState = context.commonScaffoldState;
-    if (commonScaffoldState?.mounted != true) return;
-    final data = await commonScaffoldState?.loadingRun<Map<String, dynamic>?>(
-      request.checkForUpdate,
-      title: appLocalizations.checkUpdate,
+  Future<void> _checkUpdate(BuildContext context, WidgetRef ref) async {
+    if (ref.read(loadingProvider(LoadingTag.checkUpdate))) return;
+    final commonAction = ref.read(commonActionProvider.notifier);
+    final result = await globalState.loadingRun(
+      () async => (release: await request.checkForUpdate()),
+      title: context.appLocalizations.checkUpdate,
+      tag: LoadingTag.checkUpdate,
     );
-    globalState.appController.checkUpdateResultHandle(
-      data: data,
-      handleError: true,
-    );
-  }
-
-  List<Widget> _buildThanksForContributionSection(BuildContext context) {
-    const contributors = [
-      Contributor(
-        avatar: "assets/images/avatars/x_kit_.jpg",
-        name: "x_kit_",
-        link: "https://github.com/this-xkit",
-      ),
-      Contributor(
-        avatar: "assets/images/avatars/katsukibtw.jpg",
-        name: "katsukibtw",
-        link: "https://github.com/katsukibtw",
-      ),
-    ];
-    return generateSection(
-      separated: false,
-      title: appLocalizations.thanks,
-      items: [
-        ListItem(
-          title: Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              for (final contributor in contributors)
-                Avatar(
-                  contributor: contributor,
-                  size: 48.0,
-                ),
-            ],
-          ),
-        )
-      ],
+    if (result == null) return;
+    unawaited(
+      commonAction.checkUpdateResultHandle(data: result.release, isUser: true),
     );
   }
 
-  List<Widget> _buildGratitudeSection(BuildContext context) {
-    const gratitude = [
-      ThanksPerson(
-        name: "cool_coala",
-        avatar: "assets/images/avatars/cool_coala.jpg",
-      ),
-      ThanksPerson(
-        name: "arpic",
-        avatar: "assets/images/avatars/arpic.jpg",
-      ),
-      ThanksPerson(
-        name: "legiz",
-        avatar: "assets/images/avatars/legiz.jpg",
-      ),
-    ];
-    return generateSection(
-      separated: false,
-      title: appLocalizations.gratitude,
-      items: [
-        ListItem(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              for (final person in gratitude)
-                SizedBox(
-                  width: 70,
-                  child: ThanksAvatar(
-                    person: person,
-                  ),
-                ),
-            ],
-          ),
-        )
-      ],
-    );
-  }
-
-  List<Widget> _buildMoreSection(BuildContext context) => generateSection(
-        separated: false,
-        title: appLocalizations.more,
-        items: [
-          ListItem(
-            title: Text(appLocalizations.checkUpdate),
-            onTap: () {
-              _checkUpdate(context);
-            },
-            trailing: const Icon(Icons.update),
-          ),
-          if (system.isDesktop) const _CoreUpdateItem(),
-          ListItem(
-            title: Text(appLocalizations.project),
-            onTap: () {
-              globalState.openUrl(
-                "https://github.com/$repository",
-              );
-            },
-            trailing: const Icon(Icons.insert_link),
-          ),
-          ListItem(
-            title: Text(appLocalizations.originalRepository),
-            onTap: () {
-              globalState.openUrl(
-                "https://github.com/chen08209/FlClash",
-              );
-            },
-            trailing: const Icon(Icons.insert_link),
-          ),
-          ListItem(
-            title: Text(appLocalizations.core),
-            onTap: () {
-              globalState.openUrl(
-                "https://github.com/MetaCubeX/mihomo",
-              );
-            },
-            trailing: const Icon(Icons.insert_link),
-          ),
-        ],
-      );
-
-  List<Widget> _buildContributorsSection() {
-    const contributors = [
-      Contributor(
-        avatar: "assets/images/avatars/pluralplay.jpg",
-        name: "pluralplay",
-        link: "https://github.com/pluralplay",
-      ),
-      Contributor(
-        avatar: "assets/images/avatars/kastov.jpg",
-        name: "kastov",
-        link: "https://github.com/kastov",
-      ),
-    ];
-    return generateSection(
-      separated: false,
-      title: appLocalizations.otherContributors,
-      items: [
-        ListItem(
-          title: Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              for (final contributor in contributors)
-                Avatar(
-                  contributor: contributor,
-                ),
-            ],
-          ),
-        )
-      ],
+  Widget _buildLinkItem({
+    required Glyph glyph,
+    required String title,
+    required String url,
+    required String label,
+  }) {
+    return ListItem(
+      leading: _LinkBadge(glyph: glyph),
+      title: Text(title),
+      subtitle: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: const GlyphIcon(AppGlyphs.openExternal),
+      onTap: () {
+        dialogs.openUrl(url);
+      },
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final items = [
-      ListTile(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _EasterEggDetector(
-              child: Wrap(
-                spacing: 16,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Image.asset(
-                      'assets/images/icon.png',
-                      width: 64,
-                      height: 64,
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        appName,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      Text(
-                        globalState.packageInfo.version,
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      const _CoreVersionWidget(),
-                    ],
-                  )
-                ],
-              ),
-              onEasterEgg: () {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (dialogContext) => AlertDialog(
-                    title: const Text(
-                      'REMNAFAMILY ONE LOVE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Unbounded',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          '❤️',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 48),
-                        ),
-                        const SizedBox(height: 16),
-                        InkWell(
-                          onTap: () {
-                            globalState.openUrl('https://docs.rw');
-                          },
-                          child: const Text(
-                            'TRY REMNAWAVE',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontFamily: 'Unbounded',
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    actionsAlignment: MainAxisAlignment.center,
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(
-              height: 24,
-            ),
-            Text(
-              appLocalizations.desc,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appLocalizations = context.appLocalizations;
+    final isLoading = ref.watch(loadingProvider(LoadingTag.checkUpdate));
+    return CommonScaffold(
+      isLoading: isLoading,
+      title: appLocalizations.about,
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
+          top: context.contentTopPadding,
+          bottom: 32 + context.bottomInset,
         ),
+        children: [
+          _AboutHero(
+            isCheckingUpdate: isLoading,
+            onCheckUpdate: () {
+              _checkUpdate(context, ref);
+            },
+            onEnterDeveloperMode: () {
+              ref
+                  .read(appSettingProvider.notifier)
+                  .update((state) => state.copyWith(developerMode: true));
+              context.showNotifier(
+                appLocalizations.developerModeEnableTip,
+                level: MessageLevel.success,
+              );
+            },
+            onEasterEgg: () => _showEasterEgg(context),
+          ),
+          const SizedBox(height: 8),
+          generateSection(
+            title: appLocalizations.more,
+            items: [
+              _buildLinkItem(
+                glyph: AppGlyphs.code,
+                title: appLocalizations.project,
+                url: 'https://github.com/$repository',
+                label: 'github.com/$repository',
+              ),
+              _buildLinkItem(
+                glyph: AppGlyphs.link,
+                title: appLocalizations.originalRepository,
+                url: 'https://github.com/$_upstreamRepository',
+                label: 'github.com/$_upstreamRepository',
+              ),
+              _buildLinkItem(
+                glyph: AppGlyphs.cpu,
+                title: appLocalizations.core,
+                url: 'https://github.com/$_coreRepository',
+                label: 'github.com/$_coreRepository',
+              ),
+              _buildLinkItem(
+                glyph: AppGlyphs.send,
+                title: 'Telegram',
+                url: _telegram,
+                label: 't.me/flclashx',
+              ),
+            ],
+          ),
+          generateSection(
+            title: appLocalizations.forkAuthor,
+            items: const [_PeopleRow(people: _forkAuthors)],
+          ),
+        ],
       ),
-      const SizedBox(
-        height: 12,
-      ),
-      ..._buildContributorsSection(),
-      ..._buildThanksForContributionSection(context),
-      ..._buildGratitudeSection(context),
-      ..._buildMoreSection(context),
-    ];
+    );
+  }
+
+  void _showEasterEgg(BuildContext context) {
+    dialogs
+        .showMessage(
+          context: context,
+          title: 'REMNAFAMILY ONE LOVE',
+          message: const TextSpan(text: '❤️  TRY REMNAWAVE  ❤️'),
+          confirmText: 'docs.rw',
+          cancelable: true,
+        )
+        .then((open) {
+          if (open == true) {
+            dialogs.openUrl('https://docs.rw');
+          }
+        });
+  }
+}
+
+class _AboutHero extends ConsumerWidget {
+  final bool isCheckingUpdate;
+  final VoidCallback onCheckUpdate;
+  final VoidCallback onEnterDeveloperMode;
+  final VoidCallback onEasterEgg;
+
+  const _AboutHero({
+    required this.isCheckingUpdate,
+    required this.onCheckUpdate,
+    required this.onEnterDeveloperMode,
+    required this.onEasterEgg,
+  });
+
+  static const _logoSize = 96.0;
+  static const _logoInset = 14.0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = context.colorScheme;
+    final appLocalizations = context.appLocalizations;
+    final coreVersion = ref.watch(coreVersionProvider).value;
+    final raised = context.raisedSurfaceLevel.colorOf(colorScheme);
     return Padding(
-      padding: kMaterialListPadding.copyWith(
-        top: 16,
-        bottom: 16,
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      child: Column(
+        children: [
+          _TapCounter(
+            onEnterDeveloperMode: onEnterDeveloperMode,
+            onEasterEgg: onEasterEgg,
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                color: raised,
+                shape: AppShape.all(AppCorner.fit(_logoSize)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(_logoInset),
+                child: Image.asset(
+                  'assets/images/icon.png',
+                  width: _logoSize - _logoInset * 2,
+                  height: _logoSize - _logoInset * 2,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            appName,
+            style: AppTextStyle.title2.of(context, emphasized: true),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              _Pill(
+                label: 'v${globalState.packageInfo.displayVersion}',
+                color: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+              ),
+              if (coreVersion != null)
+                _Pill(
+                  label: 'core: $coreVersion',
+                  color: colorScheme.secondaryContainer,
+                  foregroundColor: colorScheme.onSecondaryContainer,
+                ),
+              _Pill(
+                label: 'GPL-3.0',
+                color: raised,
+                foregroundColor: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Text(
+              appLocalizations.desc,
+              textAlign: TextAlign.center,
+              style: AppTextStyle.subheadline
+                  .of(context)
+                  .copyWith(color: colorScheme.onSurfaceVariant, height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 20),
+          TonalButton(
+            size: TonalButtonSize.bar,
+            glyph: AppGlyphs.sync,
+            label: appLocalizations.checkUpdate,
+            onPressed: isCheckingUpdate ? null : onCheckUpdate,
+          ),
+        ],
       ),
-      child: generateListView(items),
     );
   }
 }
 
-class Avatar extends StatelessWidget {
-  const Avatar({
-    super.key,
-    required this.contributor,
-    this.size = 56.0,
+class _Pill extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color foregroundColor;
+
+  const _Pill({
+    required this.label,
+    required this.color,
+    required this.foregroundColor,
   });
-  final Contributor contributor;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: ShapeDecoration(color: color, shape: AppShape.full),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Text(
+          label,
+          style: AppTextStyle.caption1
+              .of(context, emphasized: true)
+              .copyWith(color: foregroundColor),
+        ),
+      ),
+    );
+  }
+}
+
+class _LinkBadge extends StatelessWidget {
+  final Glyph glyph;
+
+  const _LinkBadge({required this.glyph});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: context.raisedSurfaceLevel.colorOf(colorScheme),
+        shape: AppShape.md,
+      ),
+      child: SizedBox.square(
+        dimension: 40,
+        child: Center(
+          child: GlyphIcon(
+            glyph,
+            size: 20,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A row of avatars with names under them; a person with a link opens it.
+class _PeopleRow extends StatelessWidget {
+  const _PeopleRow({required this.people});
+
+  static const _avatarSize = 56.0;
+
+  final List<Person> people;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListItem(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      title: Wrap(
+        spacing: 16,
+        runSpacing: 12,
+        children: [
+          for (final person in people)
+            _Avatar(person: person, size: _avatarSize),
+        ],
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.person, required this.size});
+
+  final Person person;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final avatarSize = size;
-    final fontSize = size * 0.25; // 14.0 for 56px
-    final avatarFontSize = size * 0.46; // 26.0 for 56px
-
-    final avatarWidget = Column(
+    final link = person.link;
+    final column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: avatarSize,
-          height: avatarSize,
-          child: CircleAvatar(
-            foregroundImage: contributor.avatar != null
-                ? AssetImage(contributor.avatar!) as ImageProvider
-                : null,
-            backgroundColor: contributor.avatar == null
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: contributor.avatar == null
-                ? Text(
-                    contributor.name[0].toUpperCase(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Unbounded',
-                      fontSize: avatarFontSize,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
-          ),
+        CircleAvatar(
+          radius: size / 2,
+          foregroundImage: AssetImage(person.avatar),
         ),
-        const SizedBox(
-          height: 4,
-        ),
-        Text(
-          contributor.name,
-          style: TextStyle(
-            fontFamily: 'Unbounded',
-            fontSize: fontSize,
-          ),
-        )
-      ],
-    );
-
-    if (contributor.clickable) {
-      return GestureDetector(
-        onTap: () {
-          globalState.openUrl(contributor.link);
-        },
-        child: avatarWidget,
-      );
-    }
-
-    return avatarWidget;
-  }
-}
-
-class ThanksAvatar extends StatelessWidget {
-  const ThanksAvatar({
-    super.key,
-    required this.person,
-  });
-  final ThanksPerson person;
-
-  @override
-  Widget build(BuildContext context) {
-    const avatarSize = 36.0;
-    const fontSize = 9.0;
-    const avatarFontSize = 16.0;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: avatarSize,
-          height: avatarSize,
-          child: CircleAvatar(
-            foregroundImage: person.avatar != null
-                ? AssetImage(person.avatar!) as ImageProvider
-                : null,
-            backgroundColor: person.avatar == null
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: person.avatar == null
-                ? Text(
-                    person.name[0].toUpperCase(),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      fontFamily: 'Unbounded',
-                      fontSize: avatarFontSize,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
-          ),
-        ),
-        const SizedBox(
-          height: 4,
-        ),
+        const SizedBox(height: 4),
         Text(
           person.name,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontFamily: 'Unbounded',
-            fontSize: fontSize,
-          ),
-        )
+          style: AppTextStyle.caption1.of(context, emphasized: link != null),
+        ),
       ],
     );
-  }
-}
-
-class _CoreVersionWidget extends StatelessWidget {
-  const _CoreVersionWidget();
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<String>(
-        // Prefer the running instance — after a standalone core update it is
-        // the only truthful source; the build-time constant covers a stopped
-        // core.
-        future: clashCore.getCoreVersion(),
-        builder: (context, snapshot) {
-          final live = snapshot.data;
-          final coreVersion =
-              live != null && live.isNotEmpty ? live : globalState.coreVersion;
-          if (coreVersion == null || coreVersion.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          return Text(
-            'Core: $coreVersion',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          );
-        },
-      );
-}
-
-class _CoreUpdateItem extends StatefulWidget {
-  const _CoreUpdateItem();
-
-  @override
-  State<_CoreUpdateItem> createState() => _CoreUpdateItemState();
-}
-
-class _CoreUpdateItemState extends State<_CoreUpdateItem> {
-  Map<String, dynamic>? _release;
-  bool _busy = false;
-  bool _downloading = false;
-  double _progress = 0;
-  String _error = '';
-  bool _initialCheckDone = false;
-
-  String get _coreAssetName {
-    final arch = Platform.version.contains('arm64') ||
-            Platform.version.contains('aarch64')
-        ? 'arm64'
-        : 'amd64';
-    final platform = Platform.isWindows
-        ? 'windows'
-        : Platform.isMacOS
-            ? 'macos'
-            : 'linux';
-    final ext = Platform.isWindows ? '.exe' : '';
-    return 'FlClashCore-$platform-$arch$ext';
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialCheckDone) {
-      _initialCheckDone = true;
-      _check();
+    if (link == null) {
+      return column;
     }
-  }
-
-  Future<void> _check() async {
-    try {
-      final coreVersion = await clashCore.getCoreVersion();
-      final currentVersion =
-          coreVersion.isNotEmpty ? coreVersion : globalState.coreVersion ?? '';
-      if (currentVersion.isEmpty) {
-        return;
-      }
-      final release = await request.checkForCoreUpdate(currentVersion);
-      if (mounted && release != null) {
-        setState(() => _release = release);
-      }
-    } catch (_) {
-      // The item only appears when an update is found; stay hidden on errors.
-    }
-  }
-
-  Future<void> _download() async {
-    if (_busy || _release == null) {
-      return;
-    }
-    final assets = _release!['assets'] as List<dynamic>? ?? [];
-    final name = _coreAssetName;
-    final asset = assets
-        .cast<Map<String, dynamic>>()
-        .where((a) => (a['name'] as String?) == name)
-        .firstOrNull;
-    if (asset == null) {
-      setState(() => _error = '$name not found');
-      return;
-    }
-    final url = asset['browser_download_url'] as String;
-    setState(() {
-      _busy = true;
-      _downloading = true;
-      _progress = 0;
-      _error = '';
-    });
-    final error = await request.downloadCoreUpdate(
-      url,
-      appPath.corePendingPath,
-      onProgress: (received, total) {
-        if (!mounted || total <= 0) return;
-        setState(() => _progress = received / total);
-      },
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _downloading = false;
-      if (error != null) {
-        _error = error;
-      }
-    });
-    if (error == null) {
-      _showRestartDialog();
-    }
-  }
-
-  void _showRestartDialog() {
-    globalState.showCommonDialog(
-      dismissible: false,
-      child: CommonDialog(
-        title: appLocalizations.coreUpdateSuccess,
-        actions: [
-          TextButton(
-            onPressed: () {
-              // Restart only the core, not the whole app. reStart applies the
-              // pending binary (helper swap on Windows) and re-inits in place, so
-              // the Dart run-state stays in sync — a full app restart
-              // (handleRestart) left the UI thinking the core was stopped while it
-              // was actually up and proxying.
-              // Close the dialog + the About sheet and jump to the dashboard so the
-              // restart happens on the main screen, not buried in settings.
-              globalState.navigatorKey.currentState
-                  ?.popUntil((route) => route.isFirst);
-              globalState.appController.toPage(PageLabel.dashboard);
-              globalState.appController.restartCore();
-            },
-            child: Text(appLocalizations.restart),
-          ),
-        ],
+    return Tooltip(
+      message: link,
+      child: FocusRing(
+        shape: AppShape.md,
+        standsOff: true,
+        child: InkWell(
+          mouseCursor: clickableCursor,
+          customBorder: AppShape.md,
+          onTap: () => dialogs.openUrl(link),
+          child: Padding(padding: const EdgeInsets.all(4), child: column),
+        ),
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final release = _release;
-    if (release == null) {
-      return const SizedBox.shrink();
-    }
-    final color = Theme.of(context).colorScheme.primary;
-    final tag = (release['tag_name'] as String).replaceFirst('core-', '');
-    final subtitle = _error.isNotEmpty
-        ? '${appLocalizations.coreUpdateFailed}: $_error'
-        : _downloading
-            ? appLocalizations.coreUpdateDownloading
-            : tag;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ListItem(
-          title: Text(
-            appLocalizations.coreUpdateAvailable,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(subtitle),
-          onTap: _download,
-          trailing: Icon(Icons.system_update, color: color),
-        ),
-        if (_downloading)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: LinearProgressIndicator(
-              value: _progress > 0 ? _progress : null,
-            ),
-          ),
-      ],
-    );
-  }
 }
 
-class _EasterEggDetector extends StatefulWidget {
-  const _EasterEggDetector({
-    required this.child,
-    required this.onEasterEgg,
-  });
+/// Five taps on the logo open developer mode; ten in a row find the egg.
+class _TapCounter extends StatefulWidget {
   final Widget child;
+  final VoidCallback onEnterDeveloperMode;
   final VoidCallback onEasterEgg;
 
+  const _TapCounter({
+    required this.child,
+    required this.onEnterDeveloperMode,
+    required this.onEasterEgg,
+  });
+
   @override
-  State<_EasterEggDetector> createState() => _EasterEggDetectorState();
+  State<_TapCounter> createState() => _TapCounterState();
 }
 
-class _EasterEggDetectorState extends State<_EasterEggDetector> {
+class _TapCounterState extends State<_TapCounter> {
+  static const _developerTaps = 5;
+  static const _easterEggTaps = 10;
+
   int _counter = 0;
   Timer? _timer;
 
   void _handleTap() {
     _counter++;
-    if (_counter >= 10) {
+    _timer?.cancel();
+    if (_counter == _developerTaps) {
+      widget.onEnterDeveloperMode();
+    }
+    if (_counter >= _easterEggTaps) {
       widget.onEasterEgg();
       _resetCounter();
-    } else {
-      _timer?.cancel();
-      _timer = Timer(const Duration(seconds: 1), _resetCounter);
+      return;
     }
+    _timer = Timer(const Duration(seconds: 1), _resetCounter);
   }
 
   void _resetCounter() {
@@ -662,8 +430,10 @@ class _EasterEggDetectorState extends State<_EasterEggDetector> {
   }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: _handleTap,
-        child: widget.child,
-      );
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: _handleTap, child: widget.child),
+    );
+  }
 }

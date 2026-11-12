@@ -1,0 +1,728 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:path/path.dart';
+
+Future<T> decodeJSONTask<T>(String data) async {
+  return compute<String, T>(_decodeJSON, data);
+}
+
+Future<T> _decodeJSON<T>(String content) async {
+  return json.decode(content);
+}
+
+Future<String> encodeJSONTask(Object? data) async {
+  return compute<Object?, String>(json.encode, data);
+}
+
+Future<String> encodeYamlTask<T>(T data) async {
+  return compute<T, String>(_encodeYaml, data);
+}
+
+Future<String> _encodeYaml<T>(T content) async {
+  return yaml.encode(content);
+}
+
+/// Throws [FormatException] when the file is not UTF-8.
+Future<String?> readTextFileTask(String path) {
+  return compute(_readTextFile, path);
+}
+
+String? _readTextFile(String path) {
+  final file = File(path);
+  if (!file.existsSync()) {
+    return null;
+  }
+  return utf8.decode(file.readAsBytesSync());
+}
+
+Future<List<Group>> toGroupsTask(ComputeGroupsState data) async {
+  return compute<ComputeGroupsState, List<Group>>(buildGroups, data);
+}
+
+@visibleForTesting
+Future<List<Group>> buildGroups(ComputeGroupsState state) async {
+  final proxiesData = state.proxiesData;
+  final all = proxiesData.all;
+  final sortType = state.sortType;
+  final delayMap = state.delayMap;
+  final selectedMap = state.selectedMap;
+  final defaultTestUrl = state.defaultTestUrl;
+  final proxies = proxiesData.proxies;
+  if (proxies.isEmpty) return [];
+  final groups = <Group>[];
+  for (final groupName in all) {
+    final raw = proxies[groupName];
+    if (raw is! Map) continue;
+    if (!GroupTypeExtension.valueList.contains(raw['type'])) continue;
+    final memberNames = raw['all'];
+    final group = Map<String, dynamic>.from(raw);
+    group['all'] = memberNames is List
+        ? memberNames.map((name) => proxies[name]).nonNulls.toList()
+        : const [];
+    groups.add(Group.fromJson(group));
+  }
+  return computeSort(
+    groups: indexGroupMembers(groups),
+    sortType: sortType,
+    delayMap: delayMap,
+    selectedMap: selectedMap,
+    defaultTestUrl: defaultTestUrl,
+  );
+}
+
+Future<ClashConfig> clashConfigTask(Map<String, dynamic> data) async {
+  return compute<Map<String, dynamic>, ClashConfig>(_buildClashConfig, data);
+}
+
+ClashConfig _buildClashConfig(Map<String, dynamic> configMap) {
+  return ClashConfig.fromJson(configMap);
+}
+
+typedef ConfigCounts = ({int groups, int proxies, int rules});
+
+typedef RealProfile = ({String yaml, String md5, ConfigCounts counts});
+
+/// Counts what the Core was handed, not what the profile file declares.
+ConfigCounts configCountsOf(Map<Object?, Object?> config) {
+  int lengthOf(Object? value) => value is List ? value.length : 0;
+  return (
+    groups: lengthOf(config['proxy-groups']),
+    proxies: lengthOf(config['proxies']),
+    rules: lengthOf(config['rules']),
+  );
+}
+
+String? lastMatchTarget(List<String> rules) {
+  for (int i = rules.length - 1; i >= 0; i--) {
+    final parsed = Rule.parse(rules[i]);
+    if (parsed.ruleAction == RuleAction.MATCH) {
+      final target = parsed.ruleTarget;
+      if (target != null && target.isNotEmpty) {
+        return target;
+      }
+    }
+  }
+  return null;
+}
+
+Future<RealProfile> makeRealProfileTask(MakeRealProfileState data) async {
+  return compute<MakeRealProfileState, RealProfile>(_makeRealProfileTask, data);
+}
+
+String _localPath(Object? value) {
+  if (value is! String || value.isEmpty) {
+    return '';
+  }
+  final rooted = value.startsWith('/') || value.startsWith(r'\\');
+  if (rooted || isAbsolute(value) || split(value).contains('..')) {
+    return '';
+  }
+  return value;
+}
+
+Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
+  final rawConfig = Map.from(data.rawConfig);
+  final realPatchConfig = data.realPatchConfig;
+  final profilesPath = data.profilesPath;
+  final profileId = data.profileId;
+  final overrides = data.overrides;
+  final addedRules = data.addedRules;
+  final appendSystemDns = data.appendSystemDns;
+  final defaultUA = data.defaultUA;
+  String getProvidersFilePathInner(String type, String key) {
+    return join(
+      profilesPath,
+      providersDirectoryName,
+      profileId.toString(),
+      type,
+      key.toMd5(),
+    );
+  }
+
+  void confineProviders(String section, String type) {
+    final providers = rawConfig[section];
+    if (providers is! Map) {
+      return;
+    }
+    for (final name in providers.keys) {
+      final provider = providers[name];
+      if (provider is! Map || provider['type'] == 'inline') {
+        continue;
+      }
+      // Two providers may share a URL and differ only by header.
+      final url = provider['url'];
+      final hasUrl = url is String && url.isNotEmpty;
+      final path = getProvidersFilePathInner(
+        type,
+        hasUrl ? '$name@$url' : '$section/$name',
+      );
+      if (hasUrl) {
+        _migrateLegacyProviderFile(
+          legacyPath: getProvidersFilePathInner(type, url),
+          newPath: path,
+        );
+      }
+      provider['path'] = path;
+    }
+  }
+
+  final controller = data.safeMode ? '' : realPatchConfig.externalController;
+  rawConfig['external-controller'] = controller;
+  rawConfig['secret'] = realPatchConfig.secret;
+  // mihomo serves the unix and pipe controllers without a secret, and the unix
+  // one unlinks whatever sits at its path before opening it to everyone.
+  rawConfig['external-controller-tls'] = '';
+  rawConfig['external-controller-unix'] = '';
+  rawConfig['external-controller-pipe'] = '';
+  final iptables = rawConfig['iptables'];
+  if (iptables is Map) {
+    final inboundInterface = iptables['inbound-interface'];
+    if (inboundInterface is String && inboundInterface.contains(' ')) {
+      rawConfig['iptables'] = {'enable': false};
+    }
+  }
+  var externalUi = controller.isEmpty
+      ? ''
+      : _localPath(rawConfig['external-ui']);
+  if (controller.isNotEmpty && externalUi.isEmpty) {
+    externalUi = defaultExternalUi;
+    rawConfig['external-ui-url'] = defaultExternalUiUrl;
+  }
+  rawConfig['external-ui'] = externalUi;
+  rawConfig['external-ui-name'] = _localPath(rawConfig['external-ui-name']);
+  switch (realPatchConfig.interfaceNameMode) {
+    case InterfaceNameMode.clear:
+      rawConfig['interface-name'] = '';
+    case InterfaceNameMode.follow:
+      break;
+    case InterfaceNameMode.custom:
+      rawConfig['interface-name'] = realPatchConfig.interfaceName;
+  }
+  rawConfig['tcp-concurrent'] = realPatchConfig.tcpConcurrent;
+  rawConfig['unified-delay'] = realPatchConfig.unifiedDelay;
+  rawConfig['ipv6'] = realPatchConfig.ipv6;
+  rawConfig['log-level'] = realPatchConfig.logLevel.name;
+  rawConfig['port'] = 0;
+  rawConfig['socks-port'] = 0;
+  rawConfig['keep-alive-interval'] = realPatchConfig.keepAliveInterval;
+  rawConfig['keep-alive-idle'] = realPatchConfig.keepAliveIdle;
+  rawConfig['disable-keep-alive'] = realPatchConfig.disableKeepAlive;
+  rawConfig['routing-mark'] = realPatchConfig.routingMark;
+  rawConfig['mixed-port'] = realPatchConfig.mixedPort;
+  rawConfig['port'] = realPatchConfig.port;
+  rawConfig['socks-port'] = realPatchConfig.socksPort;
+  rawConfig['redir-port'] = realPatchConfig.redirPort;
+  rawConfig['tproxy-port'] = realPatchConfig.tproxyPort;
+  rawConfig['find-process-mode'] = realPatchConfig.findProcessMode.name;
+  rawConfig['allow-lan'] = realPatchConfig.allowLan;
+  // The app owns local inbound authentication; a profile-provided
+  // skip-auth-prefixes could silently exempt loopback and defeat it.
+  rawConfig['authentication'] = data.authentication;
+  rawConfig['skip-auth-prefixes'] = [];
+  rawConfig['mode'] = realPatchConfig.mode.name;
+  // auto-route is always on, so without auto-detect-interface the core sends
+  // its own outbound back into the TUN unless interface-name binds it, and
+  // interface-name wins over the detected interface anyway. A profile's own
+  // dns-hijack may leave queries to other resolvers unhijacked, so only a
+  // picked key replaces any:53.
+  final tun = {
+    if (rawConfig['tun'] is Map) ...rawConfig['tun'] as Map,
+    'dns-hijack': defaultDnsHijack,
+    ...overrides.tun.overrideJson(overrides.tunOverrideKeys),
+    ...realPatchConfig.tun.coreJson,
+    'auto-detect-interface': true,
+  };
+  if (data.bypassPrivateRoute) {
+    tun['route-exclude-address'] = [
+      if (tun['route-exclude-address'] case final List routes) ...routes,
+      ...privateRouteAddress,
+    ];
+  }
+  rawConfig['tun'] = tun;
+  rawConfig['geodata-loader'] = realPatchConfig.geodataLoader.name;
+  rawConfig['geo-auto-update'] = realPatchConfig.geoAutoUpdate;
+  rawConfig['geo-update-interval'] = realPatchConfig.geoUpdateInterval;
+  final snifferOverride = overrides.sniffer.overrideJson(
+    overrides.snifferOverrideKeys,
+  );
+  if (snifferOverride.isNotEmpty) {
+    rawConfig['sniffer'] = mergeSnifferOverride(
+      rawConfig['sniffer'] is Map
+          ? Map<String, dynamic>.from(rawConfig['sniffer'] as Map)
+          : <String, dynamic>{},
+      snifferOverride,
+    );
+  }
+  if (rawConfig['sniffer']?['sniff'] != null) {
+    for (final value in (rawConfig['sniffer']?['sniff'] as Map).values) {
+      if (value['ports'] != null && value['ports'] is List) {
+        value['ports'] =
+            value['ports']?.map((item) => item.toString()).toList() ?? [];
+      }
+    }
+  }
+  if (rawConfig['profile'] == null) {
+    rawConfig['profile'] = {};
+  }
+  void injectUnconfinedProviders(
+    String section,
+    Map<String, dynamic> injected,
+  ) {
+    if (injected.isEmpty) {
+      return;
+    }
+    final providers = rawConfig[section];
+    rawConfig[section] = {
+      ...injected,
+      if (providers is Map) ...providers.cast<String, dynamic>(),
+    };
+  }
+
+  confineProviders('proxy-providers', proxiesProviderDirectoryName);
+  confineProviders('rule-providers', rulesProviderDirectoryName);
+  injectUnconfinedProviders('proxy-providers', data.injectedProxyProviders);
+  injectUnconfinedProviders('rule-providers', data.injectedRuleProviders);
+  rawConfig['profile']['store-selected'] = false;
+  rawConfig['geox-url'] = realPatchConfig.geoXUrl.raw;
+  rawConfig['global-ua'] = realPatchConfig.globalUa ?? defaultUA;
+  if (rawConfig['hosts'] == null) {
+    rawConfig['hosts'] = {};
+  }
+  for (final host in realPatchConfig.hosts.entries) {
+    rawConfig['hosts'][host.key] = host.value.splitByMultipleSeparators;
+  }
+  var rawDns = rawConfig['dns'] is Map
+      ? Map<String, dynamic>.from(rawConfig['dns'] as Map)
+      : <String, dynamic>{};
+  final isEnableDns = rawDns['enable'] == true;
+  const systemDns = 'system://';
+  if (!isEnableDns) {
+    rawDns = mergeDnsOverride(
+      rawDns,
+      baselineDns.overrideJson(baselineDnsOverrideKeys),
+    );
+  }
+  rawDns = mergeDnsOverride(
+    rawDns,
+    overrides.dns.overrideJson(
+      overrides.dnsOverrideKeys,
+      keepEmpty: data.keepEmptyDnsOverrides,
+    ),
+  );
+  rawConfig['dns'] = rawDns;
+  final ntpOverride = overrides.ntp.overrideJson(overrides.ntpOverrideKeys);
+  if (ntpOverride.isNotEmpty) {
+    final rawNtp = rawConfig['ntp'] is Map
+        ? Map<String, dynamic>.from(rawConfig['ntp'] as Map)
+        : <String, dynamic>{};
+    rawConfig['ntp'] = {...rawNtp, ...ntpOverride};
+  }
+  if (appendSystemDns) {
+    final List<String> nameserver = List<String>.from(
+      rawConfig['dns']['nameserver'] ?? [],
+    );
+    if (!nameserver.contains(systemDns)) {
+      rawConfig['dns']['nameserver'] = [...nameserver, systemDns];
+    }
+  }
+  if (data.safeMode) {
+    rawConfig['listeners'] = [];
+    rawConfig['tunnels'] = [];
+    rawConfig['ss-config'] = '';
+    rawConfig['vmess-config'] = '';
+    rawConfig['tuic-server'] = {'enable': false};
+    rawConfig['iptables'] = {'enable': false};
+    rawConfig['dns']['listen'] = '';
+    final rawNtp = rawConfig['ntp'];
+    if (rawNtp is Map) {
+      rawConfig['ntp'] = {
+        ...Map<String, dynamic>.from(rawNtp),
+        NtpOverrideKey.writeToSystem.path: false,
+      };
+    }
+  }
+  List<String> rules = [];
+  if (data.rules.isEmpty) {
+    if (rawConfig['rules'] != null) {
+      rules = List<String>.from(rawConfig['rules']);
+    }
+    if (addedRules.isNotEmpty) {
+      final hasMatchPlaceholder = addedRules.any(
+        (item) => item.ruleTarget?.toUpperCase() == 'MATCH',
+      );
+      String? replacementTarget = data.matchTarget?.trim();
+      if (replacementTarget?.isEmpty == true) {
+        replacementTarget = null;
+      }
+
+      if (hasMatchPlaceholder && replacementTarget == null) {
+        replacementTarget = lastMatchTarget(rules);
+      }
+      final List<String> finalAddedRules;
+
+      if (replacementTarget?.isNotEmpty == true) {
+        finalAddedRules = [];
+        for (int i = 0; i < addedRules.length; i++) {
+          final parsed = addedRules[i];
+          if (parsed.ruleTarget?.toUpperCase() == 'MATCH') {
+            finalAddedRules.add(
+              parsed.copyWith(ruleTarget: replacementTarget).rawValue,
+            );
+          } else {
+            finalAddedRules.add(addedRules[i].rawValue);
+          }
+        }
+      } else {
+        finalAddedRules = addedRules.map((e) => e.rawValue).toList();
+      }
+      rules = [...finalAddedRules, ...rules];
+    }
+  } else {
+    rules = data.rules.map((item) => item.rawValue).toList();
+  }
+  if (data.proxyGroups.isNotEmpty) {
+    rawConfig['proxy-groups'] = data.proxyGroups
+        .map((item) => item.definition)
+        .toList();
+  }
+  rawConfig['rules'] = rules;
+  final yaml = await _encodeYaml(Map<String, dynamic>.from(rawConfig));
+  return (yaml: yaml, md5: yaml.toMd5(), counts: configCountsOf(rawConfig));
+}
+
+typedef ShakingStoreArgs = ({
+  Iterable<int> profileIds,
+  Iterable<int> scriptIds,
+  Iterable<String> providerFileNames,
+});
+
+Future<List<String>> shakingProfileTask(ShakingStoreArgs data) async {
+  return compute<
+    ({ShakingStoreArgs args, RootIsolateToken token}),
+    List<String>
+  >(_shakingProfileTask, (args: data, token: RootIsolateToken.instance!));
+}
+
+Future<List<String>> _shakingProfileTask(
+  ({ShakingStoreArgs args, RootIsolateToken token}) data,
+) async {
+  BackgroundIsolateBinaryMessenger.ensureInitialized(data.token);
+  return shakeOrphanFiles(
+    profileIds: data.args.profileIds,
+    scriptIds: data.args.scriptIds,
+    providerFileNames: data.args.providerFileNames,
+    profilesDirPath: await appPath.profilesPath,
+    providersDirPath: await appPath.getProvidersRootPath(),
+    providerCacheDirPath: await appPath.providerCacheRootPath,
+    scriptsDirPath: await appPath.scriptsDirPath,
+  );
+}
+
+@visibleForTesting
+List<String> shakeOrphanFiles({
+  required Iterable<int> profileIds,
+  required Iterable<int> scriptIds,
+  required Iterable<String> providerFileNames,
+  required String profilesDirPath,
+  required String providersDirPath,
+  required String providerCacheDirPath,
+  required String scriptsDirPath,
+}) {
+  final List<String> targets = [];
+  void scanDirectory(
+    Directory dir,
+    bool Function(String baseName) isLive, {
+    bool includeDirectories = false,
+  }) {
+    if (!dir.existsSync()) return;
+    final entities = dir.listSync(recursive: false, followLinks: false);
+
+    for (final entity in entities) {
+      final selected =
+          entity is File || (includeDirectories && entity is Directory);
+      if (!selected) {
+        continue;
+      }
+      if (!isLive(basenameWithoutExtension(entity.path))) {
+        targets.add(entity.path);
+      }
+    }
+  }
+
+  bool Function(String) isLiveId(Iterable<int> ids) =>
+      (baseName) => ids.contains(int.tryParse(baseName));
+
+  scanDirectory(Directory(profilesDirPath), isLiveId(profileIds));
+  scanDirectory(
+    Directory(providersDirPath),
+    isLiveId(profileIds),
+    includeDirectories: true,
+  );
+  scanDirectory(
+    Directory(join(providerCacheDirPath, rulesProviderDirectoryName)),
+    providerFileNames.toSet().contains,
+  );
+  scanDirectory(Directory(scriptsDirPath), isLiveId(scriptIds));
+  return targets;
+}
+
+// Best-effort: a legacy url shared by two providers, or any rename failure,
+// just leaves the file to be re-downloaded under the new path.
+void _migrateLegacyProviderFile({
+  required String legacyPath,
+  required String newPath,
+}) {
+  if (legacyPath == newPath || File(newPath).existsSync()) {
+    return;
+  }
+  try {
+    final legacyFile = File(legacyPath);
+    if (legacyFile.existsSync()) {
+      Directory(dirname(newPath)).createSync(recursive: true);
+      legacyFile.renameSync(newPath);
+    }
+  } catch (_) {}
+}
+
+Future<String> encodeLogsTask(List<Log> data) async {
+  return compute<List<Log>, String>(_encodeLogsTask, data);
+}
+
+Future<String> _encodeLogsTask(List<Log> data) async {
+  final logsRaw = data.map((item) => item.toString());
+  final logsRawString = logsRaw.join('\n');
+  return logsRawString;
+}
+
+Future<MigrationData> oldToNowTask(Map<String, Object?> data) async {
+  final homeDir = await appPath.homeDirPath;
+  return compute<
+    ({Map<String, Object?> configMap, String sourcePath, String targetPath}),
+    MigrationData
+  >(_oldToNowTask, (configMap: data, sourcePath: homeDir, targetPath: homeDir));
+}
+
+Future<MigrationData> _oldToNowTask(
+  ({Map<String, Object?> configMap, String sourcePath, String targetPath}) data,
+) {
+  return migrateLegacyConfig(
+    configMap: data.configMap,
+    sourcePath: data.sourcePath,
+    targetPath: data.targetPath,
+  );
+}
+
+/// FlClashX 0.4 `overrideData`: only an enabled list reaches the profile.
+Map<String, Object?>? _overwriteOfOverrideData(
+  Object? overrideData, {
+  required String matchId,
+}) {
+  if (overrideData is! Map || overrideData['enable'] != true) {
+    return null;
+  }
+  final rule = overrideData['rule'];
+  if (rule is! Map) {
+    return null;
+  }
+  final isReplacement = rule['type'] == 'override';
+  final rules = isReplacement ? rule['overrideRules'] : rule['addedRules'];
+  final list = [if (rules is List) ...rules];
+  // A replacing list ran without the profile's rules, and mihomo sends what no
+  // rule matched DIRECT; ending the list so leaves those rules unreached.
+  if (isReplacement && !list.any(_isMatchRule)) {
+    list.add({'id': matchId, 'value': 'MATCH,DIRECT'});
+  }
+  return {
+    'type': ExtendType.standard.name,
+    'standardOverwrite': {'addedRules': list},
+  };
+}
+
+bool _isMatchRule(Object? rule) =>
+    rule is Map &&
+    rule['value'] is String &&
+    Rule.parse(rule['value'] as String).ruleAction == RuleAction.MATCH;
+
+/// What FlClashX 0.4's network switch kept from the profile.
+const _legacyNetworkSettings = {
+  'clash.ipv6',
+  'clash.allow-lan',
+  'clash.mixed-port',
+  'clash.find-process-mode',
+  'clash.tun.stack',
+};
+
+bool _isPlainFileName(String name) =>
+    name.isNotEmpty &&
+    name != '.' &&
+    name != '..' &&
+    !name.contains(RegExp(r'[/\\]'));
+
+Future<MigrationData> migrateLegacyConfig({
+  required Map<String, Object?> configMap,
+  required String sourcePath,
+  required String targetPath,
+}) async {
+  final accessControlMap = configMap['accessControl'];
+  final isAccessControl = configMap['isAccessControl'];
+  if (accessControlMap != null) {
+    (accessControlMap as Map)['enable'] = isAccessControl;
+    if (configMap['vpnProps'] != null) {
+      final vpnPropsRaw = configMap['vpnProps'] as Map;
+      vpnPropsRaw['accessControl'] = accessControlMap;
+    }
+  }
+  if (configMap['vpnProps'] != null) {
+    final vpnPropsRaw = configMap['vpnProps'] as Map;
+    vpnPropsRaw['accessControlProps'] = vpnPropsRaw['accessControl'];
+  }
+  configMap['davProps'] = configMap['dav'];
+  final appSettingProps = Map<String, dynamic>.from(
+    configMap['appSetting'] as Map? ?? const {},
+  );
+  if (appSettingProps['recoveryStrategy'] != null) {
+    appSettingProps['restoreStrategy'] = appSettingProps['recoveryStrategy'];
+  }
+  appSettingProps['ownedSettings'] = {
+    ...?(appSettingProps['ownedSettings'] as List?)?.cast<String>(),
+    if (appSettingProps['overrideNetworkSettings'] == true)
+      ..._legacyNetworkSettings,
+    if (appSettingProps['overrideProviderSettings'] == true)
+      ...appSwitchSettings.values,
+  }.toList();
+  configMap['appSettingProps'] = appSettingProps;
+  // FlClashX 0.4 kept its hero page as a flag; here it is the theme style,
+  // and one without the flag keeps the standard page over the new default.
+  final themeProps = configMap['themeProps'] as Map<String, dynamic>? ?? {};
+  if (appSettingProps['newDashboard'] == true) {
+    themeProps['style'] = ThemeStyle.enhanced.name;
+  } else {
+    themeProps['style'] ??= ThemeStyle.original.name;
+  }
+  configMap['themeProps'] = themeProps;
+  configMap['proxiesStyleProps'] = configMap['proxiesStyle'];
+  List rawScripts = configMap['scripts'] as List<dynamic>? ?? [];
+  if (rawScripts.isEmpty) {
+    final scriptPropsJson = configMap['scriptProps'] as Map<String, dynamic>?;
+    if (scriptPropsJson != null) {
+      rawScripts = scriptPropsJson['scripts'] as List<dynamic>? ?? [];
+    }
+  }
+  final Map<String, int> idMap = {};
+  final List<Script> scripts = [];
+  for (final rawScript in rawScripts) {
+    final id = rawScript['id'] as String?;
+    final content = rawScript['content'] as String?;
+    final label = rawScript['label'] as String?;
+    if (id == null || content == null || label == null) {
+      continue;
+    }
+    final newId = idMap.updateCacheValue(rawScript['id'], () => snowflake.id);
+    final path = BackupEntries.resolve(targetPath, BackupEntries.script(newId));
+    final file = File(path);
+    await file.safeWriteAsString(content);
+    scripts.add(
+      Script(id: newId, label: label, lastUpdateTime: DateTime.now()),
+    );
+  }
+  final scriptProps = configMap['scriptProps'];
+  // FlClashX 0.4 ran its selected script on every profile, over any rules.
+  final globalScriptId = scriptProps is Map
+      ? idMap[scriptProps['currentId']]
+      : null;
+  final List rawRules = configMap['rules'] as List<dynamic>? ?? [];
+  final List<Rule> rules = [];
+  final List<DisabledRule> disabledRules = [];
+  for (final rawRule in rawRules) {
+    final id = idMap.updateCacheValue(rawRule['id'], () => snowflake.id);
+    rawRule['id'] = id;
+    final value = rawRule['value'] ?? '';
+    rules.add(Rule.parse(value, id: id));
+  }
+  final List rawProfiles = configMap['profiles'] as List<dynamic>? ?? [];
+  final List<Profile> profiles = [];
+  for (final rawProfile in rawProfiles) {
+    final rawId = rawProfile['id'] as String?;
+    // The id names the profile's file in the backup.
+    if (rawId == null || !_isPlainFileName(rawId)) {
+      continue;
+    }
+    final profileId = idMap.updateCacheValue(rawId, () => snowflake.id);
+    rawProfile['id'] = profileId;
+    final isLegacyProfile = rawProfile['overwrite'] == null;
+    final legacyOverwrite = _overwriteOfOverrideData(
+      rawProfile['overrideData'],
+      matchId: '$rawId#match',
+    );
+    if (legacyOverwrite != null && isLegacyProfile) {
+      rawProfile['overwrite'] = legacyOverwrite;
+    }
+    final overwrite = rawProfile['overwrite'] as Map?;
+    if (overwrite != null) {
+      final standardOverwrite = overwrite['standardOverwrite'] as Map?;
+      if (standardOverwrite != null) {
+        final addedRules = standardOverwrite['addedRules'] as List? ?? [];
+        for (final addRule in addedRules) {
+          final id = idMap.updateCacheValue(addRule['id'], () => snowflake.id);
+          final value = addRule['value'] ?? '';
+          rules.add(Rule.parse(value, id: id).copyWith(profileId: profileId));
+        }
+        final disabledRuleIds = standardOverwrite['disabledRuleIds'] as List?;
+        if (disabledRuleIds != null) {
+          for (final disabledRuleId in disabledRuleIds) {
+            final newDisabledRuleId = idMap[disabledRuleId];
+            if (newDisabledRuleId != null) {
+              disabledRules.add(
+                DisabledRule(profileId: profileId, ruleId: newDisabledRuleId),
+              );
+            }
+          }
+        }
+      }
+      final scriptOverwrite = overwrite['scriptOverwrite'] as Map?;
+      if (scriptOverwrite != null) {
+        final scriptId = scriptOverwrite['scriptId'] as String?;
+        rawProfile['scriptId'] = scriptId != null ? idMap[scriptId] : null;
+      }
+      rawProfile['extendType'] = overwrite['type'] == ExtendType.script.name
+          ? ExtendType.script.name
+          : ExtendType.standard.name;
+    }
+    if (isLegacyProfile && globalScriptId != null) {
+      rawProfile['extendType'] = ExtendType.script.name;
+      rawProfile['scriptId'] = globalScriptId;
+    }
+    final rawUrl = rawProfile['url'];
+    rawProfile['type'] = rawUrl is String && rawUrl.isNotEmpty ? 'url' : 'file';
+
+    final sourceFile = File(
+      BackupEntries.resolve(sourcePath, BackupEntries.profile(rawId)),
+    );
+    final targetFilePath = BackupEntries.resolve(
+      targetPath,
+      BackupEntries.profile(profileId),
+    );
+    if (await sourceFile.exists()) {
+      await sourceFile.safeCopy(targetFilePath);
+    }
+    profiles.add(Profile.fromJson(rawProfile));
+  }
+  final currentProfileId = configMap['currentProfileId'];
+  configMap['currentProfileId'] = currentProfileId != null
+      ? idMap[currentProfileId]
+      : null;
+  return MigrationData(
+    configMap: configMap,
+    profiles: profiles,
+    rules: rules,
+    scripts: scripts,
+    disabledRules: disabledRules,
+  );
+}

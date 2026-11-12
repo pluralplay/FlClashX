@@ -1,367 +1,404 @@
-import 'dart:math';
+import 'dart:math' as math;
 
-import 'package:defer_pointer/defer_pointer.dart';
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/widgets/widgets.dart';
-import 'package:flutter/material.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
-import 'widgets/hero_connect.dart';
-import 'widgets/start_button.dart';
+import 'edit.dart';
+import 'hero.dart';
+import 'layout.dart';
+import 'style.dart';
+import 'widget_registry.dart';
+import 'widgets/core_status_button.dart';
+import 'widgets/widgets.dart';
 
+// Narrower columns leave a pair of service cells too tight for a status, so
+// the grid stacks them in one.
+const _servicePairColumnMin = 290.0;
+
+const _maxColumnWidth = 440.0;
 
 class DashboardView extends ConsumerStatefulWidget {
-  const DashboardView({super.key});
+  const DashboardView({super.key, this.platform});
+
+  /// The host's platform when null.
+  final SupportPlatform? platform;
 
   @override
   ConsumerState<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends ConsumerState<DashboardView> with PageMixin {
-  final key = GlobalKey<SuperGridState>();
-  final _isEditNotifier = ValueNotifier<bool>(false);
-  final _addedWidgetsNotifier = ValueNotifier<List<GridItem>>([]);
+class _DashboardViewState extends ConsumerState<DashboardView> {
+  var _editing = false;
+  final _cardKeys = <DashboardWidget, GlobalKey>{};
 
-  @override
-  void initState() {
-    ref.listenManual(
-      isCurrentPageProvider(PageLabel.dashboard),
-      (prev, next) {
-        if (prev != next && next == true) {
-          initPageState();
-        }
-      },
-      fireImmediately: true,
-    );
-    return super.initState();
+  void _setEditing(bool editing) {
+    setState(() => _editing = editing);
   }
 
-  @override
-  void dispose() {
-    _isEditNotifier.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget? get floatingActionButton => null; // Moved to bottom of body
-
-  Widget _buildIsEdit(Widget Function(bool) builder) => ValueListenableBuilder(
-      valueListenable: _isEditNotifier,
-      builder: (_, isEdit, ___) => builder(isEdit),
-    );
-
-  @override
-  List<Widget> get actions => [
-        _buildIsEdit((isEdit) => isEdit
-              ? ValueListenableBuilder(
-                  valueListenable: _addedWidgetsNotifier,
-                  builder: (_, addedChildren, child) {
-                    if (addedChildren.isEmpty) {
-                      return Container();
-                    }
-                    return child!;
-                  },
-                  child: IconButton(
-                    onPressed: _showAddWidgetsModal,
-                    icon: const Icon(
-                      Icons.add_circle,
-                    ),
-                  ),
-                )
-              : const SizedBox()),
-        Consumer(
-          builder: (context, ref, child) {
-            final headers = ref.watch(currentProfileProvider
-                .select((profile) => profile?.providerHeaders)) ?? {};
-            final denyEditing = headers['flclashx-denywidgets'];
-            // Editing only applies to the old grid; hide it whenever the hero
-            // board is active (same decision the body makes).
-            final newDashboard = ref.watch(newDashboardEnabledProvider);
-
-            if (denyEditing == 'true' || newDashboard) {
-              return const SizedBox.shrink();
-            }
-
-            return _buildIsEdit((isEdit) => IconButton(
-              tooltip: isEdit ? appLocalizations.save : appLocalizations.edit,
-              icon: isEdit
-                    ? const Icon(Icons.save)
-                    : const Icon(Icons.edit),
-              onPressed: _handleUpdateIsEdit,
-            ));
-          },
-        ),
-      ];
-
-  void _showAddWidgetsModal() {
-    showSheet(
-      builder: (_, type) => ValueListenableBuilder(
-          valueListenable: _addedWidgetsNotifier,
-          builder: (_, value, __) => AdaptiveSheetScaffold(
-              type: type,
-              body: _AddDashboardWidgetModal(
-                items: value,
-                onAdd: (gridItem) {
-                  key.currentState?.handleAdd(gridItem);
-                },
-              ),
-              title: appLocalizations.add,
-            ),
-        ),
-      context: context,
-    );
-  }
-
-  void _handleUpdateIsEdit() {
-    if (_isEditNotifier.value == true) {
-      _handleSave();
-    }
-    _isEditNotifier.value = !_isEditNotifier.value;
-  }
-
-  void _handleSave() {
-    final children = key.currentState?.children;
-    if (children == null) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final dashboardWidgets = children
-          .map(
-            DashboardWidget.getDashboardWidget,
-          )
-          .toList();
-      ref.read(appSettingProvider.notifier).updateState(
-            (state) => state.copyWith(dashboardWidgets: dashboardWidgets),
-          );
-    });
-  }
-
-  bool _isAllowedWidget(
-    DashboardWidget item, {
-    required bool globalModeEnabled,
-    required bool hasAnnounceData,
-    required bool hasServiceInfoData,
-    required bool hasServerInfoData,
-  }) {
-    if (!item.platforms.contains(SupportPlatform.currentPlatform)) {
-      return false;
-    }
-    
-    if (!globalModeEnabled) {
-      if (item == DashboardWidget.outboundMode || 
-          item == DashboardWidget.outboundModeV2) {
-        return false;
-      }
-    }
-    
-    if (item == DashboardWidget.announce && !hasAnnounceData) {
-      return false;
-    }
-    if (item == DashboardWidget.serviceInfo && !hasServiceInfoData) {
-      return false;
-    }
-    if (item == DashboardWidget.changeServerButton && !hasServerInfoData) {
-      return false;
-    }
-    
-    return true;
-  }
+  GlobalKey _cardKeyOf(DashboardWidget widget) =>
+      _cardKeys.putIfAbsent(widget, GlobalKey.new);
 
   @override
   Widget build(BuildContext context) {
-    final dashboardState = ref.watch(dashboardStateProvider);
-    final globalModeEnabled = ref.watch(globalModeEnabledProvider);
-    final hasAnnounce = ref.watch(hasAnnounceDataProvider);
-    final hasServiceInfo = ref.watch(hasServiceInfoDataProvider);
-    final hasServerInfo = ref.watch(hasServerInfoDataProvider);
-    final columns = max(4 * ((dashboardState.viewWidth / 320).ceil()), 8);
-    final spacing = 16.ap;
-
-    bool isAllowed(DashboardWidget item) => _isAllowedWidget(
-      item,
-      globalModeEnabled: globalModeEnabled,
-      hasAnnounceData: hasAnnounce,
-      hasServiceInfoData: hasServiceInfo,
-      hasServerInfoData: hasServerInfo,
-    );
-
-    final children = [
-      ...dashboardState.dashboardWidgets
-          .where(isAllowed)
-          .map(
-            (item) => item.widget,
-          ),
-    ];
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _addedWidgetsNotifier.value = DashboardWidget.values
-          .where(
-            (item) => !children.contains(item.widget) && isAllowed(item),
-          )
-          .map((item) => item.widget)
-          .toList();
-    });
-    return Column(
-      children: [
-        _buildIsEdit((isEdit) {
-      if (isEdit) {
-        return Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: SystemBackBlock(
-              child: CommonPopScope(
-                child: SuperGrid(
-                  key: key,
-                  crossAxisCount: columns,
-                  crossAxisSpacing: spacing,
-                  mainAxisSpacing: spacing,
-                  onUpdate: _handleSave,
-                  children: [
-                    ...dashboardState.dashboardWidgets
-                        .where(isAllowed)
-                        .map((item) => item.widget),
-                  ],
-                ),
-                onPop: () {
-                  _handleUpdateIsEdit();
-                  return false;
-                },
-              ),
-            ),
-          ),
-        );
-      }
-      final newDashboard = ref.watch(newDashboardEnabledProvider);
-
-      if (!newDashboard) {
-        return Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16).copyWith(bottom: 16),
-                  child: Grid(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: spacing,
-                    mainAxisSpacing: spacing,
-                    children: children,
-                  ),
-                ),
-              ),
-              const StartButton(),
-            ],
-          ),
-        );
-      }
-
-      return const Expanded(
-        child: Padding(
-          padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 24),
-          child: HeroConnect(),
-        ),
-      );
-    }),
-      ],
-    );
-  }
-}
-
-class _AddDashboardWidgetModal extends StatelessWidget {
-
-  const _AddDashboardWidgetModal({
-    required this.items,
-    required this.onAdd,
-  });
-  final List<GridItem> items;
-  final Function(GridItem item) onAdd;
-
-  @override
-  Widget build(BuildContext context) => DeferredPointerHandler(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(
-          16,
-        ),
-        child: Grid(
-          crossAxisCount: 8,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          children: items
-              .map(
-                (item) => item.wrap(
-                  builder: (child) => _AddedContainer(
-                      onAdd: () {
-                        onAdd(item);
-                      },
-                      child: child,
-                    ),
-                ),
-              )
-              .toList(),
-        ),
+    final platform = widget.platform ?? SupportPlatform.currentPlatform;
+    final viewSize = ref.watch(viewSizeProvider);
+    final sideWidth = ref.watch(sideWidthProvider);
+    final scale = math.max(1.0, MediaQuery.textScalerOf(context).scale(1));
+    final size = Size(viewSize.width - sideWidth, viewSize.height) / scale;
+    final hero = ref.watch(
+      themeSettingProvider.select(
+        (state) => state.style == ThemeStyle.enhanced,
       ),
     );
+    final mode = hero
+        ? ref.watch(patchClashConfigProvider.select((state) => state.mode))
+        : null;
+    final editable =
+        !hero &&
+        !DashboardDensity.of(size).isDesktop &&
+        !ref.watch(widgetEditingDeniedProvider);
+    if (!editable) {
+      _editing = false;
+    }
+    final editing = _editing;
+    final gap = cardSpacingOf(context, ref.watch(viewModeProvider));
+    final appLocalizations = context.appLocalizations;
+    return CommonScaffold(
+      backgroundColor: DashboardColors.of(context).page,
+      title: editing
+          ? appLocalizations.editDashboard
+          : appLocalizations.dashboard,
+      actions: [if (!editing) const CoreStatusButton()],
+      confirmationAction: editing
+          ? IconButtonData(
+              glyph: AppGlyphs.check,
+              tooltip: appLocalizations.done,
+              onPressed: () => _setEditing(false),
+            )
+          : null,
+      iconActions: [
+        if (mode != null && ref.watch(globalModeAllowedProvider))
+          IconButtonData(
+            glyph: mode == Mode.global ? AppGlyphs.proxies : AppGlyphs.rules,
+            tooltip:
+                '${appLocalizations.outboundMode}: '
+                '${mode == Mode.global ? appLocalizations.global : appLocalizations.rule}',
+            onPressed: () => ref
+                .read(setupActionProvider.notifier)
+                .pickMode(mode == Mode.global ? Mode.rule : Mode.global),
+          ),
+        if (editable && !editing)
+          IconButtonData(
+            glyph: AppGlyphs.edit,
+            tooltip: appLocalizations.editDashboard,
+            onPressed: () => _setEditing(true),
+          ),
+      ],
+      // The providers learn a resize a frame late, too late for the cards.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final room = constraints.biggest / scale;
+          final layout = DashboardDensity.of(room);
+          if (hero) {
+            return DashboardDensityScope(
+              density: DashboardDensity.mobile,
+              scale: scale,
+              child: const HeroDashboard(),
+            );
+          }
+          return DashboardDensityScope(
+            density: layout,
+            scale: scale,
+            child: layout.isDesktop
+                ? _DesktopDashboard(
+                    platform: platform,
+                    columns: dashboardColumnsOf(room.width),
+                    gap: gap,
+                  )
+                : _MobileDashboard(
+                    platform: platform,
+                    gap: gap,
+                    editing: editing,
+                    cardKeyOf: _cardKeyOf,
+                    onDone: () => _setEditing(false),
+                  ),
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _AddedContainer extends StatefulWidget {
-
-  const _AddedContainer({
-    required this.child,
-    required this.onAdd,
+/// Four columns fill the window, the tables taking what the rows above them
+/// leave. A window too short for the tables, and every two column one, gets
+/// the summary cards instead, so no list scrolls inside a page that scrolls.
+class _DesktopDashboard extends ConsumerWidget {
+  const _DesktopDashboard({
+    required this.platform,
+    required this.columns,
+    required this.gap,
   });
-  final Widget child;
-  final VoidCallback onAdd;
+
+  final SupportPlatform platform;
+  final int columns;
+  final double gap;
 
   @override
-  State<_AddedContainer> createState() => _AddedContainerState();
-}
-
-class _AddedContainerState extends State<_AddedContainer> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void didUpdateWidget(_AddedContainer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.child != widget.child) {}
-  }
-
-  Future<void> _handleAdd() async {
-    widget.onAdd();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ActivateBox(
-          child: widget.child,
-        ),
-        Positioned(
-          top: -8,
-          right: -8,
-          child: DeferPointer(
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: IconButton.filled(
-                iconSize: 20,
-                padding: const EdgeInsets.all(2),
-                onPressed: _handleAdd,
-                icon: const Icon(
-                  Icons.add,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final announcement = ref.watch(announcementProvider) != null;
+    final offers = ref.watch(
+      profileOffersProvider.select((offers) => offers.isNotEmpty),
+    );
+    final density = DashboardDensityScope.of(context);
+    final compact = density.isCompact;
+    final scale = DashboardDensityScope.scaleOf(context);
+    final base = EdgeInsetsDirectional.fromSTEB(
+      16,
+      context.contentTopPadding,
+      24,
+      24 + MediaQuery.paddingOf(context).bottom,
+    );
+    final announcementHeight = (compact ? 100 : 112) * scale;
+    final topHeight = (compact ? 176 : 208) * scale;
+    final controlHeight = (compact ? 56 : 64) * scale;
+    // The profile card's offer buttons need a taller middle row.
+    final middleHeight = ((compact ? 152 : 176) + (offers ? 44 : 0)) * scale;
+    final tablesHeight = connectionsTableMinHeight(density, scale);
+    final summaryHeight = (compact ? 112 : 120) * scale;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final room =
+            constraints.maxWidth - base.horizontal - gap * (columns - 1);
+        final column = math.min(room / columns, _maxColumnWidth * scale);
+        final inset = (room - column * columns) / 2;
+        final padding = base.copyWith(
+          start: base.start + inset,
+          end: base.end + inset,
+        );
+        double span(int columns) => column * columns + gap * (columns - 1);
+        Widget row(List<(int, Widget)> cards) => Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: gap,
+          children: [
+            for (final (columns, card) in cards)
+              SizedBox(
+                width: span(columns),
+                child: RepaintBoundary(child: card),
+              ),
+          ],
+        );
+        Widget sized(double height, Widget child) =>
+            SizedBox(height: height, child: child);
+        final switches =
+            DashboardWidget.networkTakeover.platforms.contains(platform)
+            ? const [
+                (1, NetworkTakeoverTile(TakeoverSwitch.systemProxy)),
+                (1, NetworkTakeoverTile(TakeoverSwitch.tun)),
+              ]
+            : const [(2, VpnTile())];
+        final half = columns ~/ 2;
+        final summaries = row([
+          (half, const ConnectionStatsCard()),
+          (half, const ProxyGroupsSummaryCard()),
+        ]);
+        if (columns == 2) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: padding,
+            child: Column(
+              spacing: gap,
+              children: [
+                if (announcement)
+                  sized(
+                    announcementHeight,
+                    const RepaintBoundary(child: AnnouncementCard()),
+                  ),
+                sized(
+                  topHeight,
+                  const RepaintBoundary(child: CurrentOutboundCard()),
                 ),
+                sized(
+                  topHeight,
+                  row(const [
+                    (1, SpeedCard(direction: TrafficDirection.upload)),
+                    (1, SpeedCard(direction: TrafficDirection.download)),
+                  ]),
+                ),
+                sized(
+                  controlHeight,
+                  const RepaintBoundary(child: OutboundModeBar()),
+                ),
+                sized(controlHeight, row(switches)),
+                sized(
+                  middleHeight,
+                  row(const [(1, IntranetIpCard()), (1, ProfilesCard())]),
+                ),
+                sized(
+                  middleHeight,
+                  row(const [(1, ServiceStatusCard()), (1, MemoryInfo())]),
+                ),
+                sized(summaryHeight, summaries),
+              ],
+            ),
+          );
+        }
+        final rows = [
+          if (announcement)
+            sized(
+              announcementHeight,
+              const RepaintBoundary(child: AnnouncementCard()),
+            ),
+          sized(
+            topHeight,
+            row(const [
+              (2, CurrentOutboundCard()),
+              (1, SpeedCard(direction: TrafficDirection.upload)),
+              (1, SpeedCard(direction: TrafficDirection.download)),
+            ]),
+          ),
+          sized(
+            controlHeight,
+            row([(2, const OutboundModeBar()), ...switches]),
+          ),
+          sized(
+            middleHeight,
+            row([
+              (1, const IntranetIpCard()),
+              (1, const ProfilesCard()),
+              (
+                1,
+                ServiceStatusCard(
+                  columns: column >= _servicePairColumnMin * scale ? 2 : 1,
+                ),
+              ),
+              (1, const MemoryInfo()),
+            ]),
+          ),
+        ];
+        final rowsHeight =
+            padding.vertical +
+            (announcement ? announcementHeight + gap : 0) +
+            topHeight +
+            controlHeight +
+            middleHeight +
+            gap * 3;
+        final tablesFit = constraints.maxHeight >= rowsHeight + tablesHeight;
+        final fills = constraints.maxHeight >= rowsHeight + summaryHeight;
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: fills ? constraints.maxHeight : null,
+            child: Padding(
+              padding: padding,
+              child: Column(
+                spacing: gap,
+                children: [
+                  ...rows,
+                  if (tablesFit)
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: gap,
+                        children: const [
+                          Expanded(
+                            flex: 3,
+                            child: RepaintBoundary(
+                              child: ConnectionsTableCard(),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: RepaintBoundary(child: ProxyGroupsCard()),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (fills)
+                    Expanded(child: summaries)
+                  else
+                    sized(summaryHeight, summaries),
+                ],
               ),
             ),
           ),
-        )
+        );
+      },
+    );
+  }
+}
+
+class _MobileDashboard extends ConsumerWidget {
+  const _MobileDashboard({
+    required this.platform,
+    required this.gap,
+    required this.editing,
+    required this.cardKeyOf,
+    required this.onDone,
+  });
+
+  final SupportPlatform platform;
+  final double gap;
+  final bool editing;
+  final GlobalKey Function(DashboardWidget widget) cardKeyOf;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final saved = ref.watch(
+      dashboardStateProvider.select((state) => state.dashboardWidgets),
+    );
+    final announcement = ref.watch(announcementProvider) != null;
+    final top = MediaQuery.paddingOf(context).top + 4;
+    final bottom = 16 + context.bottomInset;
+    return CustomScrollView(
+      // A viewport per card lays them all out and holds the scroll end still.
+      scrollCacheExtent: editing
+          ? ScrollCacheExtent.viewport(DashboardWidget.values.length.toDouble())
+          : null,
+      slivers: [
+        SliverLayoutBuilder(
+          builder: (context, constraints) {
+            final side = dashboardMobileSideOf(constraints.crossAxisExtent);
+            final widgets = withFixedCards([
+              for (final widget in saved)
+                if (widget.platforms.contains(platform)) widget,
+            ], announcement: announcement);
+            if (editing) {
+              return DashboardEditor(
+                platform: platform,
+                widgets: widgets,
+                cardKeyOf: cardKeyOf,
+                padding: EdgeInsets.fromLTRB(side, top, side, bottom),
+                gap: gap,
+                onDone: onDone,
+              );
+            }
+            return SliverPadding(
+              padding: EdgeInsets.fromLTRB(side, top, side, bottom),
+              // A lazy list estimates the cards it has not laid out from the
+              // ones it has; cards this uneven move the scroll end as it goes.
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  spacing: gap,
+                  children: [
+                    for (final widget in widgets)
+                      RepaintBoundary(
+                        key: cardKeyOf(widget),
+                        child: widget.card,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
+  }
 }

@@ -1,12 +1,46 @@
-import 'package:flclashx/common/common.dart';
-import 'package:flclashx/enum/enum.dart';
-import 'package:flclashx/providers/providers.dart';
-import 'package:flclashx/state.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
-import '../models/models.dart';
-import '../widgets/widgets.dart';
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
+
+class LogListController extends ValueNotifier<LogsState> {
+  LogListController() : super(const LogsState());
+
+  void search(String query) {
+    value = value.copyWith(query: query);
+  }
+
+  void updateKeywords(List<String> keywords) {
+    value = value.copyWith(keywords: keywords);
+  }
+
+  void setLogs(List<Log> logs) {
+    if (identical(logs, value.logs)) {
+      return;
+    }
+    value = value.copyWith(
+      logs: value.autoScrollToEnd
+          ? logs
+          : retainTrimmedHead(value.logs, logs, pausedMaxLogsLength),
+    );
+  }
+
+  void setAutoScrollToEnd(bool autoScrollToEnd) {
+    value = value.copyWith(autoScrollToEnd: autoScrollToEnd);
+  }
+
+  void resumeAutoScrollToEnd(List<Log> logs) {
+    value = value.copyWith(autoScrollToEnd: true, logs: logs);
+  }
+}
 
 class LogsView extends ConsumerStatefulWidget {
   const LogsView({super.key});
@@ -15,288 +49,219 @@ class LogsView extends ConsumerStatefulWidget {
   ConsumerState<LogsView> createState() => _LogsViewState();
 }
 
-class _LogsViewState extends ConsumerState<LogsView> with PageMixin {
-  final _logsStateNotifier = ValueNotifier<LogsState>(
-    const LogsState(loading: true),
+class _LogsViewState extends ConsumerState<LogsView>
+    with RouteMotionHoldMixin<LogsView> {
+  final _listController = LogListController();
+  late final ScrollController _scrollController;
+  late final _physics = FollowEndScrollPhysics(
+    isFollowing: () => _listController.value.autoScrollToEnd,
   );
-  late ScrollController _scrollController;
-
-  double _currentMaxWidth = 0;
-  final _tag = CacheTag.rules;
-  bool _isLoad = false;
-
-  List<Log> _logs = [];
 
   @override
   void initState() {
     super.initState();
-    final position = globalState.cacheScrollPosition[_tag] ?? -1;
-    _scrollController = ScrollController(
-      initialScrollOffset: position > 0 ? position : double.maxFinite,
+    _scrollController = sheetScrollController(
+      context,
+      initialScrollOffset: double.maxFinite,
     );
-    _logs = globalState.appState.logs.list;
-    _logsStateNotifier.value = _logsStateNotifier.value.copyWith(
-      logs: _logs,
-    );
-    ref.listenManual(
-      isCurrentPageProvider(
-        PageLabel.logs,
-        handler: (pageLabel, viewMode) =>
-            pageLabel == PageLabel.tools && viewMode == ViewMode.mobile,
+    _listController.setLogs(ref.read(logsProvider).list);
+    ref.listenManual(logsProvider.select((state) => state.revision), (_, _) {
+      updateLogsThrottler();
+    });
+  }
+
+  List<IconButtonData> _buildActions() {
+    return [
+      IconButtonData(
+        glyph: AppGlyphs.export,
+        tooltip: context.appLocalizations.exportLogs,
+        onPressed: _handleExport,
       ),
-      (prev, next) {
-        if (prev != next && next == true) {
-          initPageState();
-        }
-      },
-      fireImmediately: true,
-    );
-    ref.listenManual(
-      logsProvider.select((state) => state.list),
-      (prev, next) {
-        if (prev != next) {
-          final isEquality = logListEquality.equals(prev, next);
-          if (!isEquality) {
-            _logs = next;
-            updateLogsThrottler();
-          }
-        }
-      },
-    );
+    ];
   }
 
   @override
-  List<Widget> get actions => [
-        IconButton(
-          onPressed: _handleExport,
-          icon: const Icon(
-            Icons.file_download_outlined,
-          ),
-        ),
-      ];
-
-  @override
-  Null Function(String value) get onSearch => (value) {
-        _logsStateNotifier.value = _logsStateNotifier.value.copyWith(
-          query: value,
-        );
-      };
-
-  @override
-  Null Function(List<String> keywords) get onKeywordsUpdate => (keywords) {
-        _logsStateNotifier.value =
-            _logsStateNotifier.value.copyWith(keywords: keywords);
-      };
-
-  @override
   void dispose() {
-    _logsStateNotifier.dispose();
+    _listController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _handleExport() async {
-    final commonScaffoldState = context.commonScaffoldState;
-    final res = await commonScaffoldState?.loadingRun<bool>(
-      () async => globalState.appController.exportLogs(),
-      title: appLocalizations.exportLogs,
-    );
+    final appLocalizations = context.appLocalizations;
+    final res = await globalState.safeRun<bool>(() async {
+      return ref.read(logsProvider.notifier).exportLogs();
+    }, title: appLocalizations.exportLogs);
     if (res != true) return;
-    globalState.showMessage(
-      title: appLocalizations.tip,
-      message: TextSpan(text: appLocalizations.exportSuccess),
+    unawaited(
+      dialogs.showAlert(
+        title: appLocalizations.tip,
+        message: TextSpan(text: appLocalizations.exportSuccess),
+      ),
     );
-  }
-
-  double _getItemHeight(Log log) {
-    final measure = globalState.measure;
-    final bodySmallHeight = measure.bodySmallHeight;
-    final bodyMediumHeight = measure.bodyMediumHeight;
-    final height = globalState.measure
-        .computeTextSize(
-          Text(
-            log.payload,
-            style: context.textTheme.bodyLarge,
-          ),
-          maxWidth: _currentMaxWidth,
-        )
-        .height;
-    return height + bodySmallHeight + 8 + bodyMediumHeight + 40 + 8;
   }
 
   void updateLogsThrottler() {
     throttler.call(FunctionTag.logs, () {
-      final isEquality = logListEquality.equals(
-        _logs,
-        _logsStateNotifier.value.logs,
-      );
-      if (isEquality) {
-        return;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _logsStateNotifier.value = _logsStateNotifier.value.copyWith(
-            logs: _logs,
-          );
-        }
-      });
-    }, duration: commonDuration);
-  }
-
-  void _preLoad() {
-    if (_isLoad == true) {
-      return;
-    }
-    _isLoad = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) {
         return;
       }
-      final isMobileView = ref.read(isMobileViewProvider);
-      if (isMobileView) {
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
-      final parts = _logs.batch(10);
-      globalState.cacheHeightMap[_tag] ??= FixedMap(
-        _logs.length,
+      updateWhenRouteSettled(
+        () => _listController.setLogs(ref.read(logsProvider).list),
       );
-      for (var i = 0; i < parts.length; i++) {
-        final part = parts[i];
-        await Future(
-          () {
-            for (final log in part) {
-              globalState.cacheHeightMap[_tag]?.updateCacheValue(
-                log.payload,
-                () => _getItemHeight(log),
-              );
-            }
-          },
-        );
-      }
-      _logsStateNotifier.value = _logsStateNotifier.value.copyWith(
-        loading: false,
-      );
-    });
+    }, duration: renderThrottleDuration);
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (_, constraints) {
-          _currentMaxWidth = constraints.maxWidth - 40;
-          return ValueListenableBuilder<LogsState>(
-            valueListenable: _logsStateNotifier,
-            builder: (_, state, __) {
-              _preLoad();
-              final logs = state.list;
-              final items = logs
-                  .map<Widget>(
-                    (log) => LogItem(
-                      key: Key(log.dateTime),
-                      log: log,
-                      onClick: (value) {
-                        context.commonScaffoldState?.addKeyword(value);
-                      },
-                    ),
-                  )
-                  .separated(
-                    const Divider(
-                      height: 0,
-                    ),
-                  )
-                  .toList();
-              final content = logs.isEmpty
-                  ? NullStatus(
-                      label: appLocalizations.nullTip(
-                        appLocalizations.logs,
-                      ),
-                    )
-                  : Align(
-                      alignment: Alignment.topCenter,
-                      child: CommonScrollBar(
-                        controller: _scrollController,
-                        child: ScrollToEndBox(
-                          controller: _scrollController,
-                          tag: _tag,
-                          dataSource: logs,
-                          child: CacheItemExtentListView(
-                            tag: _tag,
-                            reverse: true,
-                            shrinkWrap: true,
-                            physics: const NextClampingScrollPhysics(),
-                            controller: _scrollController,
-                            itemBuilder: (_, index) => items[index],
-                            itemExtentBuilder: (index) {
-                              if (index.isOdd) {
-                                return 0;
-                              }
-                              return _getItemHeight(logs[index ~/ 2]);
-                            },
-                            itemCount: items.length,
-                            keyBuilder: (index) {
-                              if (index.isOdd) {
-                                return "divider";
-                              }
-                              return logs[index ~/ 2].payload;
-                            },
-                          ),
-                        ),
-                      ),
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return CommonScaffold(
+      iconActions: _buildActions(),
+      onKeywordsUpdate: _listController.updateKeywords,
+      searchState: AppBarSearchState(onSearch: _listController.search),
+      title: appLocalizations.logs,
+      body: ValueListenableBuilder<LogsState>(
+        valueListenable: _listController,
+        builder: (context, state, _) {
+          final logs = state.list;
+          return NullStatusSwitcher(
+            isEmpty: logs.isEmpty,
+            isSearching: state.isSearching,
+            nullStatus: NullStatus(
+              illustration: NullStatusIllustration.logs,
+              label: appLocalizations.nullTip(appLocalizations.logs),
+            ),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: FloatingScrollbar(
+                controller: _scrollController,
+                hintBuilder: (fraction) {
+                  final index = (fraction * (logs.length - 1)).round();
+                  return logs[index].dateTime;
+                },
+                child: ScrollToEndBox(
+                  onCancelToEnd: () {
+                    _listController.setAutoScrollToEnd(false);
+                  },
+                  onResumeToEnd: () {
+                    _listController.resumeAutoScrollToEnd(
+                      ref.read(logsProvider).list,
                     );
-              return FadeBox(
-                child: state.loading
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    : content,
-              );
-            },
+                  },
+                  controller: _scrollController,
+                  enable: state.autoScrollToEnd,
+                  child: SuperListView.separated(
+                    physics: _physics,
+                    reverse: true,
+                    shrinkWrap: true,
+                    controller: _scrollController,
+                    padding: EdgeInsets.only(
+                      top: context.contentTopPadding,
+                      bottom: 16 + context.bottomInset,
+                    ),
+                    itemCount: logs.length,
+                    extentEstimation: recordListExtentEstimation,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: recordListGap),
+                    itemBuilder: (_, index) {
+                      final log = logs[index];
+                      return LogItem(
+                        log: log,
+                        onClick: (value) {
+                          context.commonScaffoldState?.addKeyword(value);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
           );
         },
-      );
+      ),
+    );
+  }
 }
 
 class LogItem extends StatelessWidget {
-  const LogItem({
-    super.key,
-    required this.log,
-    this.onClick,
-  });
   final Log log;
   final Function(String)? onClick;
 
+  const LogItem({super.key, required this.log, this.onClick});
+
   @override
-  Widget build(BuildContext context) => ListItem(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 4,
-        ),
-        title: SelectableText(
-          log.payload,
-          style: context.textTheme.bodyLarge,
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableText(
-              log.dateTime,
-              style: context.textTheme.bodySmall?.copyWith(
-                color: context.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(
-              height: 8,
-            ),
-            Container(
-              alignment: Alignment.centerLeft,
-              child: CommonChip(
-                onPressed: () {
-                  if (onClick == null) return;
-                  onClick!(log.logLevel.name);
-                },
-                label: log.logLevel.name,
-              ),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) {
+    final tone = switch (log.logLevel) {
+      LogLevel.warning => RecordTone.warning,
+      LogLevel.error => RecordTone.error,
+      LogLevel.info || LogLevel.debug || LogLevel.silent => RecordTone.neutral,
+    };
+    final payload = LogPayload.parse(log.payload);
+    return RecordListItem(
+      onTap: () {},
+      header: RecordHeader(
+        children: [
+          RecordTimestamp(log.dateTime),
+          RecordLabel(
+            label: log.logLevel.name,
+            tone: tone,
+            onPressed: () => onClick?.call(log.logLevel.name),
+          ),
+        ],
+      ),
+      body: _LogBody(payload: payload, errorColor: tone.accentColor(context)),
+    );
+  }
+}
+
+class _LogBody extends StatelessWidget {
+  final LogPayload payload;
+  final Color? errorColor;
+
+  const _LogBody({required this.payload, this.errorColor});
+
+  String get _sourceText => [
+    payload.tag,
+    if (payload.route case final route?) ...[route.source, route.sourceDetail],
+  ].where((text) => text.isNotEmpty).join('  ·  ');
+
+  @override
+  Widget build(BuildContext context) {
+    final styles = RecordTextStyles.of(context);
+    final route = payload.route;
+    if (route == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SelectableText(payload.message, style: styles.primary),
+          if (payload.tag.isNotEmpty)
+            Text(payload.tag, style: styles.secondary),
+        ],
       );
+    }
+    return SelectableText.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: route.destination, style: styles.title),
+          if (route.error.isNotEmpty)
+            TextSpan(
+              text: '\n${route.error}',
+              style: styles.secondary.copyWith(color: errorColor),
+            ),
+          const TextSpan(text: '\n'),
+          if (route.rule.isNotEmpty) ...[
+            TextSpan(text: route.rule, style: styles.secondary),
+            TextSpan(text: ' \u2192 ', style: styles.secondary.toJetBrainsMono),
+          ],
+          TextSpan(
+            text: route.proxy,
+            style: AppTextStyle.footnote
+                .of(context, emphasized: true)
+                .copyWith(color: context.colorScheme.primary),
+          ),
+          TextSpan(text: '\n$_sourceText', style: styles.secondary),
+        ],
+      ),
+    );
+  }
 }
