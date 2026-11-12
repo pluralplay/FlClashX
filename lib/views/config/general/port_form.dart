@@ -174,7 +174,9 @@ class _PortFormState extends ConsumerState<_PortForm> {
     if (field.allowDisabled && port == 0) {
       return null;
     }
-    if (port < _minPort || port > _maxPort) {
+    // The subscription may set any port; the range only bounds the user's own.
+    final locked = ref.read(settingLockedProvider(field.settingKey));
+    if (!locked && (port < _minPort || port > _maxPort)) {
       return appLocalizations.portTip(label);
     }
     final others = _fields

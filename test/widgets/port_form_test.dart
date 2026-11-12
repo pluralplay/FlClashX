@@ -201,6 +201,33 @@ void main() {
     expect(config.mixedPort, const PatchClashConfig().mixedPort);
   });
 
+  testWidgets('a subscription port outside the user range lets others save', (
+    tester,
+  ) async {
+    final container = await _openPortForm(
+      tester,
+      prepare: (container) {
+        container.listen(managedClashKeysProvider, (_, _) {});
+        container.read(managedClashKeysProvider.notifier).set({
+          'clash.socks-port',
+        });
+        container
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith(socksPort: 50000));
+      },
+    );
+
+    await tester.enterText(_fields.first, '7891');
+    await tester.pumpAndSettle();
+    expect(_banner('1024'), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    final config = container.read(patchClashConfigProvider);
+    expect(config.mixedPort, 7891);
+    expect(config.socksPort, 50000);
+  });
+
   testWidgets('saving leaves a port handed back to the subscription alone', (
     tester,
   ) async {
