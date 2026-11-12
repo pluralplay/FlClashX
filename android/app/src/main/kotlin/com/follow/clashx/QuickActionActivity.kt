@@ -36,13 +36,6 @@ class QuickActionActivity : Activity() {
         handle(intent)
     }
 
-    override fun onStop() {
-        super.onStop()
-        if (!isChangingConfigurations) {
-            finish()
-        }
-    }
-
     override fun onDestroy() {
         hold?.cancel()
         super.onDestroy()
