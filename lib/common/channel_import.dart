@@ -194,7 +194,9 @@ Future<StableImport> copyStableData(StableSource source) async {
     return StableImport.skipped;
   }
   if (!await File(join(stableHome, _database)).exists()) {
-    return StableImport.skipped;
+    return await pending.exists()
+        ? StableImport.deferred
+        : StableImport.skipped;
   }
   await Directory(home).create(recursive: true);
   await pending.writeAsString('');

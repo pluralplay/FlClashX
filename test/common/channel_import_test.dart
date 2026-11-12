@@ -181,6 +181,17 @@ void main() {
     expect(Directory(pre).listSync(), isEmpty);
   });
 
+  test('a begun import stays pending when the stable data goes', () async {
+    expect(await copyStableData(source(busy: true)), StableImport.deferred);
+    await File(join(pre, 'profiles')).writeAsString('partial');
+    await File(join(stable, 'database.sqlite')).delete();
+
+    expect(await copyStableData(source()), StableImport.deferred);
+    expect(read('profiles'), 'partial');
+    expect(exists('.stable-import-pending'), isTrue);
+    expect(exists('.stable-import-done'), isFalse);
+  });
+
   test('never copies a store onto itself', () async {
     final itself = (
       stableHome: stable,
