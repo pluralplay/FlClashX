@@ -82,6 +82,7 @@ fi
 
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [[ "$branch" != "HEAD" ]] || die "detached HEAD; check out a branch first"
+remote="$(git config "branch.$branch.remote" || echo origin)"
 if [[ "$branch" != "main" ]]; then
   echo "note: releasing from '$branch', not main. CI triggers on the tag, so"
   echo "      this publishes '$branch' while main stays behind."
@@ -119,6 +120,7 @@ fi
 echo
 echo "mode      : $mode"
 echo "branch    : $branch"
+echo "remote    : $remote"
 echo "version   : $current -> $version$([[ $bumped == 1 ]] && echo ' (pubspec will be rewritten)')"
 echo "tag       : $tag"
 if [[ "$mode" == "pre" ]]; then
@@ -199,11 +201,11 @@ git tag "$tag"
 echo "tagged $tag at $(git rev-parse --short HEAD)"
 
 if ((do_push)); then
-  git push origin "$branch"
-  git push origin "$tag"
+  git push "$remote" "$branch"
+  git push "$remote" "$tag"
   echo "pushed $branch and $tag"
 else
   echo
   echo "Nothing was pushed. To publish:"
-  echo "  git push origin $branch && git push origin $tag"
+  echo "  git push $remote $branch && git push $remote $tag"
 fi
