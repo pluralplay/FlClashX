@@ -30,6 +30,24 @@ class _StalledHttpClient extends Fake implements HttpClient {
 /// real client.
 class _RealHttpOverrides extends HttpOverrides {}
 
+class _UrlAdapter implements HttpClientAdapter {
+  _UrlAdapter(this.byUrl);
+
+  final Map<String, ResponseBody Function()> byUrl;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return byUrl[options.uri.toString()]!();
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 class _HostAdapter implements HttpClientAdapter {
   _HostAdapter(this.byHost);
 
@@ -86,17 +104,45 @@ void main() {
         {'tag_name': 'v0.5.1-pre.10', 'prerelease': true},
         {'tag_name': 'v0.5.1-pre.9', 'prerelease': true},
         {'tag_name': 'v0.5.1-pre.11', 'prerelease': true, 'draft': true},
+        {'tag_name': 'core-v1.19.30', 'prerelease': true},
         'not a release',
       ]);
 
       expect(newest?['tag_name'], 'v0.5.1-pre.10');
     });
 
-    ResponseBody json(Object body) => ResponseBody.fromString(
+    test('reads the pre-releases a releases feed names', () {
+      const feed =
+          '<link href="https://github.com/o/r/releases/tag/v0.5.1-pre.2"/>'
+          '<link href="https://github.com/o/r/releases/tag/core-v1.19.30"/>'
+          '<link href="https://github.com/o/r/releases/tag/v0.5.0"/>'
+          '<link href="https://github.com/o/r/releases/tag/v0.5.1-pre.10"/>';
+
+      expect(newestPrereleaseInFeed(feed), {'tag_name': 'v0.5.1-pre.10'});
+      expect(newestPrereleaseInFeed(''), isNull);
+    });
+
+    test('follows the next page a Link header names', () {
+      expect(
+        nextPageOf(
+          '<https://api.github.com/x?page=1>; rel="prev", '
+          '<https://api.github.com/x?page=3>; rel="next"',
+        ),
+        'https://api.github.com/x?page=3',
+      );
+      expect(
+        nextPageOf('<https://api.github.com/x?page=1>; rel="prev"'),
+        isNull,
+      );
+      expect(nextPageOf(null), isNull);
+    });
+
+    ResponseBody json(Object body, {String? link}) => ResponseBody.fromString(
       jsonEncode(body),
       200,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
+        if (link != null) 'link': [link],
       },
     );
 
@@ -118,6 +164,41 @@ void main() {
             {'tag_name': 'v0.5.1', 'prerelease': false},
             {'tag_name': 'v0.5.1-pre.10', 'prerelease': true},
           ]),
+        });
+
+      expect((await request.checkForUpdate())?['tag_name'], 'v0.5.1-pre.10');
+    });
+
+    test('a pre-release found on a later page is still offered', () async {
+      installed('pre', '0.5.1-pre.9');
+      final request = Request()
+        ..dio.httpClientAdapter = _UrlAdapter({
+          'https://api.github.com/repos/$repository/releases?per_page=100':
+              () => json(
+                [
+                  {'tag_name': 'v0.6.0', 'prerelease': false},
+                ],
+                link:
+                    '<https://api.github.com/repos/$repository/releases?per_page=100&page=2>; rel="next"',
+              ),
+          'https://api.github.com/repos/$repository/releases?per_page=100&page=2':
+              () => json([
+                {'tag_name': 'v0.5.1-pre.10', 'prerelease': true},
+              ]),
+        });
+
+      expect((await request.checkForUpdate())?['tag_name'], 'v0.5.1-pre.10');
+    });
+
+    test('a pre-release build falls back to the feed past the quota', () async {
+      installed('pre', '0.5.1-pre.9');
+      final request = Request()
+        ..dio.httpClientAdapter = _HostAdapter({
+          'api.github.com': () => ResponseBody.fromString('limit', 403),
+          'github.com': () => ResponseBody.fromString(
+            '<link href="https://github.com/$repository/releases/tag/v0.5.1-pre.10"/>',
+            200,
+          ),
         });
 
       expect((await request.checkForUpdate())?['tag_name'], 'v0.5.1-pre.10');

@@ -145,12 +145,30 @@ class Request {
   /// upgrade, so it only hears of newer pre-releases.
   @visibleForTesting
   Future<Map<String, dynamic>?> latestPrerelease() async {
-    final response = await dio.get<List<dynamic>>(
-      'https://api.github.com/repos/$repository/releases',
-      queryParameters: {'per_page': 30},
-      options: Options(responseType: ResponseType.json),
+    try {
+      final releases = <dynamic>[];
+      String? next =
+          'https://api.github.com/repos/$repository/releases?per_page=100';
+      for (var page = 0; next != null && page < _releasePages; page++) {
+        final response = await dio.get<List<dynamic>>(
+          next,
+          options: Options(responseType: ResponseType.json),
+        );
+        releases.addAll(response.data ?? const []);
+        next = nextPageOf(response.headers.value('link'));
+      }
+      return newestPrerelease(releases);
+    } on DioException catch (error) {
+      commonPrint.log(
+        'releases API failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+    }
+    final feed = await dio.get<String>(
+      'https://github.com/$repository/releases.atom',
+      options: Options(responseType: ResponseType.plain),
     );
-    return newestPrerelease(response.data ?? const []);
+    return newestPrereleaseInFeed(feed.data ?? '');
   }
 
   /// The release page redirect still answers once the hourly API quota is spent.
@@ -187,26 +205,60 @@ class Request {
 
 final request = Request();
 
+const _releasePages = 5;
+
+/// The app's own pre-release tags; Core builds and other releases share the
+/// list under tags compareVersions cannot read.
+final _prereleaseTag = RegExp(r'^v\d+\.\d+\.\d+-pre\.\d+$');
+
 Map<String, dynamic>? newestPrerelease(List<dynamic> releases) {
   Map<String, dynamic>? newest;
   for (final release in releases) {
     if (release is! Map<String, dynamic> ||
         release['prerelease'] != true ||
-        release['draft'] == true ||
-        release['tag_name'] is! String) {
+        release['draft'] == true) {
       continue;
     }
-    if (newest == null ||
-        compareVersions(
-              _versionOfTag(release['tag_name'] as String),
-              _versionOfTag(newest['tag_name'] as String),
-            ) >
-            0) {
+    final tag = release['tag_name'];
+    if (tag is! String || !_prereleaseTag.hasMatch(tag)) {
+      continue;
+    }
+    if (newest == null || _newer(tag, newest['tag_name'] as String)) {
       newest = release;
     }
   }
   return newest;
 }
+
+/// The releases feed, which is not rate limited, names tags but not which
+/// are pre-releases; the app's pre-release tags say so themselves.
+Map<String, dynamic>? newestPrereleaseInFeed(String feed) {
+  String? newest;
+  for (final match in RegExp(r'/releases/tag/([^"<\s]+)').allMatches(feed)) {
+    final tag = Uri.decodeComponent(match.group(1)!);
+    if (_prereleaseTag.hasMatch(tag) &&
+        (newest == null || _newer(tag, newest))) {
+      newest = tag;
+    }
+  }
+  return newest == null ? null : {'tag_name': newest};
+}
+
+String? nextPageOf(String? link) {
+  if (link == null) {
+    return null;
+  }
+  for (final part in link.split(',')) {
+    final match = RegExp(r'<([^>]+)>;\s*rel="next"').firstMatch(part);
+    if (match != null) {
+      return match.group(1);
+    }
+  }
+  return null;
+}
+
+bool _newer(String tag, String than) =>
+    compareVersions(_versionOfTag(tag), _versionOfTag(than)) > 0;
 
 String _versionOfTag(String tag) => tag.replaceFirst(RegExp('^v'), '');
 
