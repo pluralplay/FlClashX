@@ -384,8 +384,7 @@ class ProfilesAction extends _$ProfilesAction {
     final platformFile = await globalState.safeRun(picker.pickerFile);
     if (platformFile == null) return;
     final bytes = await platformFile.readBytes();
-    globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    ref.read(currentPageLabelProvider.notifier).toProfiles();
+    _showProfiles();
     final profile = await globalState.loadingRun(
       tag: LoadingTag.profiles,
       () => _withAgeSecretKey(
@@ -537,11 +536,14 @@ class ProfilesAction extends _$ProfilesAction {
     );
   }
 
+  /// Stops at a route that vetoes its pop, so an import that arrives from
+  /// outside never closes an editor with unsaved changes.
   void _showProfiles() {
-    if (globalState.navigatorKey.currentState?.canPop() ?? false) {
-      globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    }
-    ref.read(currentPageLabelProvider.notifier).value = PageLabel.profiles;
+    globalState.navigatorKey.currentState?.popUntil(
+      (route) =>
+          route.isFirst || route.popDisposition == RoutePopDisposition.doNotPop,
+    );
+    ref.read(currentPageLabelProvider.notifier).toProfiles();
   }
 
   Future<Profile?> addProfileFromLink(
