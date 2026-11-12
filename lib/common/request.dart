@@ -128,12 +128,29 @@ class Request {
 
   /// Null when this build is current; throws when GitHub cannot be asked.
   Future<Map<String, dynamic>?> checkForUpdate() async {
-    final release = await latestRelease();
+    final release = globalState.isPre
+        ? await latestPrerelease()
+        : await latestRelease();
+    if (release == null) {
+      return null;
+    }
     final remoteVersion = release['tag_name'] as String;
     final version = globalState.packageInfo.displayVersion;
     final hasUpdate =
         compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
     return hasUpdate ? release : null;
+  }
+
+  /// A pre-release installs as its own app, which a stable release would not
+  /// upgrade, so it only hears of newer pre-releases.
+  @visibleForTesting
+  Future<Map<String, dynamic>?> latestPrerelease() async {
+    final response = await dio.get<List<dynamic>>(
+      'https://api.github.com/repos/$repository/releases',
+      queryParameters: {'per_page': 30},
+      options: Options(responseType: ResponseType.json),
+    );
+    return newestPrerelease(response.data ?? const []);
   }
 
   /// The release page redirect still answers once the hourly API quota is spent.
@@ -169,6 +186,29 @@ class Request {
 }
 
 final request = Request();
+
+Map<String, dynamic>? newestPrerelease(List<dynamic> releases) {
+  Map<String, dynamic>? newest;
+  for (final release in releases) {
+    if (release is! Map<String, dynamic> ||
+        release['prerelease'] != true ||
+        release['draft'] == true ||
+        release['tag_name'] is! String) {
+      continue;
+    }
+    if (newest == null ||
+        compareVersions(
+              _versionOfTag(release['tag_name'] as String),
+              _versionOfTag(newest['tag_name'] as String),
+            ) >
+            0) {
+      newest = release;
+    }
+  }
+  return newest;
+}
+
+String _versionOfTag(String tag) => tag.replaceFirst(RegExp('^v'), '');
 
 /// How a host let a download down: [soft] when it may be back in a moment,
 /// [hard] when the host itself is gone or no longer serves the resource.

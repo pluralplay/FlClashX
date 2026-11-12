@@ -79,6 +79,70 @@ void main() {
     );
   });
 
+  group('update channel', () {
+    test('picks the highest pre-release and passes stable and drafts by', () {
+      final newest = newestPrerelease([
+        {'tag_name': 'v0.5.1', 'prerelease': false},
+        {'tag_name': 'v0.5.1-pre.10', 'prerelease': true},
+        {'tag_name': 'v0.5.1-pre.9', 'prerelease': true},
+        {'tag_name': 'v0.5.1-pre.11', 'prerelease': true, 'draft': true},
+        'not a release',
+      ]);
+
+      expect(newest?['tag_name'], 'v0.5.1-pre.10');
+    });
+
+    ResponseBody json(Object body) => ResponseBody.fromString(
+      jsonEncode(body),
+      200,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+
+    void installed(String env, String version) {
+      globalState.appEnv = env;
+      globalState.packageInfo = PackageInfo(
+        appName: 'FlClashX',
+        packageName: 'com.follow.clashx',
+        version: version,
+        buildNumber: '1',
+      );
+    }
+
+    test('a pre-release build is offered only a newer pre-release', () async {
+      installed('pre', '0.5.1-pre.9');
+      final request = Request()
+        ..dio.httpClientAdapter = _HostAdapter({
+          'api.github.com': () => json([
+            {'tag_name': 'v0.5.1', 'prerelease': false},
+            {'tag_name': 'v0.5.1-pre.10', 'prerelease': true},
+          ]),
+        });
+
+      expect((await request.checkForUpdate())?['tag_name'], 'v0.5.1-pre.10');
+    });
+
+    test('a stable build keeps to the latest release', () async {
+      installed('stable', '0.5.0');
+      final request = Request()
+        ..dio.httpClientAdapter = _HostAdapter({
+          'api.github.com': () => json({'tag_name': 'v0.5.1'}),
+        });
+
+      expect((await request.checkForUpdate())?['tag_name'], 'v0.5.1');
+    });
+
+    test('finds none among stable releases only', () {
+      expect(
+        newestPrerelease([
+          {'tag_name': 'v0.5.0', 'prerelease': false},
+        ]),
+        isNull,
+      );
+    });
+  });
+
   group('latestRelease', () {
     Request requestAnswering(Map<String, ResponseBody Function()> byHost) {
       return Request()..dio.httpClientAdapter = _HostAdapter(byHost);
