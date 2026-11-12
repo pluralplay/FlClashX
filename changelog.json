@@ -29,6 +29,11 @@
               "id": "c2f57e9",
               "scope": "settings",
               "text": "Settings the subscription sets belong to the provider; each one can be taken over and handed back"
+            },
+            {
+              "id": "bb0e6d6",
+              "scope": "settings",
+              "text": "TLS certificates are always checked; the toggle to turn the check off is gone"
             }
           ]
         },
