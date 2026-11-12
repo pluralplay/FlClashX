@@ -1033,6 +1033,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "portTip": m60,
     "portValue": m61,
     "ports": MessageLookupByLibrary.simpleMessage("端口"),
+    "preChannelTip": MessageLookupByLibrary.simpleMessage(
+      "此预发布版是独立的应用，无法读取 FlClashX 的配置。要迁移配置，请在 FlClashX 的“备份与恢复”中创建备份并在此处恢复，或通过链接重新添加订阅。",
+    ),
+    "preChannelTipTitle": MessageLookupByLibrary.simpleMessage("FlClashX Pre"),
     "preSharedKey": MessageLookupByLibrary.simpleMessage("预共享密钥"),
     "preferred": MessageLookupByLibrary.simpleMessage("首选"),
     "prerequisites": MessageLookupByLibrary.simpleMessage("前置条件"),

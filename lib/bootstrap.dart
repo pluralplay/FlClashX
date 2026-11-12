@@ -37,10 +37,6 @@ class Bootstrap {
   BootDecision _bootDecision = const BootDecision();
 
   Future<ProviderContainer> init(int version) async {
-    globalState.appEnv = const String.fromEnvironment(
-      'APP_ENV',
-      defaultValue: 'pre',
-    );
     windowPort = window;
     trayPort = appTray;
     navigationPort = navigation;
@@ -102,6 +98,7 @@ class Bootstrap {
     DynamicColorSeeds dynamicColor,
   ) async {
     await _claimDataDirectory();
+    await importStableDataForPre();
     globalState.packageInfo = await PackageInfo.fromPlatform();
     var config = await migration.run();
     _bootDecision = await bootGuard.evaluate(
@@ -189,6 +186,7 @@ class Bootstrap {
       return;
     }
     await _showCrashRecoveryTip();
+    await _showPreChannelTip();
     await _container.read(coreActionProvider.notifier).startCore();
     if (!_bootDecision.isDegraded) {
       await _container.read(setupActionProvider.notifier).initStatus();
@@ -198,6 +196,23 @@ class Bootstrap {
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
     unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
+  }
+
+  Future<void> _showPreChannelTip() async {
+    final due = preChannelTipDue(
+      isAndroid: system.isAndroid,
+      packageName: globalState.packageInfo.packageName,
+      hasProfiles: _container.read(profilesProvider).isNotEmpty,
+      shown: await preferences.getPreChannelTipShown(),
+    );
+    if (!due) {
+      return;
+    }
+    await dialogs.showAlert(
+      title: currentAppLocalizations.preChannelTipTitle,
+      message: TextSpan(text: currentAppLocalizations.preChannelTip),
+    );
+    await preferences.setPreChannelTipShown();
   }
 
   Future<void> _showCrashRecoveryTip() async {

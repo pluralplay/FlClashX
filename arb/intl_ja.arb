@@ -1009,5 +1009,7 @@
   "proxyChainIncomplete": "名前を付けて、すべてのホップを選んでください",
   "proxyChainUnchainableHop": "{name} には direct など、他のホップ経由で接続できないプロキシがあります",
   "proxyChainUnreadableFilter": "{name} のフィルターには、このアプリがまだ読めない構文が使われています",
-  "proxyChainIsMatchTarget": "{name} は MATCH の宛先です。オフや削除の前に別の宛先を選んでください"
+  "proxyChainIsMatchTarget": "{name} は MATCH の宛先です。オフや削除の前に別の宛先を選んでください",
+  "preChannelTipTitle": "FlClashX Pre",
+  "preChannelTip": "このプレリリース版は別アプリとしてインストールされ、FlClashX のプロファイルは参照できません。移行するには、FlClashX の「バックアップと復元」でバックアップを作成してここで復元するか、リンクからサブスクリプションを追加し直してください。"
 }

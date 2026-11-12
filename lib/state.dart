@@ -14,7 +14,7 @@ import 'models/models.dart';
 class GlobalState {
   static GlobalState? _instance;
   GlobalKey<NavigatorState> get navigatorKey => rootNavigatorKey;
-  late String appEnv;
+  String appEnv = const String.fromEnvironment('APP_ENV', defaultValue: 'pre');
   late PackageInfo packageInfo;
   late Measure measure;
   late ProviderContainer container;

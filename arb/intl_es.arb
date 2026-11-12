@@ -1009,5 +1009,7 @@
   "proxyChainIncomplete": "Pon un nombre a la cadena y elige todos los saltos",
   "proxyChainUnchainableHop": "{name} tiene proxies que no pueden conectarse a través de otro salto, como direct",
   "proxyChainUnreadableFilter": "El filtro de {name} usa una sintaxis que la app aún no puede leer",
-  "proxyChainIsMatchTarget": "{name} es el destino MATCH. Elige otro destino antes de desactivarla o eliminarla"
+  "proxyChainIsMatchTarget": "{name} es el destino MATCH. Elige otro destino antes de desactivarla o eliminarla",
+  "preChannelTipTitle": "FlClashX Pre",
+  "preChannelTip": "Esta versión preliminar es una aplicación aparte y no ve los perfiles de FlClashX. Para traerlos, crea una copia de seguridad en FlClashX, en Copia de seguridad y restauración, y restáurala aquí, o vuelve a añadir tus suscripciones por enlace."
 }

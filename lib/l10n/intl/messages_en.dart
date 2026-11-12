@@ -1327,6 +1327,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "portTip": m60,
     "portValue": m61,
     "ports": MessageLookupByLibrary.simpleMessage("Ports"),
+    "preChannelTip": MessageLookupByLibrary.simpleMessage(
+      "This pre-release is a separate app and can\'t see FlClashX\'s profiles. To bring them over, make a backup in FlClashX under Backup and restore and restore it here, or add your subscriptions again by link.",
+    ),
+    "preChannelTipTitle": MessageLookupByLibrary.simpleMessage("FlClashX Pre"),
     "preSharedKey": MessageLookupByLibrary.simpleMessage("Pre-shared key"),
     "preferred": MessageLookupByLibrary.simpleMessage("Preferred"),
     "prerequisites": MessageLookupByLibrary.simpleMessage("Prerequisites"),

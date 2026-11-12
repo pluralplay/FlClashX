@@ -1009,5 +1009,7 @@
   "proxyChainIncomplete": "请填写名称并选择所有节点",
   "proxyChainUnchainableHop": "{name} 中有无法经由其他节点连接的代理，例如 direct",
   "proxyChainUnreadableFilter": "{name} 的过滤器使用了本应用暂不支持的语法",
-  "proxyChainIsMatchTarget": "{name} 是 MATCH 目标。请先选择其他目标，再关闭或删除它"
+  "proxyChainIsMatchTarget": "{name} 是 MATCH 目标。请先选择其他目标，再关闭或删除它",
+  "preChannelTipTitle": "FlClashX Pre",
+  "preChannelTip": "此预发布版是独立的应用，无法读取 FlClashX 的配置。要迁移配置，请在 FlClashX 的“备份与恢复”中创建备份并在此处恢复，或通过链接重新添加订阅。"
 }

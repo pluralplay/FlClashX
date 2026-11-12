@@ -1112,6 +1112,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "portTip": m60,
     "portValue": m61,
     "ports": MessageLookupByLibrary.simpleMessage("포트"),
+    "preChannelTip": MessageLookupByLibrary.simpleMessage(
+      "이 사전 출시 버전은 별도의 앱이라 FlClashX의 프로필을 볼 수 없습니다. 옮기려면 FlClashX의 백업 및 복원에서 백업을 만든 뒤 여기서 복원하거나, 링크로 구독을 다시 추가하세요.",
+    ),
+    "preChannelTipTitle": MessageLookupByLibrary.simpleMessage("FlClashX Pre"),
     "preSharedKey": MessageLookupByLibrary.simpleMessage("사전 공유 키"),
     "preferred": MessageLookupByLibrary.simpleMessage("우선"),
     "prerequisites": MessageLookupByLibrary.simpleMessage("사전 요건"),
