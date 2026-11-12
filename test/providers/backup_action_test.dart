@@ -16,6 +16,7 @@ import 'package:riverpod/riverpod.dart';
 
 import '../helpers/app_paths.dart';
 import '../helpers/preferences.dart';
+import '../helpers/setup_actions.dart';
 
 Profile _profile(int id, String label) => Profile(
   id: id,
@@ -50,8 +51,13 @@ void main() {
     await testDatabase.close();
   });
 
+  late ApplyRecordingSetupAction setupAction;
+
   ProviderContainer buildContainer() {
-    final container = ProviderContainer();
+    setupAction = ApplyRecordingSetupAction();
+    final container = ProviderContainer(
+      overrides: [setupActionProvider.overrideWith(() => setupAction)],
+    );
     addTearDown(container.dispose);
     return container;
   }
@@ -111,6 +117,42 @@ void main() {
       expect(profileFile.readAsStringSync(), 'proxies: []');
       expect(target.read(excludeSSIDsProvider), ['home-wifi']);
       expect(workDirs(), isEmpty);
+    });
+
+    test('pushes a restore that keeps the selected profile', () async {
+      await testDatabase.profilesDao.putAll([
+        _profile(1, 'Running').toCompanion(0),
+      ]);
+      final source = buildContainer()..listen(configProvider, (_, _) {});
+      source.read(currentProfileIdProvider.notifier).value = 1;
+      final archivePath = await backupToKept(actionOf(source));
+
+      final target = buildContainer()..listen(configProvider, (_, _) {});
+      target.read(currentProfileIdProvider.notifier).value = 1;
+      await actionOf(
+        target,
+      ).restore(RestoreOption.onlyProfiles, (_) async => archivePath);
+
+      expect(setupAction.applyCount, 1);
+    });
+
+    test('leaves a restore that switches the profile to its setup', () async {
+      await testDatabase.profilesDao.putAll([
+        _profile(1, 'Backed up').toCompanion(0),
+        _profile(2, 'Other').toCompanion(1),
+      ]);
+      final source = buildContainer()..listen(configProvider, (_, _) {});
+      source.read(currentProfileIdProvider.notifier).value = 1;
+      final archivePath = await backupToKept(actionOf(source));
+
+      final target = buildContainer()..listen(configProvider, (_, _) {});
+      target.read(currentProfileIdProvider.notifier).value = 2;
+      await actionOf(
+        target,
+      ).restore(RestoreOption.all, (_) async => archivePath);
+
+      expect(target.read(currentProfileIdProvider), 1);
+      expect(setupAction.applyCount, 0);
     });
 
     test('restores an icon gallery imported from a file', () async {

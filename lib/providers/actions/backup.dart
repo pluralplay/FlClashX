@@ -37,9 +37,22 @@ class BackupAction extends _$BackupAction {
             currentAppLocalizations.backupFromNewerVersion,
         });
       }
+      final profileId = ref.read(currentProfileIdProvider);
       await applyRestore(data, option, stagingDirPath: stagingDirPath);
+      _applyRestored(profileId);
       return true;
     });
+  }
+
+  /// A changed selection runs a full setup; an unchanged one is pushed here.
+  void _applyRestored(int? previousProfileId) {
+    ref.invalidate(setupStateProvider);
+    if (ref.read(currentProfileIdProvider) != previousProfileId) {
+      return;
+    }
+    ref
+        .read(setupActionProvider.notifier)
+        .applyProfileDebounce(silence: true, force: true);
   }
 
   Future<bool> _withWorkDir(Future<bool> Function(String workDir) run) async {
