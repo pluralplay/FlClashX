@@ -3,6 +3,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net"
@@ -15,8 +16,24 @@ import (
 
 	"github.com/metacubex/mihomo/component/geodata"
 	"github.com/metacubex/mihomo/component/updater"
+	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub/route"
 )
+
+// One node whose records both mean "not found", then a metadata map of
+// node_count 1, record_size 24 and ip_version 4.
+func maxMindTestDatabase(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	buf.Write([]byte{0, 0, 1, 0, 0, 1})
+	buf.Write(make([]byte, 16))
+	buf.WriteString("\xab\xcd\xefMaxMind.com")
+	buf.WriteByte(0xE3)
+	buf.WriteString("\x4anode_count\xc1\x01")
+	buf.WriteString("\x4brecord_size\xa1\x18")
+	buf.WriteString("\x4aip_version\xa1\x04")
+	return buf.Bytes()
+}
 
 func geoStatuses(t *testing.T, run func()) []GeoUpdateStatus {
 	t.Helper()
@@ -176,9 +193,9 @@ func assertOnlyTheInstalledFile(t *testing.T, path string, want string) {
 }
 
 func TestAnInvalidMaxMindDownloadLeavesTheLoadedDatabase(t *testing.T) {
-	path, calls, release, reload := installedGeoFile(t)
+	path, calls, _, reload := installedGeoFile(t)
 
-	if err := installMaxMind([]byte("not a database"), path, release, reload); err == nil {
+	if err := installMaxMind([]byte("not a database"), path, reload); err == nil {
 		t.Fatal("an invalid database was installed")
 	}
 
@@ -302,20 +319,35 @@ func TestTheControllerGeoEndpointsRunTheCoresGuardedUpdate(t *testing.T) {
 	}
 }
 
-func TestALoadedMaxMindReaderIsClosedOnlyWhereItsFileCannotBeReplaced(t *testing.T) {
-	path, calls, release, _ := installedGeoFile(t)
-	previous := closesMappedFile
-	t.Cleanup(func() { closesMappedFile = previous })
+func TestAMappedDatabaseWaitsBesideTheLoadedOneUntilTheNextStart(t *testing.T) {
+	path, calls, _, reload := installedGeoFile(t)
+	previous := stagesMappedFile
+	t.Cleanup(func() { stagesMappedFile = previous })
+	stagesMappedFile = true
+	data := maxMindTestDatabase(t)
 
-	closesMappedFile = false
-	mappedReaderRelease(path, release)()
-	if calls.released != 0 {
-		t.Fatal("closed a reader a lookup may still be reading, where the rename needs no close")
+	if err := installMaxMind(data, path, reload); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if calls.reloaded != 0 {
+		t.Fatal("reloaded the reader over a file it still maps")
+	}
+	if buf, _ := os.ReadFile(path); string(buf) != "old" {
+		t.Fatal("replaced the database a lookup may still be reading")
+	}
+	if geoFileInUse(path) != pendingGeoPath(path) {
+		t.Fatal("a later download would compare against the old database")
 	}
 
-	closesMappedFile = true
-	mappedReaderRelease(path, release)()
-	if calls.released != 1 {
-		t.Fatal("left the reader open where the mapped file cannot be renamed over")
+	previousHome := constant.Path.HomeDir()
+	constant.SetHomeDir(filepath.Dir(path))
+	t.Cleanup(func() { constant.SetHomeDir(previousHome) })
+	mmdbPath := constant.Path.MMDB()
+	if err := os.Rename(pendingGeoPath(path), pendingGeoPath(mmdbPath)); err != nil {
+		t.Fatal(err)
+	}
+	installPendingGeoFiles()
+	if buf, _ := os.ReadFile(mmdbPath); !bytes.Equal(buf, data) || fileExists(pendingGeoPath(mmdbPath)) {
+		t.Fatal("the next start left the staged database waiting")
 	}
 }

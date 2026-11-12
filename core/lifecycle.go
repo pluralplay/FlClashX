@@ -31,6 +31,7 @@ func handleInitClash(params *InitParams) bool {
 	defer configMu.Unlock()
 	sdkVersion.Store(int32(params.Version))
 	constant.SetHomeDir(params.HomeDir)
+	installPendingGeoFiles()
 	initOwnership(params.HomeDir)
 	clearSpilledResponses()
 	isInit.Store(true)

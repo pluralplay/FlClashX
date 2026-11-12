@@ -57,7 +57,7 @@ func (resource geoResource) run() error {
 	if err != nil {
 		return fmt.Errorf("can't download %s: %w", name, err)
 	}
-	if current, err := os.ReadFile(resource.path()); err == nil && bytes.Equal(current, data) {
+	if current, err := os.ReadFile(geoFileInUse(resource.path())); err == nil && bytes.Equal(current, data) {
 		return nil
 	}
 	if err := resource.install(data); err != nil {
@@ -67,14 +67,14 @@ func (resource geoResource) run() error {
 }
 
 func installMMDB(data []byte) error {
-	return installMaxMind(data, constant.Path.MMDB(), func() { mmdb.IPInstance().Reader.Close() }, mmdb.ReloadIP)
+	return installMaxMind(data, constant.Path.MMDB(), mmdb.ReloadIP)
 }
 
 func installASN(data []byte) error {
-	return installMaxMind(data, constant.Path.ASN(), func() { mmdb.ASNInstance().Reader.Close() }, mmdb.ReloadASN)
+	return installMaxMind(data, constant.Path.ASN(), mmdb.ReloadASN)
 }
 
-func installMaxMind(data []byte, path string, closeLoaded func(), reload func()) error {
+func installMaxMind(data []byte, path string, reload func()) error {
 	validate := func(staged string) error {
 		instance, err := maxminddb.Open(staged)
 		if err == nil {
@@ -82,24 +82,41 @@ func installMaxMind(data []byte, path string, closeLoaded func(), reload func())
 		}
 		return err
 	}
-	return replaceGeoFile(path, data, validate, mappedReaderRelease(path, closeLoaded), reload)
+	if stagesMappedFile {
+		return replaceGeoFile(pendingGeoPath(path), data, validate, func() {}, func() {})
+	}
+	return replaceGeoFile(path, data, validate, func() {}, reload)
 }
 
-// Windows will not rename over a mapped file, so its reader is closed first.
-// Elsewhere the rename leaves the old mapping to lookups still reading it, and
-// maxminddb's finalizer unmaps it once no lookup holds the reader: closing it
-// here could unmap it from under one, which takes the Core down.
-var closesMappedFile = runtime.GOOS == "windows"
+// Windows renames over no mapped file, and closing the reader under a lookup takes the Core down.
+var stagesMappedFile = runtime.GOOS == "windows"
 
-func mappedReaderRelease(path string, closeLoaded func()) func() {
-	return func() {
-		if !closesMappedFile {
-			return
+func pendingGeoPath(path string) string {
+	return path + ".pending"
+}
+
+func geoFileInUse(path string) string {
+	if pending := pendingGeoPath(path); fileExists(pending) {
+		return pending
+	}
+	return path
+}
+
+func installPendingGeoFiles() {
+	for _, path := range []string{constant.Path.MMDB(), constant.Path.ASN()} {
+		pending := pendingGeoPath(path)
+		if !fileExists(pending) {
+			continue
 		}
-		if _, err := os.Stat(path); err == nil {
-			closeLoaded()
+		if err := os.Rename(pending, path); err != nil {
+			log.Warnln("[GEO] can't install %s: %v", filepath.Base(path), err)
 		}
 	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func installGeoIP(data []byte) error {
@@ -230,7 +247,7 @@ func (resource geoResource) stamp() fileStampValue {
 	if resource.path == nil {
 		return fileStampValue{}
 	}
-	info, err := os.Stat(resource.path())
+	info, err := os.Stat(geoFileInUse(resource.path()))
 	if err != nil {
 		return fileStampValue{}
 	}
@@ -315,7 +332,7 @@ func lastGeoUpdateTime() time.Time {
 	for _, path := range []string{
 		constant.Path.GeoIP(), constant.Path.MMDB(), constant.Path.ASN(), constant.Path.GeoSite(),
 	} {
-		if info, err := os.Stat(path); err == nil {
+		if info, err := os.Stat(geoFileInUse(path)); err == nil {
 			return info.ModTime()
 		}
 	}
