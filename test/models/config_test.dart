@@ -138,6 +138,34 @@ void main() {
       expect(restored.testUrl, defaultTestUrl);
     });
 
+    test('a saved list other than the default counts as picked', () {
+      bool chosen(Map<String, Object?> json) =>
+          AppSettingProps.fromJson(json).dashboardWidgetsChosen;
+
+      expect(chosen({}), isFalse);
+      expect(
+        chosen({
+          'dashboardWidgets': [
+            for (final widget in platformDefaultDashboardWidgets) widget.name,
+          ],
+        }),
+        isFalse,
+      );
+      expect(
+        chosen({
+          'dashboardWidgets': ['currentOutbound', 'memoryInfo'],
+        }),
+        isTrue,
+      );
+      expect(
+        chosen({
+          'dashboardWidgets': ['currentOutbound', 'memoryInfo'],
+          'dashboardWidgetsChosen': false,
+        }),
+        isFalse,
+      );
+    });
+
     test('a saved outboundModeV2 card folds into outboundMode', () {
       final restored = AppSettingProps.fromJson({
         'dashboardWidgets': ['networkSpeed', 'outboundModeV2', 'outboundMode'],

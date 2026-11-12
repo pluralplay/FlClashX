@@ -196,6 +196,22 @@ List<DashboardWidget> dashboardWidgetsFromJson(
   return {DashboardWidget.currentOutbound, ...kept}.toList();
 }
 
+Object? _readDashboardWidgetsChosen(Map<dynamic, dynamic> json, String key) {
+  if (json.containsKey(key)) {
+    return json[key];
+  }
+  final saved = json['dashboardWidgets'];
+  if (saved is! List) {
+    return false;
+  }
+  final widgets = dashboardWidgetsFromJson(saved);
+  final defaults = platformDefaultDashboardWidgets;
+  return widgets.length != defaults.length ||
+      [
+        for (var i = 0; i < widgets.length; i++) widgets[i] != defaults[i],
+      ].any((differs) => differs);
+}
+
 Object? _readSidebarExpanded(Map<dynamic, dynamic> json, String key) {
   return json.containsKey(key) ? json[key] : json['showLabel'];
 }
@@ -226,6 +242,11 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(defaultDashboardWidgets)
     @JsonKey(fromJson: dashboardWidgetsFromJson)
     List<DashboardWidget> dashboardWidgets,
+
+    /// The wide dashboard keeps its full arrangement until this is set.
+    @Default(false)
+    @JsonKey(readValue: _readDashboardWidgetsChosen)
+    bool dashboardWidgetsChosen,
     @Default(false) bool onlyStatisticsProxy,
     @Default(true) bool showNotificationStopAction,
     @Default(false) bool autoLaunch,

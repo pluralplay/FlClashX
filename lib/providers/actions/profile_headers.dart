@@ -126,7 +126,12 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
     if (settings.widgets case final widgets?) {
       ref
           .read(appSettingProvider.notifier)
-          .update((state) => state.copyWith(dashboardWidgets: widgets));
+          .update(
+            (state) => state.copyWith(
+              dashboardWidgets: widgets,
+              dashboardWidgetsChosen: true,
+            ),
+          );
     }
     if (settings.switches case final switches?) {
       bool? said(String flag) => owned.contains(appSwitchSettings[flag])
