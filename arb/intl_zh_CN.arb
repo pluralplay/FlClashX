@@ -760,6 +760,7 @@
   "ipSourceRateLimited": "限流",
   "ipSourceIpMismatch": "出站 IP 不一致",
   "hideIp": "隐藏 IP",
+  "hideIpDesc": "在仪表盘和服务检测中不显示出口 IP。",
   "editorUnavailable": "编辑器不可用",
   "replace": "替换",
   "replaceAll": "全部替换",

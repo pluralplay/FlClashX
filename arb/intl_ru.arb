@@ -760,6 +760,7 @@
   "ipSourceRateLimited": "Лимит запросов",
   "ipSourceIpMismatch": "Другой исходящий IP",
   "hideIp": "Скрыть IP",
+  "hideIpDesc": "Убирает исходящий IP с главной и из проверки сервисов.",
   "editorUnavailable": "Редактор недоступен",
   "replace": "Заменить",
   "replaceAll": "Заменить все",

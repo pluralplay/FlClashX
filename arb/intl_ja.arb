@@ -760,6 +760,7 @@
   "ipSourceRateLimited": "レート制限",
   "ipSourceIpMismatch": "アウトバウンド IP が不一致",
   "hideIp": "IP を隠す",
+  "hideIpDesc": "ダッシュボードとサービスチェックから送信元 IP を表示しません。",
   "editorUnavailable": "エディターを利用できません",
   "replace": "置換",
   "replaceAll": "すべて置換",

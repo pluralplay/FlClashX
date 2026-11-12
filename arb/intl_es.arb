@@ -760,6 +760,7 @@
   "ipSourceRateLimited": "Límite de solicitudes",
   "ipSourceIpMismatch": "IP de salida distinta",
   "hideIp": "Ocultar IP",
+  "hideIpDesc": "Quita la IP de salida del panel y de la comprobación de servicios.",
   "editorUnavailable": "Editor no disponible",
   "replace": "Reemplazar",
   "replaceAll": "Reemplazar todo",

@@ -6304,6 +6304,16 @@ class AppLocalizations {
     return Intl.message('Hide IP', name: 'hideIp', desc: '', args: []);
   }
 
+  /// `Leaves the outbound IP off the dashboard and the service checks.`
+  String get hideIpDesc {
+    return Intl.message(
+      'Leaves the outbound IP off the dashboard and the service checks.',
+      name: 'hideIpDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Editor unavailable`
   String get editorUnavailable {
     return Intl.message(

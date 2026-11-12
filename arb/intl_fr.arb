@@ -760,6 +760,7 @@
   "ipSourceRateLimited": "Limite de débit atteinte",
   "ipSourceIpMismatch": "IP sortante différente",
   "hideIp": "Masquer l’IP",
+  "hideIpDesc": "Retire l’IP de sortie du tableau de bord et des vérifications de services.",
   "editorUnavailable": "Éditeur indisponible",
   "replace": "Remplacer",
   "replaceAll": "Tout remplacer",

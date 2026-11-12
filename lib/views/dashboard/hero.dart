@@ -333,17 +333,34 @@ class _ServerPanel extends ConsumerWidget {
                       child: hideIp
                           ? Tooltip(
                               message: appLocalizations.changeServer,
-                              child: InkWell(
-                                mouseCursor: clickableCursor,
-                                onTap: groups.isEmpty ? null : changeServer,
-                                customBorder: AppShape.xs,
-                                child: EmojiText(
-                                  title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyle.title3.of(
-                                    context,
-                                    emphasized: true,
+                              child: FocusRing(
+                                shape: AppShape.xs,
+                                standsOff: true,
+                                child: InkWell(
+                                  mouseCursor: clickableCursor,
+                                  onTap: groups.isEmpty ? null : changeServer,
+                                  customBorder: AppShape.xs,
+                                  hoverColor: Colors.transparent,
+                                  splashColor: Colors.transparent,
+                                  highlightColor: Colors.transparent,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      minHeight: kMinInteractiveDimension,
+                                    ),
+                                    child: Align(
+                                      alignment:
+                                          AlignmentDirectional.centerStart,
+                                      widthFactor: 1,
+                                      child: EmojiText(
+                                        title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyle.title3.of(
+                                          context,
+                                          emphasized: true,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),

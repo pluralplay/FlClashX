@@ -760,6 +760,7 @@
   "ipSourceRateLimited": "Rate limited",
   "ipSourceIpMismatch": "Different outbound IP",
   "hideIp": "Hide IP",
+  "hideIpDesc": "Leaves the outbound IP off the dashboard and the service checks.",
   "editorUnavailable": "Editor unavailable",
   "replace": "Replace",
   "replaceAll": "Replace all",
