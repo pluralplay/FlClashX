@@ -35,6 +35,26 @@ void main() {
       expect(gitignore, contains('/macos/Runner/Configs/Channel.xcconfig'));
     });
 
+    test('a macOS release build fails when its defines and bundle id part', () {
+      final project = File(
+        p.join('macos', 'Runner.xcodeproj', 'project.pbxproj'),
+      ).readAsStringSync();
+      final check = project.indexOf(
+        'F5C0FFEE2F10000100000002 /* Check Channel */,',
+      );
+      final sources = project.indexOf(
+        '33CC10E92044A3C60003C045 /* Sources */,',
+      );
+
+      expect(check, isNonNegative);
+      expect(check, lessThan(sources));
+      expect(project, contains(r'expected=com.follow.clashx.pre'));
+      expect(
+        project,
+        contains(r'[ \"$CONFIGURATION\" = \"Debug\" ] && exit 0'),
+      );
+    });
+
     test('Android reads the channel as Dart does', () {
       final gradle = File(
         p.join('android', 'app', 'build.gradle.kts'),
