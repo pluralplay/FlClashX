@@ -194,6 +194,33 @@ hooks:
           RegExp(r'usUninstall:\s+begin\s+ShutDownApp;\s+ClearStaleProxy;'),
         ),
       );
+      expect(
+        script,
+        matches(
+          RegExp(
+            r'if AppStopped and not FilesInstalled then\s+ClearStaleProxy;',
+          ),
+        ),
+        reason: 'an aborted install must not leave the proxy on a dead port',
+      );
+    });
+
+    test('the installer takes over a 0.4 FlClashX registration in place', () {
+      final script = File(
+        'windows/packaging/exe/inno_setup.iss',
+      ).readAsStringSync();
+
+      expect(
+        script,
+        contains(r'Uninstall\728B3532-C74B-4870-9068-BE70FE12A3E6_is1'),
+      );
+      expect(script, contains("(Pos('FlClashX', Name) = 1)"));
+      expect(script, contains('WizardForm.DirEdit.Text := LegacyDir;'));
+      expect(
+        script,
+        matches(RegExp(r'FilesInstalled := True;\s+RetireLegacyInstall;')),
+      );
+      expect(script, isNot(contains('Exec(Uninstaller')));
     });
 
     test('downloads the appimagetool build matching the host', () {

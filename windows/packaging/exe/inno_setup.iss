@@ -29,11 +29,17 @@ const
   SHCNE_ASSOCCHANGED = $08000000;
   SHCNF_IDLIST = $0000;
   HelperService = 'FlClashXHelperService';
+  LegacyUninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\728B3532-C74B-4870-9068-BE70FE12A3E6_is1';
+  LegacyHelperService = 'FlClashHelperService';
 
 var
   IsUpgrade: Boolean;
   PreviousVersion: String;
   HelperHeld: Boolean;
+  AppStopped: Boolean;
+  FilesInstalled: Boolean;
+  LegacyRoot: Integer;
+  LegacyDir: String;
 
 procedure SHChangeNotify(wEventId: Integer; uFlags: Integer; dwItem1: Integer; dwItem2: Integer); external 'SHChangeNotify@shell32.dll stdcall';
 
@@ -63,6 +69,15 @@ begin
   Sleep(1000);
 end;
 
+// 0.4.x has no --clear-stale-proxy and would start the app instead.
+function ClearsStaleProxy(const AppPath: String): Boolean;
+var
+  VersionMS, VersionLS: Cardinal;
+begin
+  Result := FileExists(AppPath) and GetVersionNumbers(AppPath, VersionMS, VersionLS) and
+            (((VersionMS shr 16) > 0) or ((VersionMS and $FFFF) >= 5));
+end;
+
 // Killing the app skips its exit path, which is what turns the system proxy
 // off; the executable clears a proxy left on a port nothing listens on. The
 // proxy is a per-user setting, so Setup runs it as the user who started it,
@@ -73,7 +88,7 @@ var
   ResultCode: Integer;
 begin
   AppPath := ExpandConstant('{app}\{{EXECUTABLE_NAME}}');
-  if not FileExists(AppPath) then
+  if not ClearsStaleProxy(AppPath) then
     Exit;
   if IsUninstaller then
     Exec(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
@@ -117,27 +132,90 @@ begin
     Result := Version;
 end;
 
+// 0.4.x registered under upstream FlClash's AppId, so only an entry that
+// names FlClashX is ours.
+function FindLegacyInstall(Root: Integer): Boolean;
+var
+  Name: String;
+begin
+  Result := RegQueryStringValue(Root, LegacyUninstallKey, 'DisplayName', Name) and
+            (Pos('FlClashX', Name) = 1) and
+            RegQueryStringValue(Root, LegacyUninstallKey, 'InstallLocation', LegacyDir);
+  if Result then
+  begin
+    LegacyRoot := Root;
+    LegacyDir := RemoveBackslashUnlessRoot(LegacyDir);
+  end;
+end;
+
+function HasLegacyInstall(): Boolean;
+begin
+  Result := LegacyDir <> '';
+end;
+
+// The old uninstaller would remove the new files and offer to delete the
+// user data both versions share, so its entry goes without running it.
+procedure RetireLegacyInstall;
+var
+  Uninstaller: String;
+  ImagePath: String;
+begin
+  if not HasLegacyInstall or (CompareText(LegacyDir, ExpandConstant('{app}')) <> 0) then
+    Exit;
+  if RegQueryStringValue(LegacyRoot, LegacyUninstallKey, 'UninstallString', Uninstaller) then
+  begin
+    Uninstaller := RemoveQuotes(Uninstaller);
+    if CompareText(Uninstaller, ExpandConstant('{uninstallexe}')) <> 0 then
+    begin
+      DeleteFile(Uninstaller);
+      DeleteFile(ChangeFileExt(Uninstaller, '.dat'));
+      DeleteFile(ChangeFileExt(Uninstaller, '.msg'));
+    end;
+  end;
+  RegDeleteKeyIncludingSubkeys(LegacyRoot, LegacyUninstallKey);
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SYSTEM\CurrentControlSet\Services\' + LegacyHelperService, 'ImagePath', ImagePath) and
+     (Pos(Lowercase(AddBackslash(LegacyDir)), Lowercase(ImagePath)) > 0) then
+  begin
+    RunHidden('net.exe', 'stop "' + LegacyHelperService + '"');
+    RunHidden('sc.exe', 'delete "' + LegacyHelperService + '"');
+    KillProcess(LegacyHelperService + '.exe');
+    DeleteFile(AddBackslash(LegacyDir) + LegacyHelperService + '.exe');
+  end;
+end;
+
 function InitializeSetup(): Boolean;
 begin
+  if not FindLegacyInstall(HKEY_LOCAL_MACHINE) and not FindLegacyInstall(HKEY_LOCAL_MACHINE_32) then
+    FindLegacyInstall(HKEY_CURRENT_USER);
   IsUpgrade := IsAppInstalled();
   if IsUpgrade then
-    PreviousVersion := GetInstalledVersion();
+    PreviousVersion := GetInstalledVersion()
+  else if HasLegacyInstall then
+  begin
+    IsUpgrade := True;
+    RegQueryStringValue(LegacyRoot, LegacyUninstallKey, 'DisplayVersion', PreviousVersion);
+  end;
   Result := True;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ShutDownApp;
+  AppStopped := True;
   Result := '';
 end;
 
 procedure DeinitializeSetup();
 begin
+  if AppStopped and not FilesInstalled then
+    ClearStaleProxy;
   ReleaseHelper;
 end;
 
 procedure InitializeWizard();
 begin
+  if HasLegacyInstall and not IsAppInstalled() then
+    WizardForm.DirEdit.Text := LegacyDir;
   if IsUpgrade then
   begin
     WizardForm.Caption := '{{DISPLAY_NAME}} - ' + CustomMessage('Upgrade');
@@ -180,6 +258,8 @@ begin
   begin
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0);
     ClearStaleProxy;
+    FilesInstalled := True;
+    RetireLegacyInstall;
     ReleaseHelper;
   end;
 end;
