@@ -604,6 +604,67 @@ void main() {
       expect(data.rules.single.profileId, profile.id);
     });
 
+    test(
+      'keeps a FlClashX 0.4 override list replacing the profile rules',
+      () async {
+        writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
+        writeFile(join(source.path, 'profiles', 'p2.yaml'), '');
+
+        final data = await migrateLegacyConfig(
+          configMap: legacyConfig(
+            profiles: [
+              {
+                'id': 'p1',
+                'label': 'Work',
+                'autoUpdateDuration': 0,
+                'overrideData': {
+                  'enable': true,
+                  'rule': {
+                    'type': 'override',
+                    'overrideRules': [
+                      {'id': 'o1', 'value': 'DOMAIN,example.com,DIRECT'},
+                      {'id': 'o2', 'value': 'MATCH,Proxy'},
+                    ],
+                    'addedRules': [
+                      {'id': 'a1', 'value': 'DOMAIN,unused.com,DIRECT'},
+                    ],
+                  },
+                },
+              },
+              {
+                'id': 'p2',
+                'autoUpdateDuration': 0,
+                'overrideData': {
+                  'enable': true,
+                  'rule': {'type': 'override', 'overrideRules': []},
+                },
+              },
+            ],
+          ),
+          sourcePath: source.path,
+          targetPath: target.path,
+        );
+
+        expect(data.rules, isEmpty);
+        expect(data.scripts, hasLength(2));
+        String scriptOf(Profile profile) {
+          expect(profile.extendType, ExtendType.script);
+          return File(
+            join(target.path, 'scripts', '${profile.scriptId}.js'),
+          ).readAsStringSync();
+        }
+
+        final work = scriptOf(data.profiles.first);
+        expect(work, contains('config.rules = ['));
+        expect(
+          work.indexOf('DOMAIN,example.com,DIRECT'),
+          lessThan(work.indexOf('MATCH,Proxy')),
+        );
+        expect(work, isNot(contains('unused.com')));
+        expect(scriptOf(data.profiles.last), contains('config.rules = []'));
+      },
+    );
+
     test('falls a custom overwrite back to a standard one', () async {
       writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
 
