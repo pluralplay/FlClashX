@@ -45,6 +45,7 @@ export 'protocol.dart';
 export 'provider_reader.dart';
 export 'proxy.dart';
 export 'punycode.dart';
+export 'qr_image.dart';
 export 'request.dart';
 export 'russian_packages.dart';
 export 'search.dart';
