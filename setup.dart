@@ -192,6 +192,100 @@ String? macosChannelConfig(String env) => env == 'pre'
 String macosBundleName(String env) =>
     env == 'pre' ? '$_appName Pre.app' : '$_appName.app';
 
+/// The app and the Helper derive their system names from these executables'.
+class DesktopIdentity {
+  const DesktopIdentity({
+    required this.pre,
+    required this.executable,
+    required this.helper,
+    required this.displayName,
+    required this.bundleId,
+    required this.packageName,
+    required this.installDir,
+    required this.helperUnit,
+    required this.windowsDataDir,
+  });
+
+  final bool pre;
+  final String executable;
+  final String helper;
+  final String displayName;
+  final String bundleId;
+  final String packageName;
+  final String installDir;
+  final String helperUnit;
+  final String windowsDataDir;
+}
+
+const stableDesktop = DesktopIdentity(
+  pre: false,
+  executable: _appName,
+  helper: 'FlClashXHelperService',
+  displayName: _appName,
+  bundleId: _bundleId,
+  packageName: 'flclashx',
+  installDir: _appName,
+  helperUnit: 'flclashx-helper',
+  windowsDataDir: r'com.follow\clashx',
+);
+
+const preDesktop = DesktopIdentity(
+  pre: true,
+  executable: 'FlClashXPre',
+  helper: 'FlClashXPreHelperService',
+  displayName: '$_appName Pre',
+  bundleId: '$_bundleId.pre',
+  packageName: 'flclashx-pre',
+  installDir: 'FlClashXPre',
+  helperUnit: 'flclashx-pre-helper',
+  windowsDataDir: r'com.follow\clashx.pre',
+);
+
+const _preWindowsAppId = '3B6E2F0A-9C41-4D57-8A2E-7F1D5C0B9E63';
+
+DesktopIdentity desktopIdentityOf(String env) =>
+    env == 'pre' ? preDesktop : stableDesktop;
+
+Map<String, String> desktopBuildEnvironment(String env) => {
+  'FLCLASHX_CHANNEL': env,
+};
+
+List<String> channelScripts(List<String> scripts, DesktopIdentity identity) => [
+  for (final line in scripts)
+    line.replaceAll(stableDesktop.helperUnit, identity.helperUnit),
+];
+
+void renameForChannel(String dir, DesktopIdentity identity, {String ext = ''}) {
+  if (!identity.pre) return;
+  for (final (from, to) in [
+    (stableDesktop.executable, identity.executable),
+    (stableDesktop.helper, identity.helper),
+  ]) {
+    final file = File(p.join(dir, '$from$ext'));
+    if (file.existsSync()) file.renameSync(p.join(dir, '$to$ext'));
+  }
+}
+
+/// Without the channel reaching CMake a pre-release would share stable data.
+void requireChannelMarker(String binary, List<int> marker) {
+  final bytes = File(binary).readAsBytesSync();
+  for (var i = 0; i + marker.length <= bytes.length; i++) {
+    var found = true;
+    for (var j = 0; j < marker.length; j++) {
+      if (bytes[i + j] != marker[j]) {
+        found = false;
+        break;
+      }
+    }
+    if (found) return;
+  }
+  throw ProcessException(binary, const [], 'built without its channel', 1);
+}
+
+List<int> utf16le(String value) => [
+  for (final unit in value.codeUnits) ...[unit & 0xff, unit >> 8],
+];
+
 /// `FlClashX-<platform>-<arch>` plus the format's extension; the release
 /// templates and the AUR package link these names.
 String artifactName(String platform, String arch, String extension) =>
@@ -352,9 +446,9 @@ Future<int> _package(
       case 'macos':
         await _packageMacos(build, env: env);
       case 'windows':
-        await _packageWindows(build, wanted);
+        await _packageWindows(build, wanted, env: env);
       case 'linux':
-        await _packageLinux(build, wanted);
+        await _packageLinux(build, wanted, env: env);
     }
   } on ProcessException catch (error) {
     stderr.writeln('${error.executable} failed: ${error.message}');
@@ -533,15 +627,20 @@ Future<void> _codesign(
   }
 }
 
-Future<void> _packageWindows(_Build build, Set<String> targets) async {
+Future<void> _packageWindows(
+  _Build build,
+  Set<String> targets, {
+  required String env,
+}) async {
+  final identity = desktopIdentityOf(env);
   await build.mustRun('flutter', [
     'build',
     'windows',
     '--release',
     ...build.flutterBuildArgs(),
-  ]);
+  ], environment: desktopBuildEnvironment(env));
   final winArch = build.arch == 'arm64' ? 'arm64' : 'x64';
-  final bundle = p.join(
+  final built = p.join(
     build.rootDir,
     'build',
     'windows',
@@ -549,6 +648,16 @@ Future<void> _packageWindows(_Build build, Set<String> targets) async {
     'runner',
     'Release',
   );
+  var bundle = built;
+  if (identity.pre) {
+    requireChannelMarker(p.join(built, '$_appName.exe'), utf16le('clashx.pre'));
+    bundle = p.join(build.rootDir, 'build', 'windows', winArch, 'pre_bundle');
+    if (Directory(bundle).existsSync()) {
+      Directory(bundle).deleteSync(recursive: true);
+    }
+    await build.copyTree(built, bundle);
+    renameForChannel(bundle, identity, ext: '.exe');
+  }
   if (targets.contains('zip')) {
     final zip = build.dist(artifactName('windows', build.arch, '.zip'));
     if (File(zip).existsSync()) File(zip).deleteSync();
@@ -572,6 +681,7 @@ Future<void> _packageWindows(_Build build, Set<String> targets) async {
       outputDir: build.distPath,
       outputBaseName: artifactName('windows', build.arch, '-setup'),
       rootDir: build.rootDir,
+      identity: identity,
     );
     final scriptFile = File(p.join(build.rootDir, 'build', 'setup.iss'));
     scriptFile.parent.createSync(recursive: true);
@@ -609,8 +719,11 @@ String renderInnoSetup(
   required String outputDir,
   required String outputBaseName,
   required String rootDir,
+  DesktopIdentity identity = stableDesktop,
 }) {
-  final displayName = (config['display_name'] ?? _appName) as String;
+  final displayName = identity.pre
+      ? identity.displayName
+      : (config['display_name'] ?? _appName) as String;
   final privileges = (config['privileges_required'] ?? 'admin') as String;
   final locales = (config['locales'] as List?) ?? const [];
   final languages = [
@@ -621,7 +734,7 @@ String renderInnoSetup(
   if (languages.isEmpty) languages.add(_innoLanguages['en']!);
   final iconFile = (config['setup_icon_file'] as String?) ?? '';
   final values = {
-    'APP_ID': config['app_id'] as String,
+    'APP_ID': identity.pre ? _preWindowsAppId : config['app_id'] as String,
     'APP_VERSION': version,
     'DISPLAY_NAME': displayName,
     'PUBLISHER_NAME': (config['publisher'] ?? '') as String,
@@ -635,7 +748,12 @@ String renderInnoSetup(
     'PRIVILEGES_REQUIRED': privileges,
     'ARCH': arch == 'arm64' ? 'arm64' : 'x64compatible',
     'SOURCE_DIR': sourceDir,
-    'EXECUTABLE_NAME': (config['executable_name'] ?? '$_appName.exe') as String,
+    'EXECUTABLE_NAME': identity.pre
+        ? '${identity.executable}.exe'
+        : (config['executable_name'] ?? '$_appName.exe') as String,
+    'HELPER_SERVICE': identity.helper,
+    'USER_DATA_DIR': identity.windowsDataDir,
+    'ADOPT_LEGACY': identity.pre ? 'False' : 'True',
     'LANGUAGES': languages.join('\n'),
     'RUN_FLAGS': privileges == 'admin' ? 'runascurrentuser' : '',
     'CLEAR_PROXY_SCRIPT': p.join(
@@ -653,7 +771,12 @@ String renderInnoSetup(
   return rendered;
 }
 
-Future<void> _packageLinux(_Build build, Set<String> targets) async {
+Future<void> _packageLinux(
+  _Build build,
+  Set<String> targets, {
+  required String env,
+}) async {
+  final identity = desktopIdentityOf(env);
   final flutterArch = build.arch == 'arm64' ? 'arm64' : 'x64';
   await build.mustRun('flutter', [
     'build',
@@ -661,7 +784,7 @@ Future<void> _packageLinux(_Build build, Set<String> targets) async {
     '--release',
     '--target-platform=linux-$flutterArch',
     ...build.flutterBuildArgs(),
-  ]);
+  ], environment: desktopBuildEnvironment(env));
   final bundle = p.join(
     build.rootDir,
     'build',
@@ -670,16 +793,30 @@ Future<void> _packageLinux(_Build build, Set<String> targets) async {
     'release',
     'bundle',
   );
-  if (targets.contains('deb')) await _packageDeb(build, bundle);
-  if (targets.contains('rpm')) await _packageRpm(build, bundle);
-  if (targets.contains('appimage')) await _packageAppImage(build, bundle);
+  if (identity.pre) {
+    requireChannelMarker(
+      p.join(bundle, _appName),
+      utf8.encode(identity.bundleId),
+    );
+  }
+  if (targets.contains('deb')) await _packageDeb(build, bundle, identity);
+  if (targets.contains('rpm')) await _packageRpm(build, bundle, identity);
+  if (targets.contains('appimage')) {
+    await _packageAppImage(build, bundle, identity);
+  }
 }
 
-String _desktopEntry(Map<dynamic, dynamic> config, {required String exec}) {
+String desktopEntry(
+  Map<dynamic, dynamic> config, {
+  required String exec,
+  DesktopIdentity identity = stableDesktop,
+}) {
   List<String> list(String key) => [
     for (final item in (config[key] as List?) ?? const []) item.toString(),
   ];
-  final name = (config['display_name'] ?? _appName) as String;
+  final name = identity.pre
+      ? identity.displayName
+      : (config['display_name'] ?? _appName) as String;
   return [
     '[Desktop Entry]',
     'Type=Application',
@@ -687,7 +824,7 @@ String _desktopEntry(Map<dynamic, dynamic> config, {required String exec}) {
     'GenericName=${config['generic_name'] ?? name}',
     'Comment=$name',
     'Exec=$exec %u',
-    'Icon=$_appName',
+    'Icon=${identity.executable}',
     'Terminal=false',
     if (list('categories').isNotEmpty)
       'Categories=${list('categories').join(';')};',
@@ -696,7 +833,7 @@ String _desktopEntry(Map<dynamic, dynamic> config, {required String exec}) {
       'MimeType=${list('supported_mime_type').join(';')};',
     'StartupNotify=${config['startup_notify'] ?? true}',
     if (config['startup_wm_class'] != null)
-      'StartupWMClass=${config['startup_wm_class']}',
+      'StartupWMClass=${identity.pre ? identity.bundleId : config['startup_wm_class']}',
     '',
   ].join('\n');
 }
@@ -718,21 +855,32 @@ Future<void> _installTree(
   _Build build,
   String root,
   String bundle,
-  Map<dynamic, dynamic> config, {
-  required String exec,
-}) async {
-  await build.copyTree(bundle, p.join(root, 'opt', _appName));
+  Map<dynamic, dynamic> config,
+  DesktopIdentity identity,
+) async {
+  final opt = p.join(root, 'opt', identity.installDir);
+  await build.copyTree(bundle, opt);
+  renameForChannel(opt, identity);
   build.copy(
     p.join(build.rootDir, 'assets', 'images', 'icon.png'),
-    p.join(root, 'usr/share/icons/hicolor/256x256/apps', '$_appName.png'),
+    p.join(
+      root,
+      'usr/share/icons/hicolor/256x256/apps',
+      '${identity.executable}.png',
+    ),
   );
   final desktop = File(
-    p.join(root, 'usr/share/applications', '$_bundleId.desktop'),
+    p.join(root, 'usr/share/applications', '${identity.bundleId}.desktop'),
   );
   desktop.parent.createSync(recursive: true);
-  desktop.writeAsStringSync(_desktopEntry(config, exec: exec));
+  desktop.writeAsStringSync(
+    desktopEntry(config, exec: linuxExecOf(identity), identity: identity),
+  );
   _normalizeModes(root);
 }
+
+String linuxExecOf(DesktopIdentity identity) =>
+    '/opt/${identity.installDir}/${identity.executable}';
 
 /// dpkg-deb, rpmbuild and appimagetool record modes verbatim, and the Linux
 /// Helper refuses an `/opt/FlClashX` that a umask of 002 left group-writable.
@@ -740,40 +888,50 @@ void _normalizeModes(String root) {
   Process.runSync('chmod', ['-R', 'u+rwX,go+rX,go-w', root]);
 }
 
-Future<void> _packageDeb(_Build build, String bundle) async {
-  final config = build.packagingConfig('deb');
-  final root = p.join(build.rootDir, 'build', 'deb_root');
-  if (Directory(root).existsSync()) Directory(root).deleteSync(recursive: true);
-  await _installTree(
-    build,
-    root,
-    bundle,
-    config,
-    exec: '/opt/$_appName/$_appName',
-  );
+String debControlOf(
+  Map<dynamic, dynamic> config,
+  DesktopIdentity identity, {
+  required String version,
+  required String arch,
+}) {
   final depends = [
     for (final item in (config['dependencies'] as List?) ?? const [])
       item.toString(),
   ];
   final maintainer = (config['maintainer'] as Map?) ?? const {};
+  return [
+    'Package: ${identity.packageName}',
+    'Version: $version',
+    'Section: ${config['section'] ?? 'x11'}',
+    'Priority: ${config['priority'] ?? 'optional'}',
+    'Architecture: $arch',
+    if (config['installed_size'] != null)
+      'Installed-Size: ${config['installed_size']}',
+    if (depends.isNotEmpty) 'Depends: ${depends.join(', ')}',
+    'Maintainer: ${maintainer['name']} <${maintainer['email']}>',
+    'Description: ${identity.pre ? identity.displayName : config['display_name'] ?? _appName}',
+    '',
+  ].join('\n');
+}
+
+Future<void> _packageDeb(
+  _Build build,
+  String bundle,
+  DesktopIdentity identity,
+) async {
+  final config = build.packagingConfig('deb');
+  final root = p.join(build.rootDir, 'build', 'deb_root');
+  if (Directory(root).existsSync()) Directory(root).deleteSync(recursive: true);
+  await _installTree(build, root, bundle, config, identity);
   final control = File(p.join(root, 'DEBIAN', 'control'));
   control.parent.createSync(recursive: true);
   control.writeAsStringSync(
-    [
-      'Package: ${_appName.toLowerCase()}',
-      'Version: ${build.version}',
-      'Section: ${config['section'] ?? 'x11'}',
-      'Priority: ${config['priority'] ?? 'optional'}',
-      'Architecture: ${build.arch}',
-      if (config['installed_size'] != null)
-        'Installed-Size: ${config['installed_size']}',
-      if (depends.isNotEmpty) 'Depends: ${depends.join(', ')}',
-      'Maintainer: ${maintainer['name']} <${maintainer['email']}>',
-      'Description: ${config['display_name'] ?? _appName}',
-      '',
-    ].join('\n'),
+    debControlOf(config, identity, version: build.version, arch: build.arch),
   );
-  final postrm = _scripts(config, 'postuninstall_scripts');
+  final postrm = channelScripts(
+    _scripts(config, 'postuninstall_scripts'),
+    identity,
+  );
   if (postrm.isNotEmpty) {
     _writeExecutable(
       p.join(root, 'DEBIAN', 'postrm'),
@@ -789,60 +947,67 @@ Future<void> _packageDeb(_Build build, String bundle) async {
   Directory(root).deleteSync(recursive: true);
 }
 
-Future<void> _packageRpm(_Build build, String bundle) async {
+String rpmSpecOf(
+  Map<dynamic, dynamic> config,
+  DesktopIdentity identity, {
+  required String version,
+}) {
+  final requires = [
+    for (final item in (config['requires'] as List?) ?? const [])
+      item.toString(),
+  ];
+  final name = identity.pre
+      ? identity.displayName
+      : (config['display_name'] ?? _appName) as String;
+  final postun = channelScripts(
+    _scripts(config, 'postuninstall_scripts'),
+    identity,
+  );
+  return [
+    ..._scripts(config, 'spec_macros'),
+    'Name: ${identity.packageName}',
+    'Version: $version',
+    'Release: 1',
+    'Summary: $name',
+    'License: ${config['license'] ?? 'Other'}',
+    'Group: ${config['group'] ?? 'Applications/Internet'}',
+    'Packager: ${config['packager']} <${config['packagerEmail']}>',
+    'AutoReqProv: no',
+    for (final item in requires) 'Requires: $item',
+    '',
+    '%description',
+    '$name proxy client',
+    '',
+    '%install',
+    'cp -r %{_builddir}/root/* %{buildroot}/',
+    '',
+    if (_scripts(config, 'postinstall_scripts').isNotEmpty) ...[
+      '%post',
+      ..._scripts(config, 'postinstall_scripts'),
+      '',
+    ],
+    if (postun.isNotEmpty) ...['%postun', ...postun, ''],
+    '%files',
+    '/opt/${identity.installDir}/*',
+    '/usr/share/applications/${identity.bundleId}.desktop',
+    '/usr/share/icons/hicolor/256x256/apps/${identity.executable}.png',
+    '',
+  ].join('\n');
+}
+
+Future<void> _packageRpm(
+  _Build build,
+  String bundle,
+  DesktopIdentity identity,
+) async {
   final config = build.packagingConfig('rpm');
   final rpmArch = build.arch == 'arm64' ? 'aarch64' : 'x86_64';
   final top = p.join(build.rootDir, 'build', 'rpmbuild');
   if (Directory(top).existsSync()) Directory(top).deleteSync(recursive: true);
   final root = p.join(top, 'BUILD', 'root');
-  await _installTree(
-    build,
-    root,
-    bundle,
-    config,
-    exec: '/opt/$_appName/$_appName',
-  );
-  final requires = [
-    for (final item in (config['requires'] as List?) ?? const [])
-      item.toString(),
-  ];
-  final spec = File(p.join(top, '$_appName.spec'));
-  spec.writeAsStringSync(
-    [
-      ..._scripts(config, 'spec_macros'),
-      'Name: ${_appName.toLowerCase()}',
-      'Version: ${build.version}',
-      'Release: 1',
-      'Summary: ${config['display_name'] ?? _appName}',
-      'License: ${config['license'] ?? 'Other'}',
-      'Group: ${config['group'] ?? 'Applications/Internet'}',
-      'Packager: ${config['packager']} <${config['packagerEmail']}>',
-      'AutoReqProv: no',
-      for (final item in requires) 'Requires: $item',
-      '',
-      '%description',
-      '${config['display_name'] ?? _appName} proxy client',
-      '',
-      '%install',
-      'cp -r %{_builddir}/root/* %{buildroot}/',
-      '',
-      if (_scripts(config, 'postinstall_scripts').isNotEmpty) ...[
-        '%post',
-        ..._scripts(config, 'postinstall_scripts'),
-        '',
-      ],
-      if (_scripts(config, 'postuninstall_scripts').isNotEmpty) ...[
-        '%postun',
-        ..._scripts(config, 'postuninstall_scripts'),
-        '',
-      ],
-      '%files',
-      '/opt/$_appName/*',
-      '/usr/share/applications/$_bundleId.desktop',
-      '/usr/share/icons/hicolor/256x256/apps/$_appName.png',
-      '',
-    ].join('\n'),
-  );
+  await _installTree(build, root, bundle, config, identity);
+  final spec = File(p.join(top, '${identity.executable}.spec'));
+  spec.writeAsStringSync(rpmSpecOf(config, identity, version: build.version));
   await build.mustRun('rpmbuild', [
     '-bb',
     spec.path,
@@ -866,7 +1031,11 @@ Future<void> _packageRpm(_Build build, String bundle) async {
   Directory(top).deleteSync(recursive: true);
 }
 
-Future<void> _packageAppImage(_Build build, String bundle) async {
+Future<void> _packageAppImage(
+  _Build build,
+  String bundle,
+  DesktopIdentity identity,
+) async {
   final config = build.packagingConfig('appimage');
   final appDir = p.join(build.rootDir, 'build', 'AppDir');
   if (Directory(appDir).existsSync()) {
@@ -876,6 +1045,7 @@ Future<void> _packageAppImage(_Build build, String bundle) async {
   // Flutter loads its AOT code from lib/libapp.so beside the executable, so
   // the bundle keeps the layout Flutter built.
   await build.copyTree(bundle, p.join(usr, 'bin'));
+  renameForChannel(p.join(usr, 'bin'), identity);
   for (final extra in (config['include'] as List?) ?? const []) {
     final source = extra.toString();
     if (File(source).existsSync()) {
@@ -897,15 +1067,17 @@ Future<void> _packageAppImage(_Build build, String bundle) async {
     build.copy(library, p.join(usr, 'lib', p.basename(library)));
   }
   final icon = p.join(build.rootDir, 'assets', 'images', 'icon.png');
-  build.copy(
-    icon,
-    p.join(usr, 'share/icons/hicolor/256x256/apps', '$_appName.png'),
+  final iconName = '${identity.executable}.png';
+  build.copy(icon, p.join(usr, 'share/icons/hicolor/256x256/apps', iconName));
+  build.copy(icon, p.join(appDir, iconName));
+  final desktop = desktopEntry(
+    config,
+    exec: identity.executable,
+    identity: identity,
   );
-  build.copy(icon, p.join(appDir, '$_appName.png'));
-  final desktop = _desktopEntry(config, exec: _appName);
   for (final path in [
-    p.join(usr, 'share/applications', '$_bundleId.desktop'),
-    p.join(appDir, '$_bundleId.desktop'),
+    p.join(usr, 'share/applications', '${identity.bundleId}.desktop'),
+    p.join(appDir, '${identity.bundleId}.desktop'),
   ]) {
     File(path).parent.createSync(recursive: true);
     File(path).writeAsStringSync(desktop);
@@ -918,11 +1090,11 @@ Future<void> _packageAppImage(_Build build, String bundle) async {
       r'HERE=${SELF%/*}',
       r'export PATH="${HERE}/usr/bin:${PATH}"',
       r'export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"',
-      'exec "\${HERE}/usr/bin/$_appName" "\$@"',
+      'exec "\${HERE}/usr/bin/${identity.executable}" "\$@"',
       '',
     ].join('\n'),
   );
-  Process.runSync('chmod', ['755', p.join(usr, 'bin', _appName)]);
+  Process.runSync('chmod', ['755', p.join(usr, 'bin', identity.executable)]);
   _normalizeModes(appDir);
   await build.mustRun(
     'appimagetool',

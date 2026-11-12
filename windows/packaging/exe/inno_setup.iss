@@ -28,7 +28,8 @@ UsePreviousTasks=yes
 const
   SHCNE_ASSOCCHANGED = $08000000;
   SHCNF_IDLIST = $0000;
-  HelperService = 'FlClashXHelperService';
+  HelperService = '{{HELPER_SERVICE}}';
+  AdoptLegacy = {{ADOPT_LEGACY}};
   LegacyUninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\728B3532-C74B-4870-9068-BE70FE12A3E6_is1';
   LegacyHelperService = 'FlClashHelperService';
 
@@ -55,6 +56,17 @@ begin
   RunHidden('taskkill.exe', '/f /t /im ' + Name);
 end;
 
+// The stable app and a pre-release run Cores of the same name, so only the
+// one started from this install goes.
+procedure KillCore;
+var
+  Dir: String;
+begin
+  Dir := AddBackslash(ExpandConstant('{app}'));
+  StringChangeEx(Dir, '''', '''''', True);
+  RunHidden('powershell.exe', '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Get-Process -Name FlClashCore -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith(''' + Dir + ''', [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force"');
+end;
+
 // The client goes first so it cannot bring the Helper back, and the Helper is
 // disabled before it stops because the SCM restarts a killed Helper in 5 s.
 procedure ShutDownApp;
@@ -63,7 +75,7 @@ begin
   HelperHeld := RunHidden('sc.exe', 'config "' + HelperService + '" start= disabled') = 0;
   RunHidden('net.exe', 'stop "' + HelperService + '"');
   KillProcess(HelperService + '.exe');
-  KillProcess('FlClashCore.exe');
+  KillCore;
   Sleep(1000);
 end;
 
@@ -184,7 +196,7 @@ end;
 
 function InitializeSetup(): Boolean;
 begin
-  if not FindLegacyInstall(HKEY_LOCAL_MACHINE) and not FindLegacyInstall(HKEY_LOCAL_MACHINE_32) then
+  if AdoptLegacy and not FindLegacyInstall(HKEY_LOCAL_MACHINE) and not FindLegacyInstall(HKEY_LOCAL_MACHINE_32) then
     FindLegacyInstall(HKEY_CURRENT_USER);
   IsUpgrade := IsAppInstalled();
   if IsUpgrade then
@@ -271,10 +283,10 @@ begin
     end;
     usPostUninstall:
     begin
-      if DirExists(ExpandConstant('{userappdata}\com.follow\clashx')) then
+      if DirExists(ExpandConstant('{userappdata}\{{USER_DATA_DIR}}')) then
       begin
         if MsgBox(CustomMessage('RemoveUserData'), mbConfirmation, MB_YESNO) = IDYES then
-          DelTree(ExpandConstant('{userappdata}\com.follow\clashx'), True, True, True);
+          DelTree(ExpandConstant('{userappdata}\{{USER_DATA_DIR}}'), True, True, True);
       end;
     end;
   end;

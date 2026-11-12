@@ -291,6 +291,155 @@ hooks:
       expect(script, isNot(contains('Exec(Uninstaller')));
     });
 
+    group('a Windows or Linux pre-release', () {
+      final template = File(
+        'windows/packaging/exe/inno_setup.iss',
+      ).readAsStringSync();
+      final config = {
+        'app_id': 'D915C0D1-2F5B-4676-97D5-6D55F3EF45A4',
+        'display_name': 'FlClashX',
+        'executable_name': 'FlClashX.exe',
+      };
+
+      String render(setup.DesktopIdentity identity) => setup.renderInnoSetup(
+        template,
+        config: config,
+        version: '0.5.1',
+        arch: 'amd64',
+        sourceDir: r'C:\build',
+        outputDir: r'C:\dist',
+        outputBaseName: 'FlClashX-windows-amd64-setup',
+        rootDir: r'C:\repo',
+        identity: identity,
+      );
+
+      test('installs under its own id, name, Helper and data', () {
+        final pre = render(setup.preDesktop);
+        expect(pre, isNot(contains('D915C0D1-2F5B-4676-97D5-6D55F3EF45A4')));
+        expect(pre, contains(r'DefaultDirName={autopf}\FlClashX Pre'));
+        expect(pre, contains("HelperService = 'FlClashXPreHelperService';"));
+        expect(pre, contains('AdoptLegacy = False;'));
+        expect(pre, contains("KillProcess('FlClashXPre.exe');"));
+        expect(pre, contains(r'{userappdata}\com.follow\clashx.pre'));
+        expect(
+          RegExp(r'\{\{([A-Z_]+)\}\}').allMatches(pre).map((m) => m[1]),
+          everyElement('NAME'),
+        );
+      });
+
+      test('leaves the stable installer as it was', () {
+        final stable = render(setup.stableDesktop);
+        expect(stable, contains('AppId=D915C0D1-2F5B-4676-97D5-6D55F3EF45A4'));
+        expect(stable, contains(r'DefaultDirName={autopf}\FlClashX'));
+        expect(stable, contains("HelperService = 'FlClashXHelperService';"));
+        expect(stable, contains('AdoptLegacy = True;'));
+        expect(stable, contains("KillProcess('FlClashX.exe');"));
+        expect(stable, contains(r"{userappdata}\com.follow\clashx')"));
+      });
+
+      test('stops only the Core started from its own install', () {
+        expect(template, isNot(contains("KillProcess('FlClashCore.exe')")));
+        expect(template, matches(RegExp(r'KillCore;\s+Sleep\(1000\);')));
+        expect(template, contains(r'$_.Path.StartsWith('));
+      });
+
+      test('packages for Linux under its own names', () {
+        final linuxConfig = {
+          'display_name': 'FlClashX',
+          'startup_wm_class': 'com.follow.clashx',
+          'maintainer': {'name': 'pluralplay', 'email': 'x@example.com'},
+          'postuninstall_scripts': [
+            'rm -f /etc/systemd/system/flclashx-helper.service',
+          ],
+        };
+        final control = setup.debControlOf(
+          linuxConfig,
+          setup.preDesktop,
+          version: '0.5.1',
+          arch: 'amd64',
+        );
+        expect(control, contains('Package: flclashx-pre'));
+        expect(control, contains('Description: FlClashX Pre'));
+        final spec = setup.rpmSpecOf(
+          linuxConfig,
+          setup.preDesktop,
+          version: '0.5.1',
+        );
+        expect(spec, contains('Name: flclashx-pre'));
+        expect(spec, contains('/opt/FlClashXPre/*'));
+        expect(
+          spec,
+          contains('/usr/share/applications/com.follow.clashx.pre.desktop'),
+        );
+        expect(spec, contains('apps/FlClashXPre.png'));
+        expect(spec, contains('flclashx-pre-helper.service'));
+        expect(spec, isNot(contains('/flclashx-helper.service')));
+        final entry = setup.desktopEntry(
+          linuxConfig,
+          exec: setup.linuxExecOf(setup.preDesktop),
+          identity: setup.preDesktop,
+        );
+        expect(entry, contains('Name=FlClashX Pre'));
+        expect(entry, contains('Exec=/opt/FlClashXPre/FlClashXPre %u'));
+        expect(entry, contains('Icon=FlClashXPre'));
+        expect(entry, contains('StartupWMClass=com.follow.clashx.pre'));
+        expect(
+          setup.debControlOf(
+            linuxConfig,
+            setup.stableDesktop,
+            version: '0.5.1',
+            arch: 'amd64',
+          ),
+          contains('Package: flclashx\n'),
+        );
+        expect(
+          setup.desktopEntry(linuxConfig, exec: '/opt/FlClashX/FlClashX'),
+          allOf(
+            contains('Icon=FlClashX\n'),
+            contains('StartupWMClass=com.follow.clashx\n'),
+          ),
+        );
+      });
+
+      test('renames the app and Helper in the staged bundle only for pre', () {
+        final dir = Directory.systemTemp.createTempSync('channel_bundle');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        for (final name in ['FlClashX.exe', 'FlClashXHelperService.exe']) {
+          File('${dir.path}/$name').writeAsStringSync('x');
+        }
+        setup.renameForChannel(dir.path, setup.stableDesktop, ext: '.exe');
+        expect(File('${dir.path}/FlClashX.exe').existsSync(), isTrue);
+        setup.renameForChannel(dir.path, setup.preDesktop, ext: '.exe');
+        expect(File('${dir.path}/FlClashXPre.exe').existsSync(), isTrue);
+        expect(
+          File('${dir.path}/FlClashXPreHelperService.exe').existsSync(),
+          isTrue,
+        );
+        expect(File('${dir.path}/FlClashX.exe').existsSync(), isFalse);
+      });
+
+      test('refuses a pre build the channel never reached', () {
+        final dir = Directory.systemTemp.createTempSync('channel_marker');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final binary = File('${dir.path}/FlClashX.exe')
+          ..writeAsBytesSync([0, ...setup.utf16le('clashx.pre'), 0]);
+        setup.requireChannelMarker(binary.path, setup.utf16le('clashx.pre'));
+        binary.writeAsBytesSync(setup.utf16le('clashx'));
+        expect(
+          () => setup.requireChannelMarker(
+            binary.path,
+            setup.utf16le('clashx.pre'),
+          ),
+          throwsA(isA<ProcessException>()),
+        );
+        expect(setup.desktopBuildEnvironment('pre'), {
+          'FLCLASHX_CHANNEL': 'pre',
+        });
+        expect(setup.desktopIdentityOf('stable'), same(setup.stableDesktop));
+        expect(setup.desktopIdentityOf('dev'), same(setup.stableDesktop));
+      });
+    });
+
     test('bundles the AppIndicator libraries the tray links', () {
       const ldd = '''
 \tlinux-vdso.so.1 (0x00007ffd)
