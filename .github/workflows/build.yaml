@@ -31,6 +31,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Release history is counted from upstream's frozenBoundaryTag, which the
+      # fork does not carry; pushing it there would start a build of its own.
+      - name: Fetch the changelog boundary tag
+        run: |
+          tag=$(sed -n "s/^const frozenBoundaryTag = '\(.*\)';$/\1/p" tool/src/changelog/builder.dart)
+          git fetch --no-tags https://github.com/chen08209/FlClash.git "refs/tags/${tag}:refs/tags/${tag}"
+
       - name: Test git hooks
         run: bash tool/hooks/test.sh
 
@@ -527,6 +534,13 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      # Release history is counted from upstream's frozenBoundaryTag, which the
+      # fork does not carry; pushing it there would start a build of its own.
+      - name: Fetch the changelog boundary tag
+        run: |
+          tag=$(sed -n "s/^const frozenBoundaryTag = '\(.*\)';$/\1/p" tool/src/changelog/builder.dart)
+          git fetch --no-tags https://github.com/chen08209/FlClash.git "refs/tags/${tag}:refs/tags/${tag}"
 
       - name: Download
         uses: actions/download-artifact@v7
