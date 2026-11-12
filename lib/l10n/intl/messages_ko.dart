@@ -1045,6 +1045,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onDemandDesc": MessageLookupByLibrary.simpleMessage(
       "필요 시 실행은 제외된 Wi-Fi에서 프록시를 일시 중지합니다.",
     ),
+    "oneline": MessageLookupByLibrary.simpleMessage("한 줄"),
     "onlyStatisticsProxy": MessageLookupByLibrary.simpleMessage("프록시 트래픽만 집계"),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage("로그 폴더 열기"),
     "openVpnSettings": MessageLookupByLibrary.simpleMessage("VPN 설정 열기"),

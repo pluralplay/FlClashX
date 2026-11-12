@@ -59,7 +59,7 @@ class ProxyCard extends ConsumerWidget {
   Measure get measure => globalState.measure;
 
   Widget _buildProxyNameText(BuildContext context) {
-    if (type == ProxyCardType.compact) {
+    if (type == ProxyCardType.compact || type == ProxyCardType.oneline) {
       return SizedBox(
         height: measure.textHeight(AppTextStyle.subheadline) * 1,
         child: EmojiText(
@@ -132,6 +132,7 @@ class ProxyCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final measure = globalState.measure;
     final isLoose = type == ProxyCardType.loose;
+    final isOneline = type == ProxyCardType.oneline;
     final delayText = _DelayText(
       proxy: proxy,
       testUrl: testUrl,
@@ -187,6 +188,11 @@ class ProxyCard extends ConsumerWidget {
             (profile) => profile?.type == ProfileType.custom,
           ),
         );
+        final badge = pinned
+            ? SelectionBadge.preferred(inUse: inUse)
+            : inUse
+            ? const SelectionBadge()
+            : null;
         return ContextMenuRegion(
           menuItems: _menuItems(
             context,
@@ -196,7 +202,8 @@ class ProxyCard extends ConsumerWidget {
             addable: _isAddableToLocal(proxy, isCustomProfile: isCustomProfile),
           ),
           child: CommonCard(
-            radius: AppCorner.lg,
+            // A one-line card is about 40 tall, where `lg` would round it into a pill.
+            radius: isOneline ? AppCorner.md : AppCorner.lg,
             enterActionsOnRight: true,
             key: key,
             onPressed: () => _handleSelect(ref),
@@ -204,25 +211,31 @@ class ProxyCard extends ConsumerWidget {
             child: Container(
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 4,
-                    children: [
-                      Expanded(child: proxyNameText),
-                      if (pinned)
-                        SelectionBadge.preferred(inUse: inUse)
-                      else if (inUse)
-                        const SelectionBadge(),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  details,
-                ],
-              ),
+              child: isOneline
+                  ? Row(
+                      spacing: 8,
+                      children: [
+                        Expanded(child: proxyNameText),
+                        delayText,
+                        ?badge,
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 4,
+                          children: [
+                            Expanded(child: proxyNameText),
+                            ?badge,
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        details,
+                      ],
+                    ),
             ),
           ),
         );

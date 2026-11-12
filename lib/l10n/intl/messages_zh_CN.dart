@@ -972,6 +972,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onDemandDesc": MessageLookupByLibrary.simpleMessage(
       "按需运行会在连上排除的 Wi-Fi 时暂停代理。",
     ),
+    "oneline": MessageLookupByLibrary.simpleMessage("单行"),
     "onlyStatisticsProxy": MessageLookupByLibrary.simpleMessage("仅统计代理流量"),
     "openLogsFolder": MessageLookupByLibrary.simpleMessage("打开日志文件夹"),
     "openVpnSettings": MessageLookupByLibrary.simpleMessage("打开 VPN 设置"),

@@ -207,6 +207,7 @@
   "sync": "Sincronizar",
   "exclude": "Ocultar de aplicaciones recientes",
   "compact": "Compacto",
+  "oneline": "Una línea",
   "tab": "Pestaña",
   "list": "Lista",
   "delay": "Latencia",

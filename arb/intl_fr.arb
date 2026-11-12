@@ -207,6 +207,7 @@
   "sync": "Synchroniser",
   "exclude": "Masquer des tâches récentes",
   "compact": "Compact",
+  "oneline": "Une ligne",
   "tab": "Onglet",
   "list": "Liste",
   "delay": "Délai",

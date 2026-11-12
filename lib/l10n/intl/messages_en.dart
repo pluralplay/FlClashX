@@ -1247,6 +1247,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onDemandDesc": MessageLookupByLibrary.simpleMessage(
       "On demand pauses the proxy on excluded Wi-Fi.",
     ),
+    "oneline": MessageLookupByLibrary.simpleMessage("Single line"),
     "onlyStatisticsProxy": MessageLookupByLibrary.simpleMessage(
       "Only count proxy traffic",
     ),

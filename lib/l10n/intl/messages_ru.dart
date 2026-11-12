@@ -1302,6 +1302,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onDemandDesc": MessageLookupByLibrary.simpleMessage(
       "«По условию» приостанавливает прокси в исключённых сетях Wi-Fi.",
     ),
+    "oneline": MessageLookupByLibrary.simpleMessage("Однострочный"),
     "onlyStatisticsProxy": MessageLookupByLibrary.simpleMessage(
       "Учитывать только трафик прокси",
     ),

@@ -237,7 +237,7 @@ enum ProxiesType { tab, list }
 
 enum ProxiesLayout { loose, standard, tight }
 
-enum ProxyCardType { loose, standard, compact }
+enum ProxyCardType { loose, standard, compact, oneline }
 
 enum DnsMode {
   normal,

@@ -438,6 +438,7 @@ ProxyCardType proxyCardTypeSafeFromJson(Object? cardType) {
     'loose' || 'expand' => ProxyCardType.loose,
     'standard' || 'shrink' => ProxyCardType.standard,
     'compact' || 'min' => ProxyCardType.compact,
+    'oneline' => ProxyCardType.oneline,
     _ => ProxyCardType.standard,
   };
 }

@@ -207,6 +207,7 @@
   "sync": "同期",
   "exclude": "最近のタスクから隠す",
   "compact": "コンパクト",
+  "oneline": "1行",
   "tab": "タブ",
   "list": "リスト",
   "delay": "遅延",

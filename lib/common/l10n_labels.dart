@@ -73,6 +73,7 @@ extension ProxyCardTypeL10n on ProxyCardType {
       ProxyCardType.loose => appLocalizations.loose,
       ProxyCardType.standard => appLocalizations.standard,
       ProxyCardType.compact => appLocalizations.compact,
+      ProxyCardType.oneline => appLocalizations.oneline,
     };
   }
 }

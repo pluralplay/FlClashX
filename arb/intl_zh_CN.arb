@@ -207,6 +207,7 @@
   "sync": "同步",
   "exclude": "从最近任务中隐藏",
   "compact": "紧凑",
+  "oneline": "单行",
   "tab": "标签页",
   "list": "列表",
   "delay": "延迟",

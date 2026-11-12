@@ -1661,6 +1661,11 @@ class AppLocalizations {
     return Intl.message('Compact', name: 'compact', desc: '', args: []);
   }
 
+  /// `Single line`
+  String get oneline {
+    return Intl.message('Single line', name: 'oneline', desc: '', args: []);
+  }
+
   /// `Tab`
   String get tab {
     return Intl.message('Tab', name: 'tab', desc: '', args: []);

@@ -154,6 +154,10 @@ void main() {
         ViewRequest.parse('icon:plain;proxies.card:compact'),
         const ViewRequest(card: ProxyCardType.compact),
       );
+      expect(
+        ViewRequest.parse('proxies.card:oneline'),
+        const ViewRequest(card: ProxyCardType.oneline),
+      );
     });
 
     test('the older icon, card and style names mean nothing now', () {

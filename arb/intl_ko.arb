@@ -207,6 +207,7 @@
   "sync": "동기화",
   "exclude": "최근 작업에서 숨기기",
   "compact": "간결하게",
+  "oneline": "한 줄",
   "tab": "탭",
   "list": "목록",
   "delay": "지연",

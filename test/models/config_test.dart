@@ -593,6 +593,7 @@ void main() {
         ('expand', ProxyCardType.loose),
         ('shrink', ProxyCardType.standard),
         ('min', ProxyCardType.compact),
+        ('oneline', ProxyCardType.oneline),
         ('nonsense', ProxyCardType.standard),
       ]) {
         expect(
