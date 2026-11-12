@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.1 (2026-11-13)
+
+**Features**
+
+- **dashboard** The wide dashboard on desktop and TV shows the cards flclashx-widgets picks, in its order, and can be edited (4b8b6e4)
+- **release** Pre-releases install as a separate FlClashX Pre app and copy the stable app's profiles on first launch (e64104f)
+- **profiles** Proxy chains (beta): route a group through two or three hops from the profile's extension page (630903d)
+- **dashboard** A hidden outbound IP is left out rather than shown as asterisks, and the dashboard's server name takes over switching the server; Hide IP has its own switch on the Theme page (a12e0a0)
+
+**Bug Fixes**
+
+- **headers** A panel that stops sending hideip or novibrate shows the IP and turns vibration back on (ea002c5)
+- **android** On Android TV, Back from the dashboard keeps the VPN running, and the bundled Zashboard no longer gives way to an old MetaCubeXD (44a0353)
+- **profiles** A profile QR code can be read from an image on Windows and Linux again (b1b05cf)
+
 ## v0.5.0 (2026-11-12)
 
 **Breaking Changes**
