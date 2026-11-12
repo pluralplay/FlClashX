@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fl_clash/common/channel_import.dart';
@@ -193,6 +194,57 @@ void main() {
         appliedConfigMd5Key,
       ]),
     );
+  });
+
+  group('a Windows or Linux pre-release', () {
+    test('reads the store beside its own', () {
+      expect(
+        stableHomeOf(join('data', 'com.follow', 'clashx.pre')),
+        join('data', 'com.follow', 'clashx'),
+      );
+      expect(
+        stableHomeOf(join('share', 'com.follow.clashx.pre')),
+        join('share', 'com.follow.clashx'),
+      );
+      expect(stableHomeOf(join('share', 'com.follow.clashx')), isNull);
+    });
+
+    test(
+      'copies the store and its settings file without runtime records',
+      () async {
+        await File(join(stable, 'shared_preferences.json')).writeAsString(
+          json.encode({
+            'flutter.$configKey': '{"themeProps":{}}',
+            for (final key in runtimePreferenceKeys) 'flutter.$key': 'stable',
+          }),
+        );
+        final before = snapshot(stable);
+
+        expect(
+          await copyStableData(desktopSource(stableHome: stable, home: pre)),
+          StableImport.imported,
+        );
+
+        final preferences =
+            json.decode(read('shared_preferences.json'))
+                as Map<String, Object?>;
+        expect(preferences.keys, ['flutter.$configKey']);
+        expect(read('database.sqlite'), 'db');
+        expect(read(join('profiles', '1.yaml')), 'proxies: []');
+        expect(exists('config.yaml'), isFalse);
+        expect(snapshot(stable), before);
+      },
+    );
+
+    test('leaves a store whose settings file exists', () async {
+      await File(join(pre, 'shared_preferences.json')).writeAsString('{}');
+
+      expect(
+        await copyStableData(desktopSource(stableHome: stable, home: pre)),
+        StableImport.skipped,
+      );
+      expect(exists('database.sqlite'), isFalse);
+    });
   });
 
   group('preChannelTipDue', () {

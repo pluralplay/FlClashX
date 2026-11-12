@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/desktop_channel.dart';
 import 'package:fl_clash/common/path.dart';
 import 'package:fl_clash/common/print.dart';
 import 'package:flutter/foundation.dart';
@@ -8,7 +10,8 @@ import 'package:path/path.dart';
 
 const _database = 'database.sqlite';
 const _databaseSidecars = ['-wal', '-journal'];
-const _skipped = {'config.yaml', 'logs', '.DS_Store'};
+const _preferences = 'shared_preferences.json';
+const _skipped = {'config.yaml', 'logs', '.DS_Store', _preferences};
 const _staging = '.stable-import';
 const _pendingMarker = '.stable-import-pending';
 const _doneMarker = '.stable-import-done';
@@ -35,7 +38,7 @@ typedef StableSource = ({
 
 Future<void> importStableDataForPre() async {
   try {
-    final source = await _macosSource();
+    final source = await _macosSource() ?? await _desktopSource();
     if (source == null) {
       return;
     }
@@ -66,6 +69,60 @@ Future<StableSource?> _macosSource() async {
     copyPreferences: () => _copyDefaults(from: packageName, to: domain),
     lock: () => lockStableHome(stableHome),
   );
+}
+
+Future<StableSource?> _desktopSource() async {
+  if (!isPreDesktopApp) {
+    return null;
+  }
+  final home = await appPath.homeDirPath;
+  final stableHome = stableHomeOf(home);
+  if (stableHome == null) {
+    return null;
+  }
+  return desktopSource(stableHome: stableHome, home: home);
+}
+
+@visibleForTesting
+StableSource desktopSource({
+  required String stableHome,
+  required String home,
+}) => (
+  stableHome: stableHome,
+  home: home,
+  hasOwnPreferences: () => File(join(home, _preferences)).exists(),
+  copyPreferences: () => copyPreferencesFile(
+    from: join(stableHome, _preferences),
+    to: join(home, _preferences),
+  ),
+  lock: () => lockStableHome(stableHome),
+);
+
+@visibleForTesting
+String? stableHomeOf(String home) {
+  final name = basename(home);
+  if (!name.endsWith('.pre')) {
+    return null;
+  }
+  return join(dirname(home), name.substring(0, name.length - '.pre'.length));
+}
+
+@visibleForTesting
+Future<void> copyPreferencesFile({
+  required String from,
+  required String to,
+}) async {
+  final stable = File(from);
+  if (!await stable.exists()) {
+    return;
+  }
+  final preferences = Map<String, Object?>.from(
+    json.decode(await stable.readAsString()) as Map,
+  );
+  for (final key in runtimePreferenceKeys) {
+    preferences.remove('flutter.$key');
+  }
+  await File(to).writeAsString(json.encode(preferences));
 }
 
 /// A shared hold on the instance lock keeps the stable app from writing.
