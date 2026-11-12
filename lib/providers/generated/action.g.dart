@@ -215,7 +215,7 @@ final class ProfileSettingsActionProvider
 }
 
 String _$profileSettingsActionHash() =>
-    r'17a7c67c58e7d100bac427d5bb7fd9d7336039b0';
+    r'40b94638cb68d399eb5c1cdc48b7d55e5b82fdaf';
 
 /// The current subscription's or file's config keys become the app's
 /// settings on every update and switch (see [syncProfileSettings]); a custom

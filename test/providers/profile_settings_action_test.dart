@@ -296,6 +296,26 @@ void main() {
     expect(settings().mixedPort, 7000);
   });
 
+  test('a stale failed read keeps the current read\'s retry', () async {
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+    final stale = Completer<ProfileBase>();
+    when(() => core.getProfileBase(any())).thenAnswer((_) => stale.future);
+    await select(_profile(1));
+    when(
+      () => core.getProfileBase(any()),
+    ).thenThrow(TimeoutException('not connected'));
+    await select(_profile(2));
+    stale.completeError(TimeoutException('not connected'));
+    await Future<void>.delayed(Duration.zero);
+
+    answer({'mixed-port': 7000}, ['mixed-port']);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(settings().mixedPort, 7000);
+  });
+
   test(
     'the authentication a file names fills the account until taken',
     () async {

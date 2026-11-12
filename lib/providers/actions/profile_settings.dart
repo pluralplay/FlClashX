@@ -73,7 +73,9 @@ class ProfileSettingsAction extends _$ProfileSettingsAction {
         'profile $id settings not read: ${compactError(error)}',
         logLevel: LogLevel.warning,
       );
-      _unread = generation == _generation;
+      if (generation == _generation) {
+        _unread = true;
+      }
       return;
     }
     if (generation != _generation) {
