@@ -3863,7 +3863,7 @@ final class PanelBackdropImageProvider
 }
 
 String _$panelBackdropImageHash() =>
-    r'b64b3fbddba23aa30d060b29ddf0cc51bfa1195f';
+    r'66282a66d54b6194107b8f0c3a8bae50d59d50da';
 
 /// Where the panel's logo lies on disk, kept as its backdrop is so it shows
 /// at launch without the network.
