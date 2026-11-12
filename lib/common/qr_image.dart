@@ -36,7 +36,9 @@ Future<RgbaImage> _decodeRgba(String path) async {
       targetHeight: scale < 1 ? (descriptor.height * scale).round() : null,
     );
     image = (await codec.getNextFrame()).image;
-    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final data = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
     return (
       rgba: data!.buffer.asUint8List(),
       width: image.width,
