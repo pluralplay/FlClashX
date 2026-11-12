@@ -23,13 +23,15 @@ val hasReleaseSigning = releaseStoreFile.exists() &&
     releaseKeyAlias != null &&
     releaseKeyPassword != null
 
-// setup.dart's `--env` reaches Gradle only through Flutter's base64 dart-defines.
-val isPreChannel = (findProperty("dart-defines") as String?)
+// setup.dart's `--env` reaches Gradle only through Flutter's base64 dart-defines,
+// where a later define wins and an absent APP_ENV means pre, as in Dart.
+val dartDefines = (findProperty("dart-defines") as String?)
     .orEmpty()
     .split(",")
     .filter { it.isNotEmpty() }
     .map { String(Base64.getDecoder().decode(it)) }
-    .contains("APP_ENV=pre")
+    .associate { it.substringBefore("=") to it.substringAfter("=", "") }
+val isPreChannel = (dartDefines["APP_ENV"] ?: "pre") == "pre"
 
 android {
     namespace = "com.follow.clashx"

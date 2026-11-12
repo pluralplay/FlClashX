@@ -35,6 +35,16 @@ void main() {
       expect(gitignore, contains('/macos/Runner/Configs/Channel.xcconfig'));
     });
 
+    test('Android reads the channel as Dart does', () {
+      final gradle = File(
+        p.join('android', 'app', 'build.gradle.kts'),
+      ).readAsStringSync();
+
+      expect(gradle, contains('.associate {'));
+      expect(gradle, contains('(dartDefines["APP_ENV"] ?: "pre") == "pre"'));
+      expect(gradle, contains('applicationIdSuffix = ".pre"'));
+    });
+
     test('parses -v as verbose mode', () {
       final results = setup.createSetupArgParser().parse(['android', '-v']);
 
