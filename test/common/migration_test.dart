@@ -180,11 +180,51 @@ void main() {
       expect(store.events, [
         'getConfigMap',
         'getVersion',
+        'getVersion',
         'getClashConfigMap',
         'restore',
         'saveConfig',
         'isAvailable',
       ]);
+    });
+
+    test('migrates the FlClashX 0.4 config a fresh store imports', () async {
+      final store = _FakeMigrationStore(configMap: null, version: 0);
+      final legacy = <String, Object?>{'proxiesStyle': <String, Object?>{}};
+      final legacyClash = <String, Object?>{'mixed-port': 1080};
+      Map<String, Object?>? migrated;
+
+      await Migration(
+        store: store,
+        importLegacy: () async => (config: legacy, clashConfig: legacyClash),
+        migrateV0: (configMap) async {
+          migrated = configMap;
+          return MigrationData(configMap: _createConfigMap());
+        },
+      ).run();
+
+      expect(migrated?['proxiesStyle'], isNotNull);
+      expect(migrated?['patchClashConfig'], legacyClash);
+      expect(store.events, isNot(contains('getClashConfigMap')));
+      expect(store.version, Migration.currentVersion);
+    });
+
+    test('imports nothing over a store that has a config', () async {
+      var imported = false;
+      final store = _FakeMigrationStore(
+        configMap: _createConfigMap(),
+        version: Migration.currentVersion,
+      );
+
+      await Migration(
+        store: store,
+        importLegacy: () async {
+          imported = true;
+          return null;
+        },
+      ).run();
+
+      expect(imported, isFalse);
     });
 
     group('upgrade', () {
