@@ -223,6 +223,27 @@ hooks:
       expect(script, isNot(contains('Exec(Uninstaller')));
     });
 
+    test('bundles the AppIndicator libraries the tray links', () {
+      const ldd = '''
+\tlinux-vdso.so.1 (0x00007ffd)
+\tlibflutter_linux_gtk.so => /opt/bundle/lib/libflutter_linux_gtk.so (0x7f)
+\tlibayatana-appindicator3.so.1 => /lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 (0x7f)
+\tlibgtk-3.so.0 => /lib/x86_64-linux-gnu/libgtk-3.so.0 (0x7f)
+\tlibayatana-indicator3.so.7 => /lib/x86_64-linux-gnu/libayatana-indicator3.so.7 (0x7f)
+\tlibayatana-ido3-0.4.so.0 => /lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 (0x7f)
+\tlibdbusmenu-gtk3.so.4 => /lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 (0x7f)
+\tlibdbusmenu-glib.so.4 => /lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 (0x7f)
+''';
+
+      expect(setup.appIndicatorLibraries(ldd), [
+        '/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1',
+        '/lib/x86_64-linux-gnu/libayatana-indicator3.so.7',
+        '/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0',
+        '/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4',
+        '/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4',
+      ]);
+    });
+
     test('downloads the appimagetool build matching the host', () {
       expect(setup.appImageToolArch('arm64'), 'aarch64');
       expect(setup.appImageToolArch('amd64'), 'x86_64');

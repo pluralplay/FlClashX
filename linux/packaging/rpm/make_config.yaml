@@ -10,8 +10,11 @@ installed_size: 6604
 essential: false
 icon: ./assets/images/icon.png
 
+# AutoReqProv is off, so the tray's AppIndicator is required by its soname,
+# which every distro's package provides under its own name.
 requires:
   - libsecret
+  - libayatana-appindicator3.so.1()(64bit)
 
 # rpmbuild's find-debuginfo and brp-strip rewrite the Core, and the Helper only
 # starts a Core whose SHA256 matches the value built into it.
