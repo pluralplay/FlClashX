@@ -2,10 +2,16 @@ import 'package:fl_clash/common/system_dns.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakePort implements SystemDnsPort {
-  _FakePort({List<String>? servers}) : servers = servers ?? ['1.1.1.1'];
+  _FakePort({List<String>? servers}) {
+    this.servers = servers ?? ['1.1.1.1'];
+  }
 
   String? service = 'Wi-Fi';
-  List<String> servers;
+  final Map<String?, List<String>> _servers = {};
+
+  List<String> get servers => _servers[service] ?? [];
+
+  set servers(List<String> value) => _servers[service] = value;
   bool writeSucceeds = true;
   Duration delay = Duration.zero;
 
@@ -21,7 +27,7 @@ class _FakePort implements SystemDnsPort {
   @override
   Future<List<String>?> readDnsServers(String service) => _guard(() async {
     reads++;
-    return List.of(servers);
+    return List.of(_servers[service] ?? const []);
   });
 
   @override
@@ -32,9 +38,7 @@ class _FakePort implements SystemDnsPort {
         }
         writtenServices.add(service);
         writes.add(List.of(servers));
-        if (service == this.service) {
-          this.servers = List.of(servers);
-        }
+        _servers[service] = List.of(servers);
         return true;
       });
 
@@ -179,11 +183,39 @@ void main() {
 
       await coordinator.sync(false);
 
-      expect(port.writes, [
-        ['223.5.5.5', '1.1.1.1'],
-      ]);
+      expect(port.writes, isEmpty);
+      expect(store.record, isNull);
     },
   );
+
+  test(
+    'keeps servers changed outside the app and drops only the fallback',
+    () async {
+      final port = _FakePort(servers: ['1.1.1.1']);
+      final store = _FakeStore();
+      final coordinator = _coordinator(port, store);
+
+      await coordinator.sync(true);
+      port.servers = ['9.9.9.9', '223.5.5.5'];
+      await coordinator.sync(false);
+
+      expect(port.writes.last, ['9.9.9.9']);
+      expect(store.record, isNull);
+    },
+  );
+
+  test('leaves servers alone once the fallback is gone', () async {
+    final port = _FakePort(servers: ['9.9.9.9']);
+    final store = _FakeStore(
+      const SystemDnsRecord(service: 'Wi-Fi', servers: ['1.1.1.1']),
+    );
+    final coordinator = _coordinator(port, store);
+
+    await coordinator.sync(false);
+
+    expect(port.writes, isEmpty);
+    expect(store.record, isNull);
+  });
 
   test('restores a record left behind by a previous run', () async {
     final port = _FakePort(servers: ['1.1.1.1', '223.5.5.5']);
