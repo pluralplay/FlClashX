@@ -367,6 +367,52 @@ void main() {
   );
 
   test(
+    'Helper lease treats a Helper without a port like an unreachable one',
+    () async {
+      Future<HelperCoreLease> leaseWith({required bool alive}) async {
+        final client = _client(
+          _ResponseAdapter((options) {
+            if (options.path.endsWith('/start')) {
+              return _jsonResponse({'sessionId': _sessionId, 'pid': 6456});
+            }
+            return _jsonResponse({
+              'code': 'helperUnavailable',
+              'message': 'The Helper has not published its port',
+            }, statusCode: HttpStatus.serviceUnavailable);
+          }),
+        );
+        final launcher = HelperLauncher(
+          client,
+          livenessProbe: (_) async => alive,
+        );
+        return await launcher.start(
+              sessionId: _sessionId,
+              address: 'test-address',
+            )
+            as HelperCoreLease;
+      }
+
+      final released = await (await leaseWith(
+        alive: false,
+      )).stop(const Duration(seconds: 1));
+      expect(released.stopped, isFalse);
+      expect(released.exitConfirmed, isTrue);
+
+      final live = await leaseWith(alive: true);
+      await expectLater(
+        live.stop(const Duration(seconds: 1)),
+        throwsA(
+          isA<HelperException>().having(
+            (error) => error.code,
+            'code',
+            'helperUnavailable',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
     'Helper launcher compensates an uncertain start with exact stop',
     () async {
       final requests = <RequestOptions>[];

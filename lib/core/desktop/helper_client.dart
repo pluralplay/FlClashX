@@ -541,6 +541,8 @@ final class HelperLauncherResolver implements DesktopCoreLauncherResolver {
   }
 }
 
+const _unreachableHelperCodes = {'transportError', 'helperUnavailable'};
+
 final class HelperCoreLease implements CoreProcessLease {
   @override
   final String sessionId;
@@ -589,7 +591,8 @@ final class HelperCoreLease implements CoreProcessLease {
     try {
       response = await _client.stop(sessionId);
     } on HelperException catch (error) {
-      if (error.code != 'transportError' || await _livenessProbe(pid)) {
+      if (!_unreachableHelperCodes.contains(error.code) ||
+          await _livenessProbe(pid)) {
         rethrow;
       }
       commonPrint.log(
