@@ -164,11 +164,13 @@ void main() {
     () async {
       final holder = await Process.start('python3', [
         '-c',
-        'import fcntl, sys, time\n'
-            'f = open(sys.argv[1], "w")\n'
-            'fcntl.lockf(f, fcntl.LOCK_EX)\n'
-            'print("locked", flush=True)\n'
-            'time.sleep(30)',
+        [
+          'import fcntl, sys, time',
+          'f = open(sys.argv[1], "w")',
+          'fcntl.lockf(f, fcntl.LOCK_EX)',
+          'print("locked", flush=True)',
+          'time.sleep(30)',
+        ].join('\n'),
         join(stable, 'FlClash.lock'),
       ]);
       addTearDown(holder.kill);
