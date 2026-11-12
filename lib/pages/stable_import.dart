@@ -10,11 +10,27 @@ import 'package:material_ui/material_ui.dart';
 var _attempt = 0;
 
 /// Asked before the store opens, so it stands alone like the init error app.
-Future<bool> askStableImportRetry() async {
+Future<bool> askStableImportRetry() => holdUntilChosen(
+  show: (onChoice) =>
+      runApp(StableImportApp(key: ValueKey(_attempt++), onChoice: onChoice)),
+  hold: () async =>
+      await window?.holdBeforeInit(onExit: () async => window?.forceExit()),
+);
+
+/// Closing the prompt quits without a choice, leaving the import pending.
+@visibleForTesting
+Future<bool> holdUntilChosen({
+  required void Function(ValueChanged<bool> onChoice) show,
+  required Future<VoidCallback?> Function() hold,
+}) async {
   final choice = Completer<bool>();
-  runApp(StableImportApp(key: ValueKey(_attempt++), onChoice: choice.complete));
-  await window?.showBeforeInit();
-  return choice.future;
+  show(choice.complete);
+  final release = await hold();
+  try {
+    return await choice.future;
+  } finally {
+    release?.call();
+  }
 }
 
 class StableImportApp extends StatelessWidget {

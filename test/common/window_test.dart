@@ -435,4 +435,32 @@ void main() {
           'leaves the process running, so both have to end in onExit',
     );
   });
+
+  test('a pre-init hold quits on close until it is released', () async {
+    var exits = 0;
+    Future<void> close() => TestDefaultBinaryMessengerBinding
+        .instance
+        .defaultBinaryMessenger
+        .handlePlatformMessage(
+          _windowChannel.name,
+          _windowChannel.codec.encodeMethodCall(
+            const MethodCall('onEvent', {'name': 'close'}),
+          ),
+          null,
+        );
+
+    final release = await Window().holdBeforeInit(onExit: () async => exits++);
+    expect(
+      methodCalls
+          .firstWhere((call) => call.method == 'setPreventClose')
+          .arguments,
+      {'value': true},
+    );
+    await close();
+    expect(exits, 1);
+
+    release();
+    await close();
+    expect(exits, 1);
+  });
 }

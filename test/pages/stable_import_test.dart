@@ -10,6 +10,23 @@ void main() {
     return choices;
   }
 
+  test('the pre-init hold lasts exactly until a choice is made', () async {
+    late ValueChanged<bool> choose;
+    var released = 0;
+
+    final answer = holdUntilChosen(
+      show: (onChoice) => choose = onChoice,
+      hold: () async =>
+          () => released++,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(released, 0);
+
+    choose(false);
+    expect(await answer, isFalse);
+    expect(released, 1);
+  });
+
   testWidgets('retry asks to take the stable data again', (tester) async {
     final choices = await pumpPrompt(tester);
 
