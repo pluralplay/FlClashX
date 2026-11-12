@@ -9,6 +9,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -842,6 +844,21 @@ func TestServeReleasesTheCoreWhenTheHostDisconnects(t *testing.T) {
 	connMu.Unlock()
 	if remaining != nil {
 		t.Error("serve returned with the closed connection still installed")
+	}
+}
+
+func TestTheExitFallbackRunsWellBeforeTheHelperKillsTheCore(t *testing.T) {
+	source, err := os.ReadFile("../services/helper/src/service/hub.rs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	match := regexp.MustCompile(`CORE_GRACEFUL_EXIT_TIMEOUT: Duration = Duration::from_millis\((\d+)\)`).FindSubmatch(source)
+	if match == nil {
+		t.Fatal("the Helper's graceful exit timeout is no longer where this test reads it")
+	}
+	millis, _ := strconv.Atoi(string(match[1]))
+	if kill := time.Duration(millis) * time.Millisecond; exitCleanupTimeout+time.Second > kill {
+		t.Errorf("the fallback starts %v after SIGTERM and the Helper kills at %v, leaving it under a second", exitCleanupTimeout, kill)
 	}
 }
 
