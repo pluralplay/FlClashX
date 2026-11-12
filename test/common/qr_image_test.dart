@@ -9,7 +9,12 @@ import 'package:qr/qr.dart';
 
 const _link = 'flclashx://install-config?url=https%3A%2F%2Fexample.com%2Fsub';
 
-RgbaImage _render(String text, {bool inverted = false, int scale = 6}) {
+RgbaImage _render(
+  String text, {
+  bool inverted = false,
+  bool transparent = false,
+  int scale = 6,
+}) {
   final qr = QrImage(QrCode(payload: QrPayload.fromString(text)));
   const quiet = 4;
   final side = (qr.moduleCount + quiet * 2) * scale;
@@ -23,11 +28,12 @@ RgbaImage _render(String text, {bool inverted = false, int scale = 6}) {
       final dark = inside && qr.isDark(row, col);
       final value = dark != inverted ? 0 : 255;
       final o = (y * side + x) * 4;
+      final clear = transparent && value == 255;
       rgba
-        ..[o] = value
-        ..[o + 1] = value
-        ..[o + 2] = value
-        ..[o + 3] = 255;
+        ..[o] = clear ? 0 : value
+        ..[o + 1] = clear ? 0 : value
+        ..[o + 2] = clear ? 0 : value
+        ..[o + 3] = clear ? 0 : 255;
     }
   }
   return (rgba: rgba, width: side, height: side);
@@ -53,6 +59,10 @@ void main() {
       return qrCodesInImageFile(file.path);
     });
     expect(codes, [_link]);
+  });
+
+  test('reads a QR code saved on a transparent background', () {
+    expect(qrCodesInRgba(_render(_link, transparent: true)), [_link]);
   });
 
   test('finds nothing in a picture without a code', () {
