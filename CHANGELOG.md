@@ -9,7 +9,6 @@
 - **tun** Desktop TUN settings follow the profile until you pick them; values you changed carry over (c2f57e9)
 - **settings** Settings the subscription sets belong to the provider; each one can be taken over and handed back (c2f57e9)
 - **settings** TLS certificates are always checked; the toggle to turn the check off is gone (bb0e6d6)
-- **settings** A switch turns vibration off, and a panel can turn it off with novibrate (ea1c50c)
 
 **Features**
 
@@ -60,6 +59,10 @@
 - **desktop** The first window opens in the phone layout at the top of the screen, so it can always be moved on small screens (c2f57e9)
 - **tray** Colored tray status icons with a monochrome option on macOS; tray hotkeys, nodes and a delay test (c2f57e9)
 - **app** File logs and app reset; no China presets; disclaimer and About updated; README rewritten with the subscription headers documented on flclashx.app (c2f57e9)
+- **migration** Profiles and settings carry over from FlClashX 0.4 on macOS (ebfe1af)
+- **proxies** A one-line proxy card size, also set by proxies.card:oneline (ec1fc89)
+- **settings** A switch turns vibration off, and a panel can turn it off with novibrate (ea1c50c)
+- **ui** An animated GIF or WebP works as the panel background; animated WebP is recommended, being several times smaller than a GIF. It stops on its first frame under reduced motion or when the GPU falls behind (4bd9cbb)
 
 **Bug Fixes**
 
@@ -83,6 +86,15 @@
 - **linux** TUN without systemd runs through a per-user copy of the Core and no longer locks other users out; the AppImage starts again (c2f57e9)
 - **windows** The Helper and client shut down fully before installing, and a stale system proxy is cleared (c2f57e9)
 - **ui** Many fixes to the interface, keyboard and TV remote focus, and to keeping data through downloads, backups and header updates (c2f57e9)
+- **android** Any Android APK now installs over any earlier one, whichever ABI variant either is (82fb0a0)
+- **android** The VPN follows a move from one Wi-Fi network to another when networks are excluded (2ef7698)
+- **linux** The Linux RPM and AppImage start on desktops that have no AppIndicator library installed (802fe79)
+- **windows** The Windows installer upgrades a 0.4 install in place instead of installing beside it (61437ab)
+- **proxy** The copied proxy variable on Windows works when pasted into PowerShell (9319a55)
+- **proxy** Stopping the system proxy on macOS no longer turns off an automatic proxy (PAC) configuration (5b7d97e)
+- **migration** An upgrade from 0.4 keeps a rule list that replaced the subscription's rules (a34e9da)
+- **migration** An upgrade from 0.4 keeps running the selected script (37af2b9)
+- **migration** An upgrade from 0.4 keeps the settings its override switches protected from the subscription (c79eb6c)
 
 **Performance**
 
