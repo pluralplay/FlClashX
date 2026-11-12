@@ -672,7 +672,10 @@ class SetupAction extends _$SetupAction {
         ? await setupState.script?.content
         : null;
     final hasScript = scriptContent?.isNotEmpty == true;
-    final profileBase = !isCustom && !hasScript
+    // Chains build on the profile's own proxies and groups, which a base
+    // leaves out for the Core to merge back in.
+    final profileBase =
+        !isCustom && !hasScript && setupState.proxyChains.isEmpty
         ? await _core.getProfileBase(profileId)
         : null;
     Map<String, dynamic> rawConfig = isCustom
@@ -718,6 +721,7 @@ class SetupAction extends _$SetupAction {
             ? setupState.matchTarget
             : lastMatchTarget(profileBase.base.matchRules),
         safeMode: ref.read(safeModeProvider),
+        proxyChains: setupState.proxyChains,
       ),
     );
     if (profileBase == null) {

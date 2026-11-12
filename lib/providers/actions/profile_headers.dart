@@ -57,6 +57,7 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
       final profile = ref.read(currentProfileProvider);
       final update = profileHeadersUpdateOf(profile);
       if (update == ref.read(appSettingProvider).appliedHeadersUpdate) {
+        _adoptPanelSet(profileHeaderSettingsOf(profile));
         return;
       }
       apply(profileHeaderSettingsOf(profile));
@@ -125,7 +126,12 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
     if (settings.widgets case final widgets?) {
       ref
           .read(appSettingProvider.notifier)
-          .update((state) => state.copyWith(dashboardWidgets: widgets));
+          .update(
+            (state) => state.copyWith(
+              dashboardWidgets: widgets,
+              dashboardWidgetsChosen: true,
+            ),
+          );
     }
     if (settings.switches case final switches?) {
       bool? said(String flag) => owned.contains(appSwitchSettings[flag])
@@ -146,19 +152,67 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
             ),
           );
     }
-    if (settings.hideIp && !owned.contains(hideIpSetting)) {
-      ref
-          .read(appSettingProvider.notifier)
-          .update((state) => state.copyWith(hideIp: true));
-    }
-    if (settings.noVibration && !owned.contains(vibrationSetting)) {
-      ref
-          .read(appSettingProvider.notifier)
-          .update((state) => state.copyWith(vibration: false));
-    }
+    _applySpecial(
+      hideIpSetting,
+      said: settings.hideIp,
+      owned: owned,
+      set: (state, on) => state.copyWith(hideIp: on),
+    );
+    _applySpecial(
+      vibrationSetting,
+      said: settings.noVibration,
+      owned: owned,
+      set: (state, on) => state.copyWith(vibration: !on),
+    );
     if (!settings.globalModeAllowed &&
         ref.read(patchClashConfigProvider).mode == Mode.global) {
       ref.read(setupActionProvider.notifier).changeMode(Mode.rule);
     }
+  }
+
+  /// Settings saved before the panel's flags and cards were tracked: what the
+  /// panel still sends, and the settings still read as it set, came from it.
+  void _adoptPanelSet(ProfileHeaderSettings settings) {
+    ref.read(appSettingProvider.notifier).update((state) {
+      final adopted = {
+        if (settings.hideIp && state.hideIp) hideIpSetting,
+        if (settings.noVibration && !state.vibration) vibrationSetting,
+      }.difference(state.ownedSettings);
+      final widgets = settings.widgets;
+      final cardsPicked =
+          !state.dashboardWidgetsChosen &&
+          widgets != null &&
+          listEquals(state.dashboardWidgets, widgets);
+      if (state.panelSetSettings.containsAll(adopted) && !cardsPicked) {
+        return state;
+      }
+      return state.copyWith(
+        panelSetSettings: {...state.panelSetSettings, ...adopted},
+        dashboardWidgetsChosen: state.dashboardWidgetsChosen || cardsPicked,
+      );
+    });
+  }
+
+  /// A special flag sets its setting while the panel sends it, and puts the
+  /// default back once the panel drops it, unless the user took it over.
+  void _applySpecial(
+    String key, {
+    required bool said,
+    required Set<String> owned,
+    required AppSettingProps Function(AppSettingProps state, bool on) set,
+  }) {
+    ref.read(appSettingProvider.notifier).update((state) {
+      final panelSet = state.panelSetSettings;
+      if (said && !owned.contains(key)) {
+        return set(state, true).copyWith(panelSetSettings: {...panelSet, key});
+      }
+      if (said || !panelSet.contains(key)) {
+        return state;
+      }
+      final cleared = state.copyWith(
+        panelSetSettings: {...panelSet}..remove(key),
+      );
+      return owned.contains(key) ? cleared : set(cleared, false);
+    });
   }
 }

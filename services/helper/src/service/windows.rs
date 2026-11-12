@@ -23,7 +23,6 @@ use windows_service::{
     service_manager::{ServiceManager, ServiceManagerAccess},
 };
 
-const SERVICE_NAME: &str = "FlClashXHelperService";
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 const SERVICE_OPERATION_TIMEOUT: Duration = Duration::from_secs(10);
 const SERVICE_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -48,7 +47,7 @@ pub fn main() -> Result<()> {
 
 fn start_service(owner_sid: String) -> windows_service::Result<()> {
     let _ = OWNER_SID.set(owner_sid);
-    service_dispatcher::start(SERVICE_NAME, ffi_service_main)
+    service_dispatcher::start(super::identity::helper_name(), ffi_service_main)
 }
 
 define_windows_service!(ffi_service_main, service_main);
@@ -64,7 +63,7 @@ fn run_windows_service() -> Result<()> {
         .context("the helper service has no owner")?;
     let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
     let status_handle = service_control_handler::register(
-        SERVICE_NAME,
+        super::identity::helper_name(),
         move |event| -> ServiceControlHandlerResult {
             match event {
                 ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
@@ -156,8 +155,8 @@ fn install_service(owner_pid: u32) -> Result<()> {
 
     let executable_path = std::env::current_exe().context("resolve helper executable path")?;
     let service_info = ServiceInfo {
-        name: OsString::from(SERVICE_NAME),
-        display_name: OsString::from(SERVICE_NAME),
+        name: OsString::from(super::identity::helper_name()),
+        display_name: OsString::from(super::identity::helper_name()),
         service_type: SERVICE_TYPE,
         start_type: ServiceStartType::AutoStart,
         error_control: ServiceErrorControl::Normal,
@@ -206,7 +205,7 @@ fn uninstall_service() -> Result<()> {
 
 fn remove_existing_service(manager: &ServiceManager) -> Result<()> {
     let access = ServiceAccess::QUERY_STATUS | ServiceAccess::STOP | ServiceAccess::DELETE;
-    let service = match manager.open_service(SERVICE_NAME, access) {
+    let service = match manager.open_service(super::identity::helper_name(), access) {
         Ok(service) => service,
         Err(error) if has_error_code(&error, ERROR_SERVICE_DOES_NOT_EXIST) => return Ok(()),
         Err(error) if has_error_code(&error, ERROR_SERVICE_MARKED_FOR_DELETE) => {
@@ -257,7 +256,7 @@ fn stop_service(service: &Service) -> Result<()> {
 fn wait_for_deletion(manager: &ServiceManager) -> Result<()> {
     let started_at = Instant::now();
     loop {
-        match manager.open_service(SERVICE_NAME, ServiceAccess::QUERY_STATUS) {
+        match manager.open_service(super::identity::helper_name(), ServiceAccess::QUERY_STATUS) {
             Err(error) if has_error_code(&error, ERROR_SERVICE_DOES_NOT_EXIST) => return Ok(()),
             Err(error) if !has_error_code(&error, ERROR_SERVICE_MARKED_FOR_DELETE) => {
                 return Err(error).context("check helper service deletion")

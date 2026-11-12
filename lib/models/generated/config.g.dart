@@ -21,6 +21,9 @@ _AppSettingProps _$AppSettingPropsFromJson(
   dashboardWidgets: json['dashboardWidgets'] == null
       ? defaultDashboardWidgets
       : dashboardWidgetsFromJson(json['dashboardWidgets'] as List?),
+  dashboardWidgetsChosen:
+      _readDashboardWidgetsChosen(json, 'dashboardWidgetsChosen') as bool? ??
+      false,
   onlyStatisticsProxy: json['onlyStatisticsProxy'] as bool? ?? false,
   showNotificationStopAction:
       json['showNotificationStopAction'] as bool? ?? true,
@@ -97,6 +100,11 @@ _AppSettingProps _$AppSettingPropsFromJson(
           ?.map((e) => e as String)
           .toSet() ??
       const {},
+  panelSetSettings:
+      (json['panelSetSettings'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toSet() ??
+      const {},
   appliedHeadersUpdate: json['appliedHeadersUpdate'] as String?,
 );
 
@@ -106,6 +114,7 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'dashboardWidgets': instance.dashboardWidgets
           .map((e) => _$DashboardWidgetEnumMap[e]!)
           .toList(),
+      'dashboardWidgetsChosen': instance.dashboardWidgetsChosen,
       'onlyStatisticsProxy': instance.onlyStatisticsProxy,
       'showNotificationStopAction': instance.showNotificationStopAction,
       'autoLaunch': instance.autoLaunch,
@@ -138,6 +147,7 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'tableColumnWidths': instance.tableColumnWidths,
       'subscriptionNotices': instance.subscriptionNotices,
       'ownedSettings': instance.ownedSettings.toList(),
+      'panelSetSettings': instance.panelSetSettings.toList(),
       'appliedHeadersUpdate': instance.appliedHeadersUpdate,
     };
 

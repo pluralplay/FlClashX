@@ -204,10 +204,24 @@ class Window implements WindowPort {
   /// Every desktop runner leaves the window hidden until [init] reveals it, so
   /// a failure before that point would leave the error screen with no window.
   Future<void> showInitFailure({required AsyncCallback onExit}) async {
-    desktopWindow.addListener(_InitFailureWindowListener(onExit));
+    await holdBeforeInit(onExit: onExit);
+  }
+
+  /// Returns the release, which hands closing back to [init].
+  Future<VoidCallback> holdBeforeInit({required AsyncCallback onExit}) async {
+    final listener = _InitFailureWindowListener(onExit);
+    desktopWindow.addListener(listener);
+    await showBeforeInit(preventClose: true);
+    return () => desktopWindow.removeListener(listener);
+  }
+
+  /// Closing the window then quits the app, which [init] changes later.
+  Future<void> showBeforeInit({bool preventClose = false}) async {
     try {
       await desktopWindow.ensureInitialized();
-      await desktopWindow.setPreventClose(true);
+      if (preventClose) {
+        await desktopWindow.setPreventClose(true);
+      }
       await desktopWindow.setTitleBarStyle(TitleBarStyle.normal);
       if (await desktopWindow.isVisible()) {
         return;
@@ -218,7 +232,7 @@ class Window implements WindowPort {
       await desktopWindow.focus();
     } catch (e) {
       commonPrint.log(
-        'show init failure window failed ${e.toString()}',
+        'show window before init failed ${e.toString()}',
         logLevel: LogLevel.warning,
       );
     }

@@ -71,7 +71,10 @@ void main() {
       tester,
     ) async {
       final frames = (await tester.runAsync(
-        () async => [await createTestImage(), await createTestImage()],
+        () async => [
+          await createTestImage(width: 1, height: 1, cache: false),
+          await createTestImage(width: 2, height: 2, cache: false),
+        ],
       ))!;
       final source = _ManualImage();
       final shown = <ImageInfo>[];
@@ -86,7 +89,7 @@ void main() {
 
       source.completer.emit(ImageInfo(image: frames[1]));
       expect(shown, hasLength(1));
-      expect(shown.single.image.isCloneOf(frames[0]), isTrue);
+      expect(shown.single.image.width, 1);
     });
 
     test('equals another holding the same picture', () {

@@ -10,7 +10,8 @@ import 'package:fl_clash/models/models.dart';
 import 'package:material_ui/material_ui.dart';
 
 const appName = 'FlClashX';
-const appHelperService = 'FlClashXHelperService';
+final appHelperService = helperServiceFor(pre: isPreDesktopApp);
+final appSystemName = isPreDesktopApp ? '$appName Pre' : appName;
 const coreManifestName = 'manifest.json';
 const browserUa =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -18,10 +19,9 @@ const packageName = 'com.follow.clashx';
 final unixSocketPath = '/tmp/FlClashSocket_${Random().nextInt(10000)}.sock';
 final windowsPipeName = '\\\\.\\pipe\\FlClashCore_${_randomPipeId()}';
 const helperPort = 47890;
-const helperPortKey =
-    'SYSTEM\\CurrentControlSet\\Services\\$appHelperService\\Runtime';
+final helperPortKey = helperPortKeyFor(appHelperService);
 const helperPortValue = 'Port';
-const helperSocketPath = '/run/flclashx/helper.sock';
+final helperSocketPath = helperSocketPathFor(pre: isPreDesktopApp);
 const helperProtocolVersionHeader = 'x-flclashx-helper-protocol';
 final helperProtocolVersion = Platform.isWindows ? '8' : '6';
 const maxTextScale = 1.4;
@@ -133,7 +133,9 @@ const repository = 'pluralplay/FlClashX';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
 const defaultTestUrl = 'https://www.gstatic.com/generate_204';
-const defaultExternalUi = 'ui';
+// Outside ui/, which an older MetaCubeXD fills and a profile's own external-ui
+// may have mihomo wipe on its next dashboard update.
+const defaultExternalUi = 'zashboard';
 const defaultExternalUiUrl =
     'https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip';
 

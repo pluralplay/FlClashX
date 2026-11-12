@@ -23,6 +23,7 @@ class HomePage extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     return HomeBackScopeContainer(
+      isTV: system.isTV,
       child: AppSidebarContainer(
         child: _HomeShell(
           child: Consumer(
@@ -475,8 +476,13 @@ class _FadeTabPage extends StatelessWidget {
 
 class HomeBackScopeContainer extends ConsumerWidget {
   final Widget child;
+  final bool isTV;
 
-  const HomeBackScopeContainer({super.key, required this.child});
+  const HomeBackScopeContainer({
+    super.key,
+    required this.child,
+    required this.isTV,
+  });
 
   @override
   Widget build(BuildContext context, ref) {
@@ -489,12 +495,13 @@ class HomeBackScopeContainer extends ConsumerWidget {
         if (canPop) {
           // The route's own pop scope may hold an unsaved edit.
           await Navigator.of(realContext).maybePop();
-        } else if (system.isTV && pageLabel != PageLabel.dashboard) {
+        } else if (isTV && pageLabel != PageLabel.dashboard) {
           ref
               .read(currentPageLabelProvider.notifier)
               .toPage(PageLabel.dashboard);
         } else {
-          await ref.read(systemActionProvider.notifier).handleClose();
+          // Back on a TV leaves the VPN running; explicit Exit still shuts it down.
+          await ref.read(systemActionProvider.notifier).handleClose(!isTV);
         }
         return false;
       },

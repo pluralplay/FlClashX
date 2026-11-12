@@ -128,12 +128,47 @@ class Request {
 
   /// Null when this build is current; throws when GitHub cannot be asked.
   Future<Map<String, dynamic>?> checkForUpdate() async {
-    final release = await latestRelease();
+    final release = globalState.isPre
+        ? await latestPrerelease()
+        : await latestRelease();
+    if (release == null) {
+      return null;
+    }
     final remoteVersion = release['tag_name'] as String;
     final version = globalState.packageInfo.displayVersion;
     final hasUpdate =
         compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
     return hasUpdate ? release : null;
+  }
+
+  /// A pre-release installs as its own app, which a stable release would not
+  /// upgrade, so it only hears of newer pre-releases.
+  @visibleForTesting
+  Future<Map<String, dynamic>?> latestPrerelease() async {
+    try {
+      final releases = <dynamic>[];
+      String? next =
+          'https://api.github.com/repos/$repository/releases?per_page=100';
+      for (var page = 0; next != null && page < _releasePages; page++) {
+        final response = await dio.get<List<dynamic>>(
+          next,
+          options: Options(responseType: ResponseType.json),
+        );
+        releases.addAll(response.data ?? const []);
+        next = nextPageOf(response.headers.value('link'));
+      }
+      return newestPrerelease(releases);
+    } on DioException catch (error) {
+      commonPrint.log(
+        'releases API failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+    }
+    final feed = await dio.get<String>(
+      'https://github.com/$repository/releases.atom',
+      options: Options(responseType: ResponseType.plain),
+    );
+    return newestPrereleaseInFeed(feed.data ?? '');
   }
 
   /// The release page redirect still answers once the hourly API quota is spent.
@@ -169,6 +204,63 @@ class Request {
 }
 
 final request = Request();
+
+const _releasePages = 5;
+
+/// The app's own pre-release tags; Core builds and other releases share the
+/// list under tags compareVersions cannot read.
+final _prereleaseTag = RegExp(r'^v\d+\.\d+\.\d+-pre\.\d+$');
+
+Map<String, dynamic>? newestPrerelease(List<dynamic> releases) {
+  Map<String, dynamic>? newest;
+  for (final release in releases) {
+    if (release is! Map<String, dynamic> ||
+        release['prerelease'] != true ||
+        release['draft'] == true) {
+      continue;
+    }
+    final tag = release['tag_name'];
+    if (tag is! String || !_prereleaseTag.hasMatch(tag)) {
+      continue;
+    }
+    if (newest == null || _newer(tag, newest['tag_name'] as String)) {
+      newest = release;
+    }
+  }
+  return newest;
+}
+
+/// The releases feed, which is not rate limited, names tags but not which
+/// are pre-releases; the app's pre-release tags say so themselves.
+Map<String, dynamic>? newestPrereleaseInFeed(String feed) {
+  String? newest;
+  for (final match in RegExp(r'/releases/tag/([^"<\s]+)').allMatches(feed)) {
+    final tag = Uri.decodeComponent(match.group(1)!);
+    if (_prereleaseTag.hasMatch(tag) &&
+        (newest == null || _newer(tag, newest))) {
+      newest = tag;
+    }
+  }
+  return newest == null ? null : {'tag_name': newest};
+}
+
+String? nextPageOf(String? link) {
+  if (link == null) {
+    return null;
+  }
+  for (final part in link.split(',')) {
+    final match = RegExp(r'<([^>]+)>;\s*rel="next"').firstMatch(part);
+    if (match != null) {
+      return match.group(1);
+    }
+  }
+  return null;
+}
+
+bool _newer(String tag, String than) =>
+    compareVersions(_versionOfTag(tag), _versionOfTag(than)) > 0;
+
+String _versionOfTag(String tag) => tag.replaceFirst(RegExp('^v'), '');
 
 /// How a host let a download down: [soft] when it may be back in a moment,
 /// [hard] when the host itself is gone or no longer serves the resource.

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -64,7 +65,8 @@ class _ExtendViewState extends ConsumerState<ExtendView> {
     if (rules == null || disabledRuleIds == null) {
       return null;
     }
-    return [profile, rules, disabledRuleIds];
+    final proxyChains = ref.watch(proxyChainsProvider(profileId)).value;
+    return [profile, rules, disabledRuleIds, proxyChains];
   }
 
   Future<void> _handleApplyNow(List<Object?> inputs) async {
@@ -131,6 +133,7 @@ class _ExtendViewState extends ConsumerState<ExtendView> {
               ),
               const _ModeSection(),
               const _Content(),
+              ProxyChainsSection(profileId: widget.profileId),
               SliverToBoxAdapter(child: SizedBox(height: context.bottomInset)),
             ],
           ),

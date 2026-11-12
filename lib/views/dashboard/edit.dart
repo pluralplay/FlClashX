@@ -101,6 +101,7 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
         .update(
           (state) => state.copyWith(
             dashboardWidgets: _keepingHidden(state.dashboardWidgets, shown),
+            dashboardWidgetsChosen: true,
           ),
         );
   }

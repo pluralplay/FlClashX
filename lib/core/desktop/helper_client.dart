@@ -5,8 +5,10 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/desktop_channel.dart';
 import 'package:fl_clash/common/print.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:win32_registry/win32_registry.dart';
 
@@ -109,25 +111,38 @@ final class HelperClient {
   String get baseUrl => _baseUrl();
 
   static String _defaultBaseUrl() {
-    return Platform.isLinux
-        ? 'http://$appHelperService'
-        : 'http://$localhost:${_readHelperPort()}';
+    if (Platform.isLinux) {
+      return 'http://$appHelperService';
+    }
+    final published = Platform.isWindows ? _readPublishedPort() : null;
+    return 'http://$localhost:${helperPortFor(published: published, pre: isPreDesktopApp)}';
   }
 
-  /// Helpers installed before the port was published listen on [helperPort].
-  static int _readHelperPort() {
-    if (!Platform.isWindows) {
-      return helperPort;
+  /// A 0.4.2 Helper on [helperPort] stops its Core for any session.
+  @visibleForTesting
+  static int helperPortFor({required int? published, required bool pre}) {
+    if (published != null) {
+      return published;
     }
+    if (pre) {
+      throw const HelperException(
+        code: 'helperUnavailable',
+        message: 'The Helper has not published its port',
+      );
+    }
+    return helperPort;
+  }
+
+  static int? _readPublishedPort() {
     try {
       final key = LOCAL_MACHINE.open(helperPortKey);
       try {
-        return key.getInt(helperPortValue) ?? helperPort;
+        return key.getInt(helperPortValue);
       } finally {
         key.close();
       }
     } catch (_) {
-      return helperPort;
+      return null;
     }
   }
 
@@ -526,6 +541,8 @@ final class HelperLauncherResolver implements DesktopCoreLauncherResolver {
   }
 }
 
+const _unreachableHelperCodes = {'transportError', 'helperUnavailable'};
+
 final class HelperCoreLease implements CoreProcessLease {
   @override
   final String sessionId;
@@ -574,7 +591,8 @@ final class HelperCoreLease implements CoreProcessLease {
     try {
       response = await _client.stop(sessionId);
     } on HelperException catch (error) {
-      if (error.code != 'transportError' || await _livenessProbe(pid)) {
+      if (!_unreachableHelperCodes.contains(error.code) ||
+          await _livenessProbe(pid)) {
         rethrow;
       }
       commonPrint.log(

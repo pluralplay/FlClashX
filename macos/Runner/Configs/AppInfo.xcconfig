@@ -10,5 +10,12 @@ PRODUCT_NAME = FlClashX
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.follow.clashx
 
+// The name the Finder, the Dock and the menu bar show
+APP_DISPLAY_NAME = FlClashX
+
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2023 com.follow. All rights reserved.
+
+// setup.dart writes this for a pre-release build, which installs beside the
+// stable app under its own bundle id; other builds go without it.
+#include? "Channel.xcconfig"

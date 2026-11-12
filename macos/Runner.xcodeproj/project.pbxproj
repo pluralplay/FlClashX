@@ -216,6 +216,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 33CC10FB2044A3C60003C045 /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
+				F5C0FFEE2F10000100000002 /* Check Channel */,
 				33CC10E92044A3C60003C045 /* Sources */,
 				33CC10EA2044A3C60003C045 /* Frameworks */,
 				33CC10EB2044A3C60003C045 /* Resources */,
@@ -389,6 +390,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# LaunchAtLogin registers macOS 12 through this login item; 13 and later need none.\n# Its script signs with the identity name, which an ad-hoc build has no certificate for.\nEXPANDED_CODE_SIGN_IDENTITY_NAME=\"$EXPANDED_CODE_SIGN_IDENTITY\" \\\n  \"${BUILT_PRODUCTS_DIR}/LaunchAtLogin_LaunchAtLogin.bundle/Contents/Resources/copy-helper-swiftpm.sh\"\n";
+		};
+		F5C0FFEE2F10000100000002 /* Check Channel */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Check Channel";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The bundle id comes from Channel.xcconfig, which setup.dart writes for\n# APP_ENV=pre; a build whose defines disagree would ship the wrong app.\n[ \"$CONFIGURATION\" = \"Debug\" ] && exit 0\nenv=pre\nfor define in $(echo \"$DART_DEFINES\" | tr ',' ' '); do\n  pair=$(echo \"$define\" | base64 --decode 2>/dev/null)\n  case \"$pair\" in APP_ENV=*) env=\"${pair#APP_ENV=}\" ;; esac\ndone\nexpected=com.follow.clashx\n[ \"$env\" = \"pre\" ] && expected=com.follow.clashx.pre\nif [ \"$PRODUCT_BUNDLE_IDENTIFIER\" != \"$expected\" ]; then\n  echo \"error: APP_ENV=$env needs bundle id $expected, not $PRODUCT_BUNDLE_IDENTIFIER; build with dart setup.dart macos --env $env\"\n  exit 1\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

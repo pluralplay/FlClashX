@@ -273,7 +273,7 @@ class _ServerPanel extends ConsumerWidget {
         ? appLocalizations.changeServer
         : serverName.withoutLeadingFlag;
     final ipStyle = DashboardText.label(context);
-    final Widget? ip = !isStart || serverName.isEmpty
+    final Widget? ip = !isStart || serverName.isEmpty || hideIp
         ? null
         : ipInfo != null
         ? Tooltip(
@@ -283,7 +283,7 @@ class _ServerPanel extends ConsumerWidget {
               onTap: () => showIpQualitySheet(context, ip: ipInfo.ip),
               customBorder: AppShape.xs,
               child: Text(
-                hideIp ? ipMask : ipInfo.ip,
+                ipInfo.ip,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: ipStyle,
@@ -299,7 +299,7 @@ class _ServerPanel extends ConsumerWidget {
           ])
         : null;
     void changeServer() => showProxiesSheet(context, groupName: groupName);
-    final swap = groups.isEmpty
+    final swap = groups.isEmpty || hideIp
         ? null
         : SizedBox(
             height: AppTextStyle.headline.leading,
@@ -330,15 +330,50 @@ class _ServerPanel extends ConsumerWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: EmojiText(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyle.headline.of(
-                          context,
-                          emphasized: true,
-                        ),
-                      ),
+                      child: hideIp
+                          ? Tooltip(
+                              message: appLocalizations.changeServer,
+                              child: FocusRing(
+                                shape: AppShape.xs,
+                                standsOff: true,
+                                child: InkWell(
+                                  mouseCursor: clickableCursor,
+                                  onTap: groups.isEmpty ? null : changeServer,
+                                  customBorder: AppShape.xs,
+                                  hoverColor: Colors.transparent,
+                                  splashColor: Colors.transparent,
+                                  highlightColor: Colors.transparent,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      minHeight: kMinInteractiveDimension,
+                                    ),
+                                    child: Align(
+                                      alignment:
+                                          AlignmentDirectional.centerStart,
+                                      widthFactor: 1,
+                                      child: EmojiText(
+                                        title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyle.title3.of(
+                                          context,
+                                          emphasized: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : EmojiText(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyle.headline.of(
+                                context,
+                                emphasized: true,
+                              ),
+                            ),
                     ),
                     ?swap,
                   ],

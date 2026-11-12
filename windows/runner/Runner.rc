@@ -90,12 +90,21 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.follow" "\0"
+#ifdef FLCLASHX_PRE
+            VALUE "FileDescription", "FlClashX Pre" "\0"
+#else
             VALUE "FileDescription", "FlClashX" "\0"
+#endif
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "clashx" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.follow. All rights reserved." "\0"
+#ifdef FLCLASHX_PRE
+            VALUE "OriginalFilename", "FlClashXPre.exe" "\0"
+            VALUE "ProductName", "clashx.pre" "\0"
+#else
             VALUE "OriginalFilename", "FlClashX.exe" "\0"
             VALUE "ProductName", "clashx" "\0"
+#endif
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

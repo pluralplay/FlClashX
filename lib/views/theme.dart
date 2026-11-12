@@ -76,6 +76,8 @@ class ThemeView extends StatelessWidget {
             ),
             SizedBox(height: 16),
           ],
+          const ManagedSetting(settingKey: hideIpSetting, child: _HideIpItem()),
+          const SizedBox(height: 16),
           const _FontFamilyItem(),
           const SizedBox(height: 16),
           const _TextScaleFactorItem(),
@@ -965,6 +967,35 @@ class _VibrationItem extends ConsumerWidget {
         ref
             .read(appSettingProvider.notifier)
             .update((state) => state.copyWith(vibration: value));
+      },
+    );
+  }
+}
+
+class _HideIpItem extends ConsumerWidget {
+  const _HideIpItem();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appLocalizations = context.appLocalizations;
+    final hideIp = ref.watch(
+      appSettingProvider.select((state) => state.hideIp),
+    );
+    return ListItem.toggle(
+      leading: const GlyphIcon(AppGlyphs.eyeOff),
+      horizontalTitleGap: 12,
+      title: Text(
+        appLocalizations.hideIp,
+        style: AppTextStyle.subheadline
+            .of(context, emphasized: true)
+            .copyWith(color: context.colorScheme.onSurfaceVariant),
+      ),
+      subtitle: Text(appLocalizations.hideIpDesc),
+      value: hideIp,
+      onChanged: (value) {
+        ref
+            .read(appSettingProvider.notifier)
+            .update((state) => state.copyWith(hideIp: value));
       },
     );
   }

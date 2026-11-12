@@ -2,6 +2,59 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.1",
+      "tag": "v0.5.1",
+      "date": "2026-11-13",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "4b8b6e4",
+              "scope": "dashboard",
+              "text": "The wide dashboard on desktop and TV shows the cards flclashx-widgets picks, in its order, and can be edited"
+            },
+            {
+              "id": "e64104f",
+              "scope": "release",
+              "text": "Pre-releases install as a separate FlClashX Pre app and copy the stable app's profiles on first launch"
+            },
+            {
+              "id": "630903d",
+              "scope": "profiles",
+              "text": "Proxy chains (beta): route a group through two or three hops from the profile's extension page"
+            },
+            {
+              "id": "a12e0a0",
+              "scope": "dashboard",
+              "text": "A hidden outbound IP is left out rather than shown as asterisks, and the dashboard's server name takes over switching the server; Hide IP has its own switch on the Theme page"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "ea002c5",
+              "scope": "headers",
+              "text": "A panel that stops sending hideip or novibrate shows the IP and turns vibration back on"
+            },
+            {
+              "id": "44a0353",
+              "scope": "android",
+              "text": "On Android TV, Back from the dashboard keeps the VPN running, and the bundled Zashboard no longer gives way to an old MetaCubeXD"
+            },
+            {
+              "id": "b1b05cf",
+              "scope": "profiles",
+              "text": "A profile QR code can be read from an image on Windows and Linux again"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.0",
       "tag": "v0.5.0",
       "date": "2026-11-12",

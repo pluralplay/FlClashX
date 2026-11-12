@@ -88,6 +88,9 @@ class _IpQualityDetail extends ConsumerWidget {
     final quality = result.value;
     final error = result.error;
     final failed = quality == null && !result.isLoading;
+    final hideIp = ref.watch(
+      appSettingProvider.select((state) => state.hideIp),
+    );
     return ListView(
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(
@@ -107,11 +110,12 @@ class _IpQualityDetail extends ConsumerWidget {
         generateSection(
           title: localizations.basicInfo,
           items: [
-            DetailRow(
-              title: localizations.ipAddress,
-              copyText: ip,
-              value: IpQualityText(ip: ip),
-            ),
+            if (!hideIp)
+              DetailRow(
+                title: localizations.ipAddress,
+                copyText: ip,
+                value: IpQualityText(ip: ip),
+              ),
             if (failed)
               DetailRow(
                 title: localizations.ipType,

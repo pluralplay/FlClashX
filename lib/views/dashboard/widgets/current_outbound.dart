@@ -24,8 +24,6 @@ const _builtinOutbounds = {'DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'};
 
 bool isBuiltinOutbound(String name) => _builtinOutbounds.contains(name);
 
-const ipMask = '*****';
-
 const _decorationGrowth = 0.12;
 
 const _decorationTurn = 2 * math.pi / 12;
@@ -302,22 +300,7 @@ class _ExitRow extends StatelessWidget {
     ).copyWith(letterSpacing: 0);
     final info = this.info;
     final Widget address = info != null
-        ? Tooltip(
-            message: appLocalizations.details(appLocalizations.outboundIp),
-            child: FocusRing(
-              shape: AppShape.xs,
-              standsOff: true,
-              child: InkWell(
-                mouseCursor: clickableCursor,
-                onTap: () => showIpQualitySheet(context, ip: info.ip),
-                customBorder: AppShape.xs,
-                hoverColor: Colors.transparent,
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                child: _IpText(ip: info.ip, style: style),
-              ),
-            ),
-          )
+        ? _IpAddress(ip: info.ip, style: style)
         : failed
         ? Text(
             appLocalizations.serviceFailed,
@@ -357,8 +340,8 @@ class _ExitRow extends StatelessWidget {
   }
 }
 
-class _IpText extends ConsumerWidget {
-  const _IpText({required this.ip, required this.style});
+class _IpAddress extends ConsumerWidget {
+  const _IpAddress({required this.ip, required this.style});
 
   final String ip;
   final TextStyle style;
@@ -368,7 +351,26 @@ class _IpText extends ConsumerWidget {
     final hideIp = ref.watch(
       appSettingProvider.select((state) => state.hideIp),
     );
-    return DashboardFitText(hideIp ? ipMask : ip, style: style);
+    if (hideIp) {
+      return const SizedBox.shrink();
+    }
+    final appLocalizations = context.appLocalizations;
+    return Tooltip(
+      message: appLocalizations.details(appLocalizations.outboundIp),
+      child: FocusRing(
+        shape: AppShape.xs,
+        standsOff: true,
+        child: InkWell(
+          mouseCursor: clickableCursor,
+          onTap: () => showIpQualitySheet(context, ip: ip),
+          customBorder: AppShape.xs,
+          hoverColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          child: DashboardFitText(ip, style: style),
+        ),
+      ),
+    );
   }
 }
 

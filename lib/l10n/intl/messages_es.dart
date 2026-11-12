@@ -207,50 +207,66 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m72(removed, added) =>
       "Se eliminarán estos proxies: ${removed}. Se añadirán estos: ${added}. Una línea cuyo nombre cambió cuenta como un proxy nuevo, y los perfiles personalizados que mencionen los eliminados los marcarán como ausentes. ¿Aplicar de todos modos?";
 
-  static String m73(label) =>
+  static String m73(name) =>
+      "${name} es el destino MATCH. Elige otro destino antes de desactivarla o eliminarla";
+
+  static String m74(name) => "${name} no está en este perfil";
+
+  static String m75(name) => "${name} ya es un nombre de este perfil";
+
+  static String m76(name) =>
+      "${name} toma sus nodos de un proveedor, algo que las cadenas aún no admiten";
+
+  static String m77(name) =>
+      "${name} tiene proxies que no pueden conectarse a través de otro salto, como direct";
+
+  static String m78(name) =>
+      "El filtro de ${name} usa una sintaxis que la app aún no puede leer";
+
+  static String m79(label) =>
       "${label} sigue mencionado por reglas, grupos de proxies, proxies de marcación, DNS o NTP de este perfil, que dejarán de funcionar si se elimina. ¿Seguro que quieres eliminarlo?";
 
-  static String m74(count, label) =>
+  static String m80(count, label) =>
       "${Intl.plural(count, one: '1 grupo de proxies', other: '${label} grupos de proxies')}";
 
-  static String m75(count, label) =>
+  static String m81(count, label) =>
       "${Intl.plural(count, one: '1 regla', other: '${label} reglas')}";
 
-  static String m76(appName) => "${appName} (Modo seguro)";
+  static String m82(appName) => "${appName} (Modo seguro)";
 
-  static String m77(count) =>
+  static String m83(count) =>
       "${Intl.plural(count, one: '1 segundo', other: '${count} segundos')}";
 
-  static String m78(count) => "${count} en vigor";
+  static String m84(count) => "${count} en vigor";
 
-  static String m79(count) =>
+  static String m85(count) =>
       "${Intl.plural(count, one: '1 problema', other: '${count} problemas')}";
 
-  static String m80(count) =>
+  static String m86(count) =>
       "${Intl.plural(count, one: '1 ajuste', other: '${count} ajustes')}";
 
-  static String m81(link) => "No se pudo leer ningún proxy de ${link}";
+  static String m87(link) => "No se pudo leer ningún proxy de ${link}";
 
-  static String m82(label) => "${label} debe ser un solo elemento";
+  static String m88(label) => "${label} debe ser un solo elemento";
 
-  static String m83(days) =>
+  static String m89(days) =>
       "Tu suscripción caduca en ${Intl.plural(days, one: '1 día', other: '${days} días')}";
 
-  static String m84(value) => "Pico: ${value}";
+  static String m90(value) => "Pico: ${value}";
 
-  static String m85(value) => "Total: ${value}";
+  static String m91(value) => "Total: ${value}";
 
-  static String m86(transport) => "Encabezados ${transport}";
+  static String m92(transport) => "Encabezados ${transport}";
 
-  static String m87(label) => "${label} debe ser una URL";
+  static String m93(label) => "${label} debe ser una URL";
 
-  static String m88(appName) =>
+  static String m94(appName) =>
       "No permitiste que ${appName} se conectara como VPN";
 
-  static String m89(count) =>
+  static String m95(count) =>
       "${Intl.plural(count, one: 'hace 1 año', other: 'hace ${count} años')}";
 
-  static String m90(count) => "${Intl.plural(count, other: 'hace ${count} a')}";
+  static String m96(count) => "${Intl.plural(count, other: 'hace ${count} a')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -299,6 +315,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "addProfileFromClipboard": MessageLookupByLibrary.simpleMessage(
       "Añadir perfil desde el portapapeles",
     ),
+    "addProxyChain": MessageLookupByLibrary.simpleMessage("Añadir cadena"),
+    "addProxyChainHop": MessageLookupByLibrary.simpleMessage("Añadir salto"),
     "addProxyGroup": MessageLookupByLibrary.simpleMessage(
       "Añadir grupo de proxies",
     ),
@@ -440,6 +458,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "batteryOptimizationDesc": MessageLookupByLibrary.simpleMessage(
       "Ignorar la optimización de batería mantiene la app en ejecución en segundo plano.",
     ),
+    "beta": MessageLookupByLibrary.simpleMessage("Beta"),
     "bind": MessageLookupByLibrary.simpleMessage("Vincular"),
     "blacklistMode": MessageLookupByLibrary.simpleMessage("Modo lista negra"),
     "blockConnection": MessageLookupByLibrary.simpleMessage(
@@ -917,6 +936,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "hex": MessageLookupByLibrary.simpleMessage("Hex"),
     "hideFromList": MessageLookupByLibrary.simpleMessage("Ocultar de la lista"),
     "hideIp": MessageLookupByLibrary.simpleMessage("Ocultar IP"),
+    "hideIpDesc": MessageLookupByLibrary.simpleMessage(
+      "Quita la IP de salida del panel y de la comprobación de servicios.",
+    ),
     "hidePassword": MessageLookupByLibrary.simpleMessage("Ocultar contraseña"),
     "hideTimeoutProxies": MessageLookupByLibrary.simpleMessage(
       "Ocultar proxies sin respuesta",
@@ -1292,6 +1314,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Falló la conexión segura. Puede que el certificado del servidor no sea válido o que la conexión esté siendo interceptada",
     ),
     "networkType": MessageLookupByLibrary.simpleMessage("Tipo de red"),
+    "newProxyChain": MessageLookupByLibrary.simpleMessage("Nueva cadena"),
     "nextMatch": MessageLookupByLibrary.simpleMessage("Coincidencia siguiente"),
     "no": MessageLookupByLibrary.simpleMessage("No"),
     "noData": MessageLookupByLibrary.simpleMessage("Sin datos"),
@@ -1409,6 +1432,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "portTip": m60,
     "portValue": m61,
     "ports": MessageLookupByLibrary.simpleMessage("Puertos"),
+    "preChannelTip": MessageLookupByLibrary.simpleMessage(
+      "Esta versión preliminar es una aplicación aparte y no ve los perfiles de FlClashX. Para traerlos, crea una copia de seguridad en FlClashX, en Copia de seguridad y restauración, y restáurala aquí, o vuelve a añadir tus suscripciones por enlace.",
+    ),
+    "preChannelTipTitle": MessageLookupByLibrary.simpleMessage("FlClashX Pre"),
     "preSharedKey": MessageLookupByLibrary.simpleMessage("Clave precompartida"),
     "preferred": MessageLookupByLibrary.simpleMessage("Preferido"),
     "prerequisites": MessageLookupByLibrary.simpleMessage("Requisitos previos"),
@@ -1488,16 +1515,43 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxiesProfileLabel": m70,
     "proxiesRemovedTip": m71,
     "proxiesReplacedTip": m72,
+    "proxyChain": MessageLookupByLibrary.simpleMessage("Cadena"),
+    "proxyChainDevice": MessageLookupByLibrary.simpleMessage("Dispositivo"),
+    "proxyChainEntry": MessageLookupByLibrary.simpleMessage("Entrada"),
+    "proxyChainExit": MessageLookupByLibrary.simpleMessage("Salida"),
+    "proxyChainHopsDesc": MessageLookupByLibrary.simpleMessage(
+      "El dispositivo se conecta a la entrada y el tráfico sale a internet por la salida.",
+    ),
+    "proxyChainIncomplete": MessageLookupByLibrary.simpleMessage(
+      "Pon un nombre a la cadena y elige todos los saltos",
+    ),
+    "proxyChainInternet": MessageLookupByLibrary.simpleMessage("Internet"),
+    "proxyChainIsMatchTarget": m73,
+    "proxyChainMiddle": MessageLookupByLibrary.simpleMessage("Intermedio"),
+    "proxyChainMissingHop": m74,
+    "proxyChainNameTaken": m75,
+    "proxyChainProviderHop": m76,
+    "proxyChainRepeatedHop": MessageLookupByLibrary.simpleMessage(
+      "El mismo salto está elegido dos veces",
+    ),
+    "proxyChainUnchainableHop": m77,
+    "proxyChainUnreadableFilter": m78,
     "proxyChains": MessageLookupByLibrary.simpleMessage("Cadena de proxies"),
+    "proxyChainsDesc": MessageLookupByLibrary.simpleMessage(
+      "El tráfico pasa por los saltos en orden y los sitios solo ven la salida. Las cadenas se guardan en este dispositivo y aún no se incluyen en las copias de seguridad.",
+    ),
+    "proxyChainsTitle": MessageLookupByLibrary.simpleMessage(
+      "Cadenas de proxies",
+    ),
     "proxyGroup": MessageLookupByLibrary.simpleMessage("Grupo de proxies"),
     "proxyGroupEmpty": MessageLookupByLibrary.simpleMessage(
       "El grupo de proxies está vacío",
     ),
-    "proxyGroupInUse": m73,
+    "proxyGroupInUse": m79,
     "proxyGroupsAfterStart": MessageLookupByLibrary.simpleMessage(
       "Los grupos aparecen aquí cuando se inicia el núcleo",
     ),
-    "proxyGroupsCount": m74,
+    "proxyGroupsCount": m80,
     "proxyProviders": MessageLookupByLibrary.simpleMessage(
       "Proveedores de proxies",
     ),
@@ -1764,11 +1818,11 @@ class MessageLookup extends MessageLookupByLibrary {
       "La regla debe empezar con un tipo admitido, por ejemplo DOMAIN,example.com,DIRECT",
     ),
     "rules": MessageLookupByLibrary.simpleMessage("Reglas"),
-    "rulesCount": m75,
+    "rulesCount": m81,
     "runtimeConfig": MessageLookupByLibrary.simpleMessage(
       "Configuración de ejecución",
     ),
-    "safeModeAppTitle": m76,
+    "safeModeAppTitle": m82,
     "saturation": MessageLookupByLibrary.simpleMessage("Saturación"),
     "save": MessageLookupByLibrary.simpleMessage("Guardar"),
     "saveChanges": MessageLookupByLibrary.simpleMessage(
@@ -1783,9 +1837,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "search": MessageLookupByLibrary.simpleMessage("Buscar"),
     "seconds": MessageLookupByLibrary.simpleMessage("segundos"),
-    "secondsCount": m77,
+    "secondsCount": m83,
     "secretKey": MessageLookupByLibrary.simpleMessage("Clave"),
-    "sectionsInEffect": m78,
+    "sectionsInEffect": m84,
     "select": MessageLookupByLibrary.simpleMessage("Seleccionar"),
     "selectAll": MessageLookupByLibrary.simpleMessage("Seleccionar todo"),
     "selectRuleSet": MessageLookupByLibrary.simpleMessage(
@@ -1821,7 +1875,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Escanea el código con la cámara del teléfono y pega el enlace en la página que se abre. Ambos dispositivos deben estar en la misma red. Si la página no se abre en Android 17 o posterior, concede al navegador del teléfono el permiso Dispositivos cercanos.",
     ),
     "server": MessageLookupByLibrary.simpleMessage("Servidor"),
-    "serviceAbnormalCount": m79,
+    "serviceAbnormalCount": m85,
     "serviceAllAvailable": MessageLookupByLibrary.simpleMessage(
       "Todo disponible",
     ),
@@ -1857,8 +1911,8 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "settingEntries": MessageLookupByLibrary.simpleMessage("ajustes"),
     "settings": MessageLookupByLibrary.simpleMessage("Ajustes"),
-    "settingsCount": m80,
-    "shareLinkUnreadable": m81,
+    "settingsCount": m86,
+    "shareLinkUnreadable": m87,
     "shareLinksInvalid": MessageLookupByLibrary.simpleMessage(
       "No se pudo leer ningún proxy de los enlaces",
     ),
@@ -1885,7 +1939,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "singleShareLinkOnly": MessageLookupByLibrary.simpleMessage(
       "Introduce aquí un solo enlace; para varios, usa la edición rápida de la lista",
     ),
-    "singleValueTip": m82,
+    "singleValueTip": m88,
     "size": MessageLookupByLibrary.simpleMessage("Tamaño"),
     "skipCertVerify": MessageLookupByLibrary.simpleMessage(
       "Omitir verificación de certificado",
@@ -1924,6 +1978,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "La estrategia de división no puede estar vacía",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("No hay SSID"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("Reintentar"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage(
+      "Continuar sin ellos",
+    ),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre aún no pudo tomar los perfiles y ajustes de FlClashX. Si FlClashX está abierto, ciérralo y vuelve a intentarlo.",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "Traer tus perfiles de FlClashX",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Modo de pila"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("Seguimiento de pila"),
     "standard": MessageLookupByLibrary.simpleMessage("Estándar"),
@@ -1954,7 +2018,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "subscriptionExpired": MessageLookupByLibrary.simpleMessage(
       "Tu suscripción ha caducado",
     ),
-    "subscriptionExpiresInDays": m83,
+    "subscriptionExpiresInDays": m89,
     "subscriptionExpiresSoon": MessageLookupByLibrary.simpleMessage(
       "La suscripción caduca pronto",
     ),
@@ -2018,11 +2082,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalUpload": MessageLookupByLibrary.simpleMessage("Subido"),
     "tproxyPort": MessageLookupByLibrary.simpleMessage("Puerto TProxy"),
     "traffic": MessageLookupByLibrary.simpleMessage("Tráfico"),
-    "trafficPeak": m84,
-    "trafficTotal": m85,
+    "trafficPeak": m90,
+    "trafficTotal": m91,
     "trafficUsage": MessageLookupByLibrary.simpleMessage("Uso de tráfico"),
     "transport": MessageLookupByLibrary.simpleMessage("Transporte"),
-    "transportHeaders": m86,
+    "transportHeaders": m92,
     "tun": MessageLookupByLibrary.simpleMessage("TUN"),
     "tunAuthorizationFailed": MessageLookupByLibrary.simpleMessage(
       "No se pudo autorizar TUN, por lo que se desactivó.",
@@ -2064,7 +2128,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Ancho de banda de subida",
     ),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m87,
+    "urlTip": m93,
     "useHosts": MessageLookupByLibrary.simpleMessage("Usar hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Usar hosts del sistema",
@@ -2091,7 +2155,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "La VPN enruta automáticamente todo el tráfico del sistema a través de VpnService.",
     ),
-    "vpnPermissionNotGranted": m88,
+    "vpnPermissionNotGranted": m94,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "El administrador de este dispositivo restringe la VPN",
     ),
@@ -2106,8 +2170,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Escribir en el sistema también ajusta el reloj del sistema; Android lo ignora.",
     ),
-    "yearsAgo": m89,
-    "yearsAgoShort": m90,
+    "yearsAgo": m95,
+    "yearsAgoShort": m96,
     "yes": MessageLookupByLibrary.simpleMessage("Sí"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chino simplificado"),
   };

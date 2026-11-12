@@ -225,6 +225,9 @@ void main() {
     tester,
   ) async {
     final container = _containerFor(tester);
+    final appEnv = globalState.appEnv;
+    globalState.appEnv = 'stable';
+    addTearDown(() => globalState.appEnv = appEnv);
     final originalAdapter = request.dio.httpClientAdapter;
     addTearDown(() => request.dio.httpClientAdapter = originalAdapter);
     final adapter = _PendingAdapter();

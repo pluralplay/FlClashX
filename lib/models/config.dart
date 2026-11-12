@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/ui/color.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -110,14 +111,16 @@ const List<DashboardWidget> defaultDashboardWidgets = [
 /// A phone starts without the VPN switch and the diagnostic cards, which stay
 /// addable. The field default keeps the shared list because it must be const.
 final List<DashboardWidget> platformDefaultDashboardWidgets = system.isAndroid
-    ? const [
-        DashboardWidget.currentOutbound,
-        DashboardWidget.networkSpeed,
-        DashboardWidget.outboundMode,
-        DashboardWidget.profiles,
-        DashboardWidget.proxyGroups,
-      ]
+    ? _androidDefaultDashboardWidgets
     : defaultDashboardWidgets;
+
+const _androidDefaultDashboardWidgets = [
+  DashboardWidget.currentOutbound,
+  DashboardWidget.networkSpeed,
+  DashboardWidget.outboundMode,
+  DashboardWidget.profiles,
+  DashboardWidget.proxyGroups,
+];
 
 const _legacyDefaultDashboardWidgets = {
   'networkSpeed',
@@ -196,6 +199,22 @@ List<DashboardWidget> dashboardWidgetsFromJson(
   return {DashboardWidget.currentOutbound, ...kept}.toList();
 }
 
+Object? _readDashboardWidgetsChosen(Map<dynamic, dynamic> json, String key) {
+  if (json.containsKey(key)) {
+    return json[key];
+  }
+  final saved = json['dashboardWidgets'];
+  if (saved is! List) {
+    return false;
+  }
+  final widgets = dashboardWidgetsFromJson(saved);
+  // A backup carries another platform's default across.
+  return !const [
+    defaultDashboardWidgets,
+    _androidDefaultDashboardWidgets,
+  ].any((defaults) => listEquals(widgets, defaults));
+}
+
 Object? _readSidebarExpanded(Map<dynamic, dynamic> json, String key) {
   return json.containsKey(key) ? json[key] : json['showLabel'];
 }
@@ -226,6 +245,11 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(defaultDashboardWidgets)
     @JsonKey(fromJson: dashboardWidgetsFromJson)
     List<DashboardWidget> dashboardWidgets,
+
+    /// The wide dashboard keeps its full arrangement until this is set.
+    @Default(false)
+    @JsonKey(readValue: _readDashboardWidgetsChosen)
+    bool dashboardWidgetsChosen,
     @Default(false) bool onlyStatisticsProxy,
     @Default(true) bool showNotificationStopAction,
     @Default(false) bool autoLaunch,
@@ -266,6 +290,9 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default({}) Map<String, Map<String, double>> tableColumnWidths,
     @Default({}) Map<String, int> subscriptionNotices,
     @Default({}) Set<String> ownedSettings,
+
+    /// Special flags the panel set, put back once its headers drop them.
+    @Default({}) Set<String> panelSetSettings,
 
     /// The profile update whose panel headers the settings last took.
     String? appliedHeadersUpdate,

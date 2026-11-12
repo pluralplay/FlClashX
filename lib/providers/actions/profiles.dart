@@ -22,6 +22,7 @@ class ProfilesAction extends _$ProfilesAction {
   Future<void> deleteProfile(int id) async {
     await ref.read(profilesProvider.notifier).del(id);
     await clearEffect(id);
+    await forgetProxyChains(ref, id);
     final currentProfileId = ref.read(currentProfileIdProvider);
     if (currentProfileId == id) {
       final profiles = ref.read(profilesProvider);

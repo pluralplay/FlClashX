@@ -16,6 +16,7 @@ import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/pages/stable_import.dart';
 import 'package:fl_clash/views/disclaimer.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -37,10 +38,6 @@ class Bootstrap {
   BootDecision _bootDecision = const BootDecision();
 
   Future<ProviderContainer> init(int version) async {
-    globalState.appEnv = const String.fromEnvironment(
-      'APP_ENV',
-      defaultValue: 'pre',
-    );
     windowPort = window;
     trayPort = appTray;
     navigationPort = navigation;
@@ -102,6 +99,11 @@ class Bootstrap {
     DynamicColorSeeds dynamicColor,
   ) async {
     await _claimDataDirectory();
+    await settleStableImport(
+      import: importStableDataForPre,
+      askRetry: askStableImportRetry,
+      abandon: abandonStableImport,
+    );
     globalState.packageInfo = await PackageInfo.fromPlatform();
     var config = await migration.run();
     _bootDecision = await bootGuard.evaluate(
@@ -189,6 +191,7 @@ class Bootstrap {
       return;
     }
     await _showCrashRecoveryTip();
+    await _showPreChannelTip();
     await _container.read(coreActionProvider.notifier).startCore();
     if (!_bootDecision.isDegraded) {
       await _container.read(setupActionProvider.notifier).initStatus();
@@ -198,6 +201,23 @@ class Bootstrap {
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
     unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
+  }
+
+  Future<void> _showPreChannelTip() async {
+    final due = preChannelTipDue(
+      isAndroid: system.isAndroid,
+      packageName: globalState.packageInfo.packageName,
+      hasProfiles: _container.read(profilesProvider).isNotEmpty,
+      shown: await preferences.getPreChannelTipShown(),
+    );
+    if (!due) {
+      return;
+    }
+    await dialogs.showAlert(
+      title: currentAppLocalizations.preChannelTipTitle,
+      message: TextSpan(text: currentAppLocalizations.preChannelTip),
+    );
+    await preferences.setPreChannelTipShown();
   }
 
   Future<void> _showCrashRecoveryTip() async {
