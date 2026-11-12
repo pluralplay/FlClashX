@@ -482,6 +482,34 @@ void main() {
       expect(await leftovers(held.remote), isEmpty);
     });
 
+    test('a download started during a save waits for it and yields', () async {
+      final held = await heldScriptUpdate();
+      final writing = Completer<void>();
+      held.action.write = (script, content) async {
+        await writing.future;
+        return script.save(content);
+      };
+      final save = held.action.saveScript(
+        held.remote.copyWith(label: 'Edited'),
+        'edited',
+      );
+      final update = held.action.updateScript(held.remote);
+      await pumpEventQueue();
+      held.bodies.single.complete('downloaded');
+      await pumpEventQueue();
+      expect(await held.remote.content, 'v1');
+
+      writing.complete();
+      await Future.wait([save, update]);
+
+      expect(await held.remote.content, 'edited');
+      expect(
+        held.container.read(scriptsProvider).value?.single.label,
+        'Edited',
+      );
+      expect(await leftovers(held.remote), isEmpty);
+    });
+
     test('only the latest of overlapping downloads is published', () async {
       final held = await heldScriptUpdate();
       final first = held.action.updateScript(held.remote);
