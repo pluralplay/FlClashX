@@ -18,30 +18,55 @@ extension PackageInfoExtension on PackageInfo {
 }
 
 int compareVersions(String version1, String version2) {
-  final List<String> v1 = version1.split('+')[0].split('.');
-  final List<String> v2 = version2.split('+')[0].split('.');
-  final int major1 = int.parse(v1[0]);
-  final int major2 = int.parse(v2[0]);
-  if (major1 != major2) {
-    return major1.compareTo(major2);
+  final (core1, pre1, build1) = _versionParts(version1);
+  final (core2, pre2, build2) = _versionParts(version2);
+  for (var index = 0; index < 3; index++) {
+    final part1 = index < core1.length ? core1[index] : 0;
+    final part2 = index < core2.length ? core2[index] : 0;
+    if (part1 != part2) {
+      return part1.compareTo(part2);
+    }
   }
-  final int minor1 = v1.length > 1 ? int.parse(v1[1]) : 0;
-  final int minor2 = v2.length > 1 ? int.parse(v2[1]) : 0;
-  if (minor1 != minor2) {
-    return minor1.compareTo(minor2);
+  final prerelease = _comparePrereleases(pre1, pre2);
+  if (prerelease != 0) {
+    return prerelease;
   }
-  final int patch1 = v1.length > 2 ? int.parse(v1[2]) : 0;
-  final int patch2 = v2.length > 2 ? int.parse(v2[2]) : 0;
-  if (patch1 != patch2) {
-    return patch1.compareTo(patch2);
-  }
-  final int build1 = version1.contains('+')
-      ? int.parse(version1.split('+')[1])
-      : 0;
-  final int build2 = version2.contains('+')
-      ? int.parse(version2.split('+')[1])
-      : 0;
   return build1.compareTo(build2);
+}
+
+(List<int>, String?, int) _versionParts(String version) {
+  final [main, ...build] = version.split('+');
+  final dash = main.indexOf('-');
+  final core = dash == -1 ? main : main.substring(0, dash);
+  return (
+    core.split('.').map(int.parse).toList(),
+    dash == -1 ? null : main.substring(dash + 1),
+    build.isEmpty ? 0 : int.parse(build.first),
+  );
+}
+
+/// SemVer precedence: `0.5.0-pre.9` comes before `0.5.0-pre.10` and both
+/// before `0.5.0`.
+int _comparePrereleases(String? pre1, String? pre2) {
+  if (pre1 == pre2) {
+    return 0;
+  }
+  if (pre1 == null || pre2 == null) {
+    return pre1 == null ? 1 : -1;
+  }
+  final ids1 = pre1.split('.');
+  final ids2 = pre2.split('.');
+  for (var index = 0; index < ids1.length && index < ids2.length; index++) {
+    final number1 = int.tryParse(ids1[index]);
+    final number2 = int.tryParse(ids2[index]);
+    final result = number1 != null && number2 != null
+        ? number1.compareTo(number2)
+        : ids1[index].compareTo(ids2[index]);
+    if (result != 0) {
+      return result;
+    }
+  }
+  return ids1.length.compareTo(ids2.length);
 }
 
 const releaseNotesBeginMarker = '<!-- flclash:changelog:begin -->';
