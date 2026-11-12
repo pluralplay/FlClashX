@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/ui/color.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -110,14 +111,16 @@ const List<DashboardWidget> defaultDashboardWidgets = [
 /// A phone starts without the VPN switch and the diagnostic cards, which stay
 /// addable. The field default keeps the shared list because it must be const.
 final List<DashboardWidget> platformDefaultDashboardWidgets = system.isAndroid
-    ? const [
-        DashboardWidget.currentOutbound,
-        DashboardWidget.networkSpeed,
-        DashboardWidget.outboundMode,
-        DashboardWidget.profiles,
-        DashboardWidget.proxyGroups,
-      ]
+    ? _androidDefaultDashboardWidgets
     : defaultDashboardWidgets;
+
+const _androidDefaultDashboardWidgets = [
+  DashboardWidget.currentOutbound,
+  DashboardWidget.networkSpeed,
+  DashboardWidget.outboundMode,
+  DashboardWidget.profiles,
+  DashboardWidget.proxyGroups,
+];
 
 const _legacyDefaultDashboardWidgets = {
   'networkSpeed',
@@ -205,11 +208,11 @@ Object? _readDashboardWidgetsChosen(Map<dynamic, dynamic> json, String key) {
     return false;
   }
   final widgets = dashboardWidgetsFromJson(saved);
-  final defaults = platformDefaultDashboardWidgets;
-  return widgets.length != defaults.length ||
-      [
-        for (var i = 0; i < widgets.length; i++) widgets[i] != defaults[i],
-      ].any((differs) => differs);
+  // A backup carries another platform's default across.
+  return !const [
+    defaultDashboardWidgets,
+    _androidDefaultDashboardWidgets,
+  ].any((defaults) => listEquals(widgets, defaults));
 }
 
 Object? _readSidebarExpanded(Map<dynamic, dynamic> json, String key) {

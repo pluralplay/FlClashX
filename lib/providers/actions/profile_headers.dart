@@ -170,19 +170,25 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
     }
   }
 
-  /// Settings saved before the panel's flags were tracked: a flag the panel
-  /// still sends, whose setting still reads as it set it, came from the panel.
+  /// Settings saved before the panel's flags and cards were tracked: what the
+  /// panel still sends, and the settings still read as it set, came from it.
   void _adoptPanelSet(ProfileHeaderSettings settings) {
     ref.read(appSettingProvider.notifier).update((state) {
       final adopted = {
         if (settings.hideIp && state.hideIp) hideIpSetting,
         if (settings.noVibration && !state.vibration) vibrationSetting,
       }.difference(state.ownedSettings);
-      if (state.panelSetSettings.containsAll(adopted)) {
+      final widgets = settings.widgets;
+      final cardsPicked =
+          !state.dashboardWidgetsChosen &&
+          widgets != null &&
+          listEquals(state.dashboardWidgets, widgets);
+      if (state.panelSetSettings.containsAll(adopted) && !cardsPicked) {
         return state;
       }
       return state.copyWith(
         panelSetSettings: {...state.panelSetSettings, ...adopted},
+        dashboardWidgetsChosen: state.dashboardWidgetsChosen || cardsPicked,
       );
     });
   }

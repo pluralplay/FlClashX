@@ -29,10 +29,20 @@ class DashboardView extends ConsumerStatefulWidget {
 
 class _DashboardViewState extends ConsumerState<DashboardView> {
   var _editing = false;
+  var _wide = false;
+
+  /// What editing started from, kept across resizes until the cards are picked.
+  List<DashboardWidget>? _editedArrangement;
   final _cardKeys = <DashboardWidget, GlobalKey>{};
 
-  void _setEditing(bool editing) {
-    setState(() => _editing = editing);
+  void _setEditing(bool editing, SupportPlatform platform) {
+    final chosen = ref.read(appSettingProvider).dashboardWidgetsChosen;
+    setState(() {
+      _editing = editing;
+      _editedArrangement = editing && _wide && !chosen
+          ? wideDashboardWidgetsOf(platform)
+          : null;
+    });
   }
 
   GlobalKey _cardKeyOf(DashboardWidget widget) =>
@@ -70,7 +80,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           ? IconButtonData(
               glyph: AppGlyphs.check,
               tooltip: appLocalizations.done,
-              onPressed: () => _setEditing(false),
+              onPressed: () => _setEditing(false, platform),
             )
           : null,
       iconActions: [
@@ -88,7 +98,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           IconButtonData(
             glyph: AppGlyphs.edit,
             tooltip: appLocalizations.editDashboard,
-            onPressed: () => _setEditing(true),
+            onPressed: () => _setEditing(true, platform),
           ),
       ],
       // The providers learn a resize a frame late, too late for the cards.
@@ -103,7 +113,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               child: const HeroDashboard(),
             );
           }
-          final arranged = layout.isDesktop && !chosen
+          _wide = layout.isDesktop;
+          final arranged = editing
+              ? (chosen ? null : _editedArrangement)
+              : layout.isDesktop && !chosen
               ? wideDashboardWidgetsOf(platform)
               : null;
           if (layout.isDesktop && !editing) {
@@ -127,7 +140,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               gap: gap,
               editing: editing,
               cardKeyOf: _cardKeyOf,
-              onDone: () => _setEditing(false),
+              onDone: () => _setEditing(false, platform),
             ),
           );
         },

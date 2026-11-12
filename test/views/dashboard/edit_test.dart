@@ -505,6 +505,27 @@ void main() {
     await teardown(tester);
   });
 
+  testWidgets('a resize keeps the arrangement editing started from', (
+    tester,
+  ) async {
+    await pumpEditor(
+      tester,
+      platform: SupportPlatform.MacOS,
+      size: const Size(1220, 900),
+    );
+    expect(find.byType(NetworkTakeoverCard), findsOneWidget);
+
+    tester.view.physicalSize = const Size(412, 1400);
+    container.read(viewSizeProvider.notifier).value = const Size(412, 1400);
+    await settle(tester);
+
+    expect(find.byType(DashboardEditor), findsOneWidget);
+    expect(find.byType(NetworkTakeoverCard), findsOneWidget);
+    expect(container.read(appSettingProvider).dashboardWidgetsChosen, isFalse);
+
+    await teardown(tester);
+  });
+
   testWidgets('the wide grid shows the picked cards in their order', (
     tester,
   ) async {

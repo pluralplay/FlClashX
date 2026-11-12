@@ -253,6 +253,27 @@ void main() {
     },
   );
 
+  test('cards a panel picked before the flag count as picked', () async {
+    final profile = _profile(1, widgets: 'currentOutbound,profiles');
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            dashboardWidgets: const [
+              DashboardWidget.currentOutbound,
+              DashboardWidget.profiles,
+            ],
+            appliedHeadersUpdate: profileHeadersUpdateOf(profile),
+            floatingNavigationBar: false,
+          ),
+        );
+    await select(profile);
+
+    final setting = container.read(appSettingProvider);
+    expect(setting.dashboardWidgetsChosen, isTrue);
+    expect(setting.floatingNavigationBar, isFalse);
+  });
+
   test('without the novibrate special vibration stays the user\'s', () async {
     await select(_profile(1, special: 'hideip'));
 

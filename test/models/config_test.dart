@@ -143,14 +143,22 @@ void main() {
           AppSettingProps.fromJson(json).dashboardWidgetsChosen;
 
       expect(chosen({}), isFalse);
-      expect(
-        chosen({
-          'dashboardWidgets': [
-            for (final widget in platformDefaultDashboardWidgets) widget.name,
-          ],
-        }),
-        isFalse,
-      );
+      for (final defaults in const [
+        ['currentOutbound', 'profiles'],
+        [
+          'currentOutbound',
+          'networkSpeed',
+          'outboundMode',
+          'profiles',
+          'proxyGroups',
+        ],
+      ]) {
+        expect(
+          chosen({'dashboardWidgets': defaults}),
+          isFalse,
+          reason: '$defaults',
+        );
+      }
       expect(
         chosen({
           'dashboardWidgets': ['currentOutbound', 'memoryInfo'],
