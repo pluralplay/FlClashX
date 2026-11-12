@@ -15,6 +15,7 @@ const _skipped = {'config.yaml', 'logs', '.DS_Store', _preferences};
 const _staging = '.stable-import';
 const _pendingMarker = '.stable-import-pending';
 const _doneMarker = '.stable-import-done';
+const _promotedManifest = '.stable-import-promoted';
 
 /// What the stable process did to the system, which a copy must not undo.
 const runtimePreferenceKeys = [
@@ -33,6 +34,7 @@ typedef StableSource = ({
   String home,
   Future<bool> Function() hasOwnPreferences,
   Future<void> Function() copyPreferences,
+  Future<void> Function() dropPreferences,
   Future<StableRelease?> Function() lock,
 });
 
@@ -57,22 +59,40 @@ Future<StableImport> importStableDataForPre() async {
 Future<void> abandonStableImport() async {
   final source = await _macosSource() ?? await _desktopSource();
   if (source != null) {
-    await abandonImport(source.home);
+    await abandonImport(source);
   }
 }
 
-/// No later launch may replace the data kept after this.
+/// A pending import implies the pre-release had no data of its own to keep.
 @visibleForTesting
-Future<void> abandonImport(String home) async {
+Future<void> abandonImport(StableSource source) async {
+  final home = source.home;
   await Directory(home).create(recursive: true);
-  await File(join(home, _doneMarker)).writeAsString('');
   final pending = File(join(home, _pendingMarker));
+  final manifest = File(join(home, _promotedManifest));
+  if (await pending.exists()) {
+    final promoted = await manifest.exists()
+        ? const LineSplitter().convert(await manifest.readAsString())
+        : const <String>[];
+    for (final name in {
+      ...promoted,
+      for (final suffix in ['', ..._databaseSidecars, '-shm'])
+        '$_database$suffix',
+    }) {
+      await _remove(join(home, name));
+    }
+    await source.dropPreferences();
+  }
+  await File(join(home, _doneMarker)).writeAsString('');
   if (await pending.exists()) {
     await pending.delete();
   }
   final staging = Directory(join(home, _staging));
   if (await staging.exists()) {
     await staging.delete(recursive: true);
+  }
+  if (await manifest.exists()) {
+    await manifest.delete();
   }
 }
 
@@ -81,10 +101,18 @@ Future<void> settleStableImport({
   required Future<bool> Function() askRetry,
   required Future<void> Function() abandon,
 }) async {
-  while (await import() == StableImport.deferred) {
-    if (!await askRetry()) {
+  var deferred = await import() == StableImport.deferred;
+  while (deferred) {
+    if (await askRetry()) {
+      deferred = await import() == StableImport.deferred;
+      continue;
+    }
+    try {
       await abandon();
       return;
+    } catch (error) {
+      // Asked again rather than imported: the user turned the import down.
+      commonPrint.log('stable import not rolled back: $error');
     }
   }
 }
@@ -105,6 +133,7 @@ Future<StableSource?> _macosSource() async {
     hasOwnPreferences: () async =>
         await _defaults(['read', domain, 'flutter.$configKey']) == 0,
     copyPreferences: () => _copyDefaults(from: packageName, to: domain),
+    dropPreferences: () => _dropDefaults(domain),
     lock: () => lockStableHome(stableHome),
   );
 }
@@ -133,6 +162,7 @@ StableSource desktopSource({
     from: join(stableHome, _preferences),
     to: join(home, _preferences),
   ),
+  dropPreferences: () => _remove(join(home, _preferences)),
   lock: () => lockStableHome(stableHome),
 );
 
@@ -218,6 +248,7 @@ Future<StableImport> copyStableData(StableSource source) async {
   await File(join(home, _doneMarker)).writeAsString('');
   await pending.delete();
   await staging.delete(recursive: true);
+  await File(join(home, _promotedManifest)).delete();
   return StableImport.imported;
 }
 
@@ -242,6 +273,10 @@ Future<void> _stage(String stableHome, String staging) async {
 }
 
 Future<void> _moveIn(String staging, String home) async {
+  final names = await Directory(
+    staging,
+  ).list(followLinks: false).map((entity) => basename(entity.path)).toList();
+  await File(join(home, _promotedManifest)).writeAsString(names.join('\n'));
   await for (final entity in Directory(staging).list(followLinks: false)) {
     final name = basename(entity.path);
     if (!name.startsWith(_database)) {
@@ -263,13 +298,17 @@ Future<void> _moveIn(String staging, String home) async {
 }
 
 Future<void> _replace(FileSystemEntity entity, String target) async {
-  final type = await FileSystemEntity.type(target, followLinks: false);
-  if (type == FileSystemEntityType.directory) {
-    await Directory(target).delete(recursive: true);
-  } else if (type != FileSystemEntityType.notFound) {
-    await File(target).delete();
-  }
+  await _remove(target);
   await entity.rename(target);
+}
+
+Future<void> _remove(String path) async {
+  final type = await FileSystemEntity.type(path, followLinks: false);
+  if (type == FileSystemEntityType.directory) {
+    await Directory(path).delete(recursive: true);
+  } else if (type != FileSystemEntityType.notFound) {
+    await File(path).delete();
+  }
 }
 
 Future<void> _copy(FileSystemEntity entity, String target) async {
@@ -294,6 +333,12 @@ Future<void> _copyDefaults({required String from, required String to}) async {
     await _mustDefaults(['import', to, plist]);
   } finally {
     await temp.delete(recursive: true);
+  }
+}
+
+Future<void> _dropDefaults(String domain) async {
+  if (await _defaults(['read', domain]) == 0) {
+    await _mustDefaults(['delete', domain]);
   }
 }
 

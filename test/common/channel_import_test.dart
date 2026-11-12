@@ -11,6 +11,7 @@ void main() {
   late String stable;
   late String pre;
   late int preferencesCopied;
+  late int preferencesDropped;
   late int released;
 
   setUp(() async {
@@ -18,6 +19,7 @@ void main() {
     stable = join(root.path, 'com.follow.clashx');
     pre = join(root.path, 'com.follow.clashx.pre');
     preferencesCopied = 0;
+    preferencesDropped = 0;
     released = 0;
     await Directory(join(stable, 'profiles')).create(recursive: true);
     await File(join(stable, 'database.sqlite')).writeAsString('db');
@@ -36,6 +38,7 @@ void main() {
     bool hasOwnPreferences = false,
     bool busy = false,
     bool failPreferences = false,
+    bool failDrop = false,
   }) => (
     stableHome: stable,
     home: pre,
@@ -45,6 +48,12 @@ void main() {
         throw const ProcessException('defaults', [], 'failed', 1);
       }
       preferencesCopied++;
+    },
+    dropPreferences: () async {
+      if (failDrop) {
+        throw const ProcessException('defaults', [], 'failed', 1);
+      }
+      preferencesDropped++;
     },
     lock: () async => busy ? null : () async => released++,
   );
@@ -76,6 +85,7 @@ void main() {
       'config.yaml',
       '.stable-import',
       '.stable-import-pending',
+      '.stable-import-promoted',
     ]) {
       expect(exists(left), isFalse, reason: left);
     }
@@ -137,6 +147,32 @@ void main() {
       expect(read('database.sqlite'), 'db');
     });
 
+    test('a failed rollback asks again instead of importing', () async {
+      var imports = 0;
+      var asked = 0;
+      var rollbacks = 0;
+
+      await settleStableImport(
+        import: () async {
+          imports++;
+          return StableImport.deferred;
+        },
+        askRetry: () async {
+          asked++;
+          return false;
+        },
+        abandon: () async {
+          if (++rollbacks == 1) {
+            throw const FileSystemException('busy');
+          }
+        },
+      );
+
+      expect(imports, 1);
+      expect(asked, 2);
+      expect(rollbacks, 2);
+    });
+
     test('continuing without it is final for every later launch', () async {
       var asked = 0;
 
@@ -146,7 +182,7 @@ void main() {
           asked++;
           return false;
         },
-        abandon: () => abandonImport(pre),
+        abandon: () => abandonImport(source()),
       );
       expect(asked, 1);
       expect(exists('.stable-import-pending'), isFalse);
@@ -158,6 +194,70 @@ void main() {
         abandon: () async => fail('nothing to give up'),
       );
       expect(read('database.sqlite'), 'mine');
+    });
+
+    test(
+      'continuing without it takes back what was already moved in',
+      () async {
+        await File(join(pre, 'config.yaml')).writeAsString('pre paths');
+        await File(join(pre, '.stable-import-pending')).writeAsString('');
+        await File(
+          join(pre, '.stable-import-promoted'),
+        ).writeAsString('profiles\ndatabase.sqlite-wal');
+        await Directory(join(pre, 'profiles')).create();
+        await File(join(pre, 'profiles', '1.yaml')).writeAsString('stable');
+        await File(join(pre, 'database.sqlite-wal')).writeAsString('wal');
+        await Directory(join(pre, '.stable-import')).create();
+
+        await abandonImport(source());
+
+        expect(preferencesDropped, 1);
+        for (final gone in [
+          'profiles',
+          'database.sqlite-wal',
+          '.stable-import',
+          '.stable-import-pending',
+          '.stable-import-promoted',
+        ]) {
+          expect(exists(gone), isFalse, reason: gone);
+        }
+        expect(read('config.yaml'), 'pre paths');
+        expect(exists('.stable-import-done'), isTrue);
+        expect(await copyStableData(source()), StableImport.skipped);
+      },
+    );
+
+    test('giving up an import that never began keeps the store', () async {
+      await File(join(pre, 'database.sqlite')).writeAsString('own');
+
+      await abandonImport(source());
+
+      expect(preferencesDropped, 0);
+      expect(read('database.sqlite'), 'own');
+      expect(exists('.stable-import-done'), isTrue);
+    });
+
+    test('a failed rollback keeps the store closed and asks again', () async {
+      var failDrop = true;
+      var asked = 0;
+
+      await settleStableImport(
+        import: () => copyStableData(source(busy: true)),
+        askRetry: () async {
+          asked++;
+          if (asked == 2) {
+            expect(exists('.stable-import-done'), isFalse);
+            expect(exists('.stable-import-pending'), isTrue);
+            failDrop = false;
+          }
+          return false;
+        },
+        abandon: () => abandonImport(source(failDrop: failDrop)),
+      );
+
+      expect(asked, 2);
+      expect(preferencesDropped, 1);
+      expect(exists('.stable-import-done'), isTrue);
     });
   });
 
@@ -198,6 +298,7 @@ void main() {
       home: stable,
       hasOwnPreferences: () async => false,
       copyPreferences: () async => preferencesCopied++,
+      dropPreferences: () async => preferencesDropped++,
       lock: () async => () async {},
     );
 
@@ -289,6 +390,16 @@ void main() {
         expect(snapshot(stable), before);
       },
     );
+
+    test('giving up a begun import drops the copied settings file', () async {
+      await File(join(pre, '.stable-import-pending')).writeAsString('');
+      await File(join(pre, 'shared_preferences.json')).writeAsString('{}');
+
+      await abandonImport(desktopSource(stableHome: stable, home: pre));
+
+      expect(exists('shared_preferences.json'), isFalse);
+      expect(exists('.stable-import-done'), isTrue);
+    });
 
     test('leaves a store whose settings file exists', () async {
       await File(join(pre, 'shared_preferences.json')).writeAsString('{}');
