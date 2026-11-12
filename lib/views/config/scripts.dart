@@ -228,10 +228,10 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
       );
       return;
     }
-    final newScript =
-        await (script?.copyWith(label: label) ?? Script.create(label: label))
-            .save(await content.readText());
-    _scriptsAction.putScript(newScript);
+    await _scriptsAction.saveScript(
+      script?.copyWith(label: label) ?? Script.create(label: label),
+      await content.readText(),
+    );
     if (editorContext.mounted &&
         ModalRoute.of(editorContext)?.isCurrent == true) {
       Navigator.of(editorContext).pop();
@@ -285,8 +285,10 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
       fileName.fileStem,
       fallback: context.appLocalizations.script,
     );
-    final script = await Script.create(label: label, url: url).save(content);
-    _scriptsAction.putScript(script);
+    await _scriptsAction.saveScript(
+      Script.create(label: label, url: url),
+      content,
+    );
   }
 
   Future<void> _handleImportFromUrl() async {
