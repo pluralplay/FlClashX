@@ -812,7 +812,7 @@ pub(super) fn routes() -> impl Filter<Extract = (impl Reply,), Error = Infallibl
             let local_host = host.is_none_or(|host| {
                 host.parse::<warp::http::uri::Authority>()
                     .is_ok_and(|authority| {
-                        ["127.0.0.1", "localhost", "FlClashXHelperService"]
+                        ["127.0.0.1", "localhost", super::identity::helper_name()]
                             .iter()
                             .any(|host| authority.host().eq_ignore_ascii_case(host))
                     })

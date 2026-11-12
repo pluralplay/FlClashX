@@ -2,6 +2,7 @@ use crate::service::hub::{
     bounded_shutdown, ensure_core_sha256_configured, log_message, release_managed_core_on_shutdown,
     routes,
 };
+use crate::service::identity;
 
 use anyhow::{bail, Context, Result};
 use std::ffi::{OsStr, OsString};
@@ -20,10 +21,6 @@ use tokio::signal::unix::{signal, SignalKind};
 use tokio::time::Sleep;
 use tokio_stream::Stream;
 
-const SERVICE_NAME: &str = "flclashx-helper";
-const UNIT_PATH: &str = "/etc/systemd/system/flclashx-helper.service";
-const RUNTIME_DIR_NAME: &str = "flclashx";
-const SOCKET_PATH: &str = "/run/flclashx/helper.sock";
 const OWNER_UID_ENV: &str = "FLCLASH_HELPER_OWNER_UID";
 const OWNER_GID_ENV: &str = "FLCLASH_HELPER_OWNER_GID";
 const SOCKET_MODE: u32 = 0o660;
@@ -164,7 +161,7 @@ fn unit_contents(executable: &Path, owner: Owner) -> String {
          Group={gid}\n\
          Environment={OWNER_UID_ENV}={uid}\n\
          Environment={OWNER_GID_ENV}={gid}\n\
-         RuntimeDirectory={RUNTIME_DIR_NAME}\n\
+         RuntimeDirectory={runtime}\n\
          RuntimeDirectoryMode=0755\n\
          Restart=on-failure\n\
          RestartSec=5\n\
@@ -174,6 +171,22 @@ fn unit_contents(executable: &Path, owner: Owner) -> String {
         executable = quoted_unit_argument(executable),
         uid = owner.uid,
         gid = owner.gid,
+        runtime = identity::linux_runtime_dir_for(identity::is_pre()),
+    )
+}
+
+fn service_name() -> &'static str {
+    identity::linux_service_for(identity::is_pre())
+}
+
+fn unit_path() -> String {
+    format!("/etc/systemd/system/{}.service", service_name())
+}
+
+fn socket_path() -> String {
+    format!(
+        "/run/{}/helper.sock",
+        identity::linux_runtime_dir_for(identity::is_pre())
     )
 }
 
@@ -204,15 +217,17 @@ fn installed_owner_uid(unit: &str) -> Option<u32> {
 }
 
 fn ensure_unit_is_free_for(owner: Owner) -> Result<()> {
-    let existing = match fs::read_to_string(UNIT_PATH) {
+    let unit_path = unit_path();
+    let helper = identity::helper_name();
+    let existing = match fs::read_to_string(&unit_path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error).with_context(|| format!("read {UNIT_PATH}")),
+        Err(error) => return Err(error).with_context(|| format!("read {unit_path}")),
     };
     match installed_owner_uid(&existing) {
         Some(uid) if uid != owner.uid => bail!(
             "the Helper is already installed for UID {uid}; \
-             run `FlClashXHelperService uninstall` as that user first"
+             run `{helper} uninstall` as that user first"
         ),
         _ => Ok(()),
     }
@@ -224,22 +239,24 @@ fn install_service() -> Result<()> {
     let owner = invoking_owner()?;
     ensure_unit_is_free_for(owner)?;
 
-    fs::write(UNIT_PATH, unit_contents(&executable, owner))
-        .with_context(|| format!("write {UNIT_PATH}"))?;
-    fs::set_permissions(UNIT_PATH, fs::Permissions::from_mode(0o644))
-        .with_context(|| format!("secure {UNIT_PATH}"))?;
+    let unit_path = unit_path();
+    fs::write(&unit_path, unit_contents(&executable, owner))
+        .with_context(|| format!("write {unit_path}"))?;
+    fs::set_permissions(&unit_path, fs::Permissions::from_mode(0o644))
+        .with_context(|| format!("secure {unit_path}"))?;
 
     run_systemctl(&["daemon-reload"])?;
-    run_systemctl(&["enable", SERVICE_NAME])?;
-    run_systemctl(&["restart", SERVICE_NAME])
+    run_systemctl(&["enable", service_name()])?;
+    run_systemctl(&["restart", service_name()])
 }
 
 fn uninstall_service() -> Result<()> {
-    silence_systemctl(&["disable", "--now", SERVICE_NAME]);
-    match fs::remove_file(UNIT_PATH) {
+    silence_systemctl(&["disable", "--now", service_name()]);
+    let unit_path = unit_path();
+    match fs::remove_file(&unit_path) {
         Ok(()) => {}
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error).with_context(|| format!("remove {UNIT_PATH}")),
+        Err(error) => return Err(error).with_context(|| format!("remove {unit_path}")),
     }
     run_systemctl(&["daemon-reload"])
 }
@@ -299,13 +316,14 @@ struct AuthorizedIncoming {
 
 impl AuthorizedIncoming {
     fn bind(owner: Owner) -> Result<Self> {
-        if Path::new(SOCKET_PATH).exists() {
-            fs::remove_file(SOCKET_PATH).with_context(|| format!("remove stale {SOCKET_PATH}"))?;
+        let socket_path = socket_path();
+        if Path::new(&socket_path).exists() {
+            fs::remove_file(&socket_path).with_context(|| format!("remove stale {socket_path}"))?;
         }
         let listener =
-            UnixListener::bind(SOCKET_PATH).with_context(|| format!("bind {SOCKET_PATH}"))?;
-        fs::set_permissions(SOCKET_PATH, fs::Permissions::from_mode(SOCKET_MODE))
-            .with_context(|| format!("secure {SOCKET_PATH}"))?;
+            UnixListener::bind(&socket_path).with_context(|| format!("bind {socket_path}"))?;
+        fs::set_permissions(&socket_path, fs::Permissions::from_mode(SOCKET_MODE))
+            .with_context(|| format!("secure {socket_path}"))?;
         Ok(Self {
             listener,
             owner,

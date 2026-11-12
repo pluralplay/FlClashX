@@ -3,6 +3,7 @@ export 'app_ports.dart';
 export 'backup.dart';
 export 'changelog.dart';
 export 'channel_import.dart';
+export 'desktop_channel.dart';
 export 'cidr.dart';
 export 'compute.dart';
 export 'constant.dart';

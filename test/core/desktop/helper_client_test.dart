@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/desktop_channel.dart';
 import 'package:fl_clash/core/desktop/helper_client.dart';
 import 'package:fl_clash/core/desktop/model.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,8 +20,28 @@ void main() {
   test('reads the port from the key the Windows service publishes it in', () {
     final peer = File('services/helper/src/service/peer.rs').readAsStringSync();
 
-    expect(peer, contains('const PORT_KEY: &str = r"$helperPortKey";'));
+    expect(peer, contains('r"${helperPortKeyFor('{}')}"'));
     expect(peer, contains('const PORT_VALUE: &str = "$helperPortValue";'));
+    expect(helperPortKey, helperPortKeyFor('FlClashXHelperService'));
+  });
+
+  test('a pre-release Helper keeps names of its own', () {
+    final identity = File(
+      'services/helper/src/service/identity.rs',
+    ).readAsStringSync();
+
+    for (final pre in [false, true]) {
+      expect(identity, contains('"${helperServiceFor(pre: pre)}"'));
+    }
+    expect(helperSocketPathFor(pre: false), '/run/flclashx/helper.sock');
+    expect(helperSocketPathFor(pre: true), '/run/flclashx-pre/helper.sock');
+    expect(identity, contains('"flclashx-pre"'));
+    expect(
+      isPreExecutable(r'C:\Program Files\FlClashX Pre\FlClashXPre.exe'),
+      isTrue,
+    );
+    expect(isPreExecutable('/opt/FlClashXPre/FlClashXPre'), isTrue);
+    expect(isPreExecutable('/opt/FlClashX/FlClashX'), isFalse);
   });
 
   test(
