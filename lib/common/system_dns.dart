@@ -226,15 +226,14 @@ final class SystemDnsCoordinator {
       );
       return;
     }
-    // The servers may have changed since the record was taken, by the user or
-    // a network manager; only the fallback this app added comes out.
-    final addedFallback = !applied.servers.contains(fallbackDns);
-    if (addedFallback &&
-        current.contains(fallbackDns) &&
-        !await port.writeDnsServers(applied.service, [
-          for (final server in current)
-            if (server != fallbackDns) server,
-        ])) {
+    // A list that differs from the one this app installed was set by the user
+    // or a network manager since, and is theirs to keep.
+    final installed = applied.servers.contains(fallbackDns)
+        ? applied.servers
+        : [...applied.servers, fallbackDns];
+    if (stringListEquality.equals(current, installed) &&
+        !stringListEquality.equals(current, applied.servers) &&
+        !await port.writeDnsServers(applied.service, applied.servers)) {
       commonPrint.log(
         'Failed to restore the system DNS of ${applied.service}',
         logLevel: LogLevel.warning,

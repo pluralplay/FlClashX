@@ -189,18 +189,26 @@ void main() {
   );
 
   test(
-    'keeps servers changed outside the app and drops only the fallback',
+    'keeps servers changed outside the app, the fallback included',
     () async {
-      final port = _FakePort(servers: ['1.1.1.1']);
-      final store = _FakeStore();
-      final coordinator = _coordinator(port, store);
+      for (final external in [
+        ['9.9.9.9', '223.5.5.5'],
+        ['223.5.5.5'],
+      ]) {
+        final port = _FakePort(servers: ['8.8.8.8']);
+        final store = _FakeStore();
+        final coordinator = _coordinator(port, store);
 
-      await coordinator.sync(true);
-      port.servers = ['9.9.9.9', '223.5.5.5'];
-      await coordinator.sync(false);
+        await coordinator.sync(true);
+        port.servers = external;
+        await coordinator.sync(false);
 
-      expect(port.writes.last, ['9.9.9.9']);
-      expect(store.record, isNull);
+        expect(port.writes, [
+          ['8.8.8.8', '223.5.5.5'],
+        ]);
+        expect(port.servers, external);
+        expect(store.record, isNull);
+      }
     },
   );
 
