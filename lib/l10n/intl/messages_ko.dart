@@ -888,7 +888,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "link": MessageLookupByLibrary.simpleMessage("링크"),
     "liquidGlass": MessageLookupByLibrary.simpleMessage("Liquid Glass"),
     "liquidGlassReduced": MessageLookupByLibrary.simpleMessage(
-      "기기가 따라가지 못해 다시 시작할 때까지 Liquid Glass를 단순화했습니다.",
+      "기기가 따라가지 못해 Liquid Glass를 계속 단순화합니다.",
     ),
     "list": MessageLookupByLibrary.simpleMessage("목록"),
     "listen": MessageLookupByLibrary.simpleMessage("수신"),

@@ -201,14 +201,14 @@ class _LiquidGlassSetting extends ConsumerStatefulWidget {
 }
 
 /// Draws no more glass than the GPU keeps up with: each sustained overload
-/// takes it a level lower until the app restarts, unless the user keeps it.
+/// lowers the stored setting a level and takes it from the subscription, so
+/// a panel cannot raise it again, unless the user restores it.
 class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
+  static const _settingKey = 'view.app.glass';
   static var _toldReduced = false;
 
   final _load = FrameLoadWatch();
-  var _cap = LiquidGlassMode.ultra;
   var _kept = false;
-  var _shown = LiquidGlassMode.none;
 
   @override
   void initState() {
@@ -216,7 +216,7 @@ class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
     ref.listenManual(
       themeSettingProvider.select((state) => state.liquidGlass),
-      (_, _) => setState(_lift),
+      (_, _) => _load.reset(),
     );
   }
 
@@ -226,19 +226,23 @@ class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
     super.dispose();
   }
 
-  void _lift() {
-    _cap = LiquidGlassMode.ultra;
-    _load.reset();
+  void _setGlass(LiquidGlassMode mode) {
+    ref
+        .read(themeSettingProvider.notifier)
+        .update((state) => state.copyWith(liquidGlass: mode));
   }
 
   void _onTimings(List<FrameTiming> timings) {
-    if (_kept || _shown == LiquidGlassMode.none) {
+    final current = ref.read(themeSettingProvider).liquidGlass;
+    if (_kept || current == LiquidGlassMode.none) {
       return;
     }
     if (!_load.overloadedAfter(timings.map((t) => t.rasterDuration))) {
       return;
     }
-    setState(() => _cap = LiquidGlassMode.values[_shown.index - 1]);
+    final wasOwned = ref.read(settingOwnedProvider(_settingKey));
+    _setGlass(LiquidGlassMode.values[current.index - 1]);
+    ref.read(managedSettingsActionProvider.notifier).takeOver(_settingKey);
     if (_toldReduced) {
       return;
     }
@@ -248,11 +252,15 @@ class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
       actionState: MessageActionState(
         actionText: currentAppLocalizations.restore,
         action: () {
-          if (mounted) {
-            setState(() {
-              _kept = true;
-              _lift();
-            });
+          if (!mounted) {
+            return;
+          }
+          _kept = true;
+          _setGlass(current);
+          if (!wasOwned) {
+            ref
+                .read(managedSettingsActionProvider.notifier)
+                .disown(_settingKey);
           }
         },
       ),
@@ -261,11 +269,9 @@ class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
 
   @override
   Widget build(BuildContext context) {
-    final chosen = ref.watch(
+    final mode = ref.watch(
       themeSettingProvider.select((state) => state.liquidGlass),
     );
-    final mode = chosen.index < _cap.index ? chosen : _cap;
-    _shown = mode;
     return LiquidGlassScope(
       enabled: mode != LiquidGlassMode.none,
       quality: mode == LiquidGlassMode.ultra

@@ -27,7 +27,7 @@
 - **settings** strict as a third process-finding mode (c2f57e9)
 - **ui** iOS-style interface: stretchy stacked sheets, context menus and slide-to-pick, drag to go back, docked search and long-press reordering (c2f57e9)
 - **ui** Sidebar and floating dock; bar buttons lift on hover (c2f57e9)
-- **ui** Optional two-tier Liquid Glass with frosted dashboard cards, sheets and setting groups, stepping down for the session when the GPU falls behind (c2f57e9)
+- **ui** Optional two-tier Liquid Glass with frosted dashboard cards, sheets and setting groups, stepping down for good, and out of the subscription's hands, when the GPU falls behind (c2f57e9)
 - **theme** Redesigned theme colors, a higher-contrast dark mode, a refreshed app icon, new glyphs, empty states and theme page (c2f57e9)
 - **l10n** French, Spanish and Korean translations, seven languages in all, and a reviewed Russian translation (c2f57e9)
 - **dashboard** A redesigned dashboard around the current exit, with more cards and IP quality cached for 3 days (c2f57e9)

@@ -226,7 +226,7 @@
   "backgroundBlur": "背景のぼかし",
   "sidebarBlurDesc": "背景のぼかしでは、ウィンドウの背後のデスクトップがサイドバー越しに見えます。",
   "liquidGlass": "リキッドグラス",
-  "liquidGlassReduced": "描画が追いつかないため、再起動までリキッドグラスを簡略化しました。",
+  "liquidGlassReduced": "描画が追いつかないため、リキッドグラスを簡略化したままにします。",
   "keepAliveIntervalDesc": "TCPキープアライブ間隔",
   "local": "ローカル",
   "remote": "リモート",

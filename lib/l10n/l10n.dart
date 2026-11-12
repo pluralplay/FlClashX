@@ -1806,10 +1806,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Liquid Glass simplified until restart: this device can't keep up.`
+  /// `Liquid Glass simplified for good: this device can't keep up.`
   String get liquidGlassReduced {
     return Intl.message(
-      'Liquid Glass simplified until restart: this device can\'t keep up.',
+      'Liquid Glass simplified for good: this device can\'t keep up.',
       name: 'liquidGlassReduced',
       desc: '',
       args: [],
@@ -8072,8 +8072,7 @@ class AppLocalizations {
   String customImportDroppedSubRules(num count, Object label) {
     return Intl.plural(
       count,
-      one:
-          '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
+      one: '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
       other:
           '$label SUB-RULE rules were dropped, since custom profiles do not support sub-rules',
       name: 'customImportDroppedSubRules',

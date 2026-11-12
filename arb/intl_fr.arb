@@ -226,7 +226,7 @@
   "backgroundBlur": "Flou d’arrière-plan",
   "sidebarBlurDesc": "Le flou d’arrière-plan laisse voir le bureau derrière la fenêtre à travers la barre latérale.",
   "liquidGlass": "Liquid Glass",
-  "liquidGlassReduced": "Liquid Glass simplifié jusqu'au redémarrage : l'appareil ne suit pas.",
+  "liquidGlassReduced": "Liquid Glass simplifié durablement : l'appareil ne suit pas.",
   "keepAliveIntervalDesc": "Intervalle keep-alive TCP",
   "local": "Local",
   "remote": "Distant",

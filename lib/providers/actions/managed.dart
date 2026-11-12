@@ -39,7 +39,9 @@ class ManagedSettingsAction extends _$ManagedSettingsAction {
     }
   }
 
-  void release(String key) {
+  /// Gives [key] back without applying the subscription's value, for a
+  /// caller that has already put the setting back itself.
+  void disown(String key) {
     ref
         .read(appSettingProvider.notifier)
         .update(
@@ -47,6 +49,10 @@ class ManagedSettingsAction extends _$ManagedSettingsAction {
             ownedSettings: {...state.ownedSettings}..remove(key),
           ),
         );
+  }
+
+  void release(String key) {
+    disown(key);
     _reapply();
   }
 

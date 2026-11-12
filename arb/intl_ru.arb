@@ -226,7 +226,7 @@
   "backgroundBlur": "Размытие фона",
   "sidebarBlurDesc": "Размытие фона показывает рабочий стол за окном сквозь боковую панель.",
   "liquidGlass": "Жидкое стекло",
-  "liquidGlassReduced": "Стекло упрощено до перезапуска: устройство не успевает.",
+  "liquidGlassReduced": "Стекло упрощено насовсем: устройство не успевает.",
   "keepAliveIntervalDesc": "Интервал TCP keep-alive",
   "local": "Локально",
   "remote": "Удалённо",

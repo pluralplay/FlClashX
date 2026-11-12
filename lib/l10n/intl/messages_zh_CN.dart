@@ -825,7 +825,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "link": MessageLookupByLibrary.simpleMessage("链接"),
     "liquidGlass": MessageLookupByLibrary.simpleMessage("液态玻璃"),
     "liquidGlassReduced": MessageLookupByLibrary.simpleMessage(
-      "设备性能不足，液态玻璃已简化至重启。",
+      "设备性能不足，液态玻璃已永久简化。",
     ),
     "list": MessageLookupByLibrary.simpleMessage("列表"),
     "listen": MessageLookupByLibrary.simpleMessage("监听"),

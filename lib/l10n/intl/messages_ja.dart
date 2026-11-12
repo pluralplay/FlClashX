@@ -908,7 +908,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "link": MessageLookupByLibrary.simpleMessage("リンク"),
     "liquidGlass": MessageLookupByLibrary.simpleMessage("リキッドグラス"),
     "liquidGlassReduced": MessageLookupByLibrary.simpleMessage(
-      "描画が追いつかないため、再起動までリキッドグラスを簡略化しました。",
+      "描画が追いつかないため、リキッドグラスを簡略化したままにします。",
     ),
     "list": MessageLookupByLibrary.simpleMessage("リスト"),
     "listen": MessageLookupByLibrary.simpleMessage("リッスン"),
