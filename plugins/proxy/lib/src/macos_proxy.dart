@@ -127,11 +127,6 @@ class MacosProxyCommands {
   static List<ProxyCommand> buildStop(String service) {
     return [
       ProxyCommand('/usr/sbin/networksetup', [
-        '-setautoproxystate',
-        service,
-        'off',
-      ]),
-      ProxyCommand('/usr/sbin/networksetup', [
         '-setwebproxystate',
         service,
         'off',

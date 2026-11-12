@@ -407,6 +407,15 @@ USB 10/100/1000 LAN
       expect(commands[3].args.first, '-setproxybypassdomains');
     });
 
+    test('leaves an automatic proxy configuration alone on stop', () {
+      final commands = MacosProxyCommands.buildStop('Wi-Fi');
+
+      expect(
+        commands.map((command) => command.args.first),
+        isNot(contains('-setautoproxystate')),
+      );
+    });
+
     test('reports failure when no active network service is found', () async {
       var callCount = 0;
       final proxy = MacosProxy(
