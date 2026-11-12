@@ -187,4 +187,15 @@ void main() {
 
     expect(proxy.calls, ['start 7890', 'stop', 'stop']);
   });
+
+  test('copies a proxy variable each shell can paste', () {
+    expect(
+      proxyEnvCommand(7890, isWindows: true),
+      r"$env:all_proxy='http://127.0.0.1:7890'",
+    );
+    expect(
+      proxyEnvCommand(7890, isWindows: false),
+      'export all_proxy=http://127.0.0.1:7890',
+    );
+  });
 }
