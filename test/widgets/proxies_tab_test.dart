@@ -103,6 +103,22 @@ void main() {
     expect(isTabSelected(tester, 'B'), isFalse);
   });
 
+  testWidgets('a current group set elsewhere moves the selected tab', (
+    tester,
+  ) async {
+    final key = await pumpTabView(tester);
+
+    final state = globalContainer.read(_tabStateProvider);
+    globalContainer
+        .read(_tabStateProvider.notifier)
+        .set(state.copyWith(currentGroupName: 'C'));
+    await tester.pumpAndSettle();
+
+    expect(key.currentState?.currentGroup?.name, 'C');
+    expect(isTabSelected(tester, 'C'), isTrue);
+    expect(isTabSelected(tester, 'B'), isFalse);
+  });
+
   testWidgets('keeps the outgoing tabs usable while the empty state enters', (
     tester,
   ) async {

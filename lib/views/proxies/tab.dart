@@ -40,6 +40,14 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
         final currentGroupName = next.currentGroupName;
         final index = groupNames.indexWhere((item) => item == currentGroupName);
         _updateTabController(groupNames.length, index);
+        return;
+      }
+      // A profile switch or the dashboard's picker moves the current group
+      // while the group list stays the same.
+      final index = next.groupNames.indexOf(next.currentGroupName ?? '');
+      final controller = _tabController;
+      if (controller != null && index >= 0 && controller.index != index) {
+        controller.index = index;
       }
     }, fireImmediately: true);
   }
