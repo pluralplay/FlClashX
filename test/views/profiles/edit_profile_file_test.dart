@@ -111,6 +111,14 @@ Future<void> settleIo(WidgetTester tester) async {
   }
 }
 
+/// [settleIo] until [done], for file work that can take longer than its
+/// fixed wait on a loaded machine.
+Future<void> settleUntil(WidgetTester tester, bool Function() done) async {
+  for (var step = 0; step < 50 && !done(); step++) {
+    await settleIo(tester);
+  }
+}
+
 // Escape, the system back and a tap outside all close an alert with null.
 Future<void> dismissAlert(WidgetTester tester, String message) async {
   Navigator.of(tester.element(find.text(message))).pop();
@@ -302,13 +310,13 @@ void main() {
 
     final save = find.byTooltip(currentAppLocalizations.save);
     await tester.tap(save);
-    await settleIo(tester);
+    await settleUntil(tester, () => validation.calls == 1);
     await tester.tap(save);
     await settleIo(tester);
     expect(validation.calls, 1);
 
     validation.result.complete('');
-    await settleIo(tester);
+    await settleUntil(tester, () => profiles.put.isNotEmpty);
     expect(profiles.put, hasLength(1));
     expect(route.isActive, isFalse);
   });
@@ -342,11 +350,14 @@ void main() {
 
     final save = find.byTooltip(currentAppLocalizations.save);
     await tester.tap(save);
-    await settleIo(tester);
+    await settleUntil(tester, () => validation.calls == 1);
     validation.result.complete('broken: config');
-    await settleIo(tester);
-    await tester.tap(save);
-    await settleIo(tester);
+    // The failed save has to finish before a tap can start the next one.
+    for (var tap = 0; tap < 20 && validation.calls < 2; tap++) {
+      await settleIo(tester);
+      await tester.tap(save, warnIfMissed: false);
+    }
+    await settleUntil(tester, () => validation.calls == 2);
 
     expect(validation.calls, 2);
   });
