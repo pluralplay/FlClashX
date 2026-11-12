@@ -684,11 +684,6 @@ extension ScriptExt on Script {
     await file.writeAsString(content);
     return copyWith(lastUpdateTime: DateTime.now());
   }
-
-  Future<Script> update() async {
-    final response = await request.getTextResponseForUrl(url!);
-    return save(response.data ?? '');
-  }
 }
 
 @freezed

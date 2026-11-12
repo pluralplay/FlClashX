@@ -398,6 +398,83 @@ void main() {
         expect(setupAction.applyCount, 0);
       },
     );
+
+    Future<
+      ({
+        ProviderContainer container,
+        ScriptsAction action,
+        Completer<String> body,
+        Script remote,
+      })
+    >
+    heldScriptUpdate() async {
+      final root = await Directory.systemTemp.createTemp('scripts_action_');
+      addTearDown(() => root.delete(recursive: true));
+      await useAppPaths(root);
+      final container = scriptsContainer(
+        Profile.normal(),
+        ApplyRecordingSetupAction(),
+      );
+      final action = container.read(scriptsActionProvider.notifier);
+      final body = Completer<String>();
+      action.download = (_) => body.future;
+      final remote = await script(
+        1,
+        url: 'https://example.com/s.js',
+      ).save('v1');
+      action.putScript(remote);
+      return (container: container, action: action, body: body, remote: remote);
+    }
+
+    test(
+      'a finished download writes the body and keeps the saved label',
+      () async {
+        final held = await heldScriptUpdate();
+        final update = held.action.updateScript(held.remote);
+        held.body.complete('v2');
+        await update;
+
+        expect(await held.remote.content, 'v2');
+        expect(
+          held.container.read(scriptsProvider).value?.single.label,
+          'Script 1',
+        );
+        expect(
+          File('${await held.remote.path}.download').existsSync(),
+          isFalse,
+        );
+      },
+    );
+
+    test('a save made during the download outlives it', () async {
+      final held = await heldScriptUpdate();
+      final update = held.action.updateScript(held.remote);
+      held.action.putScript(
+        await held.remote.copyWith(label: 'Edited').save('edited'),
+      );
+      held.body.complete('downloaded');
+      await update;
+
+      expect(await held.remote.content, 'edited');
+      expect(
+        held.container.read(scriptsProvider).value?.single.label,
+        'Edited',
+      );
+      expect(
+        held.container.read(isUpdatingProvider(held.remote.updatingKey)),
+        isFalse,
+      );
+    });
+
+    test('a script deleted during the download stays deleted', () async {
+      final held = await heldScriptUpdate();
+      final update = held.action.updateScript(held.remote);
+      held.container.read(scriptsProvider.notifier).del(held.remote.id);
+      held.body.complete('downloaded');
+      await update;
+
+      expect(held.container.read(scriptsProvider).value, isEmpty);
+    });
   });
 
   group('GeoResourceAction', () {
@@ -1646,6 +1723,11 @@ class _MemoryScripts extends Scripts {
   @override
   void put(Script script) {
     state = AsyncData([...value.where((item) => item.id != script.id), script]);
+  }
+
+  @override
+  void del(int id) {
+    state = AsyncData([...value.where((item) => item.id != id)]);
   }
 }
 
