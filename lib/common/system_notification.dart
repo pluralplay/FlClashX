@@ -87,6 +87,9 @@ class SystemNotifications implements NotificationPort {
           android: AndroidNotificationDetails(
             _channelId,
             channelName,
+            // Ids count from 0, and the VPN service holds 1 untagged; Android
+            // tells notifications apart by tag and id, not by channel.
+            tag: _channelId,
             importance: Importance.high,
             priority: Priority.high,
           ),
