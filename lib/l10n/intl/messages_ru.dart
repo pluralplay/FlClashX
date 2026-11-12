@@ -477,12 +477,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Производительность",
     ),
     "changelogReverts": MessageLookupByLibrary.simpleMessage("Откаты"),
-    "checkCertificate": MessageLookupByLibrary.simpleMessage(
-      "Проверять TLS-сертификаты",
-    ),
-    "checkCertificateDesc": MessageLookupByLibrary.simpleMessage(
-      "Без проверки TLS-сертификатов подписки и резервные копии уязвимы для атаки «человек посередине».",
-    ),
     "checkUpdate": MessageLookupByLibrary.simpleMessage("Проверить обновления"),
     "checkUpdateError": MessageLookupByLibrary.simpleMessage(
       "Установлена последняя версия",

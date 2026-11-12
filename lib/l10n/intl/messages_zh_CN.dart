@@ -367,10 +367,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "changelogFixes": MessageLookupByLibrary.simpleMessage("问题修复"),
     "changelogPerformance": MessageLookupByLibrary.simpleMessage("性能优化"),
     "changelogReverts": MessageLookupByLibrary.simpleMessage("已回滚"),
-    "checkCertificate": MessageLookupByLibrary.simpleMessage("校验 TLS 证书"),
-    "checkCertificateDesc": MessageLookupByLibrary.simpleMessage(
-      "关闭证书校验后，订阅和备份可能遭中间人攻击。",
-    ),
     "checkUpdate": MessageLookupByLibrary.simpleMessage("检查更新"),
     "checkUpdateError": MessageLookupByLibrary.simpleMessage("当前应用已经是最新版了"),
     "cipher": MessageLookupByLibrary.simpleMessage("加密方式"),

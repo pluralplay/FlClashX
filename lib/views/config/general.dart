@@ -520,11 +520,6 @@ class GeneralView extends ConsumerWidget {
   List<Widget> _requestItems() {
     return [
       _appSettingToggle(
-        title: (l) => l.checkCertificate,
-        select: (state) => state.checkCertificate,
-        update: (state, value) => state.copyWith(checkCertificate: value),
-      ),
-      _appSettingToggle(
         title: (l) => l.autoCheckUpdate,
         managedKey: 'app.autoCheckUpdate',
         select: (state) => state.autoCheckUpdate,
@@ -613,7 +608,6 @@ class GeneralView extends ConsumerWidget {
           generateSection(
             title: appLocalizations.requestsAndUpdates,
             items: _requestItems(),
-            footer: appLocalizations.checkCertificateDesc,
           ),
           generateSection(
             title: appLocalizations.inbound,

@@ -382,10 +382,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "changelogFixes": MessageLookupByLibrary.simpleMessage("버그 수정"),
     "changelogPerformance": MessageLookupByLibrary.simpleMessage("성능"),
     "changelogReverts": MessageLookupByLibrary.simpleMessage("되돌림"),
-    "checkCertificate": MessageLookupByLibrary.simpleMessage("TLS 인증서 검증"),
-    "checkCertificateDesc": MessageLookupByLibrary.simpleMessage(
-      "TLS 검증을 끄면 구독과 백업이 중간자 공격에 노출됩니다.",
-    ),
     "checkUpdate": MessageLookupByLibrary.simpleMessage("업데이트 확인"),
     "checkUpdateError": MessageLookupByLibrary.simpleMessage("이미 최신 버전입니다"),
     "cipher": MessageLookupByLibrary.simpleMessage("암호화 방식"),

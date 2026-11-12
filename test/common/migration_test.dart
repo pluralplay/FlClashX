@@ -307,6 +307,26 @@ void main() {
         expect(await upgrade(4), isTrue);
       });
 
+      test('turns the certificate check back on, once', () async {
+        Future<bool> upgrade(int from) async {
+          final configMap = _createConfigMap();
+          (configMap['appSettingProps']!
+                  as Map<String, Object?>)['checkCertificate'] =
+              false;
+          final store = _FakeMigrationStore(
+            configMap: configMap,
+            version: Migration.currentVersion,
+            upgradeVersion: from,
+          );
+          return (await Migration(
+            store: store,
+          ).run()).appSettingProps.checkCertificate;
+        }
+
+        expect(await upgrade(4), isTrue);
+        expect(await upgrade(5), isFalse);
+      });
+
       test('a new install only records it', () async {
         final store = _FakeMigrationStore(
           configMap: null,

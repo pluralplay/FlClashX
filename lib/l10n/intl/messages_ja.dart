@@ -392,10 +392,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "changelogFixes": MessageLookupByLibrary.simpleMessage("不具合修正"),
     "changelogPerformance": MessageLookupByLibrary.simpleMessage("パフォーマンス"),
     "changelogReverts": MessageLookupByLibrary.simpleMessage("取り消し"),
-    "checkCertificate": MessageLookupByLibrary.simpleMessage("TLS証明書を検証"),
-    "checkCertificateDesc": MessageLookupByLibrary.simpleMessage(
-      "TLS 証明書の検証を無効にすると、サブスクリプションとバックアップが中間者攻撃にさらされます。",
-    ),
     "checkUpdate": MessageLookupByLibrary.simpleMessage("更新を確認"),
     "checkUpdateError": MessageLookupByLibrary.simpleMessage("すでに最新バージョンです"),
     "cipher": MessageLookupByLibrary.simpleMessage("暗号方式"),

@@ -491,12 +491,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "changelogFixes": MessageLookupByLibrary.simpleMessage("Correcciones"),
     "changelogPerformance": MessageLookupByLibrary.simpleMessage("Rendimiento"),
     "changelogReverts": MessageLookupByLibrary.simpleMessage("Reversiones"),
-    "checkCertificate": MessageLookupByLibrary.simpleMessage(
-      "Verificar certificados TLS",
-    ),
-    "checkCertificateDesc": MessageLookupByLibrary.simpleMessage(
-      "Con la verificación TLS desactivada, las suscripciones y las copias de seguridad quedan expuestas a ataques de intermediario.",
-    ),
     "checkUpdate": MessageLookupByLibrary.simpleMessage(
       "Buscar actualizaciones",
     ),

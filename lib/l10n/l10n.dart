@@ -635,26 +635,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Verify TLS certificates`
-  String get checkCertificate {
-    return Intl.message(
-      'Verify TLS certificates',
-      name: 'checkCertificate',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `With TLS verification off, subscriptions and backups are open to man-in-the-middle attacks.`
-  String get checkCertificateDesc {
-    return Intl.message(
-      'With TLS verification off, subscriptions and backups are open to man-in-the-middle attacks.',
-      name: 'checkCertificateDesc',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Access control`
   String get accessControl {
     return Intl.message(

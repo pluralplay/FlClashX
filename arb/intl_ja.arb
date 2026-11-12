@@ -75,8 +75,6 @@
   "logcat": "ログキャプチャ",
   "logcatDesc": "ログキャプチャを無効にすると、ログの入り口が非表示になります。",
   "autoCheckUpdate": "更新の自動チェック",
-  "checkCertificate": "TLS証明書を検証",
-  "checkCertificateDesc": "TLS 証明書の検証を無効にすると、サブスクリプションとバックアップが中間者攻撃にさらされます。",
   "accessControl": "アクセス制御",
   "accessControlDesc": "アクセス制御では、プロキシを利用するアプリを選びます。",
   "edit": "編集",

@@ -75,8 +75,6 @@
   "logcat": "Logcat",
   "logcatDesc": "Si desactivas Logcat, se oculta la entrada de registros.",
   "autoCheckUpdate": "Buscar actualizaciones automáticamente",
-  "checkCertificate": "Verificar certificados TLS",
-  "checkCertificateDesc": "Con la verificación TLS desactivada, las suscripciones y las copias de seguridad quedan expuestas a ataques de intermediario.",
   "accessControl": "Control de acceso",
   "accessControlDesc": "El control de acceso elige qué apps usan el proxy.",
   "edit": "Editar",

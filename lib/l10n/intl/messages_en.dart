@@ -458,12 +458,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "changelogFixes": MessageLookupByLibrary.simpleMessage("Bug fixes"),
     "changelogPerformance": MessageLookupByLibrary.simpleMessage("Performance"),
     "changelogReverts": MessageLookupByLibrary.simpleMessage("Reverts"),
-    "checkCertificate": MessageLookupByLibrary.simpleMessage(
-      "Verify TLS certificates",
-    ),
-    "checkCertificateDesc": MessageLookupByLibrary.simpleMessage(
-      "With TLS verification off, subscriptions and backups are open to man-in-the-middle attacks.",
-    ),
     "checkUpdate": MessageLookupByLibrary.simpleMessage("Check for updates"),
     "checkUpdateError": MessageLookupByLibrary.simpleMessage(
       "The app is already up to date",
