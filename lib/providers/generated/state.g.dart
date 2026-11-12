@@ -2860,6 +2860,92 @@ final class UnfoldSetProvider
 
 String _$unfoldSetHash() => r'59a5b417611533069462ddf31eca080ab2f74ac9';
 
+/// The distinct flags in [groupName]'s proxy names, nested groups four deep.
+
+@ProviderFor(groupFlags)
+final groupFlagsProvider = GroupFlagsFamily._();
+
+/// The distinct flags in [groupName]'s proxy names, nested groups four deep.
+
+final class GroupFlagsProvider
+    extends $FunctionalProvider<List<String>, List<String>, List<String>>
+    with $Provider<List<String>> {
+  /// The distinct flags in [groupName]'s proxy names, nested groups four deep.
+  GroupFlagsProvider._({
+    required GroupFlagsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'groupFlagsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$groupFlagsHash();
+
+  @override
+  String toString() {
+    return r'groupFlagsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $ProviderElement<List<String>> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  List<String> create(Ref ref) {
+    final argument = this.argument as String;
+    return groupFlags(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(List<String> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<List<String>>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is GroupFlagsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$groupFlagsHash() => r'33b04ed65fba683e121d7472f5791234abf3c2d0';
+
+/// The distinct flags in [groupName]'s proxy names, nested groups four deep.
+
+final class GroupFlagsFamily extends $Family
+    with $FunctionalFamilyOverride<List<String>, String> {
+  GroupFlagsFamily._()
+    : super(
+        retry: null,
+        name: r'groupFlagsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The distinct flags in [groupName]'s proxy names, nested groups four deep.
+
+  GroupFlagsProvider call(String groupName) =>
+      GroupFlagsProvider._(argument: groupName, from: this);
+
+  @override
+  String toString() => r'groupFlagsProvider';
+}
+
 @ProviderFor(realSelectedProxyState)
 final realSelectedProxyStateProvider = RealSelectedProxyStateFamily._();
 

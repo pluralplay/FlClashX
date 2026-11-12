@@ -250,7 +250,6 @@ class _ServerPanel extends ConsumerWidget {
     final hideIp = ref.watch(
       appSettingProvider.select((state) => state.hideIp),
     );
-    final allGroups = ref.watch(groupsProvider);
     final server = picked?.all.firstWhereOrNull(
       (proxy) => proxy.name == serverName,
     );
@@ -261,10 +260,10 @@ class _ServerPanel extends ConsumerWidget {
     final code = nameCode ?? (isStart ? ipInfo?.countryCode : null);
     final others = picked == null
         ? const <String>[]
-        : _groupFlagsOf(
-            allGroups,
-            picked,
-          ).where((other) => other != nameCode).toList();
+        : ref
+              .watch(groupFlagsProvider(picked.name))
+              .where((other) => other != nameCode)
+              .toList();
     final otherCount = others.isNotEmpty
         ? others.length
         : picked == null
@@ -396,32 +395,6 @@ Group? _pickedGroupOf(List<Group> groups, String? name) {
     }
   }
   return groups.firstOrNull;
-}
-
-/// The distinct flags in [group]'s proxy names, nested groups four deep.
-///
-/// Breadth first, each group once: groups that share members would otherwise
-/// be walked once per path, which grows with the product of the layer sizes.
-List<String> _groupFlagsOf(List<Group> groups, Group group) {
-  final codes = <String>{};
-  final seen = {group.name};
-  var layer = [group];
-  for (var depth = 0; depth <= 4 && layer.isNotEmpty; depth++) {
-    final next = <Group>[];
-    for (final current in layer) {
-      for (final proxy in current.all) {
-        final code = proxy.name.flagCountryCode;
-        if (code != null) {
-          codes.add(code);
-        } else if (groups.getGroup(proxy.name) case final nested?
-            when seen.add(nested.name)) {
-          next.add(nested);
-        }
-      }
-    }
-    layer = next;
-  }
-  return codes.toList();
 }
 
 /// The server's flag in a circle and a count of the group's other

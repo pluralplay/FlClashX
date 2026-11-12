@@ -203,6 +203,16 @@ _Group _$GroupFromJson(Map<String, dynamic> json) => _Group(
   icon: json['icon'] as String? ?? '',
   name: json['name'] as String,
   serverDescription: json['serverDescription'] as String?,
+  memberFlags:
+      (json['memberFlags'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
+  memberGroups:
+      (json['memberGroups'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$GroupToJson(_Group instance) => <String, dynamic>{
@@ -215,6 +225,8 @@ Map<String, dynamic> _$GroupToJson(_Group instance) => <String, dynamic>{
   'icon': instance.icon,
   'name': instance.name,
   'serverDescription': instance.serverDescription,
+  'memberFlags': instance.memberFlags,
+  'memberGroups': instance.memberGroups,
 };
 
 const _$GroupTypeEnumMap = {

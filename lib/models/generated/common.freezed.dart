@@ -3742,7 +3742,9 @@ as String,
 /// @nodoc
 mixin _$Group {
 
-@JsonKey(fromJson: GroupType.parse) GroupType get type; List<Proxy> get all; String? get now; String? get fixed; bool? get hidden; String? get testUrl; String get icon; String get name; String? get serverDescription;
+@JsonKey(fromJson: GroupType.parse) GroupType get type; List<Proxy> get all; String? get now; String? get fixed; bool? get hidden; String? get testUrl; String get icon; String get name; String? get serverDescription;/// Filled where the groups are built, off the UI isolate: the flags in
+/// the members' names, and the members that are groups with no flag.
+ List<String> get memberFlags; List<String> get memberGroups;
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -3756,20 +3758,20 @@ $GroupCopyWith<Group> get copyWith => _$GroupCopyWithImpl<Group>(this as Group, 
 @override
 bool operator ==(Object other) {
   final _this = this as Group;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Group&&(identical(other.type, _this.type) || other.type == _this.type)&&const DeepCollectionEquality().equals(other.all, _this.all)&&(identical(other.now, _this.now) || other.now == _this.now)&&(identical(other.fixed, _this.fixed) || other.fixed == _this.fixed)&&(identical(other.hidden, _this.hidden) || other.hidden == _this.hidden)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.serverDescription, _this.serverDescription) || other.serverDescription == _this.serverDescription));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Group&&(identical(other.type, _this.type) || other.type == _this.type)&&const DeepCollectionEquality().equals(other.all, _this.all)&&(identical(other.now, _this.now) || other.now == _this.now)&&(identical(other.fixed, _this.fixed) || other.fixed == _this.fixed)&&(identical(other.hidden, _this.hidden) || other.hidden == _this.hidden)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.serverDescription, _this.serverDescription) || other.serverDescription == _this.serverDescription)&&const DeepCollectionEquality().equals(other.memberFlags, _this.memberFlags)&&const DeepCollectionEquality().equals(other.memberGroups, _this.memberGroups));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Group;
-  return Object.hash(runtimeType,_this.type,const DeepCollectionEquality().hash(_this.all),_this.now,_this.fixed,_this.hidden,_this.testUrl,_this.icon,_this.name,_this.serverDescription);
+  return Object.hash(runtimeType,_this.type,const DeepCollectionEquality().hash(_this.all),_this.now,_this.fixed,_this.hidden,_this.testUrl,_this.icon,_this.name,_this.serverDescription,const DeepCollectionEquality().hash(_this.memberFlags),const DeepCollectionEquality().hash(_this.memberGroups));
 }
 
 @override
 String toString() {
   final _this = this as Group;
-  return 'Group(type: ${_this.type}, all: ${_this.all}, now: ${_this.now}, fixed: ${_this.fixed}, hidden: ${_this.hidden}, testUrl: ${_this.testUrl}, icon: ${_this.icon}, name: ${_this.name}, serverDescription: ${_this.serverDescription})';
+  return 'Group(type: ${_this.type}, all: ${_this.all}, now: ${_this.now}, fixed: ${_this.fixed}, hidden: ${_this.hidden}, testUrl: ${_this.testUrl}, icon: ${_this.icon}, name: ${_this.name}, serverDescription: ${_this.serverDescription}, memberFlags: ${_this.memberFlags}, memberGroups: ${_this.memberGroups})';
 }
 
 
@@ -3780,7 +3782,7 @@ abstract mixin class $GroupCopyWith<$Res>  {
   factory $GroupCopyWith(Group value, $Res Function(Group) _then) = _$GroupCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, String? fixed, bool? hidden, String? testUrl, String icon, String name, String? serverDescription
+@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, String? fixed, bool? hidden, String? testUrl, String icon, String name, String? serverDescription, List<String> memberFlags, List<String> memberGroups
 });
 
 
@@ -3797,7 +3799,7 @@ class _$GroupCopyWithImpl<$Res>
 
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? fixed = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,Object? serverDescription = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? fixed = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,Object? serverDescription = freezed,Object? memberFlags = null,Object? memberGroups = null,}) {
   return _then(Group(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as GroupType,all: null == all ? _self.all : all // ignore: cast_nullable_to_non_nullable
@@ -3808,7 +3810,9 @@ as bool?,testUrl: freezed == testUrl ? _self.testUrl : testUrl // ignore: cast_n
 as String?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,serverDescription: freezed == serverDescription ? _self.serverDescription : serverDescription // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,memberFlags: null == memberFlags ? _self.memberFlags : memberFlags // ignore: cast_nullable_to_non_nullable
+as List<String>,memberGroups: null == memberGroups ? _self.memberGroups : memberGroups // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 
@@ -3893,10 +3897,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription,  List<String> memberFlags,  List<String> memberGroups)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Group() when $default != null:
-return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription);case _:
+return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription,_that.memberFlags,_that.memberGroups);case _:
   return orElse();
 
 }
@@ -3914,10 +3918,10 @@ return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.te
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription,  List<String> memberFlags,  List<String> memberGroups)  $default,) {final _that = this;
 switch (_that) {
 case _Group():
-return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription);case _:
+return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription,_that.memberFlags,_that.memberGroups);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3934,10 +3938,10 @@ return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.te
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: GroupType.parse)  GroupType type,  List<Proxy> all,  String? now,  String? fixed,  bool? hidden,  String? testUrl,  String icon,  String name,  String? serverDescription,  List<String> memberFlags,  List<String> memberGroups)?  $default,) {final _that = this;
 switch (_that) {
 case _Group() when $default != null:
-return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription);case _:
+return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.testUrl,_that.icon,_that.name,_that.serverDescription,_that.memberFlags,_that.memberGroups);case _:
   return null;
 
 }
@@ -3949,7 +3953,7 @@ return $default(_that.type,_that.all,_that.now,_that.fixed,_that.hidden,_that.te
 @JsonSerializable()
 
 class _Group implements Group {
-  const _Group({@JsonKey(fromJson: GroupType.parse) required this.type,  List<Proxy> all = const [], this.now, this.fixed, this.hidden, this.testUrl, this.icon = '', required this.name, this.serverDescription}): _all = all;
+  const _Group({@JsonKey(fromJson: GroupType.parse) required this.type,  List<Proxy> all = const [], this.now, this.fixed, this.hidden, this.testUrl, this.icon = '', required this.name, this.serverDescription,  List<String> memberFlags = const [],  List<String> memberGroups = const []}): _all = all,_memberFlags = memberFlags,_memberGroups = memberGroups;
   factory _Group.fromJson(Map<String, dynamic> json) => _$GroupFromJson(json);
 
 @override@JsonKey(fromJson: GroupType.parse) final  GroupType type;
@@ -3967,6 +3971,24 @@ class _Group implements Group {
 @override@JsonKey() final  String icon;
 @override final  String name;
 @override final  String? serverDescription;
+/// Filled where the groups are built, off the UI isolate: the flags in
+/// the members' names, and the members that are groups with no flag.
+ final  List<String> _memberFlags;
+/// Filled where the groups are built, off the UI isolate: the flags in
+/// the members' names, and the members that are groups with no flag.
+@override@JsonKey() List<String> get memberFlags {
+  if (_memberFlags is EqualUnmodifiableListView) return _memberFlags;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_memberFlags);
+}
+
+ final  List<String> _memberGroups;
+@override@JsonKey() List<String> get memberGroups {
+  if (_memberGroups is EqualUnmodifiableListView) return _memberGroups;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_memberGroups);
+}
+
 
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
@@ -3981,18 +4003,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Group&&(identical(other.type, type) || other.type == type)&&const DeepCollectionEquality().equals(other.all, _all)&&(identical(other.now, now) || other.now == now)&&(identical(other.fixed, fixed) || other.fixed == fixed)&&(identical(other.hidden, hidden) || other.hidden == hidden)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.name, name) || other.name == name)&&(identical(other.serverDescription, serverDescription) || other.serverDescription == serverDescription));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Group&&(identical(other.type, type) || other.type == type)&&const DeepCollectionEquality().equals(other.all, _all)&&(identical(other.now, now) || other.now == now)&&(identical(other.fixed, fixed) || other.fixed == fixed)&&(identical(other.hidden, hidden) || other.hidden == hidden)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.name, name) || other.name == name)&&(identical(other.serverDescription, serverDescription) || other.serverDescription == serverDescription)&&const DeepCollectionEquality().equals(other.memberFlags, _memberFlags)&&const DeepCollectionEquality().equals(other.memberGroups, _memberGroups));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,type,const DeepCollectionEquality().hash(_all),now,fixed,hidden,testUrl,icon,name,serverDescription);
+    return Object.hash(runtimeType,type,const DeepCollectionEquality().hash(_all),now,fixed,hidden,testUrl,icon,name,serverDescription,const DeepCollectionEquality().hash(_memberFlags),const DeepCollectionEquality().hash(_memberGroups));
 }
 
 @override
 String toString() {
-    return 'Group(type: $type, all: $all, now: $now, fixed: $fixed, hidden: $hidden, testUrl: $testUrl, icon: $icon, name: $name, serverDescription: $serverDescription)';
+    return 'Group(type: $type, all: $all, now: $now, fixed: $fixed, hidden: $hidden, testUrl: $testUrl, icon: $icon, name: $name, serverDescription: $serverDescription, memberFlags: $memberFlags, memberGroups: $memberGroups)';
 }
 
 
@@ -4003,7 +4025,7 @@ abstract mixin class _$GroupCopyWith<$Res> implements $GroupCopyWith<$Res> {
   factory _$GroupCopyWith(_Group value, $Res Function(_Group) _then) = __$GroupCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, String? fixed, bool? hidden, String? testUrl, String icon, String name, String? serverDescription
+@JsonKey(fromJson: GroupType.parse) GroupType type, List<Proxy> all, String? now, String? fixed, bool? hidden, String? testUrl, String icon, String name, String? serverDescription, List<String> memberFlags, List<String> memberGroups
 });
 
 
@@ -4020,7 +4042,7 @@ class __$GroupCopyWithImpl<$Res>
 
 /// Create a copy of Group
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? fixed = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,Object? serverDescription = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? all = null,Object? now = freezed,Object? fixed = freezed,Object? hidden = freezed,Object? testUrl = freezed,Object? icon = null,Object? name = null,Object? serverDescription = freezed,Object? memberFlags = null,Object? memberGroups = null,}) {
   return _then(_Group(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as GroupType,all: null == all ? _self._all : all // ignore: cast_nullable_to_non_nullable
@@ -4031,7 +4053,9 @@ as bool?,testUrl: freezed == testUrl ? _self.testUrl : testUrl // ignore: cast_n
 as String?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,serverDescription: freezed == serverDescription ? _self.serverDescription : serverDescription // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,memberFlags: null == memberFlags ? _self._memberFlags : memberFlags // ignore: cast_nullable_to_non_nullable
+as List<String>,memberGroups: null == memberGroups ? _self._memberGroups : memberGroups // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 

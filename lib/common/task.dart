@@ -69,7 +69,7 @@ Future<List<Group>> buildGroups(ComputeGroupsState state) async {
     groups.add(Group.fromJson(group));
   }
   return computeSort(
-    groups: groups,
+    groups: indexGroupMembers(groups),
     sortType: sortType,
     delayMap: delayMap,
     selectedMap: selectedMap,

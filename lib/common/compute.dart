@@ -2,6 +2,32 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 
+/// Lets the dashboard's flag count walk groups instead of every membership.
+List<Group> indexGroupMembers(List<Group> groups) {
+  final names = {for (final group in groups) group.name};
+  final flags = <String, String?>{};
+  return [
+    for (final group in groups)
+      () {
+        final memberFlags = <String>{};
+        final memberGroups = <String>{};
+        for (final proxy in group.all) {
+          final name = proxy.name;
+          final code = flags.putIfAbsent(name, () => name.flagCountryCode);
+          if (code != null) {
+            memberFlags.add(code);
+          } else if (names.contains(name)) {
+            memberGroups.add(name);
+          }
+        }
+        return group.copyWith(
+          memberFlags: memberFlags.toList(),
+          memberGroups: memberGroups.toList(),
+        );
+      }(),
+  ];
+}
+
 List<Group> computeSort({
   required List<Group> groups,
   required ProxiesSortType sortType,

@@ -117,7 +117,7 @@ void main() {
     container.read(currentProfileIdProvider.notifier).value =
         profiles.firstOrNull?.id;
     container.listen(groupsProvider, (_, _) {});
-    container.read(groupsProvider.notifier).value = groups;
+    container.read(groupsProvider.notifier).value = indexGroupMembers(groups);
     if (running) {
       container.read(runTimeProvider.notifier).value = 1;
     }

@@ -501,6 +501,11 @@ abstract class Group with _$Group {
     @Default('') String icon,
     required String name,
     String? serverDescription,
+
+    /// Filled where the groups are built, off the UI isolate: the flags in
+    /// the members' names, and the members that are groups with no flag.
+    @Default([]) List<String> memberFlags,
+    @Default([]) List<String> memberGroups,
   }) = _Group;
 
   factory Group.fromJson(Map<String, Object?> json) => _$GroupFromJson(json);

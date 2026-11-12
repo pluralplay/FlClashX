@@ -235,6 +235,33 @@ Set<String> unfoldSet(Ref ref) {
   return unfoldSet;
 }
 
+/// The distinct flags in [groupName]'s proxy names, nested groups four deep.
+@riverpod
+List<String> groupFlags(Ref ref, String groupName) {
+  final groups = ref.watch(groupsProvider);
+  final group = groups.getGroup(groupName);
+  return group == null ? const [] : _groupFlagsOf(groups, group);
+}
+
+List<String> _groupFlagsOf(List<Group> groups, Group group) {
+  final codes = <String>{};
+  final seen = {group.name};
+  var layer = [group];
+  for (var depth = 0; depth <= 4 && layer.isNotEmpty; depth++) {
+    final next = <Group>[];
+    for (final current in layer) {
+      codes.addAll(current.memberFlags);
+      for (final name in current.memberGroups) {
+        if (groups.getGroup(name) case final nested? when seen.add(name)) {
+          next.add(nested);
+        }
+      }
+    }
+    layer = next;
+  }
+  return codes.toList();
+}
+
 @riverpod
 SelectedProxyState realSelectedProxyState(Ref ref, String proxyName) {
   final groups = ref.watch(groupsProvider);
