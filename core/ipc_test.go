@@ -845,6 +845,36 @@ func TestServeReleasesTheCoreWhenTheHostDisconnects(t *testing.T) {
 	}
 }
 
+func TestReleaseOnExitTearsTheHostNetworkDownBehindAStuckApply(t *testing.T) {
+	withCurrentConfig(t, &config.Config{General: &config.General{}, Controller: &config.Controller{}})
+	previousTimeout, previousRelease := exitCleanupTimeout, releaseHostNetwork
+	t.Cleanup(func() { exitCleanupTimeout, releaseHostNetwork = previousTimeout, previousRelease })
+	exitCleanupTimeout = 50 * time.Millisecond
+	released := 0
+	releaseHostNetwork = func() { released++ }
+	isInit.Store(true)
+	isRunning.Store(true)
+
+	configMu.Lock()
+	releaseOnExit()
+	stillRunning := isRunning.Load()
+	configMu.Unlock()
+
+	if released != 1 {
+		t.Errorf("released the host network %d times behind a held configMu, want once", released)
+	}
+	if stillRunning {
+		t.Error("an apply finishing after exit would reopen the TUN")
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for isInit.Load() && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if isInit.Load() {
+		t.Fatal("the shutdown never ran once configMu was free")
+	}
+}
+
 func TestReleaseOnExitIsANoOpBeforeInit(t *testing.T) {
 	isInit.Store(false)
 	handleStartLog()
