@@ -60,17 +60,54 @@ PanelBackground? panelBackground(Ref ref) {
 /// served from there afterwards, offline included. A fetch that fails, as one
 /// does while a profile switch restarts the Core's listener, is retried.
 @riverpod
-Future<ImageProvider?> panelBackdropImage(Ref ref) async {
+Future<PanelBackdropImage?> panelBackdropImage(Ref ref) async {
   final background = ref.watch(panelBackgroundProvider);
   if (background == null) {
     return null;
   }
   try {
     final file = await DefaultCacheManager().getSingleFile(background.url);
-    return FileImage(file);
+    final side = _screenSide();
+    final ImageProvider image = side == null
+        ? FileImage(file)
+        : ResizeImage(
+            FileImage(file),
+            width: side,
+            height: side,
+            policy: ResizeImagePolicy.fit,
+            allowUpscaling: false,
+          );
+    return (image: image, animated: await _isAnimated(file.path));
   } catch (error) {
     commonPrint.log('backdrop ${background.url} unavailable: $error');
     rethrow;
+  }
+}
+
+typedef PanelBackdropImage = ({ImageProvider image, bool animated});
+
+/// A backdrop covering the window never needs more than the screen's long side.
+int? _screenSide() {
+  final side = ui
+      .PlatformDispatcher
+      .instance
+      .implicitView
+      ?.display
+      .size
+      .longestSide
+      .ceil();
+  return side == null || side <= 0 ? null : side;
+}
+
+Future<bool> _isAnimated(String path) async {
+  try {
+    final buffer = await ui.ImmutableBuffer.fromFilePath(path);
+    final codec = await ui.instantiateImageCodecFromBuffer(buffer);
+    final animated = codec.frameCount > 1;
+    codec.dispose();
+    return animated;
+  } catch (_) {
+    return false;
   }
 }
 

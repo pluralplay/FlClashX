@@ -161,7 +161,12 @@ class _PanelBackdrop extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final background = ref.watch(panelBackgroundProvider);
-    final image = ref.watch(panelBackdropImageProvider).value;
+    final backdrop = ref.watch(panelBackdropImageProvider).value;
+    final still =
+        backdrop != null &&
+        backdrop.animated &&
+        (context.disableAnimations || ref.watch(backdropFrozenProvider));
+    final image = still ? FirstFrameImage(backdrop.image) : backdrop?.image;
     return PageBackdropScope(
       image: background == null ? null : image,
       visibility: background?.visibility ?? defaultBackdropVisibility,
@@ -232,12 +237,22 @@ class _LiquidGlassSettingState extends ConsumerState<_LiquidGlassSetting> {
         .update((state) => state.copyWith(liquidGlass: mode));
   }
 
+  bool get _backdropMoves =>
+      ref.read(panelBackdropImageProvider).value?.animated == true &&
+      !ref.read(backdropFrozenProvider);
+
   void _onTimings(List<FrameTiming> timings) {
     final current = ref.read(themeSettingProvider).liquidGlass;
-    if (_kept || current == LiquidGlassMode.none) {
+    final backdropMoves = _backdropMoves;
+    if (!backdropMoves && (_kept || current == LiquidGlassMode.none)) {
       return;
     }
     if (!_load.overloadedAfter(timings.map((t) => t.rasterDuration))) {
+      return;
+    }
+    // An animated backdrop is the cheapest thing to give up, so it goes first.
+    if (backdropMoves) {
+      ref.read(backdropFrozenProvider.notifier).value = true;
       return;
     }
     final wasOwned = ref.read(settingOwnedProvider(_settingKey));

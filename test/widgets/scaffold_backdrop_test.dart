@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:fl_clash/ui/ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -55,6 +54,65 @@ void main() {
     );
     final scope = PageBackdropScope.of(tester.element(find.byType(Scaffold)));
     expect(scope?.scrimAlpha, closeTo(0.7, 0.001));
+    expect(
+      find.descendant(
+        of: find.byType(PageBackdrop),
+        matching: find.byType(RepaintBoundary),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
+
+  group('FirstFrameImage', () {
+    tearDown(() => imageCache.clear());
+
+    testWidgets('keeps the first frame and lets go of the animation', (
+      tester,
+    ) async {
+      final frames = (await tester.runAsync(
+        () async => [await createTestImage(), await createTestImage()],
+      ))!;
+      final source = _ManualImage();
+      final shown = <ImageInfo>[];
+      final stream = FirstFrameImage(source).resolve(ImageConfiguration.empty);
+      final listener = ImageStreamListener((info, _) => shown.add(info));
+      stream.addListener(listener);
+      addTearDown(() => stream.removeListener(listener));
+
+      source.completer.emit(ImageInfo(image: frames[0]));
+      expect(shown, hasLength(1));
+      expect(source.completer.listened, isFalse);
+
+      source.completer.emit(ImageInfo(image: frames[1]));
+      expect(shown, hasLength(1));
+      expect(shown.single.image.isCloneOf(frames[0]), isTrue);
+    });
+
+    test('equals another holding the same picture', () {
+      final image = MemoryImage(_pixel);
+      expect(FirstFrameImage(image), FirstFrameImage(image));
+      expect(FirstFrameImage(image).hashCode, FirstFrameImage(image).hashCode);
+    });
+  });
+}
+
+class _ManualCompleter extends ImageStreamCompleter {
+  void emit(ImageInfo frame) => setImage(frame);
+
+  bool get listened => hasListeners;
+}
+
+class _ManualImage extends ImageProvider<_ManualImage> {
+  final completer = _ManualCompleter();
+
+  @override
+  Future<_ManualImage> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture(this);
+
+  @override
+  ImageStreamCompleter loadImage(
+    _ManualImage key,
+    ImageDecoderCallback decode,
+  ) => completer;
 }

@@ -669,7 +669,12 @@ final class GenColorSchemeProvider
     with $Provider<ColorScheme> {
   GenColorSchemeProvider._({
     required GenColorSchemeFamily super.from,
-    required (Brightness, {Color? color, bool ignoreConfig, bool? pureBlack})
+    required (
+      ui.Brightness, {
+      ui.Color? color,
+      bool ignoreConfig,
+      bool? pureBlack,
+    })
     super.argument,
   }) : super(
          retry: null,
@@ -698,7 +703,12 @@ final class GenColorSchemeProvider
   ColorScheme create(Ref ref) {
     final argument =
         this.argument
-            as (Brightness, {Color? color, bool ignoreConfig, bool? pureBlack});
+            as (
+              ui.Brightness, {
+              ui.Color? color,
+              bool ignoreConfig,
+              bool? pureBlack,
+            });
     return genColorScheme(
       ref,
       argument.$1,
@@ -733,7 +743,7 @@ final class GenColorSchemeFamily extends $Family
     with
         $FunctionalFamilyOverride<
           ColorScheme,
-          (Brightness, {Color? color, bool ignoreConfig, bool? pureBlack})
+          (ui.Brightness, {ui.Color? color, bool ignoreConfig, bool? pureBlack})
         > {
   GenColorSchemeFamily._()
     : super(
@@ -745,8 +755,8 @@ final class GenColorSchemeFamily extends $Family
       );
 
   GenColorSchemeProvider call(
-    Brightness brightness, {
-    Color? color,
+    ui.Brightness brightness, {
+    ui.Color? color,
     bool ignoreConfig = false,
     bool? pureBlack,
   }) => GenColorSchemeProvider._(
@@ -814,8 +824,8 @@ String _$windowBlurRequestHash() => r'90b7a731689db7fa39d979866c428843b1073cf8';
 final currentBrightnessProvider = CurrentBrightnessProvider._();
 
 final class CurrentBrightnessProvider
-    extends $FunctionalProvider<Brightness, Brightness, Brightness>
-    with $Provider<Brightness> {
+    extends $FunctionalProvider<ui.Brightness, ui.Brightness, ui.Brightness>
+    with $Provider<ui.Brightness> {
   CurrentBrightnessProvider._()
     : super(
         from: null,
@@ -832,19 +842,19 @@ final class CurrentBrightnessProvider
 
   @$internal
   @override
-  $ProviderElement<Brightness> $createElement($ProviderPointer pointer) =>
+  $ProviderElement<ui.Brightness> $createElement($ProviderPointer pointer) =>
       $ProviderElement(pointer);
 
   @override
-  Brightness create(Ref ref) {
+  ui.Brightness create(Ref ref) {
     return currentBrightness(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(Brightness value) {
+  Override overrideWithValue(ui.Brightness value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<Brightness>(value),
+      providerOverride: $SyncValueProvider<ui.Brightness>(value),
     );
   }
 }
@@ -3816,13 +3826,13 @@ final panelBackdropImageProvider = PanelBackdropImageProvider._();
 final class PanelBackdropImageProvider
     extends
         $FunctionalProvider<
-          AsyncValue<ImageProvider<Object>?>,
-          ImageProvider<Object>?,
-          FutureOr<ImageProvider<Object>?>
+          AsyncValue<PanelBackdropImage?>,
+          PanelBackdropImage?,
+          FutureOr<PanelBackdropImage?>
         >
     with
-        $FutureModifier<ImageProvider<Object>?>,
-        $FutureProvider<ImageProvider<Object>?> {
+        $FutureModifier<PanelBackdropImage?>,
+        $FutureProvider<PanelBackdropImage?> {
   /// The backdrop picture from the disk cache, fetched once per url and
   /// served from there afterwards, offline included. A fetch that fails, as one
   /// does while a profile switch restarts the Core's listener, is retried.
@@ -3842,18 +3852,18 @@ final class PanelBackdropImageProvider
 
   @$internal
   @override
-  $FutureProviderElement<ImageProvider<Object>?> $createElement(
+  $FutureProviderElement<PanelBackdropImage?> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<ImageProvider<Object>?> create(Ref ref) {
+  FutureOr<PanelBackdropImage?> create(Ref ref) {
     return panelBackdropImage(ref);
   }
 }
 
 String _$panelBackdropImageHash() =>
-    r'95f84637742e4e488a298c973bd39e7ca1cf78b0';
+    r'b64b3fbddba23aa30d060b29ddf0cc51bfa1195f';
 
 /// Where the panel's logo lies on disk, kept as its backdrop is so it shows
 /// at launch without the network.

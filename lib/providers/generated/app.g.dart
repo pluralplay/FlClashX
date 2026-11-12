@@ -899,6 +899,64 @@ abstract class _$AppVisible extends $Notifier<bool> {
   }
 }
 
+/// Set for the session once the GPU fell behind with an animated backdrop.
+
+@ProviderFor(BackdropFrozen)
+final backdropFrozenProvider = BackdropFrozenProvider._();
+
+/// Set for the session once the GPU fell behind with an animated backdrop.
+final class BackdropFrozenProvider
+    extends $NotifierProvider<BackdropFrozen, bool> {
+  /// Set for the session once the GPU fell behind with an animated backdrop.
+  BackdropFrozenProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'backdropFrozenProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$backdropFrozenHash();
+
+  @$internal
+  @override
+  BackdropFrozen create() => BackdropFrozen();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$backdropFrozenHash() => r'03acd45dd33d543436db14887267d3800b322e1e';
+
+/// Set for the session once the GPU fell behind with an animated backdrop.
+
+abstract class _$BackdropFrozen extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(ViewSize)
 final viewSizeProvider = ViewSizeProvider._();
 
