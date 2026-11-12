@@ -17,14 +17,16 @@ import kotlinx.coroutines.withContext
 
 class QuickActionActivity : Activity() {
     private var hold: Job? = null
-    private var mainThreadActionsInFlight = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Android 12 passes touches through another app's window only if it is fully transparent.
         window.attributes = window.attributes.apply { alpha = 0f }
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
-        handle(intent)
+        // A recreated instance gets the same intent again; a second dispatch turns a TOGGLE back.
+        if (savedInstanceState == null) {
+            handle(intent)
+        }
         holdUntilStarted()
     }
 
@@ -79,5 +81,7 @@ class QuickActionActivity : Activity() {
 
     private companion object {
         const val HOLD_POLL_MILLIS = 100L
+
+        var mainThreadActionsInFlight = 0
     }
 }
