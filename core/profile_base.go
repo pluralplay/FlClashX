@@ -137,15 +137,45 @@ func presentKeys(buf []byte) []string {
 	return keys
 }
 
+// A key a merge brings in is set as surely as one written out, as the decoder sees it.
 func mappingKeys(mapping *yaml.Node) []string {
 	keys := []string{}
-	for i := 0; i+1 < len(mapping.Content); i += 2 {
-		name := mapping.Content[i]
-		if name.Kind != yaml.ScalarNode || name.ShortTag() == "!!merge" {
-			continue
+	named := map[string]struct{}{}
+	visited := map[*yaml.Node]struct{}{}
+	var collect func(mapping *yaml.Node)
+	collect = func(mapping *yaml.Node) {
+		if _, seen := visited[mapping]; seen {
+			return
 		}
-		keys = append(keys, name.Value)
+		visited[mapping] = struct{}{}
+		var sources []*yaml.Node
+		for i := 0; i+1 < len(mapping.Content); i += 2 {
+			name := mapping.Content[i]
+			if name.Kind != yaml.ScalarNode {
+				continue
+			}
+			if name.ShortTag() == "!!merge" {
+				sources = append(sources, resolveAlias(mapping.Content[i+1]))
+				continue
+			}
+			if _, seen := named[name.Value]; !seen {
+				named[name.Value] = struct{}{}
+				keys = append(keys, name.Value)
+			}
+		}
+		for _, source := range sources {
+			candidates := []*yaml.Node{source}
+			if source.Kind == yaml.SequenceNode {
+				candidates = source.Content
+			}
+			for _, candidate := range candidates {
+				if candidate = resolveAlias(candidate); candidate.Kind == yaml.MappingNode {
+					collect(candidate)
+				}
+			}
+		}
 	}
+	collect(mapping)
 	return keys
 }
 

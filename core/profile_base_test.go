@@ -137,12 +137,13 @@ func TestHandleGetProfileBaseReadsTheOverrideOnlyFromGlobal(t *testing.T) {
 	}
 }
 
-func TestPresentKeysNamesTheTunKeysAndSkipsMergeKeys(t *testing.T) {
-	profile := "x: &x {allow-lan: true}\n<<: *x\nmixed-port: 1\ntun:\n  enable: true\n  stack: system\n"
+func TestPresentKeysNamesTheTunKeysAndWhatMergesBringIn(t *testing.T) {
+	profile := "x: &x {allow-lan: true, mixed-port: 2}\nt: &t {mtu: 1400}\n<<: *x\nmixed-port: 1\n" +
+		"tun:\n  <<: *t\n  enable: true\n  stack: system\n"
 
 	got := presentKeys([]byte(profile))
 
-	want := []string{"x", "mixed-port", "tun", "tun.enable", "tun.stack"}
+	want := []string{"x", "t", "mixed-port", "tun", "allow-lan", "tun.enable", "tun.stack", "tun.mtu"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("present = %v, want %v", got, want)
 	}
