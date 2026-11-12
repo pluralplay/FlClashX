@@ -502,10 +502,15 @@ DateTime? nextOfferChange(Profile? profile, DateTime now) {
   if (threshold == null || expire <= 0) {
     return null;
   }
-  final shows = DateTime.fromMillisecondsSinceEpoch(
+  final untilExpiry = DateTime.fromMillisecondsSinceEpoch(
     expire * 1000,
-  ).subtract(Duration(days: threshold.floor() + 1));
-  return shows.isAfter(now) ? shows : null;
+  ).difference(now);
+  final days = threshold.floor() + 1;
+  if (untilExpiry.inDays < days) {
+    return null;
+  }
+  final lead = untilExpiry - Duration(days: days);
+  return lead > Duration.zero ? now.add(lead) : null;
 }
 
 List<ProfileOffer> visibleOffersOf(Profile? profile, {DateTime? now}) {

@@ -474,6 +474,12 @@ void main() {
         hasLength(1),
       );
       expect(nextOfferChange(ending(3), now), isNull);
+      final farThreshold = _profile(
+        headers: const {'flclashx-buyplan': 'https://p.example,101000000'},
+        info: SubscriptionInfo(expire: expireIn(10)),
+      );
+      expect(nextOfferChange(farThreshold, now), isNull);
+      expect(visibleOffersOf(farThreshold, now: now), hasLength(1));
       expect(
         nextOfferChange(
           _profile(headers: const {'flclashx-buyplan': 'https://p.example'}),
