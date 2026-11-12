@@ -58,6 +58,6 @@
 
 <div dir="ltr">
 
-**Full changelog:** [ChangeLog](https://github.com/pluralplay/FlClashX/blob/main/CHANGELOG.md)
+**Full changelog:** [English](https://github.com/pluralplay/FlClashX/blob/vVERSION/CHANGELOG.md) · [Русский](https://github.com/pluralplay/FlClashX/blob/vVERSION/CHANGELOG_RU.md)
 
 </div>
