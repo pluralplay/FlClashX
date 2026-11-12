@@ -419,6 +419,40 @@ func TestHandleGetProxyDefinitionReadsAProviderProxyAsItsProviderBuildsIt(t *tes
 	}
 }
 
+func TestALargeRuleListAnAliasReusesIsWrittenInFullBothTimes(t *testing.T) {
+	var source strings.Builder
+	source.WriteString("rules: &shared\n")
+	count := encodeSliceLength + 1
+	for i := 0; i < count; i++ {
+		fmt.Fprintf(&source, "  - DOMAIN,%d.test,DIRECT\n", i)
+	}
+	source.WriteString("sub-rules:\n  common: *shared\n")
+	var document yaml.Node
+	if err := yaml.Unmarshal([]byte(source.String()), &document); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	path, err := writeDocumentFile(t.TempDir(), "*.yaml", &document)
+	if err != nil {
+		t.Fatalf("writeDocumentFile = %v", err)
+	}
+
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Rules    []string            `yaml:"rules"`
+		SubRules map[string][]string `yaml:"sub-rules"`
+	}
+	if err := yaml.Unmarshal(buf, &decoded); err != nil {
+		t.Fatalf("decode = %v", err)
+	}
+	if len(decoded.Rules) != count || !reflect.DeepEqual(decoded.SubRules["common"], decoded.Rules) {
+		t.Errorf("wrote %d rules and %d sub-rules, want %d of each", len(decoded.Rules), len(decoded.SubRules["common"]), count)
+	}
+}
+
 func TestEncodeConfigMappingKeepsEveryKeyAfterAnOpenEndedScalar(t *testing.T) {
 	rules := make([]string, encodeSliceLength*2+1)
 	for i := range rules {
@@ -435,7 +469,7 @@ func TestEncodeConfigMappingKeepsEveryKeyAfterAnOpenEndedScalar(t *testing.T) {
 	mapping.Content = append(note, mapping.Content...)
 	var out bytes.Buffer
 
-	if err := encodeConfigMapping(&out, &mapping); err != nil {
+	if err := encodeConfigMapping(&out, &mapping, nil); err != nil {
 		t.Fatalf("encodeConfigMapping = %v", err)
 	}
 
