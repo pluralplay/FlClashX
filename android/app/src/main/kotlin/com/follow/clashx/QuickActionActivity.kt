@@ -10,13 +10,14 @@ import com.follow.clashx.common.QuickAction
 import com.follow.clashx.common.action
 import com.follow.clashx.common.shortcutId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 class QuickActionActivity : Activity() {
-    private var actionsInFlight = 0
+    private var hold: Job? = null
+    private var mainThreadActionsInFlight = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,6 +25,7 @@ class QuickActionActivity : Activity() {
         window.attributes = window.attributes.apply { alpha = 0f }
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         handle(intent)
+        holdUntilStarted()
     }
 
     // A caller that repeats an action before this instance is gone reaches it here, not onCreate.
@@ -32,14 +34,22 @@ class QuickActionActivity : Activity() {
         handle(intent)
     }
 
-    private fun handle(intent: Intent) {
-        val action = QuickAction.entries.firstOrNull { it.action == intent.action }
-        if (action == null) {
-            finishIfIdle()
-            return
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            finish()
         }
+    }
+
+    override fun onDestroy() {
+        hold?.cancel()
+        super.onDestroy()
+    }
+
+    private fun handle(intent: Intent) {
+        val action = QuickAction.entries.firstOrNull { it.action == intent.action } ?: return
         ShortcutManagerCompat.reportShortcutUsed(this, action.shortcutId)
-        actionsInFlight++
+        mainThreadActionsInFlight++
         GlobalState.launch {
             try {
                 when (action) {
@@ -47,33 +57,27 @@ class QuickActionActivity : Activity() {
                     QuickAction.STOP -> ServiceState.handleStopAction()
                     QuickAction.TOGGLE -> ServiceState.handleToggleAction()
                 }
-                holdUntilStarted()
             } finally {
-                withContext(Dispatchers.Main) {
-                    actionsInFlight--
-                    finishIfIdle()
-                }
+                withContext(Dispatchers.Main) { mainThreadActionsInFlight-- }
             }
         }
     }
 
     // A service goes foreground only while its app is or just was visible; Core setup outlasts it.
-    private suspend fun holdUntilStarted() {
-        withTimeoutOrNull(START_HOLD_MILLIS) {
-            while (ServiceState.isRunRequested && ServiceState.runState.value != RunState.STARTED) {
-                delay(START_POLL_MILLIS)
+    private fun holdUntilStarted() {
+        hold?.cancel()
+        hold = GlobalState.launch(Dispatchers.Main) {
+            while (mainThreadActionsInFlight > 0 || isStartPending()) {
+                delay(HOLD_POLL_MILLIS)
             }
-        }
-    }
-
-    private fun finishIfIdle() {
-        if (actionsInFlight == 0 && !isFinishing) {
             finish()
         }
     }
 
+    private fun isStartPending(): Boolean =
+        ServiceState.isRunRequested && ServiceState.runState.value != RunState.STARTED
+
     private companion object {
-        const val START_HOLD_MILLIS = 30_000L
-        const val START_POLL_MILLIS = 100L
+        const val HOLD_POLL_MILLIS = 100L
     }
 }
