@@ -502,16 +502,17 @@ DateTime? nextOfferChange(Profile? profile, DateTime now) {
   if (threshold == null || expire <= 0) {
     return null;
   }
-  final untilExpiry = DateTime.fromMillisecondsSinceEpoch(
-    expire * 1000,
-  ).difference(now);
-  final days = threshold.floor() + 1;
-  if (untilExpiry.inDays < days) {
+  final days =
+      threshold.clamp(-_dateTimeRangeDays, _dateTimeRangeDays).floor() + 1;
+  final shows = expire * 1000 - days * Duration.millisecondsPerDay;
+  if (shows.abs() > _dateTimeRangeDays * Duration.millisecondsPerDay) {
     return null;
   }
-  final lead = untilExpiry - Duration(days: days);
-  return lead > Duration.zero ? now.add(lead) : null;
+  final at = DateTime.fromMillisecondsSinceEpoch(shows);
+  return at.isAfter(now) ? at : null;
 }
+
+const _dateTimeRangeDays = 100000000;
 
 List<ProfileOffer> visibleOffersOf(Profile? profile, {DateTime? now}) {
   if (profile == null) {

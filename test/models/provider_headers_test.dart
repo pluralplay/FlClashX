@@ -480,6 +480,14 @@ void main() {
       );
       expect(nextOfferChange(farThreshold, now), isNull);
       expect(visibleOffersOf(farThreshold, now: now), hasLength(1));
+      for (final threshold in ['-101000000', '-1e300', '1e300']) {
+        final extreme = _profile(
+          headers: {'flclashx-buyplan': 'https://p.example,$threshold'},
+          info: SubscriptionInfo(expire: expireIn(10)),
+        );
+        expect(nextOfferChange(extreme, now), isNull);
+        visibleOffersOf(extreme, now: now);
+      }
       expect(
         nextOfferChange(
           _profile(headers: const {'flclashx-buyplan': 'https://p.example'}),
