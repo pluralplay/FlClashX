@@ -229,6 +229,30 @@ void main() {
     },
   );
 
+  test(
+    'settings from before the tracking still let a dropped hideip go',
+    () async {
+      final profile = _profile(1, special: 'hideip');
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              hideIp: true,
+              appliedHeadersUpdate: profileHeadersUpdateOf(profile),
+            ),
+          );
+      await select(profile);
+      expect(
+        container.read(appSettingProvider).panelSetSettings,
+        contains(hideIpSetting),
+      );
+
+      await put(_profile(1));
+
+      expect(container.read(appSettingProvider).hideIp, isFalse);
+    },
+  );
+
   test('without the novibrate special vibration stays the user\'s', () async {
     await select(_profile(1, special: 'hideip'));
 

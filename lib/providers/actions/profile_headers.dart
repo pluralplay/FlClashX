@@ -57,6 +57,7 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
       final profile = ref.read(currentProfileProvider);
       final update = profileHeadersUpdateOf(profile);
       if (update == ref.read(appSettingProvider).appliedHeadersUpdate) {
+        _adoptPanelSet(profileHeaderSettingsOf(profile));
         return;
       }
       apply(profileHeaderSettingsOf(profile));
@@ -162,6 +163,23 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
         ref.read(patchClashConfigProvider).mode == Mode.global) {
       ref.read(setupActionProvider.notifier).changeMode(Mode.rule);
     }
+  }
+
+  /// Settings saved before the panel's flags were tracked: a flag the panel
+  /// still sends, whose setting still reads as it set it, came from the panel.
+  void _adoptPanelSet(ProfileHeaderSettings settings) {
+    ref.read(appSettingProvider.notifier).update((state) {
+      final adopted = {
+        if (settings.hideIp && state.hideIp) hideIpSetting,
+        if (settings.noVibration && !state.vibration) vibrationSetting,
+      }.difference(state.ownedSettings);
+      if (state.panelSetSettings.containsAll(adopted)) {
+        return state;
+      }
+      return state.copyWith(
+        panelSetSettings: {...state.panelSetSettings, ...adopted},
+      );
+    });
   }
 
   /// A special flag sets its setting while the panel sends it, and puts the
