@@ -1,0 +1,380 @@
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/features/form/form.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'chain.dart';
+import 'section.dart';
+import 'store.dart';
+
+Future<void> showProxyChainEditor(
+  BuildContext context, {
+  required int profileId,
+  ProxyChain? chain,
+}) {
+  return showFormSheet<void>(
+    context: context,
+    builder: (_) => ProxyChainForm(profileId: profileId, chain: chain),
+  );
+}
+
+String _hopLabel(AppLocalizations l, int index, int count) {
+  if (index == 0) {
+    return l.proxyChainEntry;
+  }
+  return index == count - 1 ? l.proxyChainExit : l.proxyChainMiddle;
+}
+
+class ProxyChainForm extends ConsumerStatefulWidget {
+  const ProxyChainForm({super.key, required this.profileId, this.chain});
+
+  final int profileId;
+  final ProxyChain? chain;
+
+  @override
+  ConsumerState<ProxyChainForm> createState() => _ProxyChainFormState();
+}
+
+class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
+  late final _nameController = TextEditingController(text: widget.chain?.name);
+  late List<String?> _hops = [...?widget.chain?.hops];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_hops.length < ProxyChain.minHops) {
+      _hops = [null, null];
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pick(int index) async {
+    final picked = await showSheet<String>(
+      context: context,
+      builder: (_) => _HopPicker(
+        profileId: widget.profileId,
+        title: _hopLabel(context.appLocalizations, index, _hops.length),
+        isEntry: index == 0,
+        current: _hops[index],
+        otherHops: {
+          for (final (i, hop) in _hops.indexed)
+            if (i != index && hop != null) hop,
+        },
+      ),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _hops[index] = picked;
+      _error = null;
+    });
+  }
+
+  void _setMiddle({required bool present}) {
+    setState(() {
+      _hops = [_hops.first, if (present) null, _hops.last];
+      _error = null;
+    });
+  }
+
+  Future<void> _save() async {
+    final appLocalizations = context.appLocalizations;
+    final name = _nameController.text.trim();
+    final hops = [for (final hop in _hops) ?hop];
+    if (name.isEmpty || hops.length != _hops.length) {
+      setState(() => _error = appLocalizations.proxyChainIncomplete);
+      return;
+    }
+    final chain = ProxyChain(
+      id: widget.chain?.id ?? uniqueId,
+      name: name,
+      hops: hops,
+      enabled: widget.chain?.enabled ?? true,
+    );
+    final notifier = ref.read(proxyChainsProvider(widget.profileId).notifier);
+    final others = {
+      for (final other in await ref.read(
+        proxyChainsProvider(widget.profileId).future,
+      ))
+        if (other.id != chain.id) other.name,
+    };
+    final config = ref.read(clashConfigProvider(widget.profileId)).value;
+    final issue = config == null
+        ? null
+        : proxyChainGraphOf(config).issueOf(chain, taken: others);
+    if (!mounted) {
+      return;
+    }
+    if (issue != null) {
+      setState(() => _error = proxyChainIssueText(appLocalizations, issue));
+      return;
+    }
+    await notifier.put(chain);
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final count = _hops.length;
+    return FormPage(
+      title: widget.chain == null
+          ? appLocalizations.newProxyChain
+          : appLocalizations.proxyChain,
+      onSave: _save,
+      error: _error,
+      children: [
+        generateSection(items: [_PathDiagram(hops: _hops)]),
+        const ListSectionGap(),
+        generateSection(
+          items: [
+            FormRow(
+              title: appLocalizations.name,
+              trailing: FormRowTextField(
+                controller: _nameController,
+                hintText: appLocalizations.proxyChain,
+                onChanged: (_) => setState(() => _error = null),
+              ),
+            ),
+          ],
+        ),
+        const ListSectionGap(),
+        generateSection(
+          footer: appLocalizations.proxyChainHopsDesc,
+          items: [
+            for (final (index, hop) in _hops.indexed)
+              FormRow(
+                title: _hopLabel(appLocalizations, index, count),
+                leading: index == 1 && count == ProxyChain.maxHops
+                    ? EntryButton.remove(
+                        onPressed: () => _setMiddle(present: false),
+                      )
+                    : null,
+                onPressed: () => _pick(index),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 4,
+                  children: [
+                    Flexible(child: Text(hop ?? appLocalizations.select)),
+                    const GlyphIcon(AppGlyphs.chevronForward),
+                  ],
+                ),
+              ),
+            if (count < ProxyChain.maxHops)
+              FormRow(
+                title: appLocalizations.addProxyChainHop,
+                leading: EntryButton.add(
+                  onPressed: () => _setMiddle(present: true),
+                ),
+                onPressed: () => _setMiddle(present: true),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PathDiagram extends StatelessWidget {
+  const _PathDiagram({required this.hops});
+
+  final List<String?> hops;
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final colorScheme = context.colorScheme;
+    final connector = SizedBox(
+      width: 10,
+      child: Divider(thickness: 2, color: colorScheme.primary.opacity38),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
+        children: [
+          const Align(alignment: Alignment.centerRight, child: BetaPill()),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PathEnd(
+                glyph: AppGlyphs.devices,
+                label: appLocalizations.proxyChainDevice,
+              ),
+              for (final (index, hop) in hops.indexed) ...[
+                connector,
+                Flexible(
+                  child: _PathHop(
+                    hop: hop,
+                    label: _hopLabel(appLocalizations, index, hops.length),
+                  ),
+                ),
+              ],
+              connector,
+              _PathEnd(
+                glyph: AppGlyphs.globe,
+                label: appLocalizations.proxyChainInternet,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PathEnd extends StatelessWidget {
+  const _PathEnd({required this.glyph, required this.label});
+
+  final Glyph glyph;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    return Column(
+      spacing: 6,
+      children: [
+        DecoratedBox(
+          decoration: ShapeDecoration(
+            shape: AppShape.circle,
+            color: colorScheme.surfaceContainerHighest,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(9),
+            child: GlyphIcon(glyph, size: 20),
+          ),
+        ),
+        Text(
+          label,
+          style: AppTextStyle.caption2
+              .of(context)
+              .copyWith(color: colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+}
+
+class _PathHop extends StatelessWidget {
+  const _PathHop({required this.hop, required this.label});
+
+  final String? hop;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    final picked = hop != null;
+    return Column(
+      spacing: 6,
+      children: [
+        DecoratedBox(
+          decoration: ShapeDecoration(
+            shape: AppShape.full,
+            color: picked
+                ? colorScheme.primary
+                : colorScheme.surfaceContainerHighest,
+          ),
+          child: SizedBox(
+            height: 38,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  hop ?? '…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyle.footnote
+                      .of(context, emphasized: true)
+                      .copyWith(
+                        color: picked
+                            ? colorScheme.onPrimary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyle.caption2
+              .of(context, emphasized: true)
+              .copyWith(color: colorScheme.primary),
+        ),
+      ],
+    );
+  }
+}
+
+class _HopPicker extends ConsumerWidget {
+  const _HopPicker({
+    required this.profileId,
+    required this.title,
+    required this.isEntry,
+    required this.current,
+    required this.otherHops,
+  });
+
+  final int profileId;
+  final String title;
+  final bool isEntry;
+  final String? current;
+  final Set<String> otherHops;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appLocalizations = context.appLocalizations;
+    final config = ref.watch(clashConfigProvider(profileId)).value;
+    final graph = config == null ? null : proxyChainGraphOf(config);
+    bool usable(String name) =>
+        !otherHops.contains(name) &&
+        (isEntry || (graph?.leavesOf(name).isNotEmpty ?? false));
+    final groupTypes = {
+      for (final group in config?.proxyGroups ?? const <ProxyGroup>[])
+        if (group.hidden != true && usable(group.name))
+          group.name: group.type.name,
+    };
+    final proxyTypes = {
+      for (final proxy in config?.proxies ?? const <Proxy>[])
+        if (usable(proxy.name)) proxy.name: proxy.type,
+    };
+    return SelectionSheet<String>(
+      title: title,
+      sections: [
+        SelectionSection(
+          label: appLocalizations.proxyGroup,
+          items: groupTypes.keys.toList(),
+          subtitleBuilder: (_, name) => groupTypes[name],
+        ),
+        SelectionSection(
+          label: appLocalizations.proxies,
+          items: proxyTypes.keys.toList(),
+          subtitleBuilder: (_, name) => proxyTypes[name],
+        ),
+      ],
+      labelBuilder: (item) => item,
+      selectedOf: (_) => current,
+      onSelected: (item) => Navigator.of(context).pop(item),
+    );
+  }
+}

@@ -8286,6 +8286,171 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `FlClashX Pre`
+  String get preChannelTipTitle {
+    return Intl.message(
+      'FlClashX Pre',
+      name: 'preChannelTipTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This pre-release is a separate app and can't see FlClashX's profiles. To bring them over, make a backup in FlClashX under Backup and restore and restore it here, or add your subscriptions again by link.`
+  String get preChannelTip {
+    return Intl.message(
+      'This pre-release is a separate app and can\'t see FlClashX\'s profiles. To bring them over, make a backup in FlClashX under Backup and restore and restore it here, or add your subscriptions again by link.',
+      name: 'preChannelTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Proxy chains`
+  String get proxyChainsTitle {
+    return Intl.message(
+      'Proxy chains',
+      name: 'proxyChainsTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Beta`
+  String get beta {
+    return Intl.message('Beta', name: 'beta', desc: '', args: []);
+  }
+
+  /// `Add a chain`
+  String get addProxyChain {
+    return Intl.message(
+      'Add a chain',
+      name: 'addProxyChain',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `New chain`
+  String get newProxyChain {
+    return Intl.message('New chain', name: 'newProxyChain', desc: '', args: []);
+  }
+
+  /// `Chain`
+  String get proxyChain {
+    return Intl.message('Chain', name: 'proxyChain', desc: '', args: []);
+  }
+
+  /// `Traffic passes the hops in order, and sites see only the exit. Chains are kept on this device and are not in backups yet.`
+  String get proxyChainsDesc {
+    return Intl.message(
+      'Traffic passes the hops in order, and sites see only the exit. Chains are kept on this device and are not in backups yet.',
+      name: 'proxyChainsDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Entry`
+  String get proxyChainEntry {
+    return Intl.message('Entry', name: 'proxyChainEntry', desc: '', args: []);
+  }
+
+  /// `Middle`
+  String get proxyChainMiddle {
+    return Intl.message('Middle', name: 'proxyChainMiddle', desc: '', args: []);
+  }
+
+  /// `Exit`
+  String get proxyChainExit {
+    return Intl.message('Exit', name: 'proxyChainExit', desc: '', args: []);
+  }
+
+  /// `Device`
+  String get proxyChainDevice {
+    return Intl.message('Device', name: 'proxyChainDevice', desc: '', args: []);
+  }
+
+  /// `Internet`
+  String get proxyChainInternet {
+    return Intl.message(
+      'Internet',
+      name: 'proxyChainInternet',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add a hop`
+  String get addProxyChainHop {
+    return Intl.message(
+      'Add a hop',
+      name: 'addProxyChainHop',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The device connects to the entry, and traffic leaves for the internet from the exit.`
+  String get proxyChainHopsDesc {
+    return Intl.message(
+      'The device connects to the entry, and traffic leaves for the internet from the exit.',
+      name: 'proxyChainHopsDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{name} is not in this profile`
+  String proxyChainMissingHop(Object name) {
+    return Intl.message(
+      '$name is not in this profile',
+      name: 'proxyChainMissingHop',
+      desc: '',
+      args: [name],
+    );
+  }
+
+  /// `{name} takes its nodes from a provider, which chains do not support yet`
+  String proxyChainProviderHop(Object name) {
+    return Intl.message(
+      '$name takes its nodes from a provider, which chains do not support yet',
+      name: 'proxyChainProviderHop',
+      desc: '',
+      args: [name],
+    );
+  }
+
+  /// `The same hop is picked twice`
+  String get proxyChainRepeatedHop {
+    return Intl.message(
+      'The same hop is picked twice',
+      name: 'proxyChainRepeatedHop',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{name} is already a name in this profile`
+  String proxyChainNameTaken(Object name) {
+    return Intl.message(
+      '$name is already a name in this profile',
+      name: 'proxyChainNameTaken',
+      desc: '',
+      args: [name],
+    );
+  }
+
+  /// `Give the chain a name and pick every hop`
+  String get proxyChainIncomplete {
+    return Intl.message(
+      'Give the chain a name and pick every hop',
+      name: 'proxyChainIncomplete',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {
