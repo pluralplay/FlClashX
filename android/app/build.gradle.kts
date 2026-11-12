@@ -37,7 +37,9 @@ android {
         applicationId = "com.follow.clashx"
         minSdk = flutter.minSdkVersion
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = flutter.versionCode
+        // Releases up to 0.5.0-pre.8 gave split APKs Flutter's ABI offset of up to +4000, so the
+        // code every variant now shares sits above it and any earlier APK upgrades to any variant.
+        versionCode = flutter.versionCode + 5000
         versionName = flutter.versionName
     }
 
