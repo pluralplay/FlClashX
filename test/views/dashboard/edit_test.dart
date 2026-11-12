@@ -458,20 +458,20 @@ void main() {
     await teardown(tester);
   });
 
-  testWidgets('a landscape phone gets the fixed grid without an edit mode', (
+  testWidgets('a landscape phone keeps the full grid until cards are picked', (
     tester,
   ) async {
     seed(const [DashboardWidget.currentOutbound, DashboardWidget.profiles]);
     await pumpDashboard(tester, size: const Size(915, 412));
 
-    expect(find.byTooltip('Edit dashboard'), findsNothing);
+    expect(find.byTooltip('Edit dashboard'), findsOneWidget);
     expect(find.byType(DashboardEditor), findsNothing);
     expect(find.byType(OutboundModeBar), findsOneWidget);
 
     await teardown(tester);
   });
 
-  testWidgets('turning to the fixed grid ends editing for good', (
+  testWidgets('editing carries on across a turn to the wide grid', (
     tester,
   ) async {
     seed(const [DashboardWidget.currentOutbound, DashboardWidget.profiles]);
@@ -485,25 +485,91 @@ void main() {
     }
 
     await resize(const Size(915, 412));
-    expect(find.byType(DashboardEditor), findsNothing);
+    expect(find.byType(DashboardEditor), findsOneWidget);
     await resize(const Size(412, 1400));
-    expect(find.byType(DashboardEditor), findsNothing);
-    expect(find.byTooltip('Edit dashboard'), findsOneWidget);
+    expect(find.byType(DashboardEditor), findsOneWidget);
 
     await teardown(tester);
   });
 
-  testWidgets('the desktop grid keeps its fixed layout without an edit mode', (
+  testWidgets('the desktop grid edits its full arrangement', (tester) async {
+    await pumpEditor(
+      tester,
+      platform: SupportPlatform.MacOS,
+      size: const Size(1220, 900),
+    );
+
+    expect(find.byType(DashboardEditor), findsOneWidget);
+    expect(find.byType(NetworkTakeoverCard), findsOneWidget);
+
+    await teardown(tester);
+  });
+
+  testWidgets('the wide grid shows the picked cards in their order', (
     tester,
   ) async {
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            dashboardWidgets: const [
+              DashboardWidget.currentOutbound,
+              DashboardWidget.memoryInfo,
+              DashboardWidget.profiles,
+            ],
+            dashboardWidgetsChosen: true,
+          ),
+        );
     await pumpDashboard(
       tester,
       platform: SupportPlatform.MacOS,
       size: const Size(1220, 900),
     );
 
+    expect(find.byType(OutboundModeBar), findsNothing);
+    expect(find.byType(SpeedCard), findsNothing);
+    final memory = tester.getRect(find.byType(MemoryInfo));
+    final profiles = tester.getRect(find.byType(ProfilesCard));
+    expect(memory.left, lessThan(profiles.left));
+    expect(memory.top, profiles.top);
+    expect(memory.height, profiles.height);
+    expect(
+      memory.top,
+      greaterThan(tester.getRect(find.byType(CurrentOutboundCard)).bottom),
+    );
+    expect(tester.takeException(), isNull);
+
+    await teardown(tester);
+  });
+
+  testWidgets('a panel picks the cards of a wide TV and can deny editing', (
+    tester,
+  ) async {
+    const profile = Profile(
+      id: 1,
+      autoUpdateDuration: Duration.zero,
+      providerHeaders: {
+        'flclashx-widgets': 'proxyGroups,memoryInfo',
+        'flclashx-special': 'denywidgets',
+      },
+    );
+    container.listen(profileHeadersActionProvider, (_, _) {});
+    container.read(profilesProvider.notifier).put(profile);
+    container.read(currentProfileIdProvider.notifier).value = profile.id;
+    await pumpDashboard(tester, size: const Size(1920, 1080));
+    await tester.pump();
+
     expect(find.byTooltip('Edit dashboard'), findsNothing);
-    expect(find.byType(DashboardEditor), findsNothing);
+    expect(find.byType(CurrentOutboundCard), findsOneWidget);
+    expect(find.byType(MemoryInfo), findsOneWidget);
+    expect(find.byType(ProxyGroupsSummaryCard), findsOneWidget);
+    expect(find.byType(ProfilesCard), findsNothing);
+    expect(find.byType(OutboundModeBar), findsNothing);
+    expect(
+      tester.getRect(find.byType(ProxyGroupsSummaryCard)).top,
+      lessThan(tester.getRect(find.byType(MemoryInfo)).top),
+    );
+    expect(tester.takeException(), isNull);
 
     await teardown(tester);
   });
