@@ -92,7 +92,7 @@ class ProfilesCard extends ConsumerWidget {
         ? AppTextStyle.headline
         : AppTextStyle.callout;
     final sync = profile != null && profile.type == ProfileType.url
-        ? _SyncButton(profile: profile)
+        ? _SyncButton(key: ValueKey(profile.id), profile: profile)
         : null;
     final webPageUrl = profile?.headers.webPageUrl;
     final webPage = webPageUrl == null
@@ -171,7 +171,7 @@ const _rowGap = 12.0;
 /// Spins while the update runs and shows a green check for a moment once
 /// it went through.
 class _SyncButton extends ConsumerStatefulWidget {
-  const _SyncButton({required this.profile});
+  const _SyncButton({super.key, required this.profile});
 
   static const doneDuration = Duration(seconds: 1);
   static const switchDuration = Duration(milliseconds: 150);

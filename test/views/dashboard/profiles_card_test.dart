@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
@@ -71,6 +72,18 @@ class _QuietProfilesAction extends ProfilesAction {
     Profile profile, {
     bool showLoading = false,
   }) async {}
+}
+
+class _GatedProfilesAction extends ProfilesAction {
+  static Completer<void>? gate;
+
+  @override
+  Future<void> updateProfile(
+    Profile profile, {
+    bool showLoading = false,
+  }) async {
+    await gate?.future;
+  }
 }
 
 void main() {
@@ -237,6 +250,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byGlyph(AppGlyphs.check), findsNothing);
     expect(find.byGlyph(AppGlyphs.sync), findsOneWidget);
+  });
+
+  testWidgets('an update finishing after a switch shows no check on the next '
+      'profile', (tester) async {
+    _GatedProfilesAction.gate = Completer<void>();
+    addTearDown(() => _GatedProfilesAction.gate = null);
+    setUpProfiles(
+      [_profile(1, type: ProfileType.url), _profile(2, type: ProfileType.url)],
+      overrides: [
+        profilesActionProvider.overrideWith(_GatedProfilesAction.new),
+      ],
+    );
+    await pumpCard(tester);
+
+    await tester.tap(find.byTooltip('Update'));
+    await tester.pump();
+    container.read(currentProfileIdProvider.notifier).value = 2;
+    await tester.pumpAndSettle();
+    _GatedProfilesAction.gate!.complete();
+    await tester.pumpAndSettle();
+
+    expect(label('P2'), findsOneWidget);
+    expect(find.byGlyph(AppGlyphs.check), findsNothing);
+    expect(find.byGlyph(AppGlyphs.sync), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('without a support page there is no such button', (tester) async {
