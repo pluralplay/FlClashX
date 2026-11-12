@@ -610,6 +610,13 @@ String renderInnoSetup(
     'EXECUTABLE_NAME': (config['executable_name'] ?? '$_appName.exe') as String,
     'LANGUAGES': languages.join('\n'),
     'RUN_FLAGS': privileges == 'admin' ? 'runascurrentuser' : '',
+    'CLEAR_PROXY_SCRIPT': p.join(
+      rootDir,
+      'windows',
+      'packaging',
+      'exe',
+      'clear_stale_proxy.ps1',
+    ),
   };
   var rendered = template;
   values.forEach((key, value) {

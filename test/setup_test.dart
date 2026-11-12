@@ -197,11 +197,21 @@ hooks:
       expect(
         script,
         matches(
-          RegExp(
-            r'if AppStopped and not FilesInstalled then\s+ClearStaleProxy;',
-          ),
+          RegExp(r'ShutDownApp;\s+ClearStaleProxyBeforeInstall;\s+Result'),
         ),
         reason: 'an aborted install must not leave the proxy on a dead port',
+      );
+      expect(
+        script,
+        contains('Source: "{{CLEAR_PROXY_SCRIPT}}"; Flags: dontcopy'),
+      );
+      expect(
+        script,
+        contains("ExtractTemporaryFile('clear_stale_proxy.ps1');"),
+      );
+      expect(
+        File('windows/packaging/exe/clear_stale_proxy.ps1').readAsStringSync(),
+        contains(r"'^127\.0\.0\.1:(\d{1,5})$'"),
       );
     });
 
@@ -218,7 +228,7 @@ hooks:
       expect(script, contains('WizardForm.DirEdit.Text := LegacyDir;'));
       expect(
         script,
-        matches(RegExp(r'FilesInstalled := True;\s+RetireLegacyInstall;')),
+        matches(RegExp(r'ClearStaleProxy;\s+RetireLegacyInstall;')),
       );
       expect(script, isNot(contains('Exec(Uninstaller')));
     });

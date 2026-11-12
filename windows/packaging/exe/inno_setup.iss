@@ -36,8 +36,6 @@ var
   IsUpgrade: Boolean;
   PreviousVersion: String;
   HelperHeld: Boolean;
-  AppStopped: Boolean;
-  FilesInstalled: Boolean;
   LegacyRoot: Integer;
   LegacyDir: String;
 
@@ -69,15 +67,6 @@ begin
   Sleep(1000);
 end;
 
-// 0.4.x has no --clear-stale-proxy and would start the app instead.
-function ClearsStaleProxy(const AppPath: String): Boolean;
-var
-  VersionMS, VersionLS: Cardinal;
-begin
-  Result := FileExists(AppPath) and GetVersionNumbers(AppPath, VersionMS, VersionLS) and
-            (((VersionMS shr 16) > 0) or ((VersionMS and $FFFF) >= 5));
-end;
-
 // Killing the app skips its exit path, which is what turns the system proxy
 // off; the executable clears a proxy left on a port nothing listens on. The
 // proxy is a per-user setting, so Setup runs it as the user who started it,
@@ -88,12 +77,22 @@ var
   ResultCode: Integer;
 begin
   AppPath := ExpandConstant('{app}\{{EXECUTABLE_NAME}}');
-  if not ClearsStaleProxy(AppPath) then
+  if not FileExists(AppPath) then
     Exit;
   if IsUninstaller then
     Exec(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
   else
     ExecAsOriginalUser(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+// The install may abort before any 0.5 executable is in place, and 0.4.x
+// has no --clear-stale-proxy, so Setup clears the proxy without the app.
+procedure ClearStaleProxyBeforeInstall;
+var
+  ResultCode: Integer;
+begin
+  ExtractTemporaryFile('clear_stale_proxy.ps1');
+  ExecAsOriginalUser('powershell.exe', '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\clear_stale_proxy.ps1') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
 procedure ReleaseHelper;
@@ -201,14 +200,12 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ShutDownApp;
-  AppStopped := True;
+  ClearStaleProxyBeforeInstall;
   Result := '';
 end;
 
 procedure DeinitializeSetup();
 begin
-  if AppStopped and not FilesInstalled then
-    ClearStaleProxy;
   ReleaseHelper;
 end;
 
@@ -258,7 +255,6 @@ begin
   begin
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0);
     ClearStaleProxy;
-    FilesInstalled := True;
     RetireLegacyInstall;
     ReleaseHelper;
   end;
@@ -312,6 +308,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{{SOURCE_DIR}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{{CLEAR_PROXY_SCRIPT}}"; Flags: dontcopy
 
 [Icons]
 Name: "{autoprograms}\{{DISPLAY_NAME}}"; Filename: "{app}\{{EXECUTABLE_NAME}}"
