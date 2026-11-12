@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,6 +110,7 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
     );
     final chainsProvider = proxyChainsProvider(widget.profileId);
     final notifier = ref.read(chainsProvider.notifier);
+    final profiles = ref.read(profilesProvider.notifier);
     final graphFuture = ref.read(
       proxyChainGraphProvider(widget.profileId).future,
     );
@@ -129,12 +131,27 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
         return;
       }
       await notifier.put(chain);
+      final previous = widget.chain?.name;
+      if (previous != null && previous != name) {
+        profiles.updateProfile(
+          widget.profileId,
+          (profile) => profile.matchTarget == previous
+              ? profile.copyWith(matchTarget: name)
+              : profile,
+        );
+      }
       if (mounted) {
         Navigator.of(context).pop();
       }
     } on ProxyChainsSaveException {
       if (mounted) {
         setState(() => _error = appLocalizations.databaseWriteFailedTip);
+      }
+    } on Exception catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error is MessageException ? error.message : '$error',
+        );
       }
     } finally {
       if (mounted) {

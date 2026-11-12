@@ -1007,5 +1007,7 @@
   "proxyChainRepeatedHop": "The same hop is picked twice",
   "proxyChainNameTaken": "{name} is already a name in this profile",
   "proxyChainIncomplete": "Give the chain a name and pick every hop",
-  "proxyChainUnchainableHop": "{name} has proxies that cannot dial through another hop, such as direct"
+  "proxyChainUnchainableHop": "{name} has proxies that cannot dial through another hop, such as direct",
+  "proxyChainUnreadableFilter": "The filter of {name} uses syntax this app cannot read yet",
+  "proxyChainIsMatchTarget": "{name} is the MATCH target. Pick another target before turning it off or deleting it"
 }

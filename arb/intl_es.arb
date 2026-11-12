@@ -1007,5 +1007,7 @@
   "proxyChainRepeatedHop": "El mismo salto está elegido dos veces",
   "proxyChainNameTaken": "{name} ya es un nombre de este perfil",
   "proxyChainIncomplete": "Pon un nombre a la cadena y elige todos los saltos",
-  "proxyChainUnchainableHop": "{name} tiene proxies que no pueden conectarse a través de otro salto, como direct"
+  "proxyChainUnchainableHop": "{name} tiene proxies que no pueden conectarse a través de otro salto, como direct",
+  "proxyChainUnreadableFilter": "El filtro de {name} usa una sintaxis que la app aún no puede leer",
+  "proxyChainIsMatchTarget": "{name} es el destino MATCH. Elige otro destino antes de desactivarla o eliminarla"
 }

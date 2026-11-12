@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
@@ -258,7 +259,10 @@ void main() {
   });
 
   test('include-all groups keep the members they had before the clones', () {
-    final config = _config();
+    final config = _config()
+      ..['proxy-providers'] = {
+        'feed': {'type': 'http', 'url': 'https://example.com'},
+      };
     (config['proxy-groups']! as List).addAll(<Map<String, Object?>>[
       {'name': 'Every', 'type': 'select', 'include-all-proxies': true},
       {'name': 'Both', 'type': 'select', 'include-all': true, 'filter': 'NL'},
@@ -306,7 +310,7 @@ void main() {
     expect(graph.leavesOf('Mixed'), isNull);
   });
 
-  test('a rebuilt group keeps its options and default pick', () {
+  test('a rebuilt group keeps its options; only a selector has a default', () {
     final config = _config();
     (config['proxy-groups']! as List).add(<String, Object?>{
       'name': 'Balance',
@@ -326,7 +330,7 @@ void main() {
     expect(group['hash-key'], 'in-user');
     expect(group['disable-udp'], true);
     expect(group['strategy'], 'consistent-hashing');
-    expect(group['default-selected'], 'NL-2 · LB');
+    expect(group.containsKey('default-selected'), isFalse);
   });
 
   test('a malformed stored chain is dropped, not shortened', () {
@@ -363,5 +367,122 @@ void main() {
       })?.enabled,
       isTrue,
     );
+  });
+
+  test(
+    'the graph is resolved where it is built and crosses isolates',
+    () async {
+      final graph = await compute(ProxyChainGraph.fromRaw, _config());
+
+      expect(graph.isChainable('Netherlands'), isTrue);
+      expect(graph.isChainable('Remote'), isFalse);
+      expect(graph.leavesOf('Nested'), ['NL-1', 'NL-2']);
+    },
+  );
+
+  test('an include-all group with no match and no providers keeps its '
+      'fallback, and an inline-only one can be a hop', () {
+    final config = _config();
+    (config['proxy-groups']! as List).addAll(<Map<String, Object?>>[
+      {
+        'name': 'Nothing',
+        'type': 'select',
+        'include-all': true,
+        'filter': 'ZZ',
+      },
+      {'name': 'Inline', 'type': 'select', 'include-all': true, 'filter': 'NL'},
+    ]);
+    applyProxyChains(config, [
+      _chain('Via inline', ['DE', 'Inline']),
+    ]);
+
+    final nothing = _named(_groups(config), 'Nothing');
+    expect(nothing['proxies'], ['COMPATIBLE']);
+    expect(nothing.containsKey('include-all-providers'), isFalse);
+    expect(_named(_groups(config), 'Via inline')['proxies'], [
+      'NL-1 · Via inline',
+      'NL-2 · Via inline',
+    ]);
+  });
+
+  test('mihomo inline flags read as Dart options', () {
+    final config = _config();
+    (config['proxy-groups']! as List).add(<String, Object?>{
+      'name': 'Folded',
+      'type': 'select',
+      'include-all-proxies': true,
+      'filter': '(?i)nl',
+    });
+    final graph = ProxyChainGraph.fromRaw(config);
+
+    expect(graph.leavesOf('Folded'), ['NL-1', 'NL-2']);
+    expect(graph.unpinnable, isNull);
+  });
+
+  test('a filter Dart cannot read is reported, not skipped', () {
+    final config = _config();
+    (config['proxy-groups']! as List).add(<String, Object?>{
+      'name': 'Odd',
+      'type': 'select',
+      'include-all-proxies': true,
+      'filter': '(?x)nl',
+    });
+    final before = _config()..['proxy-groups'] = config['proxy-groups'];
+    final graph = ProxyChainGraph.fromRaw(config);
+    final chain = ProxyChain.fromJson(_chain('C', ['Auto', 'Netherlands']))!;
+
+    expect(graph.issuesOf([chain])[chain.id], (
+      kind: ProxyChainIssueKind.unreadableFilter,
+      name: 'Odd',
+    ));
+    applyProxyChains(config, [chain.toJson()]);
+    expect(config, before);
+  });
+
+  test('an unreadable exclusion only rules out its own group as a hop', () {
+    final config = _config();
+    (config['proxy-groups']! as List).add(<String, Object?>{
+      'name': 'Odd',
+      'type': 'select',
+      'proxies': ['FI'],
+      'exclude-filter': '(?x)FI',
+    });
+    final graph = ProxyChainGraph.fromRaw(config);
+    final odd = ProxyChain.fromJson(_chain('A', ['DE', 'Odd']))!;
+    final fine = ProxyChain.fromJson(_chain('B', ['DE', 'Netherlands']))!;
+
+    expect(graph.issuesOf([odd, fine]), {
+      odd.id: (kind: ProxyChainIssueKind.unreadableFilter, name: 'Odd'),
+    });
+  });
+
+  test('a nested default pick starts the chain on its clone', () {
+    final config = _config();
+    (config['proxy-groups']! as List).addAll(<Map<String, Object?>>[
+      {
+        'name': 'First',
+        'type': 'select',
+        'proxies': ['FI'],
+      },
+      {
+        'name': 'Preferred',
+        'type': 'select',
+        'proxies': ['NL-2', 'NL-1'],
+        'default-selected': 'NL-1',
+      },
+      {
+        'name': 'Exit',
+        'type': 'select',
+        'proxies': ['First', 'Preferred'],
+        'default-selected': 'Preferred',
+      },
+    ]);
+    applyProxyChains(config, [
+      _chain('C', ['DE', 'Exit']),
+    ]);
+
+    final group = _named(_groups(config), 'C');
+    expect(group['proxies'], ['FI · C', 'NL-2 · C', 'NL-1 · C']);
+    expect(group['default-selected'], 'NL-1 · C');
   });
 }

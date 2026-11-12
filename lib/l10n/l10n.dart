@@ -8461,6 +8461,26 @@ class AppLocalizations {
       args: [name],
     );
   }
+
+  /// `The filter of {name} uses syntax this app cannot read yet`
+  String proxyChainUnreadableFilter(Object name) {
+    return Intl.message(
+      'The filter of $name uses syntax this app cannot read yet',
+      name: 'proxyChainUnreadableFilter',
+      desc: '',
+      args: [name],
+    );
+  }
+
+  /// `{name} is the MATCH target. Pick another target before turning it off or deleting it`
+  String proxyChainIsMatchTarget(Object name) {
+    return Intl.message(
+      '$name is the MATCH target. Pick another target before turning it off or deleting it',
+      name: 'proxyChainIsMatchTarget',
+      desc: '',
+      args: [name],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

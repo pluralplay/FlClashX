@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,9 +20,25 @@ String proxyChainIssueText(AppLocalizations l, ProxyChainIssue issue) =>
       ProxyChainIssueKind.unchainableHop => l.proxyChainUnchainableHop(
         issue.name,
       ),
+      ProxyChainIssueKind.unreadableFilter => l.proxyChainUnreadableFilter(
+        issue.name,
+      ),
       ProxyChainIssueKind.repeatedHop => l.proxyChainRepeatedHop,
       ProxyChainIssueKind.nameTaken => l.proxyChainNameTaken(issue.name),
     };
+
+/// A chain the profile's MATCH rule points at cannot go away under it.
+bool _isMatchTarget(WidgetRef ref, int profileId, ProxyChain chain) {
+  if (ref.read(profileProvider(profileId))?.matchTarget != chain.name) {
+    return false;
+  }
+  dialogs.showAlert(
+    message: TextSpan(
+      text: currentAppLocalizations.proxyChainIsMatchTarget(chain.name),
+    ),
+  );
+  return true;
+}
 
 /// The names the profile build will add as groups, for rule targets.
 final proxyChainTargetsProvider = Provider.autoDispose.family<Set<String>, int>(
@@ -124,6 +141,9 @@ class _ChainRow extends ConsumerWidget {
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    if (_isMatchTarget(ref, profileId, chain)) {
+      return;
+    }
     final appLocalizations = context.appLocalizations;
     final notifier = ref.read(proxyChainsProvider(profileId).notifier);
     final confirmed = await dialogs.showMessage(
@@ -176,11 +196,16 @@ class _ChainRow extends ConsumerWidget {
         trailing: CommonSwitch(
           value: chain.enabled,
           semanticLabel: chain.name,
-          onChanged: (enabled) => _saving(
-            () => ref
-                .read(proxyChainsProvider(profileId).notifier)
-                .put(chain.copyWith(enabled: enabled)),
-          ),
+          onChanged: (enabled) {
+            if (!enabled && _isMatchTarget(ref, profileId, chain)) {
+              return;
+            }
+            _saving(
+              () => ref
+                  .read(proxyChainsProvider(profileId).notifier)
+                  .put(chain.copyWith(enabled: enabled)),
+            );
+          },
         ),
       ),
     );

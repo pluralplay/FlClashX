@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_app.dart';
+import '../helpers/test_profiles.dart';
 
 const _profileId = 7;
 
@@ -38,14 +41,20 @@ Future<ProviderContainer> _pump(
   WidgetTester tester,
   Widget child, {
   List<ProxyChain> chains = const [],
+  String? matchTarget,
 }) async {
   SharedPreferences.setMockInitialValues({
     'proxy_chains_$_profileId': jsonEncode([
       for (final chain in chains) chain.toJson(),
     ]),
   });
+  final profile = Profile.normal().copyWith(
+    id: _profileId,
+    matchTarget: matchTarget,
+  );
   final container = ProviderContainer(
     overrides: [
+      profilesProvider.overrideWith(() => TestProfiles([profile])),
       proxyChainGraphProvider(_profileId).overrideWith((_) async => _graph),
     ],
   );
@@ -192,5 +201,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((await _stored()).single.hops, ['DE', 'Auto']);
+  });
+
+  testWidgets('the MATCH target chain cannot be switched off', (tester) async {
+    await _pump(
+      tester,
+      const CustomScrollView(
+        slivers: [ProxyChainsSection(profileId: _profileId)],
+      ),
+      chains: [_working],
+      matchTarget: 'Telegram',
+    );
+
+    await tester.tap(find.byType(CommonSwitch));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(currentAppLocalizations.proxyChainIsMatchTarget('Telegram')),
+      findsOneWidget,
+    );
+    expect((await _stored()).single.enabled, isTrue);
+  });
+
+  testWidgets('renaming the MATCH target chain renames the target', (
+    tester,
+  ) async {
+    final container = await _pump(
+      tester,
+      const ProxyChainForm(profileId: _profileId, chain: _working),
+      chains: [_working],
+      matchTarget: 'Telegram',
+    );
+
+    await tester.enterText(find.byType(TextFormField), 'Messages');
+    await tester.tap(find.byTooltip(currentAppLocalizations.save));
+    await tester.pumpAndSettle();
+
+    expect((await _stored()).single.name, 'Messages');
+    expect(
+      container.read(profileProvider(_profileId))?.matchTarget,
+      'Messages',
+    );
   });
 }

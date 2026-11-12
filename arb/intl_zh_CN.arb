@@ -1007,5 +1007,7 @@
   "proxyChainRepeatedHop": "同一个节点被选了两次",
   "proxyChainNameTaken": "名称 {name} 在此配置中已被使用",
   "proxyChainIncomplete": "请填写名称并选择所有节点",
-  "proxyChainUnchainableHop": "{name} 中有无法经由其他节点连接的代理，例如 direct"
+  "proxyChainUnchainableHop": "{name} 中有无法经由其他节点连接的代理，例如 direct",
+  "proxyChainUnreadableFilter": "{name} 的过滤器使用了本应用暂不支持的语法",
+  "proxyChainIsMatchTarget": "{name} 是 MATCH 目标。请先选择其他目标，再关闭或删除它"
 }

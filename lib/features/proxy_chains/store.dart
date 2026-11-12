@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,31 +43,46 @@ class ProxyChainsNotifier extends AsyncNotifier<List<ProxyChain>> {
     }
   }
 
-  Future<void> put(ProxyChain chain) async {
-    final chains = [...await future];
-    final index = chains.indexWhere((item) => item.id == chain.id);
-    if (index == -1) {
-      chains.add(chain);
-    } else {
-      chains[index] = chain;
-    }
-    await _save(chains);
-  }
+  Future<void> _queue = Future.value();
 
-  Future<void> remove(String id) async {
-    final chains = await future;
-    await _save([
+  Future<void> put(ProxyChain chain) => _change((chains) {
+    final index = chains.indexWhere((item) => item.id == chain.id);
+    return index == -1
+        ? [...chains, chain]
+        : [...chains.take(index), chain, ...chains.skip(index + 1)];
+  });
+
+  Future<void> remove(String id) => _change(
+    (chains) => [
       for (final chain in chains)
         if (chain.id != id) chain,
-    ]);
+    ],
+  );
+
+  /// One change at a time, each from the list the last one left.
+  Future<void> _change(
+    List<ProxyChain> Function(List<ProxyChain> chains) change,
+  ) {
+    final run = _queue.then((_) async => _save(change(await future)));
+    _queue = run.then((_) {}, onError: (_) {});
+    return run;
   }
 
+  @visibleForTesting
+  static Future<bool> Function(String key, String value) write =
+      (key, value) async =>
+          (await SharedPreferences.getInstance()).setString(key, value);
+
   Future<void> _save(List<ProxyChain> chains) async {
-    final preferences = await SharedPreferences.getInstance();
-    final saved = await preferences.setString(
-      _keyOf(profileId),
-      jsonEncode([for (final chain in chains) chain.toJson()]),
-    );
+    final bool saved;
+    try {
+      saved = await write(
+        _keyOf(profileId),
+        jsonEncode([for (final chain in chains) chain.toJson()]),
+      );
+    } catch (_) {
+      throw const ProxyChainsSaveException();
+    }
     if (!saved) {
       throw const ProxyChainsSaveException();
     }
