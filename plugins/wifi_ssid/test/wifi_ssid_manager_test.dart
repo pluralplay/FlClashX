@@ -73,4 +73,23 @@ void main() {
       ),
     );
   });
+
+  test('ssidChanges forwards the native SSIDs, null included', () async {
+    const changes = EventChannel('wifi_ssid/changes');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockStreamHandler(
+      changes,
+      MockStreamHandler.inline(
+        onListen: (_, events) {
+          events.success('Home');
+          events.success(null);
+          events.endOfStream();
+        },
+      ),
+    );
+    addTearDown(() => messenger.setMockStreamHandler(changes, null));
+
+    expect(await manager.ssidChanges.toList(), ['Home', null]);
+  });
 }

@@ -13,12 +13,14 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -28,6 +30,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private lateinit var channel: MethodChannel
+    private lateinit var changesChannel: EventChannel
+    private var changesSink: EventChannel.EventSink? = null
+    private var lastChangedSsid: String? = null
     private var context: Context? = null
     private var activity: Activity? = null
     private var wifiManager: WifiManager? = null
@@ -72,6 +77,7 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
     companion object {
         private const val CHANNEL_NAME = "wifi_ssid"
+        private const val CHANGES_CHANNEL_NAME = "wifi_ssid/changes"
         private const val METHOD_GET_SSID = "getSsid"
         private const val METHOD_CHECK_PERMISSION = "checkPermission"
         private const val METHOD_REQUEST_PERMISSION = "requestPermission"
@@ -93,6 +99,19 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(this)
+        changesChannel = EventChannel(binding.binaryMessenger, CHANGES_CHANNEL_NAME)
+        changesChannel.setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                    lastChangedSsid = readSsid()
+                    changesSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    changesSink = null
+                }
+            },
+        )
         wifiManager = binding.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
         connectivityManager = binding.applicationContext.getSystemService(
             Context.CONNECTIVITY_SERVICE,
@@ -107,6 +126,8 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             errorMessage = "Plugin detached before SSID lookup completed",
         )
         channel.setMethodCallHandler(null)
+        changesChannel.setStreamHandler(null)
+        changesSink = null
         unregisterWifiNetworkCallback()
         detachFromActivity(cancelPermissionRequest = true)
         context = null
@@ -320,6 +341,30 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         return normalizeSsid(info?.ssid)
     }
 
+    private fun readSsid(): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            currentSsid()
+        } else {
+            @Suppress("DEPRECATION")
+            normalizeSsid(wifiManager?.connectionInfo?.ssid)
+        }
+
+    // connectivity_plus drops repeated transport lists, so a hand-over from one
+    // Wi-Fi to another reaches Dart only through this.
+    private fun publishSsidChange() {
+        if (changesSink == null) {
+            return
+        }
+        val ssid = readSsid()
+        mainHandler.post {
+            val sink = changesSink ?: return@post
+            if (ssid != lastChangedSsid) {
+                lastChangedSsid = ssid
+                sink.success(ssid)
+            }
+        }
+    }
+
     private fun normalizeSsid(ssid: String?): String? {
         val normalized = ssid?.removeSurrounding("\"")
         return normalized?.takeIf {
@@ -333,9 +378,6 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
 
     private fun registerWifiNetworkCallback(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return false
-        }
         val ctx = context ?: return false
         if (!hasForegroundLocation(ctx)) {
             unregisterWifiNetworkCallback()
@@ -345,30 +387,10 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             return true
         }
         val cm = connectivityManager ?: return false
-        val callback = object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
-            override fun onCapabilitiesChanged(
-                network: Network,
-                capabilities: NetworkCapabilities,
-            ) {
-                val wifiInfo = capabilities.transportInfo as? WifiInfo
-                if (wifiInfo == null) {
-                    wifiInfoByNetwork.remove(network)
-                } else {
-                    wifiInfoByNetwork[network] = wifiInfo
-                }
-                if (!hasPendingSsid) {
-                    return
-                }
-                currentSsid()?.let { ssid ->
-                    mainHandler.post {
-                        completePendingSsidResults(ssid = ssid)
-                    }
-                }
-            }
-
-            override fun onLost(network: Network) {
-                wifiInfoByNetwork.remove(network)
-            }
+        val callback = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            WifiNetworkCallback(ConnectivityManager.NetworkCallback.FLAG_INCLUDE_LOCATION_INFO)
+        } else {
+            WifiNetworkCallback()
         }
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -376,6 +398,40 @@ class WifiSsidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         return runCatching { cm.registerNetworkCallback(request, callback) }
             .onSuccess { wifiNetworkCallback = callback }
             .isSuccess
+    }
+
+    private inner class WifiNetworkCallback : ConnectivityManager.NetworkCallback {
+        constructor() : super()
+
+        @RequiresApi(Build.VERSION_CODES.S)
+        constructor(flags: Int) : super(flags)
+
+        override fun onCapabilitiesChanged(
+            network: Network,
+            capabilities: NetworkCapabilities,
+        ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val wifiInfo = capabilities.transportInfo as? WifiInfo
+                if (wifiInfo == null) {
+                    wifiInfoByNetwork.remove(network)
+                } else {
+                    wifiInfoByNetwork[network] = wifiInfo
+                }
+                if (hasPendingSsid) {
+                    currentSsid()?.let { ssid ->
+                        mainHandler.post {
+                            completePendingSsidResults(ssid = ssid)
+                        }
+                    }
+                }
+            }
+            publishSsidChange()
+        }
+
+        override fun onLost(network: Network) {
+            wifiInfoByNetwork.remove(network)
+            publishSsidChange()
+        }
     }
 
     private fun scheduleSsidTimeout() {

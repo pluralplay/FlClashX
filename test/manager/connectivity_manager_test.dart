@@ -15,15 +15,18 @@ import 'package:wifi_ssid/wifi_ssid.dart';
 void main() {
   late ProviderContainer container;
   late StreamController<List<ConnectivityResult>> connectivity;
+  late StreamController<String?> ssidChanges;
 
   setUp(() {
     container = ProviderContainer();
     globalState.container = container;
     connectivity = StreamController<List<ConnectivityResult>>.broadcast();
+    ssidChanges = StreamController<String?>.broadcast();
   });
 
   tearDown(() async {
     await connectivity.close();
+    await ssidChanges.close();
     container.dispose();
   });
 
@@ -44,6 +47,7 @@ void main() {
         child: ConnectivityManager(
           connectivityStream: connectivity.stream,
           readSsid: readSsid,
+          ssidChanges: ssidChanges.stream,
           onConnectivityChanged: onConnectivityChanged,
           child: const SizedBox.shrink(),
         ),
@@ -61,6 +65,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(currentSsid(), 'Home');
+  });
+
+  testWidgets('follows a hand-over from one Wi-Fi to another', (tester) async {
+    var ssid = 'Home';
+    await pumpManager(tester, readSsid: () async => ssid);
+
+    connectivity.add([ConnectivityResult.wifi]);
+    await tester.pumpAndSettle();
+    ssid = 'Office';
+    ssidChanges.add('Office');
+    await tester.pumpAndSettle();
+
+    expect(currentSsid(), 'Office');
   });
 
   testWidgets('clears the SSID when Wi-Fi drops', (tester) async {

@@ -16,6 +16,7 @@ class ConnectivityManager extends ConsumerStatefulWidget {
   final Function(List<ConnectivityResult> results)? onConnectivityChanged;
   final Stream<List<ConnectivityResult>>? connectivityStream;
   final SsidReader? readSsid;
+  final Stream<Object?>? ssidChanges;
   final Widget child;
 
   const ConnectivityManager({
@@ -23,6 +24,7 @@ class ConnectivityManager extends ConsumerStatefulWidget {
     this.onConnectivityChanged,
     this.connectivityStream,
     this.readSsid,
+    this.ssidChanges,
     required this.child,
   });
 
@@ -33,6 +35,7 @@ class ConnectivityManager extends ConsumerStatefulWidget {
 
 class _ConnectivityManagerState extends ConsumerState<ConnectivityManager> {
   late final StreamSubscription subscription;
+  StreamSubscription? _ssidChangesSubscription;
   late final SsidReader _readSsid =
       widget.readSsid ?? WifiSsidManager.instance.getSsid;
 
@@ -45,6 +48,16 @@ class _ConnectivityManagerState extends ConsumerState<ConnectivityManager> {
     final stream =
         widget.connectivityStream ?? Connectivity().onConnectivityChanged;
     subscription = stream.listen(_handleResults);
+    final ssidChanges =
+        widget.ssidChanges ??
+        (system.isAndroid ? WifiSsidManager.instance.ssidChanges : null);
+    _ssidChangesSubscription = ssidChanges?.listen(
+      (_) => unawaited(_updateSsid()),
+      onError: (Object error) => commonPrint.log(
+        'Wi-Fi SSID changes unavailable: $error',
+        logLevel: LogLevel.warning,
+      ),
+    );
     ref.listenManual(excludeSSIDsProvider.select((state) => state.isNotEmpty), (
       previous,
       next,
@@ -107,6 +120,7 @@ class _ConnectivityManagerState extends ConsumerState<ConnectivityManager> {
   @override
   void dispose() {
     subscription.cancel();
+    _ssidChangesSubscription?.cancel();
     super.dispose();
   }
 

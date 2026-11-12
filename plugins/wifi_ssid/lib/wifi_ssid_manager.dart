@@ -9,6 +9,7 @@ class WifiSsidManager {
   static final WifiSsidManager instance = WifiSsidManager._();
 
   static const _channel = MethodChannel('wifi_ssid');
+  static const _changes = EventChannel('wifi_ssid/changes');
   static const _getSsidMethod = 'getSsid';
   static const _checkPermissionMethod = 'checkPermission';
   static const _requestPermissionMethod = 'requestPermission';
@@ -17,6 +18,11 @@ class WifiSsidManager {
   Future<String?> getSsid() {
     return _channel.invokeMethod<String>(_getSsidMethod);
   }
+
+  /// Android only: the SSID each time the Wi-Fi network changes, including a
+  /// hand-over from one Wi-Fi to another, which keeps the transport the same.
+  Stream<String?> get ssidChanges =>
+      _changes.receiveBroadcastStream().map((ssid) => ssid as String?);
 
   Future<WifiSsidPermission> checkPermission() async {
     final result = await _channel.invokeMethod<int>(_checkPermissionMethod);
