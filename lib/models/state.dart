@@ -234,6 +234,7 @@ abstract class MakeRealProfileState with _$MakeRealProfileState {
     @Default({}) Map<String, dynamic> injectedRuleProviders,
     String? matchTarget,
     @Default(false) bool safeMode,
+    @Default([]) List<Map<String, Object?>> proxyChains,
   }) = _MakeRealProfileState;
 }
 
@@ -273,5 +274,6 @@ abstract class SetupState with _$SetupState {
     @Default([]) List<CustomProxy> appProxies,
     @Default({}) Map<int, String> proxyDialers,
     String? matchTarget,
+    @Default([]) List<Map<String, Object?>> proxyChains,
   }) = _SetupState;
 }

@@ -718,6 +718,7 @@ class SetupAction extends _$SetupAction {
             ? setupState.matchTarget
             : lastMatchTarget(profileBase.base.matchRules),
         safeMode: ref.read(safeModeProvider),
+        proxyChains: setupState.proxyChains,
       ),
     );
     if (profileBase == null) {
