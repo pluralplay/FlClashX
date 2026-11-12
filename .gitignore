@@ -67,6 +67,7 @@ app.*.map.json
 /services/helper/target
 /macos/**/Package.resolved
 /macos/build/
+/macos/Runner/Configs/Channel.xcconfig
 /env.json
 /core_sha256.json
 /plugins/rust_api/.claude/

@@ -7,6 +7,34 @@ import '../setup.dart' as setup;
 
 void main() {
   group('setup.dart', () {
+    test('a pre build of macOS takes its own bundle id and name', () {
+      final config = setup.macosChannelConfig('pre')!;
+
+      expect(
+        config,
+        contains('PRODUCT_BUNDLE_IDENTIFIER = com.follow.clashx.pre'),
+      );
+      expect(config, contains('APP_DISPLAY_NAME = FlClashX Pre'));
+      expect(setup.macosBundleName('pre'), 'FlClashX Pre.app');
+    });
+
+    test('stable and dev builds of macOS keep the stable identity', () {
+      for (final env in ['stable', 'dev']) {
+        expect(setup.macosChannelConfig(env), isNull);
+        expect(setup.macosBundleName(env), 'FlClashX.app');
+      }
+    });
+
+    test('the xcconfig the pre build writes is optional and ignored', () {
+      final appInfo = File(
+        p.join('macos', 'Runner', 'Configs', 'AppInfo.xcconfig'),
+      ).readAsStringSync();
+      final gitignore = File('.gitignore').readAsStringSync();
+
+      expect(appInfo, contains('#include? "Channel.xcconfig"'));
+      expect(gitignore, contains('/macos/Runner/Configs/Channel.xcconfig'));
+    });
+
     test('parses -v as verbose mode', () {
       final results = setup.createSetupArgParser().parse(['android', '-v']);
 

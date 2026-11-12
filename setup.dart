@@ -179,6 +179,19 @@ String createPackageTargets(String platform, String? customTargets) {
   return customTargets ?? _allTargets[platform]!;
 }
 
+/// What `macos/Runner/Configs/Channel.xcconfig` holds for [env]: a
+/// pre-release gets its own bundle id and name, so it installs beside the
+/// stable app; null for every other build, which goes without the file.
+String? macosChannelConfig(String env) => env == 'pre'
+    ? 'PRODUCT_BUNDLE_IDENTIFIER = com.follow.clashx.pre\n'
+          'APP_DISPLAY_NAME = $_appName Pre\n'
+    : null;
+
+/// The `.app` name a DMG of [env] installs, kept apart from the stable one in
+/// `/Applications`.
+String macosBundleName(String env) =>
+    env == 'pre' ? '$_appName Pre.app' : '$_appName.app';
+
 /// `FlClashX-<platform>-<arch>` plus the format's extension; the release
 /// templates and the AUR package link these names.
 String artifactName(String platform, String arch, String extension) =>
@@ -337,7 +350,7 @@ Future<int> _package(
       case 'android':
         await _packageAndroid(build, androidArch: androidArch);
       case 'macos':
-        await _packageMacos(build);
+        await _packageMacos(build, env: env);
       case 'windows':
         await _packageWindows(build, wanted);
       case 'linux':
@@ -379,18 +392,33 @@ Future<void> _packageAndroid(_Build build, {String? androidArch}) async {
   );
 }
 
-Future<void> _packageMacos(_Build build) async {
-  await build.mustRun('flutter', [
-    'build',
-    'macos',
-    '--release',
-    ...build.flutterBuildArgs(),
-  ]);
-  final app = p.join(
-    build.rootDir,
-    'build/macos/Build/Products/Release',
-    '$_appName.app',
+Future<void> _packageMacos(_Build build, {required String env}) async {
+  final channel = File(
+    p.join(build.rootDir, 'macos', 'Runner', 'Configs', 'Channel.xcconfig'),
   );
+  final channelConfig = macosChannelConfig(env);
+  try {
+    if (channelConfig == null) {
+      if (channel.existsSync()) channel.deleteSync();
+    } else {
+      channel.writeAsStringSync(channelConfig);
+    }
+    await build.mustRun('flutter', [
+      'build',
+      'macos',
+      '--release',
+      ...build.flutterBuildArgs(),
+    ]);
+  } finally {
+    if (channel.existsSync()) channel.deleteSync();
+  }
+  final products = p.join(build.rootDir, 'build/macos/Build/Products/Release');
+  final built = p.join(products, '$_appName.app');
+  final app = p.join(products, macosBundleName(env));
+  if (app != built) {
+    if (Directory(app).existsSync()) Directory(app).deleteSync(recursive: true);
+    Directory(built).renameSync(app);
+  }
   final identity = Platform.environment['APPLE_DEVELOPER_ID'] ?? '';
   if (identity.isNotEmpty) {
     await _signMacosApp(build, app, identity);
@@ -404,7 +432,7 @@ Future<void> _packageMacos(_Build build) async {
     '--overwrite',
     if (identity.isNotEmpty) '--no-code-sign',
     '--dmg-title',
-    _appName,
+    p.basenameWithoutExtension(app),
     app,
     staging.path,
   ]);

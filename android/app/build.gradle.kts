@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -21,6 +22,14 @@ val hasReleaseSigning = releaseStoreFile.exists() &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
     releaseKeyPassword != null
+
+// setup.dart's `--env` reaches Gradle only through Flutter's base64 dart-defines.
+val isPreChannel = (findProperty("dart-defines") as String?)
+    .orEmpty()
+    .split(",")
+    .filter { it.isNotEmpty() }
+    .map { String(Base64.getDecoder().decode(it)) }
+    .contains("APP_ENV=pre")
 
 android {
     namespace = "com.follow.clashx"
@@ -54,6 +63,10 @@ android {
         }
     }
 
+    buildFeatures {
+        resValues = true
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
@@ -71,6 +84,10 @@ android {
             isShrinkResources = true
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
+                if (isPreChannel) {
+                    applicationIdSuffix = ".pre"
+                    resValue("string", "app_name", "FlClashX Pre")
+                }
             } else {
                 signingConfig = signingConfigs.getByName("debug")
                 applicationIdSuffix = ".dev"
