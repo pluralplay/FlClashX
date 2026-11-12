@@ -368,6 +368,22 @@ void main() {
     });
   }
 
+  testWidgets('a plan running out while shown turns to expired', (
+    tester,
+  ) async {
+    setUpProfiles([endingIn(const Duration(seconds: 2))]);
+    await pumpCard(tester);
+    expect(find.text('1 minute'), findsOneWidget);
+
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 2500)),
+    );
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.text('Expired'), findsOneWidget);
+    expect(find.text('1 minute'), findsNothing);
+  });
+
   testWidgets('the desktop card shows the plan figures without an update '
       'time', (tester) async {
     final expiry = DateTime.now().add(const Duration(days: 30, hours: 1));

@@ -238,7 +238,7 @@ class _SyncButtonState extends ConsumerState<_SyncButton> {
 
 /// How long the plan runs and how much of it is left, the traffic on a
 /// bar under them.
-class _PlanFigures extends StatelessWidget {
+class _PlanFigures extends StatefulWidget {
   const _PlanFigures({
     required this.expiry,
     required this.usage,
@@ -254,11 +254,65 @@ class _PlanFigures extends StatelessWidget {
   final double gap;
 
   @override
+  State<_PlanFigures> createState() => _PlanFiguresState();
+}
+
+class _PlanFiguresState extends State<_PlanFigures> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(_PlanFigures oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.expiry != widget.expiry) {
+      _schedule();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  /// The time left reads in whole days, hours or minutes, so it next changes
+  /// once the part of its unit beyond the shown count has run out.
+  void _schedule() {
+    _tick?.cancel();
+    _tick = null;
+    final left = widget.expiry?.difference(DateTime.now());
+    if (left == null || left.isNegative) {
+      return;
+    }
+    final unit = left.inDays >= 1
+        ? const Duration(days: 1)
+        : left.inHours >= 1
+        ? const Duration(hours: 1)
+        : const Duration(minutes: 1);
+    final rest = Duration(
+      microseconds: left.inMicroseconds % unit.inMicroseconds,
+    );
+    _tick = Timer(rest + const Duration(milliseconds: 1), () {
+      if (mounted) {
+        setState(_schedule);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     final colors = DashboardColors.of(context);
-    final expiry = this.expiry;
-    final usage = this.usage;
+    final expiry = widget.expiry;
+    final usage = widget.usage;
+    final offers = widget.offers;
+    final figure = widget.figure;
+    final gap = widget.gap;
     final left = expiry?.difference(DateTime.now());
     final expired = left != null && left.isNegative;
     final soon = left != null && left.inDays <= _soonDays;
