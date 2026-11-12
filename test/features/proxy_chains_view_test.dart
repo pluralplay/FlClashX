@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fl_clash/common/common.dart';
@@ -290,4 +291,44 @@ void main() {
     );
     expect(find.byType(ProxyChainForm), findsOneWidget);
   });
+
+  for (final failProfileWrites in [false, true]) {
+    testWidgets('a rename finishes or undoes after the editor is gone '
+        '(profile write fails: $failProfileWrites)', (tester) async {
+      final write = ProxyChainsNotifier.write;
+      addTearDown(() => ProxyChainsNotifier.write = write);
+      final container = await _pump(
+        tester,
+        const ProxyChainForm(profileId: _profileId, chain: _working),
+        chains: [_working],
+        matchTarget: 'Telegram',
+        failProfileWrites: failProfileWrites,
+      );
+      final gate = Completer<void>();
+      ProxyChainsNotifier.write = (key, value) async {
+        await gate.future;
+        return write(key, value);
+      };
+
+      await tester.enterText(find.byType(TextFormField), 'Messages');
+      await tester.tap(find.byTooltip(currentAppLocalizations.save));
+      await tester.pump();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const SizedBox(),
+        ),
+      );
+      gate.complete();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+      final chains = await container.read(
+        proxyChainsProvider(_profileId).future,
+      );
+
+      final kept = failProfileWrites ? 'Telegram' : 'Messages';
+      expect(chains.single.name, kept);
+      expect(container.read(profileProvider(_profileId))?.matchTarget, kept);
+    });
+  }
 }

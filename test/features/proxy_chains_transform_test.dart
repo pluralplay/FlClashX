@@ -518,6 +518,10 @@ void main() {
       r'\bNL',
       r'\d',
       '[A-Z-[N]]',
+      r'^(NL)?\1FI$',
+      r'(?<n>N)\k<n>',
+      r'NL\s1',
+      r'\S+',
     ]) {
       final config = _config();
       (config['proxies']! as List).add(<String, Object?>{
@@ -538,10 +542,28 @@ void main() {
       'name': 'Spaced',
       'type': 'select',
       'include-all-proxies': true,
-      'filter': r'NL\s?-\s?1|[F]I',
+      'filter': r'NL ?-1|[F]I',
     });
     final graph = ProxyChainGraph.fromRaw(config);
     expect(graph.unpinnable, isNull);
     expect(graph.leavesOf('Spaced'), ['FI', 'NL-1']);
+  });
+
+  test('a dot takes a whole code point, as in a flag emoji', () {
+    final config = _config();
+    (config['proxies']! as List).add(<String, Object?>{
+      'name': '🇳🇱 NL',
+      'type': 'ss',
+    });
+    (config['proxy-groups']! as List).add(<String, Object?>{
+      'name': 'Flags',
+      'type': 'select',
+      'include-all-proxies': true,
+      'filter': r'^.. NL$',
+    });
+    final graph = ProxyChainGraph.fromRaw(config);
+
+    expect(graph.unpinnable, isNull);
+    expect(graph.leavesOf('Flags'), ['🇳🇱 NL']);
   });
 }

@@ -24,6 +24,32 @@ Future<void> showProxyChainEditor(
   );
 }
 
+/// Free of the editor, so a sheet dismissed midway still finishes or undoes.
+Future<void> _renameWithTarget(
+  ProxyChain chain, {
+  required ProxyChain? previous,
+  required int profileId,
+  required ProxyChainsNotifier notifier,
+  required Profiles profiles,
+}) async {
+  await notifier.put(chain);
+  if (previous == null || previous.name == chain.name) {
+    return;
+  }
+  try {
+    await profiles.rewriteCustom(
+      () async => {
+        profileId: (profile) => profile.matchTarget == previous.name
+            ? profile.copyWith(matchTarget: chain.name)
+            : profile,
+      },
+    );
+  } catch (_) {
+    await notifier.put(previous);
+    throw const ProxyChainsSaveException();
+  }
+}
+
 String _hopLabel(AppLocalizations l, int index, int count) {
   if (index == 0) {
     return l.proxyChainEntry;
@@ -130,26 +156,13 @@ class _ProxyChainFormState extends ConsumerState<ProxyChainForm> {
         setState(() => _error = proxyChainIssueText(appLocalizations, issue));
         return;
       }
-      await notifier.put(chain);
-      final previous = widget.chain;
-      if (previous != null &&
-          previous.name != name &&
-          ref.read(profileProvider(widget.profileId))?.matchTarget ==
-              previous.name) {
-        try {
-          await profiles.rewriteCustom(
-            () async => {
-              widget.profileId: (profile) =>
-                  profile.matchTarget == previous.name
-                  ? profile.copyWith(matchTarget: name)
-                  : profile,
-            },
-          );
-        } catch (_) {
-          await notifier.put(previous);
-          throw const ProxyChainsSaveException();
-        }
-      }
+      await _renameWithTarget(
+        chain,
+        previous: widget.chain,
+        profileId: widget.profileId,
+        notifier: notifier,
+        profiles: profiles,
+      );
       if (mounted) {
         Navigator.of(context).pop();
       }

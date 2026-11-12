@@ -522,6 +522,7 @@ List<RegExp>? _patterns(Object? value) {
           caseSensitive: caseSensitive,
           multiLine: multiLine,
           dotAll: dotAll,
+          unicode: true,
         ),
       );
     } on FormatException {
@@ -547,6 +548,18 @@ const _divergentEscapes = {
   'B',
   'd',
   'D',
+  's',
+  'S',
+  'k',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
 };
 
 bool _readsAlike(String pattern) {
