@@ -133,8 +133,9 @@ const repository = 'pluralplay/FlClashX';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
 const defaultTestUrl = 'https://www.gstatic.com/generate_204';
-// Keep the bundled panel separate from older or profile-provided UIs in ui/.
-const defaultExternalUi = 'ui/zashboard';
+// Outside ui/, which an older MetaCubeXD fills and a profile's own external-ui
+// may have mihomo wipe on its next dashboard update.
+const defaultExternalUi = 'zashboard';
 const defaultExternalUiUrl =
     'https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip';
 
