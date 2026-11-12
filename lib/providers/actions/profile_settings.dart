@@ -28,12 +28,24 @@ class ProfileSettingsAction extends _$ProfileSettingsAction {
   /// for a key no file names stays.
   Set<String> _named = const {};
 
+  /// Set when the Core could not be asked; its next connection asks again.
+  bool _unread = false;
+
   @override
   void build() {
     ref.listen(
       currentProfileProvider.select(profileSettingsSourceOf),
       (_, next) => scheduleMicrotask(() => unawaited(apply(next))),
     );
+    ref.listen(coreStatusProvider, (prev, next) {
+      if (_unread &&
+          next == CoreStatus.connected &&
+          prev != CoreStatus.connected) {
+        unawaited(
+          apply(profileSettingsSourceOf(ref.read(currentProfileProvider))),
+        );
+      }
+    });
     scheduleMicrotask(
       () => unawaited(
         apply(profileSettingsSourceOf(ref.read(currentProfileProvider))),
@@ -44,6 +56,7 @@ class ProfileSettingsAction extends _$ProfileSettingsAction {
   Future<void> apply(ProfileSettingsSource source) async {
     final id = source.id;
     final generation = ++_generation;
+    _unread = false;
     if (id == null ||
         source.type == ProfileType.custom ||
         source.extendType == ExtendType.script) {
@@ -60,6 +73,7 @@ class ProfileSettingsAction extends _$ProfileSettingsAction {
         'profile $id settings not read: ${compactError(error)}',
         logLevel: LogLevel.warning,
       );
+      _unread = generation == _generation;
       return;
     }
     if (generation != _generation) {

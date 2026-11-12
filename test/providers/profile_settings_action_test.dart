@@ -280,6 +280,22 @@ void main() {
     expect(settings().mixedPort, 1080);
   });
 
+  test('a read that failed before the Core came up runs again', () async {
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+    when(
+      () => core.getProfileBase(any()),
+    ).thenThrow(TimeoutException('not connected'));
+    await select(_profile(1));
+    expect(settings().mixedPort, const PatchClashConfig().mixedPort);
+
+    answer({'mixed-port': 7000}, ['mixed-port']);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(settings().mixedPort, 7000);
+  });
+
   test(
     'the authentication a file names fills the account until taken',
     () async {
