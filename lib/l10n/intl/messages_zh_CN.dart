@@ -1425,6 +1425,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "splitStrategy": MessageLookupByLibrary.simpleMessage("分流策略"),
     "splitStrategyNotEmpty": MessageLookupByLibrary.simpleMessage("分流策略不能为空"),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("SSIDs为空"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("重试"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage("不迁移，继续"),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre 暂时无法读取 FlClashX 的配置和设置。如果 FlClashX 正在运行，请退出后重试。",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "迁移 FlClashX 的配置",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("栈模式"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("堆栈信息"),
     "standard": MessageLookupByLibrary.simpleMessage("标准"),

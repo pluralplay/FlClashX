@@ -1011,5 +1011,9 @@
   "proxyChainUnreadableFilter": "{name} のフィルターには、このアプリがまだ読めない構文が使われています",
   "proxyChainIsMatchTarget": "{name} は MATCH の宛先です。オフや削除の前に別の宛先を選んでください",
   "preChannelTipTitle": "FlClashX Pre",
-  "preChannelTip": "このプレリリース版は別アプリとしてインストールされ、FlClashX のプロファイルは参照できません。移行するには、FlClashX の「バックアップと復元」でバックアップを作成してここで復元するか、リンクからサブスクリプションを追加し直してください。"
+  "preChannelTip": "このプレリリース版は別アプリとしてインストールされ、FlClashX のプロファイルは参照できません。移行するには、FlClashX の「バックアップと復元」でバックアップを作成してここで復元するか、リンクからサブスクリプションを追加し直してください。",
+  "stableImportTitle": "FlClashX のプロファイルを移行",
+  "stableImportTip": "FlClashX Pre はまだ FlClashX のプロファイルと設定を取り込めていません。FlClashX が起動している場合は終了してから再試行してください。",
+  "stableImportRetry": "再試行",
+  "stableImportSkip": "移行せずに続行"
 }

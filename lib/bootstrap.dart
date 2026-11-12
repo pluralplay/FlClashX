@@ -16,6 +16,7 @@ import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/pages/stable_import.dart';
 import 'package:fl_clash/views/disclaimer.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -98,7 +99,11 @@ class Bootstrap {
     DynamicColorSeeds dynamicColor,
   ) async {
     await _claimDataDirectory();
-    await importStableDataForPre();
+    await settleStableImport(
+      import: importStableDataForPre,
+      askRetry: askStableImportRetry,
+      abandon: abandonStableImport,
+    );
     globalState.packageInfo = await PackageInfo.fromPlatform();
     var config = await migration.run();
     _bootDecision = await bootGuard.evaluate(

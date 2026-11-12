@@ -1978,6 +1978,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "La estrategia de división no puede estar vacía",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("No hay SSID"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("Reintentar"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage(
+      "Continuar sin ellos",
+    ),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre aún no pudo tomar los perfiles y ajustes de FlClashX. Si FlClashX está abierto, ciérralo y vuelve a intentarlo.",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "Traer tus perfiles de FlClashX",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Modo de pila"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("Seguimiento de pila"),
     "standard": MessageLookupByLibrary.simpleMessage("Estándar"),

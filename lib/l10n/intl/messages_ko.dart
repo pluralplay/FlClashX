@@ -1540,6 +1540,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "분할 전략을 입력하세요",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("SSID가 비어 있습니다"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("다시 시도"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage("가져오지 않고 계속"),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre가 아직 FlClashX의 프로필과 설정을 가져오지 못했습니다. FlClashX가 실행 중이면 종료한 뒤 다시 시도하세요.",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "FlClashX 프로필 가져오기",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("스택 모드"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("스택 트레이스"),
     "standard": MessageLookupByLibrary.simpleMessage("표준"),

@@ -1829,6 +1829,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "Split strategy cannot be empty",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("SSIDs are empty"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("Retry"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage(
+      "Continue without them",
+    ),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre couldn\'t take FlClashX\'s profiles and settings yet. If FlClashX is running, quit it and retry.",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "Bring over your FlClashX profiles",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Stack mode"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("Stack trace"),
     "standard": MessageLookupByLibrary.simpleMessage("Standard"),

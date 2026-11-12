@@ -36,18 +36,56 @@ typedef StableSource = ({
   Future<StableRelease?> Function() lock,
 });
 
-Future<void> importStableDataForPre() async {
+/// Deferred also covers an import that failed after it began.
+Future<StableImport> importStableDataForPre() async {
+  StableSource? source;
   try {
-    final source = await _macosSource() ?? await _desktopSource();
+    source = await _macosSource() ?? await _desktopSource();
     if (source == null) {
-      return;
+      return StableImport.skipped;
     }
-    final result = await copyStableData(source);
-    if (result == StableImport.deferred) {
-      commonPrint.log('stable app is running, its data is copied next launch');
-    }
+    return await copyStableData(source);
   } catch (error) {
     commonPrint.log('stable data not copied: $error');
+    final home = source?.home;
+    return home != null && await File(join(home, _pendingMarker)).exists()
+        ? StableImport.deferred
+        : StableImport.skipped;
+  }
+}
+
+Future<void> abandonStableImport() async {
+  final source = await _macosSource() ?? await _desktopSource();
+  if (source != null) {
+    await abandonImport(source.home);
+  }
+}
+
+/// No later launch may replace the data kept after this.
+@visibleForTesting
+Future<void> abandonImport(String home) async {
+  await Directory(home).create(recursive: true);
+  await File(join(home, _doneMarker)).writeAsString('');
+  final pending = File(join(home, _pendingMarker));
+  if (await pending.exists()) {
+    await pending.delete();
+  }
+  final staging = Directory(join(home, _staging));
+  if (await staging.exists()) {
+    await staging.delete(recursive: true);
+  }
+}
+
+Future<void> settleStableImport({
+  required Future<StableImport> Function() import,
+  required Future<bool> Function() askRetry,
+  required Future<void> Function() abandon,
+}) async {
+  while (await import() == StableImport.deferred) {
+    if (!await askRetry()) {
+      await abandon();
+      return;
+    }
   }
 }
 

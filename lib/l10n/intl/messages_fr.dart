@@ -1981,6 +1981,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "La stratégie de répartition ne peut pas être vide",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("Les SSID sont vides"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("Réessayer"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage(
+      "Continuer sans eux",
+    ),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre n\'a pas encore pu reprendre les profils et réglages de FlClashX. Si FlClashX est ouvert, quittez-le et réessayez.",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "Récupérer vos profils FlClashX",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Mode de pile"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("Trace de pile"),
     "standard": MessageLookupByLibrary.simpleMessage("Standard"),

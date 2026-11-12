@@ -118,6 +118,49 @@ void main() {
     expect(exists('database.sqlite-shm'), isFalse);
   });
 
+  group('a deferred import is settled before the store opens', () {
+    test('retry takes the data once the stable app has quit', () async {
+      var busy = true;
+      var asked = 0;
+
+      await settleStableImport(
+        import: () => copyStableData(source(busy: busy)),
+        askRetry: () async {
+          asked++;
+          busy = false;
+          return true;
+        },
+        abandon: () async => fail('nothing to give up'),
+      );
+
+      expect(asked, 1);
+      expect(read('database.sqlite'), 'db');
+    });
+
+    test('continuing without it is final for every later launch', () async {
+      var asked = 0;
+
+      await settleStableImport(
+        import: () => copyStableData(source(busy: true)),
+        askRetry: () async {
+          asked++;
+          return false;
+        },
+        abandon: () => abandonImport(pre),
+      );
+      expect(asked, 1);
+      expect(exists('.stable-import-pending'), isFalse);
+      await File(join(pre, 'database.sqlite')).writeAsString('mine');
+
+      await settleStableImport(
+        import: () => copyStableData(source()),
+        askRetry: () async => fail('nothing pending'),
+        abandon: () async => fail('nothing to give up'),
+      );
+      expect(read('database.sqlite'), 'mine');
+    });
+  });
+
   test('an import that fails is retried and never marked done', () async {
     await expectLater(
       copyStableData(source(failPreferences: true)),

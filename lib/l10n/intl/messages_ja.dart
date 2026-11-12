@@ -1572,6 +1572,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "振り分け戦略は空にできません",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("SSIDが空です"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("再試行"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage("移行せずに続行"),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre はまだ FlClashX のプロファイルと設定を取り込めていません。FlClashX が起動している場合は終了してから再試行してください。",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "FlClashX のプロファイルを移行",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("スタックモード"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("スタックトレース"),
     "standard": MessageLookupByLibrary.simpleMessage("標準"),

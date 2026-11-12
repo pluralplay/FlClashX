@@ -1011,5 +1011,9 @@
   "proxyChainUnreadableFilter": "The filter of {name} uses syntax this app cannot read yet",
   "proxyChainIsMatchTarget": "{name} is the MATCH target. Pick another target before turning it off or deleting it",
   "preChannelTipTitle": "FlClashX Pre",
-  "preChannelTip": "This pre-release is a separate app and can't see FlClashX's profiles. To bring them over, make a backup in FlClashX under Backup and restore and restore it here, or add your subscriptions again by link."
+  "preChannelTip": "This pre-release is a separate app and can't see FlClashX's profiles. To bring them over, make a backup in FlClashX under Backup and restore and restore it here, or add your subscriptions again by link.",
+  "stableImportTitle": "Bring over your FlClashX profiles",
+  "stableImportTip": "FlClashX Pre couldn't take FlClashX's profiles and settings yet. If FlClashX is running, quit it and retry.",
+  "stableImportRetry": "Retry",
+  "stableImportSkip": "Continue without them"
 }

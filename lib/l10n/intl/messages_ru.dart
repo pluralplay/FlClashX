@@ -1916,6 +1916,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "Стратегия распределения не может быть пустой",
     ),
     "ssidsEmpty": MessageLookupByLibrary.simpleMessage("Список SSID пуст"),
+    "stableImportRetry": MessageLookupByLibrary.simpleMessage("Повторить"),
+    "stableImportSkip": MessageLookupByLibrary.simpleMessage(
+      "Продолжить без них",
+    ),
+    "stableImportTip": MessageLookupByLibrary.simpleMessage(
+      "FlClashX Pre пока не смог забрать профили и настройки FlClashX. Если FlClashX запущен, закройте его и повторите.",
+    ),
+    "stableImportTitle": MessageLookupByLibrary.simpleMessage(
+      "Перенос профилей FlClashX",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Стек TUN"),
     "stackTrace": MessageLookupByLibrary.simpleMessage("Трассировка стека"),
     "standard": MessageLookupByLibrary.simpleMessage("Стандартный"),
