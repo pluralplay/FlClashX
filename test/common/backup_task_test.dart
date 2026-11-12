@@ -565,6 +565,45 @@ void main() {
       expect(data.profiles.single.extendType, ExtendType.script);
     });
 
+    test('binds the script FlClashX 0.4 ran on every profile', () async {
+      writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
+
+      final data = await migrateLegacyConfig(
+        configMap: legacyConfig(
+          profiles: [
+            {
+              'id': 'p1',
+              'autoUpdateDuration': 0,
+              'overrideData': {
+                'enable': true,
+                'rule': {
+                  'type': 'added',
+                  'addedRules': [
+                    {'id': 'a1', 'value': 'DOMAIN,example.com,DIRECT'},
+                  ],
+                },
+              },
+            },
+          ],
+          extra: {
+            'scriptProps': {
+              'currentId': 's1',
+              'scripts': [
+                {'id': 's1', 'label': 'S', 'content': 'body'},
+              ],
+            },
+          },
+        ),
+        sourcePath: source.path,
+        targetPath: target.path,
+      );
+
+      final profile = data.profiles.single;
+      expect(profile.extendType, ExtendType.script);
+      expect(profile.scriptId, data.scripts.single.id);
+      expect(data.rules.single.profileId, profile.id);
+    });
+
     test('falls a custom overwrite back to a standard one', () async {
       writeFile(join(source.path, 'profiles', 'p1.yaml'), '');
 

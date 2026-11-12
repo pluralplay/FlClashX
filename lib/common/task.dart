@@ -619,6 +619,11 @@ Future<MigrationData> migrateLegacyConfig({
       Script(id: newId, label: label, lastUpdateTime: DateTime.now()),
     );
   }
+  final scriptProps = configMap['scriptProps'];
+  // FlClashX 0.4 ran its selected script on every profile, over any rules.
+  final globalScriptId = scriptProps is Map
+      ? idMap[scriptProps['currentId']]
+      : null;
   final List rawRules = configMap['rules'] as List<dynamic>? ?? [];
   final List<Rule> rules = [];
   final List<DisabledRule> disabledRules = [];
@@ -638,10 +643,11 @@ Future<MigrationData> migrateLegacyConfig({
     }
     final profileId = idMap.updateCacheValue(rawId, () => snowflake.id);
     rawProfile['id'] = profileId;
+    final isLegacyProfile = rawProfile['overwrite'] == null;
     final legacyOverwrite = _overwriteOfOverrideData(
       rawProfile['overrideData'],
     );
-    if (legacyOverwrite != null && rawProfile['overwrite'] == null) {
+    if (legacyOverwrite != null && isLegacyProfile) {
       rawProfile['overwrite'] = legacyOverwrite;
     }
     final overwrite = rawProfile['overwrite'] as Map?;
@@ -674,6 +680,10 @@ Future<MigrationData> migrateLegacyConfig({
       rawProfile['extendType'] = overwrite['type'] == ExtendType.script.name
           ? ExtendType.script.name
           : ExtendType.standard.name;
+    }
+    if (isLegacyProfile && globalScriptId != null) {
+      rawProfile['extendType'] = ExtendType.script.name;
+      rawProfile['scriptId'] = globalScriptId;
     }
     final rawUrl = rawProfile['url'];
     rawProfile['type'] = rawUrl is String && rawUrl.isNotEmpty ? 'url' : 'file';
