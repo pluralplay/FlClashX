@@ -92,18 +92,25 @@ fun Service.startForeground(notification: Notification) {
 }
 
 @SuppressLint("UnspecifiedRegisterReceiverFlag")
+/**
+ * Before Android 13 a dynamic receiver is exported, so [permission] is what
+ * keeps other apps from sending to it.
+ */
 fun Context.registerReceiverCompat(
     receiver: BroadcastReceiver,
     filter: IntentFilter,
     exported: Boolean = false,
+    permission: String? = null,
 ) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
     registerReceiver(
         receiver,
         filter,
+        permission,
+        null,
         if (exported) RECEIVER_EXPORTED else RECEIVER_NOT_EXPORTED,
     )
 } else {
-    registerReceiver(receiver, filter)
+    registerReceiver(receiver, filter, permission, null)
 }
 
 fun Context.receiveBroadcastFlow(

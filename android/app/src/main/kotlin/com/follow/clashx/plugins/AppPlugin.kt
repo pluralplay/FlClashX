@@ -8,6 +8,7 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
@@ -20,6 +21,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.content.FileProvider
+import androidx.core.content.IntentCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -29,6 +31,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.follow.clashx.Haptics
 import com.follow.clashx.R
+import com.follow.clashx.RunState
+import com.follow.clashx.ServiceState
 import com.follow.clashx.VPN_PERMISSION_MESSAGE
 import com.follow.clashx.common.Components
 import com.follow.clashx.common.GlobalState
@@ -249,6 +253,32 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 GlobalState.lastExitInfo()
             }
 
+            "getSupportedAbis" -> {
+                result.success(Build.SUPPORTED_ABIS.toList())
+            }
+
+            "inspectSelf" -> reply(result) {
+                PackageUpdates.inspectSelf(GlobalState.application)
+            }
+
+            "inspectPackage" -> {
+                val path = call.argument<String>("path")
+                if (path == null) {
+                    result.error("INVALID_ARGUMENT", "inspectPackage needs a path", null)
+                } else {
+                    reply(result) { PackageUpdates.inspectArchive(GlobalState.application, path) }
+                }
+            }
+
+            "installPackage" -> {
+                val path = call.argument<String>("path")
+                if (path == null) {
+                    result.error("INVALID_ARGUMENT", "installPackage needs a path", null)
+                } else {
+                    installPackage(File(path), result)
+                }
+            }
+
             "getAndroidId" -> reply(result) {
                 Settings.Secure.getString(
                     GlobalState.application.contentResolver,
@@ -353,6 +383,90 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         } catch (error: Exception) {
             result.error("PLATFORM_ERROR", error.toString(), null)
         }
+    }
+
+    private fun installPackage(apk: File, result: Result) {
+        val context = GlobalState.application
+        val runState = ServiceState.runState.value
+        if (runState == RunState.STARTING || runState == RunState.STOPPING) {
+            result.success(INSTALL_BUSY)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            openInstallSourceSettings()
+            result.success(INSTALL_PERMISSION)
+            return
+        }
+        reply(result) {
+            PackageUpdates.install(context, apk)
+            INSTALL_COMMITTED
+        }
+    }
+
+    private fun openInstallSourceSettings() {
+        val activity = activity ?: return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return
+        }
+        try {
+            activity.startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    "package:${activity.packageName}".toUri(),
+                ),
+            )
+        } catch (error: Exception) {
+            GlobalState.log("Install source settings unavailable: $error")
+        }
+    }
+
+    private val installStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val session = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+            if (session == -1 || session != PackageUpdates.activeSession) {
+                return
+            }
+            val status = intent.getIntExtra(
+                PackageInstaller.EXTRA_STATUS,
+                PackageInstaller.STATUS_FAILURE,
+            )
+            when (status) {
+                PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                    val confirm = IntentCompat.getParcelableExtra(
+                        intent,
+                        Intent.EXTRA_INTENT,
+                        Intent::class.java,
+                    ) ?: return
+                    try {
+                        val host = activity
+                        if (host != null) {
+                            host.startActivity(confirm)
+                        } else {
+                            context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    } catch (error: Exception) {
+                        GlobalState.log("Install confirmation unavailable: $error")
+                        reportInstallStatus("failed", "$error")
+                    }
+                }
+
+                PackageInstaller.STATUS_SUCCESS -> Unit
+
+                else -> reportInstallStatus(
+                    if (status == PackageInstaller.STATUS_FAILURE_ABORTED) "aborted" else "failed",
+                    intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE),
+                )
+            }
+        }
+    }
+
+    private fun reportInstallStatus(status: String, message: String?) {
+        channel.invokeMethod(
+            "packageInstallStatus",
+            mapOf("status" to status, "message" to message),
+        )
     }
 
     private fun openAppSettings(): Boolean {
@@ -528,6 +642,11 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             MethodChannel(flutterPluginBinding.binaryMessenger, "${Components.PACKAGE_NAME}/app")
         channel.setMethodCallHandler(this)
         watchPackageChanges(flutterPluginBinding.applicationContext)
+        flutterPluginBinding.applicationContext.registerReceiverCompat(
+            installStatusReceiver,
+            IntentFilter(PackageUpdates.statusAction(flutterPluginBinding.applicationContext)),
+            permission = GlobalState.receiveBroadcastPermission,
+        )
     }
 
     private fun watchPackageChanges(context: Context) {
@@ -544,6 +663,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         packageChangeContext?.unregisterReceiver(packageChangeReceiver)
         packageChangeContext = null
+        binding.applicationContext.unregisterReceiver(installStatusReceiver)
         channel.setMethodCallHandler(null)
         scope.cancel()
         invokeVpnPrepareCallback(false)
@@ -670,5 +790,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         const val REFUSAL_CANCELLED = "cancelled"
         const val REFUSAL_OTHER_ALWAYS_ON = "otherAlwaysOn"
         const val REFUSAL_RESTRICTED = "restricted"
+        const val INSTALL_COMMITTED = "committed"
+        const val INSTALL_PERMISSION = "permission"
+        const val INSTALL_BUSY = "busy"
     }
 }
