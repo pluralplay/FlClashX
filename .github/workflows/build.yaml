@@ -128,7 +128,7 @@ jobs:
           - platform: windows
             os: windows-2022
           - platform: macos
-            os: macos-15
+            os: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -349,7 +349,7 @@ jobs:
             os: ubuntu-22.04
             arch: amd64
           - platform: macos
-            os: macos-15-intel
+            os: macos-26-intel
             arch: amd64
           - platform: macos
             os: macos-26
