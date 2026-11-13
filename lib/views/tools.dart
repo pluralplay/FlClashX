@@ -157,14 +157,14 @@ class _LocaleItem extends ConsumerWidget {
       appSettingProvider.select((state) => state.locale),
     );
     final currentLocale = getLocaleForString(locale);
+    // The pick lands once the menu has flown back, when this row may be gone.
+    final settings = ref.read(appSettingProvider.notifier);
     return ListItem<Locale?>.options(
       leading: const GlyphIcon(AppGlyphs.language),
       title: Text(context.appLocalizations.language),
       options: [null, ...AppLocalizations.delegate.supportedLocales],
       onChanged: (Locale? locale) {
-        ref
-            .read(appSettingProvider.notifier)
-            .update((state) => state.copyWith(locale: locale?.toString()));
+        settings.update((state) => state.copyWith(locale: locale?.toString()));
       },
       textBuilder: (locale) => _getLocaleString(context, locale),
       value: currentLocale,
