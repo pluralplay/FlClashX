@@ -3,7 +3,7 @@ gradle-wrapper.jar
 /captures/
 /gradlew
 /gradlew.bat
-/local.properties
+local.properties
 GeneratedPluginRegistrant.java
 
 # Remember to never publicly share your keystore.
@@ -11,3 +11,4 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+**/*.p12
