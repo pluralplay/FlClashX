@@ -12,4 +12,5 @@ setup_icon_file: windows\runner\resources\app_icon.ico
 locales:
   - lang: ru
   - lang: en
+  - lang: zh
 privileges_required: admin

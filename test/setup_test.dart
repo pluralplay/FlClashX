@@ -213,6 +213,7 @@ hooks:
           'locales': [
             {'lang': 'ru'},
             {'lang': 'en'},
+            {'lang': 'zh'},
           ],
           'privileges_required': 'admin',
           'setup_icon_file': r'windows\runner\resources\app_icon.ico',
@@ -228,9 +229,55 @@ hooks:
       expect(script, contains('AppVersion=0.9.1'));
       expect(script, contains('Name: "russian"'));
       expect(script, contains('Name: "english"'));
+      expect(script, contains('Name: "chineseSimplified"'));
+      expect(
+        script,
+        contains(
+          p.join(
+            r'C:\repo',
+            'windows',
+            'packaging',
+            'exe',
+            'ChineseSimplified.isl',
+          ),
+        ),
+      );
       expect(script, contains('Arch=x64compatible'));
       expect(script, contains('Flags: runascurrentuser nowait'));
       expect(script, isNot(contains('{{')));
+    });
+
+    test('the Windows installer offers Chinese after Russian', () {
+      final langs = RegExp(r'- lang: (\w+)')
+          .allMatches(
+            File('windows/packaging/exe/make_config.yaml').readAsStringSync(),
+          )
+          .map((match) => match[1])
+          .toList();
+
+      expect(langs.first, 'ru');
+      expect(langs, contains('zh'));
+      expect(
+        File(
+          'windows/packaging/exe/ChineseSimplified.isl',
+        ).readAsBytesSync().take(3),
+        [0xEF, 0xBB, 0xBF],
+      );
+    });
+
+    test('every installer language has every custom message', () {
+      final script = File(
+        'windows/packaging/exe/inno_setup.iss',
+      ).readAsStringSync();
+      Set<String> namesOf(String language) => RegExp(
+        '^$language\\.(\\w+)=',
+        multiLine: true,
+      ).allMatches(script).map((match) => match[1]!).toSet();
+
+      final english = namesOf('english');
+      expect(english, isNotEmpty);
+      expect(namesOf('russian'), english);
+      expect(namesOf('chineseSimplified'), english);
     });
 
     test('the installer clears a stale proxy once it has killed the app', () {

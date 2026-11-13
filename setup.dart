@@ -701,8 +701,9 @@ String _innoSetupCompiler() {
 const _innoLanguages = {
   'en': 'Name: "english"; MessagesFile: "compiler:Default.isl"',
   'ru': 'Name: "russian"; MessagesFile: "compiler:Languages\\Russian.isl"',
-  'zh':
-      'Name: "chineseSimplified"; MessagesFile: "compiler:Languages\\ChineseSimplified.isl"',
+  // Inno Setup 6 does not ship ChineseSimplified.isl, so the translation is
+  // kept next to the template and referenced by its absolute path.
+  'zh': 'Name: "chineseSimplified"; MessagesFile: "{{CHINESE_ISL}}"',
   'ja': 'Name: "japanese"; MessagesFile: "compiler:Languages\\Japanese.isl"',
   'ko': 'Name: "korean"; MessagesFile: "compiler:Languages\\Korean.isl"',
   'fr': 'Name: "french"; MessagesFile: "compiler:Languages\\French.isl"',
@@ -726,10 +727,20 @@ String renderInnoSetup(
       : (config['display_name'] ?? _appName) as String;
   final privileges = (config['privileges_required'] ?? 'admin') as String;
   final locales = (config['locales'] as List?) ?? const [];
+  final chineseIsl = p.join(
+    rootDir,
+    'windows',
+    'packaging',
+    'exe',
+    'ChineseSimplified.isl',
+  );
   final languages = [
     for (final locale in locales)
       if (locale is Map && _innoLanguages[locale['lang']] != null)
-        _innoLanguages[locale['lang']]!,
+        _innoLanguages[locale['lang']]!.replaceAll(
+          '{{CHINESE_ISL}}',
+          chineseIsl,
+        ),
   ];
   if (languages.isEmpty) languages.add(_innoLanguages['en']!);
   final iconFile = (config['setup_icon_file'] as String?) ?? '';
