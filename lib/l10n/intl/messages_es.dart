@@ -261,15 +261,18 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "Encabezados ${transport}";
 
-  static String m94(label) => "${label} debe ser una URL";
+  static String m94(received, total, percent) =>
+      "${received} de ${total} · ${percent}%";
 
-  static String m95(appName) =>
+  static String m95(label) => "${label} debe ser una URL";
+
+  static String m96(appName) =>
       "No permitiste que ${appName} se conectara como VPN";
 
-  static String m96(count) =>
+  static String m97(count) =>
       "${Intl.plural(count, one: 'hace 1 año', other: 'hace ${count} años')}";
 
-  static String m97(count) => "${Intl.plural(count, other: 'hace ${count} a')}";
+  static String m98(count) => "${Intl.plural(count, other: 'hace ${count} a')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2127,12 +2130,78 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("Sin nombre"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("Desfijar ventana"),
     "update": MessageLookupByLibrary.simpleMessage("Actualizar"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
+      "Espera a que la conexión termine de iniciarse o detenerse.",
+    ),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "La descarga no coincide con la suma de comprobación de la versión y se eliminó.",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "La descarga no está firmada como esta app y se eliminó.",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage(
+      "La descarga terminó antes de tiempo.",
+    ),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage(
+      "No se pudo instalar la actualización.",
+    ),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "La descarga falló. Comprueba la conexión e inténtalo de nuevo.",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "Esta versión no tiene compilación para este dispositivo.",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "Esta versión no publica suma de comprobación, así que la descarga no se puede verificar.",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage(
+      "La descarga no es más reciente que esta app.",
+    ),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "Permite instalar apps de este origen y vuelve a tocar Instalar.",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage(
+      "El modo seguro no instala actualizaciones.",
+    ),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "La descarga es más grande de lo que indica la versión.",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "La descarga se redirigió a una dirección que no es GitHub.",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage(
+      "Cerrando para terminar la actualización…",
+    ),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage(
+      "Termina la actualización en el instalador que se abrió.",
+    ),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("Instalar"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage(
+      "Iniciando el instalador…",
+    ),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "Esta copia no se puede reemplazar en su sitio. Arrastra la app desde la imagen de disco abierta a Aplicaciones.",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "Esta copia la gestiona tu gestor de paquetes. Actualízala desde allí.",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage(
+      "Descargada y verificada.",
+    ),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "Esta copia no puede actualizarse sola. Descarga la nueva versión en GitHub.",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage(
+      "Comprobando la descarga…",
+    ),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("Ver en GitHub"),
     "upload": MessageLookupByLibrary.simpleMessage("Subida"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage(
       "Ancho de banda de subida",
     ),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("Usar hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Usar hosts del sistema",
@@ -2159,7 +2228,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "La VPN enruta automáticamente todo el tráfico del sistema a través de VpnService.",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "El administrador de este dispositivo restringe la VPN",
     ),
@@ -2174,8 +2243,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Escribir en el sistema también ajusta el reloj del sistema; Android lo ignora.",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("Sí"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chino simplificado"),
   };

@@ -220,13 +220,16 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} 请求头";
 
-  static String m94(label) => "${label}必须为URL";
+  static String m94(received, total, percent) =>
+      "${received} / ${total} · ${percent}%";
 
-  static String m95(appName) => "你没有允许 ${appName} 建立 VPN 连接";
+  static String m95(label) => "${label}必须为URL";
 
-  static String m96(count) => "${count} 年前";
+  static String m96(appName) => "你没有允许 ${appName} 建立 VPN 连接";
 
   static String m97(count) => "${count} 年前";
+
+  static String m98(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1539,10 +1542,56 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("未命名"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("取消置顶"),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage("请等待连接完成启动或停止。"),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "下载与版本校验和不符，已删除。",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "下载的签名与本应用不同，已删除。",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage("下载提前结束。"),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage("无法安装更新。"),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "下载失败，请检查网络后重试。",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "此版本没有适用于本设备的构建。",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "此版本未发布校验和，无法校验下载。",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage("下载的版本不比本应用新。"),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "请允许安装来自此来源的应用，然后再次点按安装。",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage("安全模式不会安装更新。"),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "下载大小超过了版本标注的大小。",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "下载被重定向到 GitHub 以外的地址。",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage("正在退出以完成更新…"),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage("请在打开的安装程序中完成更新。"),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("安装"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage("正在启动安装程序…"),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "无法原地替换此副本。请将打开的磁盘映像中的应用拖到“应用程序”。",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "此副本由包管理器管理，请在包管理器中更新。",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage("已下载并校验。"),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "此副本无法自行更新，请在 GitHub 上获取新版本。",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage("正在校验下载…"),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("在 GitHub 上查看"),
     "upload": MessageLookupByLibrary.simpleMessage("上传"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("上行带宽"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("使用Hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("使用系统Hosts"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("已用流量"),
@@ -1565,7 +1614,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN 通过 VpnService 自动路由系统所有流量。",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "此设备的管理员限制了 VPN",
     ),
@@ -1576,8 +1625,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "写入系统会同时设置系统时钟，Android 上不生效。",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("是"),
     "zhCN": MessageLookupByLibrary.simpleMessage("中文简体"),
   };

@@ -147,33 +147,70 @@ class CommonAction extends _$CommonAction {
     ];
   }
 
+  Future<UpdatePlatform> _updatePlatform() async {
+    try {
+      return await resolveUpdatePlatform(
+        exitApp: () => ref.read(systemActionProvider.notifier).handleExit(),
+      );
+    } catch (error) {
+      commonPrint.log(
+        'Update platform unresolved: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      return const ManualUpdatePlatform();
+    }
+  }
+
+  UpdateErrorKind? _updateInstallBlocker() {
+    if (ref.read(safeModeProvider)) {
+      return UpdateErrorKind.safeMode;
+    }
+    if (ref.read(setupActionProvider.notifier).isChangingRun) {
+      return UpdateErrorKind.busy;
+    }
+    return null;
+  }
+
   Future<void> checkUpdateResultHandle({
     Map<String, dynamic>? data,
     bool isUser = false,
   }) async {
     if (data != null) {
       final context = globalState.navigatorKey.currentContext!;
-      final res = await dialogs.showMessage(
-        title: currentAppLocalizations.discoverNewVersion,
-        message: _releaseSpan(
-          context,
-          data['tag_name'] as String,
-          data['body'] as String?,
-        ),
-        confirmText: currentAppLocalizations.goDownload,
-        cancelText: isUser ? null : currentAppLocalizations.noLongerRemind,
+      final notes = _releaseSpan(
+        context,
+        data['tag_name'] as String,
+        data['body'] as String?,
       );
-      if (res == true) {
-        unawaited(
-          launchUrl(
-            Uri.parse('https://github.com/$repository/releases/latest'),
-          ),
-        );
-      } else if (!isUser && res == false) {
-        ref
-            .read(appSettingProvider.notifier)
-            .update((state) => state.copyWith(autoCheckUpdate: false));
-      }
+      final platform = await _updatePlatform();
+      final downloader = UpdateDownloader(
+        root: () async =>
+            Directory(join((await appPath.cacheDir.future).path, 'update')),
+      );
+      await dialogs.showCommonDialog<void>(
+        child: UpdateDialog(
+          notes: notes,
+          onOpenReleasePage: () =>
+              unawaited(launchUrl(releasePageOf(data, repository: repository))),
+          onStopReminding: isUser
+              ? null
+              : () => ref
+                    .read(appSettingProvider.notifier)
+                    .update((state) => state.copyWith(autoCheckUpdate: false)),
+          createController: () {
+            final controller = UpdateController(
+              release: data,
+              platform: platform,
+              downloader: downloader,
+              repository: repository,
+              pre: globalState.isPre,
+              installBlocker: _updateInstallBlocker,
+            );
+            app?.onPackageInstallStatus = controller.onInstallStatus;
+            return controller;
+          },
+        ),
+      );
     } else if (isUser) {
       unawaited(
         dialogs.showAlert(

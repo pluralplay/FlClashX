@@ -226,13 +226,16 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} 요청 헤더";
 
-  static String m94(label) => "${label}은(는) URL이어야 합니다";
+  static String m94(received, total, percent) =>
+      "${received} / ${total} · ${percent}%";
 
-  static String m95(appName) => "${appName}의 VPN 연결을 허용하지 않았습니다";
+  static String m95(label) => "${label}은(는) URL이어야 합니다";
 
-  static String m96(count) => "${Intl.plural(count, other: '${count}년 전')}";
+  static String m96(appName) => "${appName}의 VPN 연결을 허용하지 않았습니다";
 
   static String m97(count) => "${Intl.plural(count, other: '${count}년 전')}";
+
+  static String m98(count) => "${Intl.plural(count, other: '${count}년 전')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1667,10 +1670,72 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("이름 없음"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("창 고정 해제"),
     "update": MessageLookupByLibrary.simpleMessage("업데이트"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
+      "연결이 시작되거나 중지될 때까지 기다리세요.",
+    ),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "다운로드가 릴리스 체크섬과 일치하지 않아 삭제했습니다.",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "다운로드가 이 앱과 같은 서명이 아니어서 삭제했습니다.",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage(
+      "다운로드가 중간에 끊겼습니다.",
+    ),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage(
+      "업데이트를 설치하지 못했습니다.",
+    ),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "다운로드하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "이 릴리스에는 이 기기용 빌드가 없습니다.",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "이 릴리스는 체크섬을 게시하지 않아 다운로드를 확인할 수 없습니다.",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage(
+      "다운로드가 이 앱보다 새 버전이 아닙니다.",
+    ),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "이 출처의 앱 설치를 허용한 다음 설치를 다시 탭하세요.",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage(
+      "안전 모드에서는 업데이트를 설치하지 않습니다.",
+    ),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "다운로드가 릴리스에 표시된 크기보다 큽니다.",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "다운로드가 GitHub가 아닌 주소로 리디렉션되었습니다.",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage(
+      "업데이트를 완료하기 위해 종료하는 중…",
+    ),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage(
+      "열린 설치 프로그램에서 업데이트를 완료하세요.",
+    ),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("설치"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage(
+      "설치 프로그램을 시작하는 중…",
+    ),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "이 사본은 그 자리에서 교체할 수 없습니다. 열린 디스크 이미지에서 앱을 응용 프로그램으로 드래그하세요.",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "이 사본은 패키지 관리자가 관리합니다. 패키지 관리자에서 업데이트하세요.",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage("다운로드하고 확인했습니다."),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "이 사본은 스스로 업데이트할 수 없습니다. GitHub에서 새 버전을 받으세요.",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage("다운로드를 확인하는 중…"),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("GitHub에서 보기"),
     "upload": MessageLookupByLibrary.simpleMessage("업로드"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("업로드 대역폭"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("hosts 사용"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("시스템 hosts 사용"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("사용한 트래픽"),
@@ -1695,7 +1760,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN은 VpnService를 통해 모든 시스템 트래픽을 자동으로 라우팅합니다.",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "이 기기에서는 관리자가 VPN을 제한했습니다",
     ),
@@ -1706,8 +1771,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "시스템에 기록하면 시스템 시계도 설정합니다. Android에서는 무시됩니다.",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("예"),
     "zhCN": MessageLookupByLibrary.simpleMessage("중국어 간체"),
   };

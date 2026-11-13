@@ -256,15 +256,18 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} Headers";
 
-  static String m94(label) => "${label} must be a URL";
+  static String m94(received, total, percent) =>
+      "${received} of ${total} · ${percent}%";
 
-  static String m95(appName) =>
+  static String m95(label) => "${label} must be a URL";
+
+  static String m96(appName) =>
       "You did not allow ${appName} to connect as a VPN";
 
-  static String m96(count) =>
+  static String m97(count) =>
       "${Intl.plural(count, one: '1 year ago', other: '${count} years ago')}";
 
-  static String m97(count) => "${Intl.plural(count, other: '${count}y ago')}";
+  static String m98(count) => "${Intl.plural(count, other: '${count}y ago')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1972,10 +1975,78 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("Unnamed"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("Unpin window"),
     "update": MessageLookupByLibrary.simpleMessage("Update"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
+      "Wait until the connection finishes starting or stopping.",
+    ),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "The download doesn\'t match the release checksum and was deleted.",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "The download isn\'t signed like this app and was deleted.",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage(
+      "The download ended early.",
+    ),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage(
+      "The update couldn\'t be installed.",
+    ),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "The download failed. Check the connection and try again.",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "This release has no build for this device.",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "This release publishes no checksum, so the download can\'t be verified.",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage(
+      "The download isn\'t newer than this app.",
+    ),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "Allow installing apps from this source, then tap Install again.",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage(
+      "Safe mode doesn\'t install updates.",
+    ),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "The download is larger than the release says it is.",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "The download was redirected to an address that isn\'t GitHub.",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage(
+      "Closing to finish the update…",
+    ),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage(
+      "Finish the update in the installer that opened.",
+    ),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("Install"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage(
+      "Starting the installer…",
+    ),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "This copy can\'t be replaced in place. Drag the app from the opened disk image to Applications.",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "This copy is managed by your package manager. Update it there.",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage(
+      "Downloaded and verified.",
+    ),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "This copy can\'t update itself. Get the new version on GitHub.",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage(
+      "Checking the download…",
+    ),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage(
+      "View on GitHub",
+    ),
     "upload": MessageLookupByLibrary.simpleMessage("Upload"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("Upload bandwidth"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("Use hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("Use system hosts"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("Used traffic"),
@@ -2000,7 +2071,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN routes all system traffic through VpnService automatically.",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "VPN is restricted on this device by its administrator",
     ),
@@ -2013,8 +2084,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Write to system also sets the system clock; Android ignores it.",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("Yes"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Simplified Chinese"),
   };

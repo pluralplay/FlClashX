@@ -223,13 +223,16 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} リクエストヘッダー";
 
-  static String m94(label) => "${label}はURLである必要があります";
+  static String m94(received, total, percent) =>
+      "${received} / ${total} · ${percent}%";
 
-  static String m95(appName) => "${appName} の VPN 接続が許可されませんでした";
+  static String m95(label) => "${label}はURLである必要があります";
 
-  static String m96(count) => "${count} 年前";
+  static String m96(appName) => "${appName} の VPN 接続が許可されませんでした";
 
   static String m97(count) => "${count} 年前";
+
+  static String m98(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1696,10 +1699,70 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("名称未設定"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("固定を解除"),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
+      "接続の開始または停止が終わるまでお待ちください。",
+    ),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードがリリースのチェックサムと一致しないため削除しました。",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードがこのアプリと同じ署名ではないため削除しました。",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードが途中で終了しました。",
+    ),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage(
+      "アップデートをインストールできませんでした。",
+    ),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードに失敗しました。接続を確認して再試行してください。",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "このリリースにはこのデバイス向けのビルドがありません。",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "このリリースはチェックサムを公開していないため、ダウンロードを検証できません。",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードはこのアプリより新しくありません。",
+    ),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "このソースからのアプリのインストールを許可してから、もう一度「インストール」をタップしてください。",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage(
+      "セーフモードではアップデートをインストールしません。",
+    ),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードがリリースの記載より大きいです。",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードが GitHub 以外のアドレスにリダイレクトされました。",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage(
+      "アップデートを完了するため終了しています…",
+    ),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage(
+      "開いたインストーラでアップデートを完了してください。",
+    ),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("インストール"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage("インストーラを起動しています…"),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "このコピーはその場で置き換えられません。開いたディスクイメージからアプリを「アプリケーション」にドラッグしてください。",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "このコピーはパッケージマネージャで管理されています。そちらで更新してください。",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage("ダウンロードと検証が完了しました。"),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "このコピーは自動で更新できません。GitHub から新しいバージョンを入手してください。",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage("ダウンロードを確認しています…"),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("GitHub で表示"),
     "upload": MessageLookupByLibrary.simpleMessage("アップロード"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("アップロード帯域幅"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("Hostsを使用"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("システムのHostsを使用"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("使用済みトラフィック"),
@@ -1724,7 +1787,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN は VpnService でシステムの全トラフィックを自動的にルーティングします。",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "このデバイスでは管理者によって VPN が制限されています",
     ),
@@ -1735,8 +1798,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "システムに書き込むを有効にするとシステムクロックも設定します。Android では無視されます。",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("はい"),
     "zhCN": MessageLookupByLibrary.simpleMessage("簡体字中国語"),
   };

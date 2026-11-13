@@ -256,15 +256,18 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "Заголовки ${transport}";
 
-  static String m94(label) => "Значение «${label}» должно быть URL";
+  static String m94(received, total, percent) =>
+      "${received} из ${total} · ${percent}%";
 
-  static String m95(appName) =>
+  static String m95(label) => "Значение «${label}» должно быть URL";
+
+  static String m96(appName) =>
       "Вы не дали ${appName} разрешение на подключение VPN";
 
-  static String m96(count) =>
+  static String m97(count) =>
       "${Intl.plural(count, one: '${count} год назад', few: '${count} года назад', many: '${count} лет назад', other: '${count} года назад')}";
 
-  static String m97(count) =>
+  static String m98(count) =>
       "${Intl.plural(count, one: '${count} г. назад', few: '${count} г. назад', many: '${count} лет назад', other: '${count} г. назад')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
@@ -2069,10 +2072,78 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("Без названия"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("Открепить окно"),
     "update": MessageLookupByLibrary.simpleMessage("Обновить"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
+      "Дождитесь, пока подключение запустится или остановится.",
+    ),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "Загрузка не совпала с контрольной суммой релиза и удалена.",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "Загрузка подписана не так, как это приложение, и удалена.",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage(
+      "Загрузка оборвалась.",
+    ),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage(
+      "Не удалось установить обновление.",
+    ),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "Не удалось загрузить. Проверьте соединение и повторите.",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "В этом релизе нет сборки для этого устройства.",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "Релиз не публикует контрольную сумму, поэтому загрузку нельзя проверить.",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage(
+      "Загруженная версия не новее установленной.",
+    ),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "Разрешите установку приложений из этого источника и снова нажмите «Установить».",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage(
+      "В безопасном режиме обновления не устанавливаются.",
+    ),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "Загрузка больше, чем указано в релизе.",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "Загрузку перенаправили на адрес вне GitHub.",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage(
+      "Закрываемся, чтобы завершить обновление…",
+    ),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage(
+      "Завершите обновление в открывшемся установщике.",
+    ),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("Установить"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage(
+      "Запускаем установщик…",
+    ),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "Эту копию нельзя заменить на месте. Перетащите приложение из открытого образа в «Программы».",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "Эта копия установлена менеджером пакетов. Обновите её через него.",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage(
+      "Загружено и проверено.",
+    ),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "Эта копия не может обновиться сама. Скачайте новую версию на GitHub.",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage(
+      "Проверяем загрузку…",
+    ),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage(
+      "Открыть на GitHub",
+    ),
     "upload": MessageLookupByLibrary.simpleMessage("Отдача"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("Скорость отдачи"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("Использовать hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Использовать системный hosts",
@@ -2101,7 +2172,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN автоматически направляет весь системный трафик через VpnService.",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "VPN на этом устройстве ограничен администратором",
     ),
@@ -2118,8 +2189,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "«Записывать в систему» также устанавливает системные часы; Android это игнорирует.",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("Да"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Упрощённый китайский"),
   };

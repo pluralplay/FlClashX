@@ -265,15 +265,18 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "En-têtes ${transport}";
 
-  static String m94(label) => "${label} doit être une URL";
+  static String m94(received, total, percent) =>
+      "${received} sur ${total} · ${percent} %";
 
-  static String m95(appName) =>
+  static String m95(label) => "${label} doit être une URL";
+
+  static String m96(appName) =>
       "Vous n\'avez pas autorisé ${appName} à se connecter en VPN";
 
-  static String m96(count) =>
+  static String m97(count) =>
       "${Intl.plural(count, one: 'il y a 1 an', other: 'il y a ${count} ans')}";
 
-  static String m97(count) =>
+  static String m98(count) =>
       "${Intl.plural(count, other: 'il y a ${count} a')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
@@ -2130,12 +2133,80 @@ class MessageLookup extends MessageLookupByLibrary {
       "Désépingler la fenêtre",
     ),
     "update": MessageLookupByLibrary.simpleMessage("Mettre à jour"),
+    "updateDownloadProgress": m94,
+    "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
+      "Attendez que la connexion ait fini de démarrer ou de s\'arrêter.",
+    ),
+    "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement ne correspond pas à la somme de contrôle de la version et a été supprimé.",
+    ),
+    "updateErrorIdentity": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement n\'est pas signé comme cette app et a été supprimé.",
+    ),
+    "updateErrorIncomplete": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement s\'est interrompu.",
+    ),
+    "updateErrorInstall": MessageLookupByLibrary.simpleMessage(
+      "La mise à jour n\'a pas pu être installée.",
+    ),
+    "updateErrorNetwork": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement a échoué. Vérifiez la connexion et réessayez.",
+    ),
+    "updateErrorNoAsset": MessageLookupByLibrary.simpleMessage(
+      "Cette version n\'a pas de build pour cet appareil.",
+    ),
+    "updateErrorNoChecksum": MessageLookupByLibrary.simpleMessage(
+      "Cette version ne publie pas de somme de contrôle, le téléchargement ne peut donc pas être vérifié.",
+    ),
+    "updateErrorNotNewer": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement n\'est pas plus récent que cette app.",
+    ),
+    "updateErrorPermission": MessageLookupByLibrary.simpleMessage(
+      "Autorisez l\'installation d\'apps depuis cette source, puis touchez à nouveau Installer.",
+    ),
+    "updateErrorSafeMode": MessageLookupByLibrary.simpleMessage(
+      "Le mode sans échec n\'installe pas les mises à jour.",
+    ),
+    "updateErrorTooLarge": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement est plus gros que ce qu\'annonce la version.",
+    ),
+    "updateErrorUntrustedHost": MessageLookupByLibrary.simpleMessage(
+      "Le téléchargement a été redirigé vers une adresse hors de GitHub.",
+    ),
+    "updateExiting": MessageLookupByLibrary.simpleMessage(
+      "Fermeture pour terminer la mise à jour…",
+    ),
+    "updateHandedOff": MessageLookupByLibrary.simpleMessage(
+      "Terminez la mise à jour dans le programme d\'installation ouvert.",
+    ),
+    "updateInstall": MessageLookupByLibrary.simpleMessage("Installer"),
+    "updateInstalling": MessageLookupByLibrary.simpleMessage(
+      "Lancement du programme d\'installation…",
+    ),
+    "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
+      "Cette copie ne peut pas être remplacée sur place. Faites glisser l\'app de l\'image disque ouverte vers Applications.",
+    ),
+    "updatePackageManager": MessageLookupByLibrary.simpleMessage(
+      "Cette copie est gérée par votre gestionnaire de paquets. Mettez-la à jour depuis celui-ci.",
+    ),
+    "updateReady": MessageLookupByLibrary.simpleMessage(
+      "Téléchargé et vérifié.",
+    ),
+    "updateUnsupported": MessageLookupByLibrary.simpleMessage(
+      "Cette copie ne peut pas se mettre à jour seule. Téléchargez la nouvelle version sur GitHub.",
+    ),
+    "updateVerifying": MessageLookupByLibrary.simpleMessage(
+      "Vérification du téléchargement…",
+    ),
+    "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage(
+      "Voir sur GitHub",
+    ),
     "upload": MessageLookupByLibrary.simpleMessage("Envoi"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage(
       "Bande passante d’envoi",
     ),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m94,
+    "urlTip": m95,
     "useHosts": MessageLookupByLibrary.simpleMessage("Utiliser hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Utiliser les hosts du système",
@@ -2162,7 +2233,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "Le VPN fait passer automatiquement tout le trafic du système par VpnService.",
     ),
-    "vpnPermissionNotGranted": m95,
+    "vpnPermissionNotGranted": m96,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "L\'administrateur de cet appareil restreint le VPN",
     ),
@@ -2177,8 +2248,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Écrire dans le système règle aussi l’horloge système ; Android l’ignore.",
     ),
-    "yearsAgo": m96,
-    "yearsAgoShort": m97,
+    "yearsAgo": m97,
+    "yearsAgoShort": m98,
     "yes": MessageLookupByLibrary.simpleMessage("Oui"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chinois simplifié"),
   };
