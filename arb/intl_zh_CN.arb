@@ -1009,6 +1009,7 @@
   "proxyChainUnchainableHop": "{name} 中有无法经由其他节点连接的代理，例如 direct",
   "proxyChainUnreadableFilter": "{name} 的过滤器使用了本应用暂不支持的语法",
   "proxyChainIsMatchTarget": "{name} 是 MATCH 目标。请先选择其他目标，再关闭或删除它",
+  "proxyChainIsRuleTarget": "{name} 是已添加规则的目标。请先修改这些规则的目标，再关闭或删除它",
   "stableImportTitle": "迁移 FlClashX 的配置",
   "stableImportTip": "FlClashX Pre 暂时无法读取 FlClashX 的配置和设置。如果 FlClashX 正在运行，请退出后重试。",
   "stableImportRetry": "重试",

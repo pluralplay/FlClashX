@@ -1009,6 +1009,7 @@
   "proxyChainUnchainableHop": "В {name} есть узлы, которые не подключаются через другое звено, например direct",
   "proxyChainUnreadableFilter": "Фильтр группы {name} использует синтаксис, который приложение пока не читает",
   "proxyChainIsMatchTarget": "{name} выбрана целью MATCH. Сначала выберите другую цель, потом выключайте или удаляйте",
+  "proxyChainIsRuleTarget": "{name} выбрана целью добавленных правил. Сначала смените им цель, потом выключайте или удаляйте",
   "stableImportTitle": "Перенос профилей FlClashX",
   "stableImportTip": "FlClashX Pre пока не смог забрать профили и настройки FlClashX. Если FlClashX запущен, закройте его и повторите.",
   "stableImportRetry": "Повторить",

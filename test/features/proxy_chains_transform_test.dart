@@ -165,7 +165,7 @@ void main() {
     ]);
   });
 
-  test('chains that cannot be built leave the config alone', () {
+  test('a chain that cannot be built stands in as a group that rejects', () {
     final config = _config();
     final before = _config();
     applyProxyChains(config, [
@@ -177,7 +177,26 @@ void main() {
       _chain('Long', ['DE', 'FI', 'NL-1', 'NL-2']),
     ]);
 
-    expect(config, before);
+    expect(config['proxies'], before['proxies']);
+    expect(config['proxy-groups'], [
+      ...before['proxy-groups']! as List,
+      for (final name in ['Missing', 'Provider', 'Twice'])
+        {
+          'name': name,
+          'type': 'select',
+          'proxies': ['REJECT'],
+        },
+    ]);
+  });
+
+  test('a broken chain stands in only where no other chain takes its name', () {
+    final config = _config();
+    applyProxyChains(config, [
+      _chain('A', ['Auto', 'Gone']),
+      _chain('A', ['DE', 'FI'], id: 'second'),
+    ]);
+
+    expect(_named(_groups(config), 'A')['proxies'], ['FI · A']);
   });
 
   test('a provider-backed entry is dialed through as it is', () {
@@ -221,6 +240,7 @@ void main() {
     expect(kindOf(['DE', 'FI'], 'Auto'), ProxyChainIssueKind.nameTaken);
     expect(kindOf(['DE', 'FI'], 'DIRECT'), ProxyChainIssueKind.nameTaken);
     expect(kindOf(['DE', 'FI'], 'GLOBAL'), ProxyChainIssueKind.nameTaken);
+    expect(kindOf(['DE', 'FI'], 'match'), ProxyChainIssueKind.nameTaken);
   });
 
   test('a direct proxy past the entry would skip the hops before it', () {
@@ -427,7 +447,7 @@ void main() {
       'include-all-proxies': true,
       'filter': '(?x)nl',
     });
-    final before = _config()..['proxy-groups'] = config['proxy-groups'];
+    final groups = [...config['proxy-groups']! as List];
     final graph = ProxyChainGraph.fromRaw(config);
     final chain = ProxyChain.fromJson(_chain('C', ['Auto', 'Netherlands']))!;
 
@@ -436,7 +456,15 @@ void main() {
       name: 'Odd',
     ));
     applyProxyChains(config, [chain.toJson()]);
-    expect(config, before);
+    expect(config['proxies'], _config()['proxies']);
+    expect(config['proxy-groups'], [
+      ...groups,
+      {
+        'name': 'C',
+        'type': 'select',
+        'proxies': ['REJECT'],
+      },
+    ]);
   });
 
   test('an unreadable exclusion only rules out its own group as a hop', () {

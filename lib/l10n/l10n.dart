@@ -8482,6 +8482,16 @@ class AppLocalizations {
     );
   }
 
+  /// `{name} is the target of added rules. Point them elsewhere before turning it off or deleting it`
+  String proxyChainIsRuleTarget(Object name) {
+    return Intl.message(
+      '$name is the target of added rules. Point them elsewhere before turning it off or deleting it',
+      name: 'proxyChainIsRuleTarget',
+      desc: '',
+      args: [name],
+    );
+  }
+
   /// `Bring over your FlClashX profiles`
   String get stableImportTitle {
     return Intl.message(

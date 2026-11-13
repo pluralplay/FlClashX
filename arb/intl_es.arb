@@ -1009,6 +1009,7 @@
   "proxyChainUnchainableHop": "{name} tiene proxies que no pueden conectarse a través de otro salto, como direct",
   "proxyChainUnreadableFilter": "El filtro de {name} usa una sintaxis que la app aún no puede leer",
   "proxyChainIsMatchTarget": "{name} es el destino MATCH. Elige otro destino antes de desactivarla o eliminarla",
+  "proxyChainIsRuleTarget": "{name} es el destino de reglas añadidas. Cámbiales el destino antes de desactivarla o eliminarla",
   "stableImportTitle": "Traer tus perfiles de FlClashX",
   "stableImportTip": "FlClashX Pre aún no pudo tomar los perfiles y ajustes de FlClashX. Si FlClashX está abierto, ciérralo y vuelve a intentarlo.",
   "stableImportRetry": "Reintentar",

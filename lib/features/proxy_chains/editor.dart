@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/database/database.dart' show database;
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -37,13 +38,18 @@ Future<void> _renameWithTarget(
     return;
   }
   try {
-    await profiles.rewriteCustom(
-      () async => {
+    await profiles.rewriteCustom(() async {
+      await database.rulesDao.renameRuleTarget(
+        profileId,
+        oldName: previous.name,
+        newName: chain.name,
+      );
+      return {
         profileId: (profile) => profile.matchTarget == previous.name
             ? profile.copyWith(matchTarget: chain.name)
             : profile,
-      },
-    );
+      };
+    });
   } catch (_) {
     await notifier.put(previous);
     throw const ProxyChainsSaveException();

@@ -33,6 +33,9 @@ class RuleItem extends StatelessWidget {
   final void Function(Rule rule) onEdit;
   final String? Function(Rule rule)? invalidMessageOf;
 
+  /// Targets beyond the built-in ones that the profile build will provide.
+  final Set<String> knownTargets;
+
   const RuleItem({
     super.key,
     required this.isSelected,
@@ -42,6 +45,7 @@ class RuleItem extends StatelessWidget {
     this.invalidMessageOf,
     this.isEditing = false,
     this.hasMatch = false,
+    this.knownTargets = const {},
   });
 
   ({bool invalid, Color? color, String? message}) _checkInvalid(
@@ -55,6 +59,8 @@ class RuleItem extends StatelessWidget {
         'REJECT' || 'REJECT-DROP' => context.colorScheme.warning,
         'PASS' || 'PASS-RULE' || 'GLOBAL' => context.colorScheme.tertiary,
         'MATCH' when hasMatch => context.colorScheme.tertiary,
+        _ when knownTargets.contains(rule.ruleTarget) =>
+          context.colorScheme.tertiary,
         _ => null,
       };
       if (color != null) {
@@ -247,8 +253,9 @@ enum _RuleField { content, target }
 
 class RuleForm extends StatefulWidget {
   final Rule? rule;
+  final Set<String> chainTargets;
 
-  const RuleForm({super.key, this.rule});
+  const RuleForm({super.key, this.rule, this.chainTargets = const {}});
 
   @override
   State<RuleForm> createState() => _RuleFormState();
@@ -345,7 +352,11 @@ class _RuleFormState extends State<RuleForm> {
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     final issue = _attempted ? _issue() : null;
-    final targets = [...RuleTarget.ruleTargetNames, RuleAction.MATCH.value];
+    final targets = [
+      ...RuleTarget.ruleTargetNames,
+      RuleAction.MATCH.value,
+      ...widget.chainTargets,
+    ];
     return FormPage(
       title: widget.rule != null
           ? appLocalizations.editRule

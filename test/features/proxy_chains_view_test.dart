@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/native.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/database/database.dart' hide Profiles;
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
 import 'package:fl_clash/models/models.dart';
@@ -37,6 +40,13 @@ final _graph = ProxyChainGraph.fromRaw({
 
 const _working = ProxyChain(id: 'a', name: 'Telegram', hops: ['Auto', 'NL']);
 const _broken = ProxyChain(id: 'b', name: 'Banks', hops: ['DE', 'Moscow']);
+const _telegramRule = Rule(
+  id: 1,
+  ruleAction: RuleAction.DOMAIN_SUFFIX,
+  content: 't.me',
+  ruleTarget: 'Telegram',
+  order: 'a',
+);
 
 class _Profiles extends TestProfiles {
   _Profiles(super.initial, {required this.failWrites});
@@ -61,7 +71,21 @@ Future<ProviderContainer> _pump(
   List<ProxyChain> chains = const [],
   String? matchTarget,
   bool failProfileWrites = false,
+  List<Rule> rules = const [],
 }) async {
+  database = Database(NativeDatabase.memory());
+  addTearDown(database.close);
+  await tester.runAsync(() async {
+    await database.profilesDao.putAll([
+      const Profile(
+        id: _profileId,
+        autoUpdateDuration: Duration.zero,
+      ).toCompanion(),
+    ]);
+    for (final rule in rules) {
+      await database.rulesDao.putRule(rule, profileId: _profileId);
+    }
+  });
   SharedPreferences.setMockInitialValues({
     'proxy_chains_$_profileId': jsonEncode([
       for (final chain in chains) chain.toJson(),
@@ -242,6 +266,63 @@ void main() {
       findsOneWidget,
     );
     expect((await _stored()).single.enabled, isTrue);
+  });
+
+  testWidgets('a chain an added rule points at cannot be switched off', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const CustomScrollView(
+        slivers: [ProxyChainsSection(profileId: _profileId)],
+      ),
+      chains: [_working],
+      rules: [_telegramRule],
+    );
+
+    await tester.tap(find.byType(CommonSwitch));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(currentAppLocalizations.proxyChainIsRuleTarget('Telegram')),
+      findsOneWidget,
+    );
+    expect((await _stored()).single.enabled, isTrue);
+  });
+
+  testWidgets('the add button shows once, in the empty row or the header', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const CustomScrollView(
+        slivers: [ProxyChainsSection(profileId: _profileId)],
+      ),
+    );
+
+    expect(find.byTooltip(currentAppLocalizations.addProxyChain), findsNothing);
+  });
+
+  testWidgets('renaming a chain renames the added rules that point at it', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const ProxyChainForm(profileId: _profileId, chain: _working),
+      chains: [_working],
+      rules: [_telegramRule],
+    );
+
+    await tester.enterText(find.byType(TextFormField), 'Messages');
+    await tester.tap(find.byTooltip(currentAppLocalizations.save));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+
+    final rules = await tester.runAsync(
+      () => database.rulesDao.queryProfileRules(_profileId).get(),
+    );
+    expect(rules!.single.ruleTarget, 'Messages');
   });
 
   testWidgets('renaming the MATCH target chain renames the target', (

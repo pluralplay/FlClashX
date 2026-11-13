@@ -199,6 +199,51 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('a proxy chain of the profile can be picked as the target', (
+    tester,
+  ) async {
+    Rule? result;
+    await tester.pumpWidget(
+      TestApp(
+        wrapInProviderScope: true,
+        overrides: [
+          viewSizeProvider.overrideWithBuild((_, _) => const Size(1200, 800)),
+        ],
+        child: Builder(
+          builder: (context) {
+            return FilledButton(
+              onPressed: () async {
+                result = await showFormSheet<Rule>(
+                  context: context,
+                  builder: (_) => const RuleForm(chainTargets: {'Telegram'}),
+                );
+              },
+              child: const Text('open'),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.current;
+
+    await tester.enterText(find.byType(TextFormField), 't.me');
+    await tester.tap(find.text(l10n.splitStrategy));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Telegram').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Telegram').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, l10n.save));
+    await tester.pumpAndSettle();
+
+    expect(result!.ruleTarget, 'Telegram');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('edit rule keeps the id and order and prefills the fields', (
     tester,
   ) async {

@@ -1009,6 +1009,7 @@
   "proxyChainUnchainableHop": "{name} has proxies that cannot dial through another hop, such as direct",
   "proxyChainUnreadableFilter": "The filter of {name} uses syntax this app cannot read yet",
   "proxyChainIsMatchTarget": "{name} is the MATCH target. Pick another target before turning it off or deleting it",
+  "proxyChainIsRuleTarget": "{name} is the target of added rules. Point them elsewhere before turning it off or deleting it",
   "stableImportTitle": "Bring over your FlClashX profiles",
   "stableImportTip": "FlClashX Pre couldn't take FlClashX's profiles and settings yet. If FlClashX is running, quit it and retry.",
   "stableImportRetry": "Retry",

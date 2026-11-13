@@ -24,7 +24,10 @@ class _StandardContentState extends ConsumerState<StandardContent> {
   Future<void> _handleAddOrUpdate([Rule? rule]) async {
     final res = await showFormSheet<Rule>(
       context: context,
-      builder: (_) => RuleForm(rule: rule),
+      builder: (_) => RuleForm(
+        rule: rule,
+        chainTargets: ref.read(proxyChainTargetsProvider(_profileId)),
+      ),
     );
     if (res == null) {
       return;
@@ -92,7 +95,12 @@ class _StandardContentState extends ConsumerState<StandardContent> {
     BaseNavigator.push(context, _EditGlobalAddedRules(_profileId));
   }
 
-  Widget _buildRuleItem(List<Rule> rules, int index, Set<dynamic> selected) {
+  Widget _buildRuleItem(
+    List<Rule> rules,
+    int index,
+    Set<dynamic> selected,
+    Set<String> chains,
+  ) {
     final rule = rules[index];
     return ReorderableDelayedDragStartListener(
       key: ObjectKey(rule),
@@ -103,6 +111,7 @@ class _StandardContentState extends ConsumerState<StandardContent> {
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: RuleItem(
             hasMatch: true,
+            knownTargets: chains,
             isEditing: selected.isNotEmpty,
             isSelected: selected.contains(rule.id),
             rule: rule,
@@ -124,6 +133,7 @@ class _StandardContentState extends ConsumerState<StandardContent> {
     _profileId = ProfileIdProvider.of(context)!.profileId;
     final addedRules = ref.watch(profileRulesProvider(_profileId)).value ?? [];
     final selectedRules = ref.watch(itemsProvider(_key));
+    final chains = ref.watch(proxyChainTargetsProvider(_profileId));
     return CommonPopScope(
       onPop: selectedRules.isEmpty
           ? null
@@ -169,9 +179,9 @@ class _StandardContentState extends ConsumerState<StandardContent> {
           SliverReorderableList(
             itemCount: addedRules.length,
             itemBuilder: (_, index) =>
-                _buildRuleItem(addedRules, index, selectedRules),
+                _buildRuleItem(addedRules, index, selectedRules, chains),
             proxyDecorator: (child, index, animation) => commonProxyDecorator(
-              _buildRuleItem(addedRules, index, selectedRules),
+              _buildRuleItem(addedRules, index, selectedRules, chains),
               index,
               animation,
             ),
