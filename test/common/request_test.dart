@@ -262,24 +262,6 @@ void main() {
         isNull,
       );
     });
-
-    test('a stable build falls back to jsDelivr when GitHub is down', () async {
-      installed('stable', '0.5.0');
-      final request = Request()
-        ..dio.httpClientAdapter = _HostAdapter({
-          'api.github.com': () => ResponseBody.fromString('blocked', 403),
-          'github.com': () => ResponseBody.fromString('blocked', 403),
-          'data.jsdelivr.com': () => json({
-            'versions': [
-              {'version': '0.5.2'},
-              {'version': '0.5.1-pre.3'},
-              {'version': '0.5.1'},
-            ],
-          }),
-        });
-
-      expect((await request.checkForUpdate())?['tag_name'], 'v0.5.2');
-    });
   });
 
   group('latestRelease', () {
@@ -324,17 +306,13 @@ void main() {
       },
     );
 
-    test('fails instead of answering when no source does', () async {
+    test('fails instead of answering when neither endpoint does', () async {
       final request = requestAnswering({
         'api.github.com': () => ResponseBody.fromString('{}', 403),
         'github.com': () => ResponseBody.fromString('', 503),
-        'data.jsdelivr.com': () => ResponseBody.fromString('', 503),
       });
 
-      await expectLater(
-        request.latestRelease(),
-        throwsA(isA<FormatException>()),
-      );
+      await expectLater(request.latestRelease(), throwsA(isA<DioException>()));
     });
   });
 
