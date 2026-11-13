@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/features/update/manifest_signature.dart';
 
 const _maxRedirects = 5;
+const _maxManifestBytes = 256 * 1024;
+const _manifestDeadline = Duration(seconds: 20);
 
 final _stableTag = RegExp(r'^v\d+\.\d+\.\d+$');
 final _preTag = RegExp(r'^v\d+\.\d+\.\d+-pre\.\d+$');
@@ -26,9 +30,10 @@ Future<Map<String, dynamic>?> fetchManifestUpdate(
   required String currentVersion,
   required bool pre,
   List<String> keys = updateManifestKeys,
+  Duration deadline = _manifestDeadline,
 }) async {
   final manifest = await verifyUpdateManifest(
-    await _fetchManifest(dio, url),
+    await _fetchManifest(dio, url, deadline),
     pre: pre,
     keys: keys,
   );
@@ -91,28 +96,52 @@ Future<Map<String, dynamic>> verifyUpdateManifest(
   };
 }
 
-Future<Object?> _fetchManifest(Dio dio, Uri url) async {
+/// The body is unsigned until verified, so its size and the time it takes
+/// are bounded before anything is decoded.
+Future<Object?> _fetchManifest(Dio dio, Uri url, Duration deadline) async {
+  final cancelToken = CancelToken();
+  final timer = Timer(deadline, () => cancelToken.cancel('deadline'));
+  try {
+    return await _followManifest(dio, url, cancelToken);
+  } on DioException catch (error) {
+    if (CancelToken.isCancel(error)) {
+      throw const UpdateManifestException('timed out');
+    }
+    rethrow;
+  } finally {
+    timer.cancel();
+  }
+}
+
+Future<Object?> _followManifest(
+  Dio dio,
+  Uri url,
+  CancelToken cancelToken,
+) async {
   var current = url;
   for (var hop = 0; hop <= _maxRedirects; hop++) {
     if (!current.isScheme('https')) {
       throw UpdateManifestException('not https: $current');
     }
-    final response = await dio.getUri<String>(
+    final response = await dio.getUri<ResponseBody>(
       current,
+      cancelToken: cancelToken,
       options: Options(
-        responseType: ResponseType.plain,
+        responseType: ResponseType.stream,
         followRedirects: false,
         validateStatus: (_) => true,
       ),
     );
+    final body = response.data!;
     final status = response.statusCode ?? 0;
     if (status == HttpStatus.ok) {
       try {
-        return jsonDecode(response.data ?? '');
+        return jsonDecode(utf8.decode(await _readCapped(body)));
       } on FormatException {
         throw const UpdateManifestException('not JSON');
       }
     }
+    await body.stream.listen(null).cancel();
     final location = response.headers.value(HttpHeaders.locationHeader);
     if (status < 300 || status >= 400 || location == null) {
       throw UpdateManifestException('HTTP $status');
@@ -120,4 +149,15 @@ Future<Object?> _fetchManifest(Dio dio, Uri url) async {
     current = current.resolve(location);
   }
   throw const UpdateManifestException('too many redirects');
+}
+
+Future<List<int>> _readCapped(ResponseBody body) async {
+  final bytes = BytesBuilder(copy: false);
+  await for (final chunk in body.stream) {
+    if (bytes.length + chunk.length > _maxManifestBytes) {
+      throw const UpdateManifestException('too large');
+    }
+    bytes.add(chunk);
+  }
+  return bytes.takeBytes();
 }

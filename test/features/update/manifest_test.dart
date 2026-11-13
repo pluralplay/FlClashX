@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -289,5 +290,54 @@ void main() {
     for (final key in updateManifestKeys) {
       expect(base64.decode(key), hasLength(32));
     }
+  });
+
+  group('an unsigned body is bounded before it is read', () {
+    Future<Map<String, dynamic>?> fetchWith(
+      Map<String, ResponseBody Function()> routes, {
+      Duration deadline = const Duration(seconds: 20),
+    }) => fetchManifestUpdate(
+      Dio()..httpClientAdapter = _FakeAdapter(routes),
+      Uri.parse(_url),
+      currentVersion: '0.5.0',
+      pre: false,
+      keys: keys,
+      deadline: deadline,
+    );
+
+    test('an oversized manifest is refused', () async {
+      final huge = 'x' * (300 * 1024);
+      await expectLater(
+        fetchWith({_url: () => ResponseBody.fromString(huge, 200)}),
+        _rejected('too large'),
+      );
+    });
+
+    test('a manifest that never finishes times out', () async {
+      final stalled = StreamController<Uint8List>();
+      addTearDown(stalled.close);
+      await expectLater(
+        fetchWith({
+          _url: () => ResponseBody(stalled.stream, 200),
+        }, deadline: const Duration(milliseconds: 50)),
+        _rejected('timed out'),
+      );
+    }, timeout: const Timeout(Duration(seconds: 5)));
+
+    test('a heavy redirect body is not read', () async {
+      const next = 'https://mirror.example/real.json';
+      final body = await _signed(_manifest('v0.5.1'));
+      final result = await fetchWith({
+        _url: () => ResponseBody.fromString(
+          'x' * (300 * 1024),
+          302,
+          headers: {
+            HttpHeaders.locationHeader: [next],
+          },
+        ),
+        next: () => _json(body),
+      });
+      expect(result?['version'], 'v0.5.1');
+    });
   });
 }
