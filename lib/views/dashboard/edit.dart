@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -102,6 +103,7 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
           (state) => state.copyWith(
             dashboardWidgets: _keepingHidden(state.dashboardWidgets, shown),
             dashboardWidgetsChosen: true,
+            ownedSettings: {...state.ownedSettings, dashboardWidgetsSetting},
           ),
         );
   }

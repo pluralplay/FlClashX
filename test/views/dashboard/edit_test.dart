@@ -188,6 +188,10 @@ void main() {
       DashboardWidget.currentOutbound,
       DashboardWidget.profiles,
     ]);
+    expect(
+      container.read(appSettingProvider).ownedSettings,
+      contains(dashboardWidgetsSetting),
+    );
     final speed = find.byType(NetworkSpeedCard);
     await tester.pump(const Duration(milliseconds: 100));
     expect(opacityOf(tester, speed), inExclusiveRange(0, 1));

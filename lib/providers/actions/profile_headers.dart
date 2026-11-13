@@ -3,6 +3,7 @@ part of '../action.dart';
 typedef ProfileHeaderSettings = ({
   ViewRequest? view,
   List<DashboardWidget>? widgets,
+  bool widgetsDenied,
   Set<String>? switches,
   bool globalModeAllowed,
   bool hideIp,
@@ -14,6 +15,7 @@ ProfileHeaderSettings profileHeaderSettingsOf(Profile? profile) {
   return (
     view: headers?.view,
     widgets: headers?.dashboardWidgets,
+    widgetsDenied: headers?.widgetEditingDenied ?? false,
     switches: headers?.appSwitches,
     globalModeAllowed: headers?.globalModeAllowed ?? true,
     hideIp: headers?.hideIp ?? false,
@@ -123,7 +125,9 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
             );
       }
     }
-    if (settings.widgets case final widgets?) {
+    if (settings.widgets case final widgets?
+        when settings.widgetsDenied ||
+            !owned.contains(dashboardWidgetsSetting)) {
       ref
           .read(appSettingProvider.notifier)
           .update(
