@@ -222,46 +222,6 @@ void main() {
         isNull,
       );
     });
-
-    test('a provider manifest is the update source over GitHub', () async {
-      installed('stable', '0.5.0');
-      final request = Request()
-        ..dio.httpClientAdapter = _HostAdapter({
-          'mirror.example': () => json({
-            'version': 'v0.5.2',
-            'assets': [
-              {
-                'name': 'FlClashX-macos-arm64.dmg',
-                'url': 'https://mirror.example/v0.5.2/FlClashX-macos-arm64.dmg',
-                'sha256': 'a' * 64,
-              },
-            ],
-          }),
-        });
-
-      final res = await request.checkForUpdate(
-        manifestUrl: 'https://mirror.example/manifest.json',
-      );
-      expect(res?['tag_name'], 'v0.5.2');
-      expect(res?['_isManifest'], true);
-      expect(res?['assets'], isNotEmpty);
-    });
-
-    test('a manifest no newer than the build offers nothing', () async {
-      installed('stable', '0.5.2');
-      final request = Request()
-        ..dio.httpClientAdapter = _HostAdapter({
-          'mirror.example': () =>
-              json({'version': 'v0.5.2', 'assets': const []}),
-        });
-
-      expect(
-        await request.checkForUpdate(
-          manifestUrl: 'https://mirror.example/manifest.json',
-        ),
-        isNull,
-      );
-    });
   });
 
   group('latestRelease', () {

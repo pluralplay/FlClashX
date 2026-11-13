@@ -89,18 +89,35 @@ class CommonAction extends _$CommonAction {
 
   /// The provider's update manifest for this channel, when its header names
   /// one; it then stands in for GitHub as the update source.
-  String? updateManifestUrl() {
+  Future<Map<String, dynamic>?> checkForUpdate() async {
     final headers = ref.read(currentProfileProvider)?.headers;
-    return globalState.isPre
+    final manifestUrl = globalState.isPre
         ? headers?.preUpdateManifestUrl
         : headers?.updateManifestUrl;
+    if (manifestUrl == null) {
+      return request.checkForUpdate();
+    }
+    try {
+      return await fetchManifestUpdate(
+        request.dio,
+        Uri.parse(manifestUrl),
+        currentVersion: globalState.packageInfo.displayVersion,
+        pre: globalState.isPre,
+      );
+    } catch (error) {
+      commonPrint.log(
+        'update manifest failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      return null;
+    }
   }
 
   Future<bool> autoCheckUpdate() async {
     if (!ref.read(appSettingProvider).autoCheckUpdate) return false;
     final Map<String, dynamic>? res;
     try {
-      res = await request.checkForUpdate(manifestUrl: updateManifestUrl());
+      res = await checkForUpdate();
     } catch (error) {
       commonPrint.log(
         'checkForUpdate failed: ${compactError(error)}',

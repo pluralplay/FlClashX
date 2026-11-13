@@ -319,7 +319,7 @@ void main() {
       expect(asset.url.host, 'mirror.example');
       expect(asset.checksum, sha);
       expect(asset.checksumUrl, isNull);
-      expect(asset.allowedHosts, {'mirror.example'});
+      expect(asset.allowedHosts, {...updateHosts, 'mirror.example'});
     });
 
     test('a missing asset for the platform fails', () {

@@ -127,11 +127,7 @@ class Request {
   }
 
   /// Null when this build is current; throws when GitHub cannot be asked.
-  /// A provider [manifestUrl] replaces GitHub as the authority entirely.
-  Future<Map<String, dynamic>?> checkForUpdate({String? manifestUrl}) async {
-    if (manifestUrl != null) {
-      return _manifestUpdate(manifestUrl);
-    }
+  Future<Map<String, dynamic>?> checkForUpdate() async {
     final release = globalState.isPre
         ? await latestPrerelease()
         : await latestRelease();
@@ -143,35 +139,6 @@ class Request {
     final hasUpdate =
         compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
     return hasUpdate ? release : null;
-  }
-
-  Future<Map<String, dynamic>?> _manifestUpdate(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null || !uri.isScheme('https')) {
-      return null;
-    }
-    try {
-      final response = await dio.getUri<Map<String, dynamic>>(
-        uri,
-        options: Options(responseType: ResponseType.json),
-      );
-      final manifest = response.data;
-      final version = manifest?['version'];
-      if (manifest == null || version is! String) {
-        return null;
-      }
-      final current = globalState.packageInfo.displayVersion;
-      if (compareVersions(version.replaceAll('v', ''), current) <= 0) {
-        return null;
-      }
-      return {...manifest, 'tag_name': version, '_isManifest': true};
-    } on DioException catch (error) {
-      commonPrint.log(
-        'update manifest failed: ${compactError(error)}',
-        logLevel: LogLevel.warning,
-      );
-      return null;
-    }
   }
 
   /// A pre-release installs as its own app, which a stable release would not

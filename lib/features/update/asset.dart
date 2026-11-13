@@ -103,7 +103,8 @@ bool isAllowedUpdateUri(Uri uri, {Set<String> hosts = updateHosts}) =>
 final _sha256Pattern = RegExp(r'^[0-9a-fA-F]{64}$');
 
 /// A provider manifest's binary may sit on any HTTPS host: its inline hash,
-/// from the trusted manifest, vouches for it.
+/// from the trusted manifest, vouches for it. The update hosts stay allowed
+/// because a GitHub release download redirects to its asset CDN.
 UpdateAsset manifestUpdateAsset(
   Map<String, dynamic> manifest,
   UpdateTarget target,
@@ -137,7 +138,7 @@ UpdateAsset manifestUpdateAsset(
       name: name,
       url: uri,
       checksum: sha.toLowerCase(),
-      allowedHosts: {uri.host.toLowerCase()},
+      allowedHosts: {...updateHosts, uri.host.toLowerCase()},
     );
   }
   throw const UpdateException(UpdateErrorKind.noAsset);

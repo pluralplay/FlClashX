@@ -101,6 +101,24 @@ void main() {
     },
   );
 
+  test('a manifest asset follows the release download to its CDN', () async {
+    final payload = List<int>.generate(3000, (i) => i % 251);
+    for (final url in ['$_base/$_name', 'https://mirror.example/$_name']) {
+      final asset = manifestUpdateAsset({
+        'assets': [
+          {'name': _name, 'url': url, 'sha256': 'a' * 64},
+        ],
+      }, const UpdateTarget(UpdateInstallKind.macos, ['arm64']));
+      final adapter = _FakeAdapter({
+        url: () => _redirect('$_cdn?sig=1'),
+        '$_cdn?sig=1': () => _bytes(payload),
+      });
+      final file = await downloader(adapter).download(asset);
+      expect(await file.readAsBytes(), payload);
+      expect(adapter.requested, [url, '$_cdn?sig=1']);
+    }
+  });
+
   test('refuses a redirect off the allowlist and leaves nothing', () async {
     final adapter = _FakeAdapter({
       '$_base/$_name': () => _redirect('https://evil.example/x'),
