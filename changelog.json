@@ -14,6 +14,11 @@
               "id": "376b12c",
               "scope": "profiles",
               "text": "The current profile's menu on the Profiles page opens its details: counts, subscription and external resources"
+            },
+            {
+              "id": "6cd2a43",
+              "scope": "l10n",
+              "text": "The Windows installer offers Chinese, and the README has a Chinese translation (#153)"
             }
           ]
         },

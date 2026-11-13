@@ -5,6 +5,7 @@
 **Features**
 
 - **profiles** The current profile's menu on the Profiles page opens its details: counts, subscription and external resources (376b12c)
+- **l10n** The Windows installer offers Chinese, and the README has a Chinese translation (#153) (6cd2a43)
 
 **Bug Fixes**
 

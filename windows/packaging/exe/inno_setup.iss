@@ -314,6 +314,15 @@ russian.ContinueHint=Нажмите «Далее», чтобы продолжи�
 russian.CurrentVersion=Текущая версия: %1
 russian.NewVersion=Новая версия: %1
 russian.RemoveUserData=Удалить пользовательские данные программы?
+chineseSimplified.Upgrade=升级
+chineseSimplified.FreshInstall=全新安装
+chineseSimplified.InstalledVersion=已安装版本 %1。
+chineseSimplified.InstalledUnknown=检测到已安装的版本。
+chineseSimplified.WillInstall=安装程序将安装版本 %1。
+chineseSimplified.ContinueHint=点击“下一步”继续升级，或点击“取消”退出。
+chineseSimplified.CurrentVersion=当前版本：%1
+chineseSimplified.NewVersion=新版本：%1
+chineseSimplified.RemoveUserData=是否删除应用程序的用户数据？
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce; Check: not IsUpgradeInstallation

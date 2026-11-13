@@ -1,6 +1,6 @@
 <div>
 
-[**Russian**](README.md)
+[**Russian**](README.md) · [**中文**](README_ZH.md)
 
 </div>
 
@@ -60,7 +60,7 @@ Built on FlClash v0.9.2 and the mihomo v1.19.34 core, so everything the original
 
 💻 **macOS:** "Pin to menu bar" mode: the window opens from the menu bar icon, with no Dock icon.
 
-🇷🇺 **Windows:** Russian in the installer.
+🇷🇺🇨🇳 **Windows:** Russian and Chinese in the installer.
 
 ### Interface
 
