@@ -48,6 +48,26 @@ void main() {
     });
   });
 
+  group('update manifest header', () {
+    test('reads an https manifest url per channel, rejects other schemes', () {
+      const headers = ProviderHeaders({
+        'flclashx-update': 'https://mirror.example/manifest.json',
+        'flclashx-update-pre': 'https://mirror.example/pre.json',
+      });
+      expect(headers.updateManifestUrl, 'https://mirror.example/manifest.json');
+      expect(headers.preUpdateManifestUrl, 'https://mirror.example/pre.json');
+
+      expect(
+        const ProviderHeaders({
+          'flclashx-update': 'http://mirror.example/m.json',
+        }).updateManifestUrl,
+        isNull,
+      );
+      expect(const ProviderHeaders({}).updateManifestUrl, isNull);
+      expect(const ProviderHeaders({}).preUpdateManifestUrl, isNull);
+    });
+  });
+
   group('service headers', () {
     test('read the name, logo and server group plain or base64', () {
       final encoded = base64.encode(utf8.encode('Мой VPN'));

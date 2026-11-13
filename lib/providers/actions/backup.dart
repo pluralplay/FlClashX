@@ -84,6 +84,7 @@ class BackupAction extends _$BackupAction {
     ).wait;
     final configMap = ref.read(configProvider).toJson();
     configMap['version'] = await preferences.getVersion();
+    configMap[proxyChainsBackupKey] = await proxyChainsBackup(profileIds);
     final archivePath = join(workDir, 'backup.zip');
     await backupTask((
       archivePath: archivePath,
@@ -132,6 +133,13 @@ class BackupAction extends _$BackupAction {
     } catch (_) {
       await putBack?.call();
       rethrow;
+    }
+    try {
+      await restoreProxyChains(ref, configMap?[proxyChainsBackupKey], [
+        for (final profile in data.profiles) profile.id,
+      ]);
+    } catch (error) {
+      commonPrint.log('proxy chains not restored: $error');
     }
     await _clearReplacedProviderCaches(previousProviders);
     await _clearOutdatedCompiledRuleSets(data.clashProviders);

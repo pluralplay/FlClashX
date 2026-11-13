@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/database/database.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/proxy_chains/proxy_chains.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -13,6 +14,7 @@ import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart';
 import 'package:riverpod/riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/app_paths.dart';
 import '../helpers/preferences.dart';
@@ -117,6 +119,32 @@ void main() {
       expect(profileFile.readAsStringSync(), 'proxies: []');
       expect(target.read(excludeSSIDsProvider), ['home-wifi']);
       expect(workDirs(), isEmpty);
+    });
+
+    test('carries the proxy chains of the profiles it backs up', () async {
+      await testDatabase.profilesDao.putAll([
+        _profile(1, 'Backed up').toCompanion(0),
+      ]);
+      final chains = jsonEncode([
+        const ProxyChain(
+          id: 'a',
+          name: 'Telegram',
+          hops: ['DE', 'NL'],
+        ).toJson(),
+      ]);
+      final shared = await SharedPreferences.getInstance();
+      await shared.setString('proxy_chains_1', chains);
+      final archivePath = await backupToKept(actionOf(buildContainer()));
+
+      await shared.setString('proxy_chains_1', '[]');
+      final target = buildContainer();
+      await actionOf(
+        target,
+      ).restore(RestoreOption.onlyProfiles, (_) async => archivePath);
+
+      expect(shared.getString('proxy_chains_1'), chains);
+      final restored = await target.read(proxyChainsProvider(1).future);
+      expect(restored.single.name, 'Telegram');
     });
 
     test('pushes a restore that keeps the selected profile', () async {
@@ -244,6 +272,18 @@ void main() {
 
       final stored = await testDatabase.profilesDao.query().get();
       expect(stored.map((item) => item.label), ['From backup']);
+    });
+
+    test('a backup without chains leaves the chains a profile has', () async {
+      final shared = await SharedPreferences.getInstance();
+      await shared.setString('proxy_chains_1', '["kept"]');
+
+      await actionOf(buildContainer()).applyRestore(
+        MigrationData(profiles: [_profile(1, 'From backup')]),
+        RestoreOption.onlyProfiles,
+      );
+
+      expect(shared.getString('proxy_chains_1'), '["kept"]');
     });
 
     test('an override restore drops profiles the backup omits', () async {

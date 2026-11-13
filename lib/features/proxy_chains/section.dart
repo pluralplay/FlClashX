@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/database/database.dart' show database;
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -27,16 +30,24 @@ String proxyChainIssueText(AppLocalizations l, ProxyChainIssue issue) =>
       ProxyChainIssueKind.nameTaken => l.proxyChainNameTaken(issue.name),
     };
 
-/// A chain the profile's MATCH rule points at cannot go away under it.
-bool _isMatchTarget(WidgetRef ref, int profileId, ProxyChain chain) {
-  if (ref.read(profileProvider(profileId))?.matchTarget != chain.name) {
+/// The core rejects a whole profile over one rule's missing target.
+Future<bool> _isRuleTarget(
+  WidgetRef ref,
+  int profileId,
+  ProxyChain chain,
+) async {
+  final l = currentAppLocalizations;
+  final String message;
+  if (ref.read(profileProvider(profileId))?.matchTarget == chain.name) {
+    message = l.proxyChainIsMatchTarget(chain.name);
+  } else if ((await database.rulesDao.targetsNaming({
+    chain.name,
+  })).containsKey(profileId)) {
+    message = l.proxyChainIsRuleTarget(chain.name);
+  } else {
     return false;
   }
-  dialogs.showAlert(
-    message: TextSpan(
-      text: currentAppLocalizations.proxyChainIsMatchTarget(chain.name),
-    ),
-  );
+  unawaited(dialogs.showAlert(message: TextSpan(text: message)));
   return true;
 }
 
@@ -93,11 +104,12 @@ class ProxyChainsSection extends ConsumerWidget {
               title: appLocalizations.proxyChainsTitle,
               trailing: const BetaPill(),
               actions: [
-                IconButtonData(
-                  glyph: AppGlyphs.addCircle,
-                  tooltip: appLocalizations.addProxyChain,
-                  onPressed: () => _add(context),
-                ),
+                if (chains.isNotEmpty)
+                  IconButtonData(
+                    glyph: AppGlyphs.addCircle,
+                    tooltip: appLocalizations.addProxyChain,
+                    onPressed: () => _add(context),
+                  ),
               ],
             ),
             generateSection(
@@ -141,11 +153,11 @@ class _ChainRow extends ConsumerWidget {
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    if (_isMatchTarget(ref, profileId, chain)) {
-      return;
-    }
     final appLocalizations = context.appLocalizations;
     final notifier = ref.read(proxyChainsProvider(profileId).notifier);
+    if (await _isRuleTarget(ref, profileId, chain)) {
+      return;
+    }
     final confirmed = await dialogs.showMessage(
       title: appLocalizations.tip,
       message: TextSpan(
@@ -196,15 +208,12 @@ class _ChainRow extends ConsumerWidget {
         trailing: CommonSwitch(
           value: chain.enabled,
           semanticLabel: chain.name,
-          onChanged: (enabled) {
-            if (!enabled && _isMatchTarget(ref, profileId, chain)) {
+          onChanged: (enabled) async {
+            final notifier = ref.read(proxyChainsProvider(profileId).notifier);
+            if (!enabled && await _isRuleTarget(ref, profileId, chain)) {
               return;
             }
-            _saving(
-              () => ref
-                  .read(proxyChainsProvider(profileId).notifier)
-                  .put(chain.copyWith(enabled: enabled)),
-            );
+            await _saving(() => notifier.put(chain.copyWith(enabled: enabled)));
           },
         ),
       ),

@@ -97,6 +97,54 @@ void main() {
     );
   });
 
+  group('restoring a backup', () {
+    late Future<bool> Function(String, String) write;
+    final refProvider = Provider<Ref>((ref) => ref);
+
+    setUp(() {
+      write = ProxyChainsNotifier.write;
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    tearDown(() => ProxyChainsNotifier.write = write);
+
+    test(
+      'a refused write is reported, the other profiles still restored',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final restored = <String>[];
+        ProxyChainsNotifier.write = (key, value) async {
+          restored.add(key);
+          return key != 'proxy_chains_1';
+        };
+        final chains = jsonEncode([_chain('A').toJson()]);
+
+        await expectLater(
+          restoreProxyChains(
+            container.read(refProvider),
+            {'1': chains, '2': chains},
+            const [1, 2],
+          ),
+          throwsA(isA<ProxyChainsSaveException>()),
+        );
+        expect(restored, ['proxy_chains_1', 'proxy_chains_2']);
+      },
+    );
+
+    test('a backup without the chains key leaves them untouched', () async {
+      SharedPreferences.setMockInitialValues({'proxy_chains_1': '["kept"]'});
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      ProxyChainsNotifier.write = (_, _) async => false;
+
+      await restoreProxyChains(container.read(refProvider), null, const [1]);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString('proxy_chains_1'), '["kept"]');
+    });
+  });
+
   test('the outbound graph follows edits to the profile script', () async {
     final root = Directory.systemTemp.createTempSync('proxy_chains_script');
     addTearDown(() => root.deleteSync(recursive: true));

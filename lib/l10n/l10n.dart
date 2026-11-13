@@ -8482,6 +8482,16 @@ class AppLocalizations {
     );
   }
 
+  /// `{name} is the target of added rules. Point them elsewhere before turning it off or deleting it`
+  String proxyChainIsRuleTarget(Object name) {
+    return Intl.message(
+      '$name is the target of added rules. Point them elsewhere before turning it off or deleting it',
+      name: 'proxyChainIsRuleTarget',
+      desc: '',
+      args: [name],
+    );
+  }
+
   /// `Bring over your FlClashX profiles`
   String get stableImportTitle {
     return Intl.message(
@@ -8512,6 +8522,241 @@ class AppLocalizations {
     return Intl.message(
       'Continue without them',
       name: 'stableImportSkip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View on GitHub`
+  String get updateViewOnGitHub {
+    return Intl.message(
+      'View on GitHub',
+      name: 'updateViewOnGitHub',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Install`
+  String get updateInstall {
+    return Intl.message('Install', name: 'updateInstall', desc: '', args: []);
+  }
+
+  /// `{received} of {total} · {percent}%`
+  String updateDownloadProgress(Object received, Object total, Object percent) {
+    return Intl.message(
+      '$received of $total · $percent%',
+      name: 'updateDownloadProgress',
+      desc: '',
+      args: [received, total, percent],
+    );
+  }
+
+  /// `Checking the download…`
+  String get updateVerifying {
+    return Intl.message(
+      'Checking the download…',
+      name: 'updateVerifying',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Downloaded and verified.`
+  String get updateReady {
+    return Intl.message(
+      'Downloaded and verified.',
+      name: 'updateReady',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Starting the installer…`
+  String get updateInstalling {
+    return Intl.message(
+      'Starting the installer…',
+      name: 'updateInstalling',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Finish the update in the installer that opened.`
+  String get updateHandedOff {
+    return Intl.message(
+      'Finish the update in the installer that opened.',
+      name: 'updateHandedOff',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This copy can't be replaced in place. Drag the app from the opened disk image to Applications.`
+  String get updateOpenedImage {
+    return Intl.message(
+      'This copy can\'t be replaced in place. Drag the app from the opened disk image to Applications.',
+      name: 'updateOpenedImage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Closing to finish the update…`
+  String get updateExiting {
+    return Intl.message(
+      'Closing to finish the update…',
+      name: 'updateExiting',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This copy is managed by your package manager. Update it there.`
+  String get updatePackageManager {
+    return Intl.message(
+      'This copy is managed by your package manager. Update it there.',
+      name: 'updatePackageManager',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This copy can't update itself. Get the new version on GitHub.`
+  String get updateUnsupported {
+    return Intl.message(
+      'This copy can\'t update itself. Get the new version on GitHub.',
+      name: 'updateUnsupported',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This release has no build for this device.`
+  String get updateErrorNoAsset {
+    return Intl.message(
+      'This release has no build for this device.',
+      name: 'updateErrorNoAsset',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This release publishes no checksum, so the download can't be verified.`
+  String get updateErrorNoChecksum {
+    return Intl.message(
+      'This release publishes no checksum, so the download can\'t be verified.',
+      name: 'updateErrorNoChecksum',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download was redirected to an address that isn't GitHub.`
+  String get updateErrorUntrustedHost {
+    return Intl.message(
+      'The download was redirected to an address that isn\'t GitHub.',
+      name: 'updateErrorUntrustedHost',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download is larger than the release says it is.`
+  String get updateErrorTooLarge {
+    return Intl.message(
+      'The download is larger than the release says it is.',
+      name: 'updateErrorTooLarge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download ended early.`
+  String get updateErrorIncomplete {
+    return Intl.message(
+      'The download ended early.',
+      name: 'updateErrorIncomplete',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download failed. Check the connection and try again.`
+  String get updateErrorNetwork {
+    return Intl.message(
+      'The download failed. Check the connection and try again.',
+      name: 'updateErrorNetwork',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download doesn't match the release checksum and was deleted.`
+  String get updateErrorChecksum {
+    return Intl.message(
+      'The download doesn\'t match the release checksum and was deleted.',
+      name: 'updateErrorChecksum',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download isn't signed like this app and was deleted.`
+  String get updateErrorIdentity {
+    return Intl.message(
+      'The download isn\'t signed like this app and was deleted.',
+      name: 'updateErrorIdentity',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The download isn't newer than this app.`
+  String get updateErrorNotNewer {
+    return Intl.message(
+      'The download isn\'t newer than this app.',
+      name: 'updateErrorNotNewer',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Wait until the connection finishes starting or stopping.`
+  String get updateErrorBusy {
+    return Intl.message(
+      'Wait until the connection finishes starting or stopping.',
+      name: 'updateErrorBusy',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Safe mode doesn't install updates.`
+  String get updateErrorSafeMode {
+    return Intl.message(
+      'Safe mode doesn\'t install updates.',
+      name: 'updateErrorSafeMode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Allow installing apps from this source, then tap Install again.`
+  String get updateErrorPermission {
+    return Intl.message(
+      'Allow installing apps from this source, then tap Install again.',
+      name: 'updateErrorPermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The update couldn't be installed.`
+  String get updateErrorInstall {
+    return Intl.message(
+      'The update couldn\'t be installed.',
+      name: 'updateErrorInstall',
       desc: '',
       args: [],
     );

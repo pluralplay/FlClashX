@@ -23,8 +23,8 @@ jobs:
           - { platform: windows, arch: arm64, goos: windows, goarch: arm64, ext: .exe, os: ubuntu-24.04 }
           - { platform: linux, arch: amd64, goos: linux, goarch: amd64, ext: "", os: ubuntu-24.04 }
           - { platform: linux, arch: arm64, goos: linux, goarch: arm64, ext: "", os: ubuntu-24.04 }
-          - { platform: macos, arch: amd64, goos: darwin, goarch: amd64, ext: "", os: macos-15 }
-          - { platform: macos, arch: arm64, goos: darwin, goarch: arm64, ext: "", os: macos-15 }
+          - { platform: macos, arch: amd64, goos: darwin, goarch: amd64, ext: "", os: macos-26 }
+          - { platform: macos, arch: arm64, goos: darwin, goarch: arm64, ext: "", os: macos-26 }
 
     steps:
       - name: Checkout

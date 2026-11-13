@@ -95,7 +95,10 @@ class ProxyChainGraph {
       proxyTypes.containsKey(name) || _groupNames.contains(name);
 
   bool _reserved(String name) =>
-      has(name) || _builtins.contains(name) || _providers.contains(name);
+      has(name) ||
+      _builtins.contains(name) ||
+      _providers.contains(name) ||
+      name.toUpperCase() == 'MATCH';
 
   List<String>? leavesOf(String name) =>
       proxyTypes.containsKey(name) ? [name] : _leaves[name];
@@ -366,7 +369,27 @@ void applyProxyChains(Map rawConfig, Iterable<Object?> chainsJson) {
     for (final chain in chains)
       if (!issues.containsKey(chain.id)) chain,
   ];
+  final buildableNames = {for (final chain in buildable) chain.name};
+  // A rule's missing target would fail the whole profile, so it rejects.
+  final standIns = [
+    for (final name in {
+      for (final chain in chains)
+        if (issues.containsKey(chain.id) &&
+            !graph._reserved(chain.name) &&
+            !buildableNames.contains(chain.name))
+          chain.name,
+    })
+      {
+        'name': name,
+        'type': 'select',
+        'proxies': ['REJECT'],
+      },
+  ];
   if (buildable.isEmpty) {
+    if (standIns.isNotEmpty) {
+      final groups = rawConfig['proxy-groups'];
+      rawConfig['proxy-groups'] = [if (groups is List) ...groups, ...standIns];
+    }
     return;
   }
   final groupList = [
@@ -386,7 +409,8 @@ void applyProxyChains(Map rawConfig, Iterable<Object?> chainsJson) {
     ...groupByName.keys,
     ..._builtins,
     ...graph._providers,
-    for (final chain in buildable) chain.name,
+    ...buildableNames,
+    for (final group in standIns) group['name']! as String,
   };
   String unique(String base) {
     var name = base;
@@ -433,7 +457,7 @@ void applyProxyChains(Map rawConfig, Iterable<Object?> chainsJson) {
     }
   }
   rawConfig['proxies'] = proxies;
-  rawConfig['proxy-groups'] = groupList;
+  rawConfig['proxy-groups'] = [...groupList, ...standIns];
 }
 
 /// `include-all` would pick the clones up, so it is listed out beforehand;

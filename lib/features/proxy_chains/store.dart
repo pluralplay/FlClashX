@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'chain.dart';
 
 /// Kept beside the app's settings rather than in the database, so the beta
-/// can be dropped without a schema migration; backups do not carry it yet.
+/// can be dropped without a schema migration.
 String _keyOf(int profileId) => 'proxy_chains_$profileId';
 
 final proxyChainsProvider =
@@ -92,16 +92,20 @@ class ProxyChainsNotifier extends AsyncNotifier<List<ProxyChain>> {
 
 /// The enabled chains of [profileId] as the config build takes them, and a
 /// dependency of whoever awaits it.
+///
+/// Watches at the call, so an async provider must call it before its first
+/// await: a ref watched after one may already be disposed.
 Future<List<Map<String, Object?>>> watchEnabledProxyChains(
   Ref ref,
   int profileId,
-) async {
-  final chains = await ref.watch(proxyChainsProvider(profileId).future);
-  return [
-    for (final chain in chains)
-      if (chain.enabled) chain.toJson(),
-  ];
-}
+) => ref
+    .watch(proxyChainsProvider(profileId).future)
+    .then(
+      (chains) => [
+        for (final chain in chains)
+          if (chain.enabled) chain.toJson(),
+      ],
+    );
 
 /// Never fails the profile's deletion; a leftover is only dead weight.
 Future<void> forgetProxyChains(Ref ref, int profileId) async {
@@ -111,5 +115,51 @@ Future<void> forgetProxyChains(Ref ref, int profileId) async {
   } catch (_) {
   } finally {
     ref.invalidate(proxyChainsProvider(profileId));
+  }
+}
+
+const proxyChainsBackupKey = 'proxyChains';
+
+Future<Map<String, String>> proxyChainsBackup(Iterable<int> profileIds) async {
+  final preferences = await SharedPreferences.getInstance();
+  return {
+    for (final profileId in profileIds)
+      if (preferences.get(_keyOf(profileId)) case final String raw)
+        '$profileId': raw,
+  };
+}
+
+/// An older backup, which carried no chains, leaves them as they are.
+Future<void> restoreProxyChains(
+  Ref ref,
+  Object? backup,
+  Iterable<int> profileIds,
+) async {
+  if (backup is! Map) {
+    return;
+  }
+  final preferences = await SharedPreferences.getInstance();
+  var saved = true;
+  for (final profileId in profileIds) {
+    final raw = backup['$profileId'];
+    try {
+      saved &= raw is String && _isChainList(raw)
+          ? await ProxyChainsNotifier.write(_keyOf(profileId), raw)
+          : await preferences.remove(_keyOf(profileId));
+    } catch (_) {
+      saved = false;
+    }
+    ref.invalidate(proxyChainsProvider(profileId));
+  }
+  if (!saved) {
+    throw const ProxyChainsSaveException();
+  }
+}
+
+bool _isChainList(String raw) {
+  try {
+    return jsonDecode(raw) is List;
+  } on FormatException {
+    return false;
   }
 }

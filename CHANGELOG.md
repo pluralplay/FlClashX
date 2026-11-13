@@ -8,12 +8,19 @@
 - **release** Pre-releases install as a separate FlClashX Pre app and copy the stable app's profiles on first launch (e64104f)
 - **profiles** Proxy chains (beta): route a group through two or three hops from the profile's extension page (630903d)
 - **dashboard** A hidden outbound IP is left out rather than shown as asterisks, and the dashboard's server name takes over switching the server; Hide IP has its own switch on the Theme page (a12e0a0)
+- **update** An update from a provider's mirror installs only when FlClashX signed it, so a mirror cannot hand out another build (fb54dc4)
+- **update** Updates can come from a provider's own mirror named in the subscription (4532a8f)
+- **update** Updates download inside the app, are checked against the release's checksum and signing identity, and install with one tap (fe8371f)
+- **backup** Backups now include the proxy chains of each profile (1a43b3d)
+- **proxies** Added rules of a profile can now send traffic through its proxy chains (8085c69)
 
 **Bug Fixes**
 
 - **headers** A panel that stops sending hideip or novibrate shows the IP and turns vibration back on (ea002c5)
 - **android** On Android TV, Back from the dashboard keeps the VPN running, and the bundled Zashboard no longer gives way to an old MetaCubeXD (44a0353)
 - **profiles** A profile QR code can be read from an image on Windows and Linux again (b1b05cf)
+- **proxies** The proxy chains section no longer shows two add buttons while it is empty (bc4a15e)
+- **proxies** Switching or applying a profile while it was still loading no longer fails with a disposed-ref error (df81615)
 
 ## v0.5.0 (2026-11-12)
 

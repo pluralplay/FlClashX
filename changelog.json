@@ -29,6 +29,31 @@
               "id": "a12e0a0",
               "scope": "dashboard",
               "text": "A hidden outbound IP is left out rather than shown as asterisks, and the dashboard's server name takes over switching the server; Hide IP has its own switch on the Theme page"
+            },
+            {
+              "id": "fb54dc4",
+              "scope": "update",
+              "text": "An update from a provider's mirror installs only when FlClashX signed it, so a mirror cannot hand out another build"
+            },
+            {
+              "id": "4532a8f",
+              "scope": "update",
+              "text": "Updates can come from a provider's own mirror named in the subscription"
+            },
+            {
+              "id": "fe8371f",
+              "scope": "update",
+              "text": "Updates download inside the app, are checked against the release's checksum and signing identity, and install with one tap"
+            },
+            {
+              "id": "1a43b3d",
+              "scope": "backup",
+              "text": "Backups now include the proxy chains of each profile"
+            },
+            {
+              "id": "8085c69",
+              "scope": "proxies",
+              "text": "Added rules of a profile can now send traffic through its proxy chains"
             }
           ]
         },
@@ -49,6 +74,16 @@
               "id": "b1b05cf",
               "scope": "profiles",
               "text": "A profile QR code can be read from an image on Windows and Linux again"
+            },
+            {
+              "id": "bc4a15e",
+              "scope": "proxies",
+              "text": "The proxy chains section no longer shows two add buttons while it is empty"
+            },
+            {
+              "id": "df81615",
+              "scope": "proxies",
+              "text": "Switching or applying a profile while it was still loading no longer fails with a disposed-ref error"
             }
           ]
         }
