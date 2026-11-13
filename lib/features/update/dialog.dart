@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 
 class UpdateDialog extends StatefulWidget {
   final UpdateController Function() createController;
+  final String version;
   final InlineSpan notes;
 
   /// Offered in place of a plain close on a reminder the app raised itself:
@@ -19,6 +20,7 @@ class UpdateDialog extends StatefulWidget {
   const UpdateDialog({
     super.key,
     required this.createController,
+    required this.version,
     required this.notes,
     required this.onOpenReleasePage,
     this.onHide,
@@ -42,9 +44,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
   Widget _action(String label, VoidCallback onPressed) =>
       TextButton(onPressed: onPressed, child: Text(label));
 
+  /// Stacked with the first at the bottom, so the step forward sits on top.
   List<Widget> _actions(AppLocalizations l10n, UpdateState state) {
     final close = _action(l10n.close, _close);
-    final github = _action(l10n.updateViewOnGitHub, widget.onOpenReleasePage);
     return switch (state.phase) {
       UpdatePhase.idle => [
         if (widget.onHide case final hide?)
@@ -54,7 +56,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
           })
         else
           close,
-        github,
         if (_controller.canDownload)
           _action(l10n.goDownload, _controller.download),
       ],
@@ -81,11 +82,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       ],
       UpdatePhase.installing => const [],
       UpdatePhase.done => [close],
-      UpdatePhase.failed => [
-        close,
-        github,
-        _action(l10n.retry, _controller.download),
-      ],
+      UpdatePhase.failed => [close, _action(l10n.retry, _controller.download)],
     };
   }
 
@@ -98,11 +95,16 @@ class _UpdateDialogState extends State<UpdateDialog> {
         canPop: state.phase != UpdatePhase.installing,
         child: CommonDialog(
           title: l10n.discoverNewVersion,
+          stackActions: true,
           actions: _actions(l10n, state),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              _VersionHeading(
+                version: widget.version,
+                onOpenReleasePage: widget.onOpenReleasePage,
+              ),
               SelectableText.rich(
                 TextSpan(children: [widget.notes]),
                 style: const TextStyle(overflow: TextOverflow.visible),
@@ -115,6 +117,50 @@ class _UpdateDialogState extends State<UpdateDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _VersionHeading extends StatelessWidget {
+  final String version;
+  final VoidCallback onOpenReleasePage;
+
+  const _VersionHeading({
+    required this.version,
+    required this.onOpenReleasePage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final link = context.appLocalizations.updateViewOnGitHub;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      spacing: 12,
+      children: [
+        Flexible(
+          child: SelectableText(
+            version,
+            style: AppTextStyle.title2.of(context),
+          ),
+        ),
+        Semantics(
+          link: true,
+          button: true,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: onOpenReleasePage,
+              child: Text(
+                link,
+                style: AppTextStyle.subheadline
+                    .of(context)
+                    .copyWith(color: context.colorScheme.primary),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

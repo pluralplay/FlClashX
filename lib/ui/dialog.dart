@@ -335,6 +335,9 @@ class CommonDialog extends StatelessWidget {
   /// The last action destroys data: red on the plain fill, as in UIKit.
   final bool destructive;
 
+  /// Stacks two actions even when both labels would fit side by side.
+  final bool stackActions;
+
   const CommonDialog({
     super.key,
     required this.title,
@@ -344,6 +347,7 @@ class CommonDialog extends StatelessWidget {
     this.padding,
     this.hasFields = false,
     this.destructive = false,
+    this.stackActions = false,
   });
 
   @override
@@ -373,6 +377,7 @@ class CommonDialog extends StatelessWidget {
                 actions: actions,
                 fill: fill,
                 destructive: destructive,
+                stacked: stackActions,
               ),
             ],
       actionsPadding: const EdgeInsets.fromLTRB(
@@ -573,9 +578,11 @@ class AlertActions extends StatelessWidget {
     required this.actions,
     this.fill,
     this.destructive = false,
+    this.stacked = false,
   });
 
   final List<Widget> actions;
+  final bool stacked;
 
   /// The plain buttons' fill, in place of the raised surface's.
   final Color? fill;
@@ -585,6 +592,7 @@ class AlertActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _AlertActions(
+      stacked: stacked,
       children: [
         for (final (index, action) in actions.indexed)
           _AlertAction(
@@ -667,15 +675,20 @@ class _AlertAction extends StatelessWidget {
   }
 }
 
-/// Two actions side by side when both labels fit half the width; any other
-/// count, or labels too long, stacked in order with the first one at the
-/// bottom.
+/// Two actions side by side when both labels fit half the width and they
+/// are not [stacked]; any other count, or labels too long, stacked in order
+/// with the first one at the bottom.
 class _AlertActions extends MultiChildRenderObjectWidget {
-  const _AlertActions({required super.children});
+  const _AlertActions({required this.stacked, required super.children});
+
+  final bool stacked;
 
   @override
   _RenderAlertActions createRenderObject(BuildContext context) {
-    return _RenderAlertActions(textDirection: Directionality.of(context));
+    return _RenderAlertActions(
+      textDirection: Directionality.of(context),
+      stacked: stacked,
+    );
   }
 
   @override
@@ -683,7 +696,9 @@ class _AlertActions extends MultiChildRenderObjectWidget {
     BuildContext context,
     _RenderAlertActions renderObject,
   ) {
-    renderObject.textDirection = Directionality.of(context);
+    renderObject
+      ..textDirection = Directionality.of(context)
+      ..stacked = stacked;
   }
 }
 
@@ -693,8 +708,11 @@ class _RenderAlertActions extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _AlertActionsParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _AlertActionsParentData> {
-  _RenderAlertActions({required TextDirection textDirection})
-    : _textDirection = textDirection;
+  _RenderAlertActions({
+    required TextDirection textDirection,
+    required bool stacked,
+  }) : _textDirection = textDirection,
+       _stacked = stacked;
 
   TextDirection _textDirection;
   set textDirection(TextDirection value) {
@@ -702,6 +720,15 @@ class _RenderAlertActions extends RenderBox
       return;
     }
     _textDirection = value;
+    markNeedsLayout();
+  }
+
+  bool _stacked;
+  set stacked(bool value) {
+    if (value == _stacked) {
+      return;
+    }
+    _stacked = value;
     markNeedsLayout();
   }
 
@@ -713,6 +740,7 @@ class _RenderAlertActions extends RenderBox
   }
 
   bool _sideBySide(List<RenderBox> children, double width) =>
+      !_stacked &&
       children.length == 2 &&
       children.every(
         (child) =>

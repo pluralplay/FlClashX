@@ -133,11 +133,9 @@ class CommonAction extends _$CommonAction {
     return true;
   }
 
-  TextSpan _releaseSpan(BuildContext context, String tagName, String? body) {
+  TextSpan _releaseSpan(BuildContext context, String? body) {
     final version = parseReleaseChangelog(body);
     return TextSpan(
-      text: '$tagName \n',
-      style: AppTextStyle.title2.of(context),
       children: version == null
           ? [
               TextSpan(text: '\n', style: AppTextStyle.subheadline.of(context)),
@@ -207,11 +205,7 @@ class CommonAction extends _$CommonAction {
   }) async {
     if (data != null) {
       final context = globalState.navigatorKey.currentContext!;
-      final notes = _releaseSpan(
-        context,
-        data['tag_name'] as String,
-        data['body'] as String?,
-      );
+      final notes = _releaseSpan(context, data['body'] as String?);
       final platform = await _updatePlatform();
       final downloader = UpdateDownloader(
         root: () async =>
@@ -219,6 +213,7 @@ class CommonAction extends _$CommonAction {
       );
       await dialogs.showCommonDialog<void>(
         child: UpdateDialog(
+          version: data['tag_name'] as String,
           notes: notes,
           onOpenReleasePage: () =>
               unawaited(launchUrl(releasePageOf(data, repository: repository))),
