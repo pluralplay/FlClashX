@@ -213,6 +213,7 @@ hooks:
           'locales': [
             {'lang': 'ru'},
             {'lang': 'en'},
+            {'lang': 'zh'},
           ],
           'privileges_required': 'admin',
           'setup_icon_file': r'windows\runner\resources\app_icon.ico',
@@ -228,9 +229,34 @@ hooks:
       expect(script, contains('AppVersion=0.9.1'));
       expect(script, contains('Name: "russian"'));
       expect(script, contains('Name: "english"'));
+      expect(script, contains('Name: "chineseSimplified"'));
+      expect(
+        script,
+        contains(
+          p.join(
+            r'C:\repo',
+            'windows',
+            'packaging',
+            'exe',
+            'ChineseSimplified.isl',
+          ),
+        ),
+      );
       expect(script, contains('Arch=x64compatible'));
       expect(script, contains('Flags: runascurrentuser nowait'));
       expect(script, isNot(contains('{{')));
+    });
+
+    test('the Windows installer offers Chinese', () {
+      final config = File(
+        'windows/packaging/exe/make_config.yaml',
+      ).readAsStringSync();
+
+      expect(config, contains('- lang: zh'));
+      expect(
+        File('windows/packaging/exe/ChineseSimplified.isl').existsSync(),
+        isTrue,
+      );
     });
 
     test('the installer clears a stale proxy once it has killed the app', () {
