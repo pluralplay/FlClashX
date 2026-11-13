@@ -67,6 +67,7 @@ dependencies:
   path_parsing: ^1.1.0
   flutter_cache_manager: ^3.4.5
   crypto: ^3.0.7
+  cryptography: ^2.9.0
   yaml: ^3.1.4
   super_sliver_list: ^0.4.1
   drift: ^2.35.1

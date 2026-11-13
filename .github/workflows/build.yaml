@@ -598,6 +598,20 @@ jobs:
             sha256sum "$file" > "${file}.sha256"
           done
 
+      - name: Sign the update manifest
+        shell: bash
+        env:
+          FLCLASHX_UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ -z "$FLCLASHX_UPDATE_SIGNING_KEY" ]]; then
+            echo "::notice::UPDATE_SIGNING_KEY is not set, so the release carries no manifest.json"
+            exit 0
+          fi
+          dart run tool/sign_update_manifest.dart --version "$TAG" \
+            --base-url "https://github.com/pluralplay/FlClashX/releases/download/$TAG" \
+            --out ./dist/manifest.json ./dist
+
       - name: Release
         uses: softprops/action-gh-release@v3
         with:

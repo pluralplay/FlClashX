@@ -5,3 +5,4 @@ export 'download.dart';
 export 'identity.dart';
 export 'platform.dart';
 export 'manifest.dart';
+export 'manifest_signature.dart';
