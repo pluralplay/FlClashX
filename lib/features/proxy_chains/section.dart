@@ -93,11 +93,12 @@ class ProxyChainsSection extends ConsumerWidget {
               title: appLocalizations.proxyChainsTitle,
               trailing: const BetaPill(),
               actions: [
-                IconButtonData(
-                  glyph: AppGlyphs.addCircle,
-                  tooltip: appLocalizations.addProxyChain,
-                  onPressed: () => _add(context),
-                ),
+                if (chains.isNotEmpty)
+                  IconButtonData(
+                    glyph: AppGlyphs.addCircle,
+                    tooltip: appLocalizations.addProxyChain,
+                    onPressed: () => _add(context),
+                  ),
               ],
             ),
             generateSection(
