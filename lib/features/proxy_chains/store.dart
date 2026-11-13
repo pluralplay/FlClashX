@@ -139,14 +139,20 @@ Future<void> restoreProxyChains(
     return;
   }
   final preferences = await SharedPreferences.getInstance();
+  var saved = true;
   for (final profileId in profileIds) {
     final raw = backup['$profileId'];
-    if (raw is String && _isChainList(raw)) {
-      await ProxyChainsNotifier.write(_keyOf(profileId), raw);
-    } else {
-      await preferences.remove(_keyOf(profileId));
+    try {
+      saved &= raw is String && _isChainList(raw)
+          ? await ProxyChainsNotifier.write(_keyOf(profileId), raw)
+          : await preferences.remove(_keyOf(profileId));
+    } catch (_) {
+      saved = false;
     }
     ref.invalidate(proxyChainsProvider(profileId));
+  }
+  if (!saved) {
+    throw const ProxyChainsSaveException();
   }
 }
 
