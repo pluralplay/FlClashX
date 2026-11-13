@@ -127,7 +127,11 @@ class Request {
   }
 
   /// Null when this build is current; throws when GitHub cannot be asked.
-  Future<Map<String, dynamic>?> checkForUpdate() async {
+  /// A provider [manifestUrl] replaces GitHub as the authority entirely.
+  Future<Map<String, dynamic>?> checkForUpdate({String? manifestUrl}) async {
+    if (manifestUrl != null) {
+      return _manifestUpdate(manifestUrl);
+    }
     final release = globalState.isPre
         ? await latestPrerelease()
         : await latestRelease();
@@ -139,6 +143,35 @@ class Request {
     final hasUpdate =
         compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
     return hasUpdate ? release : null;
+  }
+
+  Future<Map<String, dynamic>?> _manifestUpdate(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.isScheme('https')) {
+      return null;
+    }
+    try {
+      final response = await dio.getUri<Map<String, dynamic>>(
+        uri,
+        options: Options(responseType: ResponseType.json),
+      );
+      final manifest = response.data;
+      final version = manifest?['version'];
+      if (manifest == null || version is! String) {
+        return null;
+      }
+      final current = globalState.packageInfo.displayVersion;
+      if (compareVersions(version.replaceAll('v', ''), current) <= 0) {
+        return null;
+      }
+      return {...manifest, 'tag_name': version, '_isManifest': true};
+    } on DioException catch (error) {
+      commonPrint.log(
+        'update manifest failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      return null;
+    }
   }
 
   /// A pre-release installs as its own app, which a stable release would not
@@ -164,11 +197,22 @@ class Request {
         logLevel: LogLevel.warning,
       );
     }
-    final feed = await dio.get<String>(
-      'https://github.com/$repository/releases.atom',
-      options: Options(responseType: ResponseType.plain),
-    );
-    return newestPrereleaseInFeed(feed.data ?? '');
+    try {
+      final feed = await dio.get<String>(
+        'https://github.com/$repository/releases.atom',
+        options: Options(responseType: ResponseType.plain),
+      );
+      final found = newestPrereleaseInFeed(feed.data ?? '');
+      if (found != null) {
+        return found;
+      }
+    } on DioException catch (error) {
+      commonPrint.log(
+        'releases feed failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+    }
+    return _jsdelivrRelease(pre: true);
   }
 
   /// The release page redirect still answers once the hourly API quota is spent.
@@ -186,20 +230,70 @@ class Request {
         logLevel: LogLevel.warning,
       );
     }
-    final response = await dio.get<void>(
-      'https://github.com/$repository/releases/latest',
-      options: Options(
-        followRedirects: false,
-        validateStatus: (status) => status != null && status < 400,
-      ),
-    );
-    final location = response.headers.value(HttpHeaders.locationHeader);
-    final segments = Uri.tryParse(location ?? '')?.pathSegments ?? const [];
-    final tagIndex = segments.indexOf('tag') + 1;
-    if (tagIndex == 0 || tagIndex >= segments.length) {
-      throw FormatException('No release tag in the redirect', location);
+    try {
+      final response = await dio.get<void>(
+        'https://github.com/$repository/releases/latest',
+        options: Options(
+          followRedirects: false,
+          validateStatus: (status) => status != null && status < 400,
+        ),
+      );
+      final location = response.headers.value(HttpHeaders.locationHeader);
+      final segments = Uri.tryParse(location ?? '')?.pathSegments ?? const [];
+      final tagIndex = segments.indexOf('tag') + 1;
+      if (tagIndex != 0 && tagIndex < segments.length) {
+        return {'tag_name': segments[tagIndex]};
+      }
+    } on DioException catch (error) {
+      commonPrint.log(
+        'latest release redirect failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
     }
-    return {'tag_name': segments[tagIndex]};
+    final jsdelivr = await _jsdelivrRelease(pre: false);
+    if (jsdelivr == null) {
+      throw const FormatException('No release found on GitHub or jsDelivr');
+    }
+    return jsdelivr;
+  }
+
+  /// jsDelivr's data API lists the repo's git tags and stays reachable where
+  /// GitHub's own API is blocked; the newest matching tag names the release.
+  /// It drives only the version check — jsDelivr serves no release binaries.
+  Future<Map<String, dynamic>?> _jsdelivrRelease({required bool pre}) async {
+    try {
+      final response = await dio.get<Map<String, dynamic>>(
+        'https://data.jsdelivr.com/v1/packages/gh/$repository',
+        options: Options(responseType: ResponseType.json),
+      );
+      final versions = response.data?['versions'];
+      if (versions is! List) {
+        return null;
+      }
+      String? best;
+      for (final entry in versions) {
+        final raw = entry is Map ? entry['version'] : entry;
+        if (raw is! String) {
+          continue;
+        }
+        final tag = raw.startsWith('v') ? raw : 'v$raw';
+        if (!(pre ? _prereleaseTag : _stableTag).hasMatch(tag)) {
+          continue;
+        }
+        if (best == null ||
+            compareVersions(tag.replaceAll('v', ''), best.replaceAll('v', '')) >
+                0) {
+          best = tag;
+        }
+      }
+      return best == null ? null : {'tag_name': best};
+    } on DioException catch (error) {
+      commonPrint.log(
+        'jsdelivr release lookup failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      return null;
+    }
   }
 }
 
@@ -210,6 +304,7 @@ const _releasePages = 5;
 /// The app's own pre-release tags; Core builds and other releases share the
 /// list under tags compareVersions cannot read.
 final _prereleaseTag = RegExp(r'^v\d+\.\d+\.\d+-pre\.\d+$');
+final _stableTag = RegExp(r'^v\d+\.\d+\.\d+$');
 
 Map<String, dynamic>? newestPrerelease(List<dynamic> releases) {
   Map<String, dynamic>? newest;

@@ -87,11 +87,20 @@ class CommonAction extends _$CommonAction {
     }
   }
 
+  /// The provider's update manifest for this channel, when its header names
+  /// one; it then stands in for GitHub as the update source.
+  String? updateManifestUrl() {
+    final headers = ref.read(currentProfileProvider)?.headers;
+    return globalState.isPre
+        ? headers?.preUpdateManifestUrl
+        : headers?.updateManifestUrl;
+  }
+
   Future<bool> autoCheckUpdate() async {
     if (!ref.read(appSettingProvider).autoCheckUpdate) return false;
     final Map<String, dynamic>? res;
     try {
-      res = await request.checkForUpdate();
+      res = await request.checkForUpdate(manifestUrl: updateManifestUrl());
     } catch (error) {
       commonPrint.log(
         'checkForUpdate failed: ${compactError(error)}',
@@ -204,6 +213,7 @@ class CommonAction extends _$CommonAction {
               downloader: downloader,
               repository: repository,
               pre: globalState.isPre,
+              manifest: data['_isManifest'] == true,
               installBlocker: _updateInstallBlocker,
             );
             app?.onPackageInstallStatus = controller.onInstallStatus;

@@ -106,9 +106,12 @@ void main() {
     }
   });
 
-  UpdateController controller() {
+  UpdateController controller({
+    Map<String, dynamic>? release,
+    bool manifest = false,
+  }) {
     final controller = UpdateController(
-      release: _release,
+      release: release ?? _release,
       platform: platform,
       downloader: UpdateDownloader(
         root: () async => root,
@@ -116,6 +119,7 @@ void main() {
       ),
       repository: 'pluralplay/FlClashX',
       pre: false,
+      manifest: manifest,
       installBlocker: () => blocker,
     );
     controller.addListener(() => states.add(controller.value));
@@ -164,6 +168,28 @@ void main() {
     await pumpEventQueue();
     expect(await files(), hasLength(1));
   });
+
+  test(
+    'a manifest downloads with its inline hash, not a .sha256 file',
+    () async {
+      adapter.checksum = 'b' * 64; // a fetched .sha256 would fail the download
+      final manifest = {
+        'tag_name': 'v0.5.1',
+        'version': 'v0.5.1',
+        'assets': [
+          {
+            'name': _name,
+            'url': '$_url/$_name',
+            'sha256': sha256.convert(_payload).toString(),
+          },
+        ],
+      };
+      final update = controller(release: manifest, manifest: true);
+      await update.download();
+      expect(update.value.phase, UpdatePhase.ready);
+      update.dispose();
+    },
+  );
 
   test('a checksum mismatch fails and deletes the download', () async {
     adapter.checksum = 'b' * 64;

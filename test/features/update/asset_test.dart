@@ -230,7 +230,7 @@ void main() {
         'https://github.com/$_repository/releases/download/v0.5.1/'
         'FlClashX-windows-amd64-setup.exe',
       );
-      expect(asset.checksumUrl.path, endsWith('setup.exe.sha256'));
+      expect(asset.checksumUrl!.path, endsWith('setup.exe.sha256'));
       expect(asset.size, isNull);
       expect(asset.sizeLimit, updateSizeCeiling);
     });
@@ -294,6 +294,79 @@ void main() {
       expect(parseChecksum('not a hash  $name', name), isNull);
       expect(parseChecksum('${hash.substring(1)}  $name', name), isNull);
       expect(parseChecksum('', name), isNull);
+    });
+  });
+
+  group('manifestUpdateAsset', () {
+    final sha = 'a' * 64;
+    Map<String, dynamic> manifest(String name, {String? url, Object? sha256}) =>
+        {
+          'version': 'v0.5.2',
+          'assets': [
+            {
+              'name': name,
+              'url': url ?? 'https://mirror.example/v0.5.2/$name',
+              'sha256': sha256 ?? sha,
+            },
+          ],
+        };
+
+    test('picks the asset for the platform with its inline hash', () {
+      final asset = manifestUpdateAsset(
+        manifest('FlClashX-windows-amd64-setup.exe'),
+        const UpdateTarget(UpdateInstallKind.windows, ['amd64']),
+      );
+      expect(asset.url.host, 'mirror.example');
+      expect(asset.checksum, sha);
+      expect(asset.checksumUrl, isNull);
+      expect(asset.allowedHosts, {'mirror.example'});
+    });
+
+    test('a missing asset for the platform fails', () {
+      expect(
+        () => manifestUpdateAsset(
+          manifest('FlClashX-windows-amd64-setup.exe'),
+          const UpdateTarget(UpdateInstallKind.macos, ['arm64']),
+        ),
+        _fails(UpdateErrorKind.noAsset),
+      );
+    });
+
+    test('a non-https binary url is refused', () {
+      expect(
+        () => manifestUpdateAsset(
+          manifest(
+            'FlClashX-macos-arm64.dmg',
+            url: 'http://mirror.example/x.dmg',
+          ),
+          const UpdateTarget(UpdateInstallKind.macos, ['arm64']),
+        ),
+        _fails(UpdateErrorKind.untrustedHost),
+      );
+    });
+
+    test('a malformed or missing hash is refused', () {
+      for (final bad in ['xyz', 'a' * 63]) {
+        expect(
+          () => manifestUpdateAsset(
+            manifest('FlClashX-macos-arm64.dmg', sha256: bad),
+            const UpdateTarget(UpdateInstallKind.macos, ['arm64']),
+          ),
+          _fails(UpdateErrorKind.noChecksum),
+        );
+      }
+      expect(
+        () => manifestUpdateAsset(const {
+          'version': 'v0.5.2',
+          'assets': [
+            {
+              'name': 'FlClashX-macos-arm64.dmg',
+              'url': 'https://mirror.example/x.dmg',
+            },
+          ],
+        }, const UpdateTarget(UpdateInstallKind.macos, ['arm64'])),
+        _fails(UpdateErrorKind.noChecksum),
+      );
     });
   });
 

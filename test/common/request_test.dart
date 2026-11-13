@@ -222,6 +222,64 @@ void main() {
         isNull,
       );
     });
+
+    test('a provider manifest is the update source over GitHub', () async {
+      installed('stable', '0.5.0');
+      final request = Request()
+        ..dio.httpClientAdapter = _HostAdapter({
+          'mirror.example': () => json({
+            'version': 'v0.5.2',
+            'assets': [
+              {
+                'name': 'FlClashX-macos-arm64.dmg',
+                'url': 'https://mirror.example/v0.5.2/FlClashX-macos-arm64.dmg',
+                'sha256': 'a' * 64,
+              },
+            ],
+          }),
+        });
+
+      final res = await request.checkForUpdate(
+        manifestUrl: 'https://mirror.example/manifest.json',
+      );
+      expect(res?['tag_name'], 'v0.5.2');
+      expect(res?['_isManifest'], true);
+      expect(res?['assets'], isNotEmpty);
+    });
+
+    test('a manifest no newer than the build offers nothing', () async {
+      installed('stable', '0.5.2');
+      final request = Request()
+        ..dio.httpClientAdapter = _HostAdapter({
+          'mirror.example': () =>
+              json({'version': 'v0.5.2', 'assets': const []}),
+        });
+
+      expect(
+        await request.checkForUpdate(
+          manifestUrl: 'https://mirror.example/manifest.json',
+        ),
+        isNull,
+      );
+    });
+
+    test('a stable build falls back to jsDelivr when GitHub is down', () async {
+      installed('stable', '0.5.0');
+      final request = Request()
+        ..dio.httpClientAdapter = _HostAdapter({
+          'api.github.com': () => ResponseBody.fromString('blocked', 403),
+          'github.com': () => ResponseBody.fromString('blocked', 403),
+          'data.jsdelivr.com': () => json({
+            'versions': [
+              {'version': '0.5.2'},
+              {'version': '0.5.1-pre.3'},
+              {'version': '0.5.1'},
+            ],
+          }),
+        });
+
+      expect((await request.checkForUpdate())?['tag_name'], 'v0.5.2');
+    });
   });
 
   group('latestRelease', () {
@@ -266,13 +324,17 @@ void main() {
       },
     );
 
-    test('fails instead of answering when neither endpoint does', () async {
+    test('fails instead of answering when no source does', () async {
       final request = requestAnswering({
         'api.github.com': () => ResponseBody.fromString('{}', 403),
         'github.com': () => ResponseBody.fromString('', 503),
+        'data.jsdelivr.com': () => ResponseBody.fromString('', 503),
       });
 
-      await expectLater(request.latestRelease(), throwsA(isA<DioException>()));
+      await expectLater(
+        request.latestRelease(),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 

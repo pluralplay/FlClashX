@@ -99,6 +99,16 @@ class ProviderHeaders {
 
   bool get noVibration => specials?.contains('novibrate') ?? false;
 
+  /// A provider's own update manifest, replacing GitHub as the update source.
+  String? get updateManifestUrl => _httpsUrl(text('flclashx-update'));
+
+  String? get preUpdateManifestUrl => _httpsUrl(text('flclashx-update-pre'));
+
+  String? _httpsUrl(String? value) =>
+      value != null && Uri.tryParse(value)?.isScheme('https') == true
+      ? value
+      : null;
+
   String? get serviceName => _plainOrBase64(text('flclashx-servicename'));
 
   String? get serviceLogo {

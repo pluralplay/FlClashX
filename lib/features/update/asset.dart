@@ -76,27 +76,72 @@ class UpdateTarget {
 class UpdateAsset {
   final String name;
   final Uri url;
-  final Uri checksumUrl;
 
-  /// What the release says the file weighs; null when the lookup fell back
-  /// to a source without asset details.
+  final Uri? checksumUrl;
+  final String? checksum;
   final int? size;
+  final Set<String> allowedHosts;
 
   const UpdateAsset({
     required this.name,
     required this.url,
-    required this.checksumUrl,
+    this.checksumUrl,
+    this.checksum,
     this.size,
+    this.allowedHosts = updateHosts,
   });
 
   int get sizeLimit => size ?? updateSizeCeiling;
 }
 
-bool isAllowedUpdateUri(Uri uri) =>
+bool isAllowedUpdateUri(Uri uri, {Set<String> hosts = updateHosts}) =>
     uri.scheme == 'https' &&
-    updateHosts.contains(uri.host.toLowerCase()) &&
+    hosts.contains(uri.host.toLowerCase()) &&
     uri.userInfo.isEmpty &&
     (!uri.hasPort || uri.port == 443);
+
+final _sha256Pattern = RegExp(r'^[0-9a-fA-F]{64}$');
+
+/// A provider manifest's binary may sit on any HTTPS host: its inline hash,
+/// from the trusted manifest, vouches for it.
+UpdateAsset manifestUpdateAsset(
+  Map<String, dynamic> manifest,
+  UpdateTarget target,
+) {
+  final listed = manifest['assets'];
+  final assets = <String, Map>{
+    if (listed is List)
+      for (final asset in listed)
+        if (asset is Map && asset['name'] is String)
+          asset['name'] as String: asset,
+  };
+  for (final arch in target.archs) {
+    final name = target.assetName(arch);
+    final asset = name == null ? null : assets[name];
+    if (name == null || asset == null) {
+      continue;
+    }
+    final rawUrl = asset['url'];
+    final uri = rawUrl is String ? Uri.tryParse(rawUrl) : null;
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.userInfo.isNotEmpty ||
+        (uri.hasPort && uri.port != 443)) {
+      throw UpdateException(UpdateErrorKind.untrustedHost, '$rawUrl');
+    }
+    final sha = asset['sha256'];
+    if (sha is! String || !_sha256Pattern.hasMatch(sha)) {
+      throw UpdateException(UpdateErrorKind.noChecksum, name);
+    }
+    return UpdateAsset(
+      name: name,
+      url: uri,
+      checksum: sha.toLowerCase(),
+      allowedHosts: {uri.host.toLowerCase()},
+    );
+  }
+  throw const UpdateException(UpdateErrorKind.noAsset);
+}
 
 /// Android ABIs as `Build.SUPPORTED_ABIS` lists them, mapped onto the split
 /// APKs a release carries, with the universal one last.

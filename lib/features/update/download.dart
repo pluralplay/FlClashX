@@ -46,11 +46,15 @@ class UpdateDownloader {
     UpdateAsset asset, {
     CancelToken? cancelToken,
   }) async {
+    if (asset.checksum case final inline?) {
+      return inline;
+    }
     final bytes = BytesBuilder(copy: false);
     await _receive(
-      asset.checksumUrl,
+      asset.checksumUrl!,
       limit: _checksumLimit,
       cancelToken: cancelToken,
+      hosts: asset.allowedHosts,
       onChunk: (chunk) async => bytes.add(chunk),
     );
     final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
@@ -76,6 +80,7 @@ class UpdateDownloader {
         asset.url,
         limit: asset.sizeLimit,
         cancelToken: cancelToken,
+        hosts: asset.allowedHosts,
         onChunk: opened.writeFrom,
         onProgress: onProgress,
         total: asset.size,
@@ -100,11 +105,12 @@ class UpdateDownloader {
     Uri uri, {
     required int limit,
     required Future<Object?> Function(List<int> chunk) onChunk,
+    Set<String> hosts = updateHosts,
     CancelToken? cancelToken,
     UpdateProgress? onProgress,
     int? total,
   }) async {
-    final body = await _open(uri, cancelToken);
+    final body = await _open(uri, cancelToken, hosts);
     final length = int.tryParse(
       body.headers[Headers.contentLengthHeader]?.firstOrNull ?? '',
     );
@@ -141,10 +147,14 @@ class UpdateDownloader {
 
   /// Redirects are followed by hand so every hop is checked against the
   /// allowlist, not only the first.
-  Future<ResponseBody> _open(Uri uri, CancelToken? cancelToken) async {
+  Future<ResponseBody> _open(
+    Uri uri,
+    CancelToken? cancelToken,
+    Set<String> hosts,
+  ) async {
     var current = uri;
     for (var hop = 0; hop <= _maxRedirects; hop++) {
-      if (!isAllowedUpdateUri(current)) {
+      if (!isAllowedUpdateUri(current, hosts: hosts)) {
         throw UpdateException(UpdateErrorKind.untrustedHost, '$current');
       }
       final Response<ResponseBody> response;

@@ -68,6 +68,9 @@ class UpdateController extends ValueNotifier<UpdateState> {
   final String repository;
   final bool pre;
 
+  /// A provider manifest is the authority on its own assets and hash.
+  final bool manifest;
+
   /// Why installing has to wait right now, or null when it may go ahead.
   final UpdateErrorKind? Function() installBlocker;
   final Future<String> Function(String path) hash;
@@ -79,6 +82,7 @@ class UpdateController extends ValueNotifier<UpdateState> {
     required this.repository,
     required this.pre,
     required this.installBlocker,
+    this.manifest = false,
     this.hash = sha256OfFile,
   }) : super(const UpdateState(UpdatePhase.idle));
 
@@ -101,12 +105,14 @@ class UpdateController extends ValueNotifier<UpdateState> {
     var reported = 0;
     try {
       await _discard();
-      final asset = selectUpdateAsset(
-        release,
-        platform.target,
-        repository: repository,
-        pre: pre,
-      );
+      final asset = manifest
+          ? manifestUpdateAsset(release, platform.target)
+          : selectUpdateAsset(
+              release,
+              platform.target,
+              repository: repository,
+              pre: pre,
+            );
       await downloader.purge();
       final expected = await downloader.fetchChecksum(
         asset,
