@@ -247,16 +247,37 @@ hooks:
       expect(script, isNot(contains('{{')));
     });
 
-    test('the Windows installer offers Chinese', () {
-      final config = File(
-        'windows/packaging/exe/make_config.yaml',
-      ).readAsStringSync();
+    test('the Windows installer offers Chinese after Russian', () {
+      final langs = RegExp(r'- lang: (\w+)')
+          .allMatches(
+            File('windows/packaging/exe/make_config.yaml').readAsStringSync(),
+          )
+          .map((match) => match[1])
+          .toList();
 
-      expect(config, contains('- lang: zh'));
+      expect(langs.first, 'ru');
+      expect(langs, contains('zh'));
       expect(
-        File('windows/packaging/exe/ChineseSimplified.isl').existsSync(),
-        isTrue,
+        File(
+          'windows/packaging/exe/ChineseSimplified.isl',
+        ).readAsBytesSync().take(3),
+        [0xEF, 0xBB, 0xBF],
       );
+    });
+
+    test('every installer language has every custom message', () {
+      final script = File(
+        'windows/packaging/exe/inno_setup.iss',
+      ).readAsStringSync();
+      Set<String> namesOf(String language) => RegExp(
+        '^$language\\.(\\w+)=',
+        multiLine: true,
+      ).allMatches(script).map((match) => match[1]!).toSet();
+
+      final english = namesOf('english');
+      expect(english, isNotEmpty);
+      expect(namesOf('russian'), english);
+      expect(namesOf('chineseSimplified'), english);
     });
 
     test('the installer clears a stale proxy once it has killed the app', () {
