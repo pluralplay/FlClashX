@@ -42,7 +42,14 @@ class System {
   bool get isTV => _isTV;
 
   Future<int> init() async {
-    final deviceInfo = await DeviceInfoPlugin().deviceInfo;
+    final BaseDeviceInfo deviceInfo;
+    try {
+      deviceInfo = await DeviceInfoPlugin().deviceInfo;
+    } on RangeError {
+      // Some Windows installs keep an InstallDate past DateTime's range.
+      if (isWindows) return 0;
+      rethrow;
+    }
     _isTV = switch (deviceInfo) {
       AndroidDeviceInfo(:final systemFeatures) => systemFeatures.any(
         const {

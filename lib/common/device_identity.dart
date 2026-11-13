@@ -66,15 +66,23 @@ class DeviceIdentity {
       );
     }
     if (Platform.isWindows) {
-      final info = await _plugin.windowsInfo;
       final guid = _machineGuid();
+      WindowsDeviceInfo? info;
+      try {
+        info = await _plugin.windowsInfo;
+      } on RangeError {
+        // An InstallDate past DateTime's range must not cost the HWID.
+        info = null;
+      }
       return (
         guid != null
             ? windowsHwidSource(guid)
+            : info == null
+            ? null
             : '${info.computerName}-${info.deviceId}-${info.productId}',
         'Windows',
-        info.displayVersion,
-        info.productName,
+        info?.displayVersion,
+        info?.productName,
       );
     }
     if (Platform.isMacOS) {
