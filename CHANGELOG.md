@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.2 (2026-11-13)
+
+**Bug Fixes**
+
+- **profiles** Windows devices send the same HWID as in FlClashX 0.4 again, so a device limit no longer counts them twice (8f4ad5c)
+
 ## v0.5.1 (2026-11-13)
 
 **Features**
