@@ -505,7 +505,12 @@ jobs:
               exit 1
             fi
             xcrun stapler staple "$dmg"
-            xcrun stapler validate "$dmg"
+            # Validation asks Apple's CDN, whose connection drops now and then.
+            for attempt in 1 2 3; do
+              xcrun stapler validate "$dmg" && break
+              [ "$attempt" = 3 ] && exit 1
+              sleep 20
+            done
             spctl --assess --type open --context context:primary-signature -vv "$dmg"
           done
           spctl --assess --type execute -vv build/macos/Build/Products/Release/FlClashX.app
@@ -647,6 +652,13 @@ jobs:
       - name: Clone AUR repository
         run: git clone ssh://aur@aur.archlinux.org/${{ steps.release.outputs.aur_pkg }}.git /tmp/aur-pkg
 
+      - name: Take the AUR packaging from this repository
+        env:
+          AUR_PKG: ${{ steps.release.outputs.aur_pkg }}
+        run: |
+          find /tmp/aur-pkg -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a ".github/aur/${AUR_PKG}/." /tmp/aur-pkg/
+
       - name: Download release assets and compute checksums
         id: checksums
         env:
@@ -694,7 +706,7 @@ jobs:
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "Github Actions (pluralplay)"
-          git add PKGBUILD .SRCINFO
+          git add -A
           if ! git diff --cached --quiet; then
             git commit -m "Update to $GITHUB_REF_NAME"
             git push
