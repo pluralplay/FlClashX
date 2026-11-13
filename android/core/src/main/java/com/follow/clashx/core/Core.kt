@@ -8,6 +8,9 @@ import java.net.InetSocketAddress
 import java.net.URI
 
 object Core {
+    /** Loads the Go library and runs its package init, which the first call otherwise pays for. */
+    fun load() = Mobile.touch()
+
     fun forceGC() = Mobile.forceGC()
 
     fun updateDNS(

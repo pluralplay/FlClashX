@@ -3,6 +3,8 @@ package com.follow.clashx.plugins
 import com.follow.clashx.ServiceController
 import com.follow.clashx.ServiceState
 import com.follow.clashx.common.Components
+import com.follow.clashx.common.GlobalState
+import com.follow.clashx.core.Core
 import com.follow.clashx.models.SharedState
 import com.follow.clashx.service.NetworkObserver
 import com.google.gson.Gson
@@ -29,6 +31,11 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // The main thread is also Flutter's UI thread, where the first Core call would load it.
+        scope.launch {
+            runCatching { Core.load() }
+                .onFailure { error -> GlobalState.log("Unable to load the Core: $error") }
+        }
         messenger = binding.binaryMessenger
         channel = MethodChannel(messenger, SERVICE_CHANNEL)
         channel.setMethodCallHandler(this)

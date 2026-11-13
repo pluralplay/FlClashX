@@ -61,6 +61,13 @@ class App {
     return methodChannel.invokeMethod<String>('getAndroidId');
   }
 
+  Future<void> extractAsset(String asset, String path) async {
+    await methodChannel.invokeMethod<bool>('extractAsset', {
+      'asset': asset,
+      'path': path,
+    });
+  }
+
   Future<List<Package>> getPackages() async {
     final packagesString = await methodChannel.invokeMethod<String>(
       'getPackages',
