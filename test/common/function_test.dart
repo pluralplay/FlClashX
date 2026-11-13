@@ -193,6 +193,21 @@ void main() {
       final result = await scheduler.run(() async => 'next');
       expect(result, 'next');
     });
+
+    test('is busy while a task runs or waits, failed ones included', () async {
+      final scheduler = SerialTaskScheduler();
+      expect(scheduler.isBusy, isFalse);
+      final release = Completer<void>();
+      final first = scheduler.run(() => release.future);
+      final second = scheduler.run<void>(() async => throw StateError('x'));
+      expect(scheduler.isBusy, isTrue);
+      release.complete();
+      await first;
+      expect(scheduler.isBusy, isTrue);
+      await expectLater(second, throwsStateError);
+      await pumpEventQueue();
+      expect(scheduler.isBusy, isFalse);
+    });
   });
 
   group('retry', () {

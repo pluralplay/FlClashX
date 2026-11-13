@@ -55,6 +55,9 @@ class SetupAction extends _$SetupAction {
   /// Moves as each config push starts and again once the Core answers it.
   int get pushes => _pushes;
 
+  /// A start, stop or restart of the listeners has not finished yet.
+  bool get isChangingRun => _listenerScheduler.isBusy;
+
   bool get _isRunning => _startTime != null && _startTime!.isBeforeNow;
 
   @override
