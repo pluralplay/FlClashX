@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.3 (2026-11-13)
+
+**Features**
+
+- **profiles** The current profile's menu on the Profiles page opens its details: counts, subscription and external resources (376b12c)
+
+**Bug Fixes**
+
+- **headers** Dashboard cards you arranged stay put when the subscription updates, unless the panel denies editing them (1d18f35)
+- **linux** TUN on Linux reports a Core the Helper refuses instead of failing silently, and AUR packages no longer break the Core's checksum (#156) (7c98452)
+- **profiles** Rules added to a profile can target its proxy groups again (#154) (eb61bd8)
+- **update** The update reminder's Hide skips only that release, and the download shows its progress in the Download button (9bd0c0d)
+
 ## v0.5.2 (2026-11-13)
 
 **Bug Fixes**
