@@ -92,16 +92,20 @@ class ProxyChainsNotifier extends AsyncNotifier<List<ProxyChain>> {
 
 /// The enabled chains of [profileId] as the config build takes them, and a
 /// dependency of whoever awaits it.
+///
+/// Watches at the call, so an async provider must call it before its first
+/// await: a ref watched after one may already be disposed.
 Future<List<Map<String, Object?>>> watchEnabledProxyChains(
   Ref ref,
   int profileId,
-) async {
-  final chains = await ref.watch(proxyChainsProvider(profileId).future);
-  return [
-    for (final chain in chains)
-      if (chain.enabled) chain.toJson(),
-  ];
-}
+) => ref
+    .watch(proxyChainsProvider(profileId).future)
+    .then(
+      (chains) => [
+        for (final chain in chains)
+          if (chain.enabled) chain.toJson(),
+      ],
+    );
 
 /// Never fails the profile's deletion; a leftover is only dead weight.
 Future<void> forgetProxyChains(Ref ref, int profileId) async {

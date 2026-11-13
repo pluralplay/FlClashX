@@ -7,6 +7,7 @@ import 'package:fl_clash/providers/state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_profiles.dart';
 
@@ -20,6 +21,37 @@ void main() {
 
   tearDown(() async {
     await testDatabase.close();
+  });
+
+  testWidgets('a subscription setup disposed before its queries return '
+      'resolves', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    const subscription = Profile(
+      id: 2,
+      label: 'Sub',
+      type: ProfileType.url,
+      url: 'https://example.com/sub',
+      autoUpdateDuration: Duration.zero,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(() => TestProfiles([subscription])),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+
+    final state = await container.read(
+      setupStateProvider(subscription.id).future,
+    );
+
+    expect(state.profileType, ProfileType.url);
+    expect(state.proxyChains, isEmpty);
   });
 
   testWidgets('a custom setup disposed before its queries return resolves', (
