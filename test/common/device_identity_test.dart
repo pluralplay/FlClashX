@@ -52,6 +52,13 @@ void main() {
     );
   });
 
+  test('a Windows machine keeps the id FlClashX 0.4 sent for it', () {
+    expect(
+      compactHwid(windowsHwidSource('4C4C4544-0035-3010-8052-B4C04F4E3732')),
+      'F9A4CB257CB6EA43',
+    );
+  });
+
   testWidgets(
     'macOS sends the hashed system GUID with the OS, version and model',
     (tester) async {

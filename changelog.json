@@ -2,6 +2,24 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.2",
+      "tag": "v0.5.2",
+      "date": "2026-11-13",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "8f4ad5c",
+              "scope": "profiles",
+              "text": "Windows devices send the same HWID as in FlClashX 0.4 again, so a device limit no longer counts them twice"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.1",
       "tag": "v0.5.1",
       "date": "2026-11-13",
