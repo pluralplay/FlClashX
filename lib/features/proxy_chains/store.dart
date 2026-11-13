@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'chain.dart';
 
 /// Kept beside the app's settings rather than in the database, so the beta
-/// can be dropped without a schema migration; backups do not carry it yet.
+/// can be dropped without a schema migration.
 String _keyOf(int profileId) => 'proxy_chains_$profileId';
 
 final proxyChainsProvider =
@@ -115,5 +115,45 @@ Future<void> forgetProxyChains(Ref ref, int profileId) async {
   } catch (_) {
   } finally {
     ref.invalidate(proxyChainsProvider(profileId));
+  }
+}
+
+const proxyChainsBackupKey = 'proxyChains';
+
+Future<Map<String, String>> proxyChainsBackup(Iterable<int> profileIds) async {
+  final preferences = await SharedPreferences.getInstance();
+  return {
+    for (final profileId in profileIds)
+      if (preferences.get(_keyOf(profileId)) case final String raw)
+        '$profileId': raw,
+  };
+}
+
+/// An older backup, which carried no chains, leaves them as they are.
+Future<void> restoreProxyChains(
+  Ref ref,
+  Object? backup,
+  Iterable<int> profileIds,
+) async {
+  if (backup is! Map) {
+    return;
+  }
+  final preferences = await SharedPreferences.getInstance();
+  for (final profileId in profileIds) {
+    final raw = backup['$profileId'];
+    if (raw is String && _isChainList(raw)) {
+      await ProxyChainsNotifier.write(_keyOf(profileId), raw);
+    } else {
+      await preferences.remove(_keyOf(profileId));
+    }
+    ref.invalidate(proxyChainsProvider(profileId));
+  }
+}
+
+bool _isChainList(String raw) {
+  try {
+    return jsonDecode(raw) is List;
+  } on FormatException {
+    return false;
   }
 }
