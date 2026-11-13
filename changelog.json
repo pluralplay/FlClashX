@@ -4,7 +4,7 @@
     {
       "version": "0.5.3",
       "tag": "v0.5.3",
-      "date": "2026-11-13",
+      "date": "2026-11-14",
       "prerelease": false,
       "groups": [
         {
@@ -44,6 +44,36 @@
               "id": "9bd0c0d",
               "scope": "update",
               "text": "The update reminder's Hide skips only that release, and the download shows its progress in the Download button"
+            },
+            {
+              "id": "ef4eada",
+              "scope": "settings",
+              "text": "Picking a language no longer fails when the settings page is rebuilt during the menu's close"
+            },
+            {
+              "id": "a4d80c6",
+              "scope": "linux",
+              "text": "An autostarted Linux session waits for the Helper instead of asking to install it again"
+            },
+            {
+              "id": "a4359ea",
+              "scope": "windows",
+              "text": "Windows PCs whose install date is out of range start again and send their HWID"
+            }
+          ]
+        },
+        {
+          "type": "perf",
+          "entries": [
+            {
+              "id": "f235adc",
+              "scope": "ui",
+              "text": "Glass cards scroll smoother on weak phones"
+            },
+            {
+              "id": "2c34c9e",
+              "scope": "android",
+              "text": "Android starts smoother on first run"
             }
           ]
         }
