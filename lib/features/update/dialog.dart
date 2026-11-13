@@ -11,8 +11,9 @@ class UpdateDialog extends StatefulWidget {
   final UpdateController Function() createController;
   final InlineSpan notes;
 
-  /// Offered in place of a plain close on a reminder the app raised itself.
-  final VoidCallback? onStopReminding;
+  /// Offered in place of a plain close on a reminder the app raised itself:
+  /// later automatic checks skip this release, not the ones after it.
+  final VoidCallback? onHide;
   final VoidCallback onOpenReleasePage;
 
   const UpdateDialog({
@@ -20,7 +21,7 @@ class UpdateDialog extends StatefulWidget {
     required this.createController,
     required this.notes,
     required this.onOpenReleasePage,
-    this.onStopReminding,
+    this.onHide,
   });
 
   @override
@@ -46,9 +47,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final github = _action(l10n.updateViewOnGitHub, widget.onOpenReleasePage);
     return switch (state.phase) {
       UpdatePhase.idle => [
-        if (widget.onStopReminding case final stop?)
-          _action(l10n.noLongerRemind, () {
-            stop();
+        if (widget.onHide case final hide?)
+          _action(l10n.updateHide, () {
+            hide();
             _close();
           })
         else
@@ -57,8 +58,23 @@ class _UpdateDialogState extends State<UpdateDialog> {
         if (_controller.canDownload)
           _action(l10n.goDownload, _controller.download),
       ],
-      UpdatePhase.downloading ||
-      UpdatePhase.verifying => [_action(l10n.cancel, _controller.cancel)],
+      UpdatePhase.downloading => [
+        _action(l10n.cancel, _controller.cancel),
+        switch (state.total) {
+          final total? when total > 0 => _ProgressAction(
+            progress: state.received / total,
+            label: '${(state.received * 100 / total).floor()}%',
+          ),
+          _ => _ProgressAction(
+            progress: null,
+            label: state.received.traffic.show,
+          ),
+        },
+      ],
+      UpdatePhase.verifying => [
+        _action(l10n.cancel, _controller.cancel),
+        _ProgressAction(progress: 1, label: l10n.updateVerifying),
+      ],
       UpdatePhase.ready => [
         close,
         _action(l10n.updateInstall, _controller.install),
@@ -113,48 +129,31 @@ class _UpdateStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.appLocalizations;
     final error = state.error;
-    final double? progress;
     final String? text;
     switch (state.phase) {
       case UpdatePhase.idle:
-        progress = null;
         text = switch (kind) {
           UpdateInstallKind.packageManager => l10n.updatePackageManager,
           UpdateInstallKind.unsupported => l10n.updateUnsupported,
           _ => null,
         };
-      case UpdatePhase.downloading:
-        final total = state.total;
-        progress = total == null || total == 0 ? null : state.received / total;
-        text = total == null
-            ? state.received.traffic.show
-            : l10n.updateDownloadProgress(
-                state.received.traffic.show,
-                total.traffic.show,
-                ((progress ?? 0) * 100).floor(),
-              );
-      case UpdatePhase.verifying:
-        progress = null;
-        text = l10n.updateVerifying;
+      case UpdatePhase.downloading || UpdatePhase.verifying:
+        text = null;
       case UpdatePhase.installing:
-        progress = null;
         text = l10n.updateInstalling;
       case UpdatePhase.ready:
-        progress = null;
         text = error == null ? l10n.updateReady : null;
       case UpdatePhase.done:
-        progress = null;
         text = switch (state.result) {
           UpdateInstallResult.openedImage => l10n.updateOpenedImage,
           UpdateInstallResult.handedOff => l10n.updateHandedOff,
           _ => l10n.updateExiting,
         };
       case UpdatePhase.failed:
-        progress = null;
         text = null;
     }
-    final working = state.isWorking;
-    if (text == null && error == null && !working) {
+    final installing = state.phase == UpdatePhase.installing;
+    if (text == null && error == null && !installing) {
       return const SizedBox.shrink();
     }
     final colorScheme = context.colorScheme;
@@ -166,7 +165,7 @@ class _UpdateStatus extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 8,
         children: [
-          if (working) LinearProgressIndicator(minHeight: 4, value: progress),
+          if (installing) const LinearProgressIndicator(minHeight: 4),
           if (text != null) Text(text, style: style),
           if (error != null) ...[
             Text(
@@ -188,6 +187,49 @@ class _UpdateStatus extends StatelessWidget {
 
   bool _showsDetail(UpdateErrorKind kind) =>
       kind == UpdateErrorKind.network || kind == UpdateErrorKind.installFailed;
+}
+
+/// The primary action while a download runs: its fill sweeps across the
+/// button as the bytes arrive.
+class _ProgressAction extends StatelessWidget {
+  final double? progress;
+  final String label;
+
+  const _ProgressAction({required this.progress, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    final progress = this.progress;
+    return TextButton(
+      onPressed: null,
+      clipBehavior: Clip.antiAlias,
+      style: ButtonStyle(
+        backgroundColor: WidgetStatePropertyAll(colorScheme.primary),
+        foregroundColor: WidgetStatePropertyAll(colorScheme.onPrimary),
+        backgroundBuilder: progress == null
+            ? null
+            : (context, _, child) => Stack(
+                fit: StackFit.passthrough,
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: AnimatedFractionallySizedBox(
+                      duration: const Duration(milliseconds: 200),
+                      alignment: AlignmentDirectional.centerStart,
+                      widthFactor: progress.clamp(0, 1),
+                      child: ColoredBox(
+                        color: colorScheme.onPrimary.withValues(alpha: 0.24),
+                      ),
+                    ),
+                  ),
+                  ?child,
+                ],
+              ),
+      ),
+      child: Text(label),
+    );
+  }
 }
 
 String updateErrorText(AppLocalizations l10n, UpdateErrorKind kind) =>

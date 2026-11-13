@@ -26,6 +26,13 @@ class _StandardContentState extends ConsumerState<StandardContent> {
       context: context,
       builder: (_) => RuleForm(
         rule: rule,
+        groupTargets:
+            ref
+                .read(proxyChainGraphProvider(_profileId))
+                .value
+                ?.groupTypes
+                .keys ??
+            const [],
         chainTargets: ref.read(proxyChainTargetsProvider(_profileId)),
       ),
     );
@@ -134,6 +141,7 @@ class _StandardContentState extends ConsumerState<StandardContent> {
     final addedRules = ref.watch(profileRulesProvider(_profileId)).value ?? [];
     final selectedRules = ref.watch(itemsProvider(_key));
     final chains = ref.watch(proxyChainTargetsProvider(_profileId));
+    ref.watch(proxyChainGraphProvider(_profileId));
     return CommonPopScope(
       onPop: selectedRules.isEmpty
           ? null

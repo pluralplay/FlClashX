@@ -1646,6 +1646,11 @@ class AppLocalizations {
     return Intl.message('Sync', name: 'sync', desc: '', args: []);
   }
 
+  /// `Details`
+  String get profileDetails {
+    return Intl.message('Details', name: 'profileDetails', desc: '', args: []);
+  }
+
   /// `Hide from recent tasks`
   String get exclude {
     return Intl.message(
@@ -4428,16 +4433,6 @@ class AppLocalizations {
       name: 'minutesAgoShort',
       desc: '',
       args: [count],
-    );
-  }
-
-  /// `Don't remind me again`
-  String get noLongerRemind {
-    return Intl.message(
-      'Don\'t remind me again',
-      name: 'noLongerRemind',
-      desc: '',
-      args: [],
     );
   }
 
@@ -8542,14 +8537,9 @@ class AppLocalizations {
     return Intl.message('Install', name: 'updateInstall', desc: '', args: []);
   }
 
-  /// `{received} of {total} · {percent}%`
-  String updateDownloadProgress(Object received, Object total, Object percent) {
-    return Intl.message(
-      '$received of $total · $percent%',
-      name: 'updateDownloadProgress',
-      desc: '',
-      args: [received, total, percent],
-    );
+  /// `Hide`
+  String get updateHide {
+    return Intl.message('Hide', name: 'updateHide', desc: '', args: []);
   }
 
   /// `Checking the download…`

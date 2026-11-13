@@ -17,7 +17,10 @@ import 'launcher.dart';
 import 'model.dart';
 import 'process_probe.dart';
 
-enum HelperReadiness { ready, notReady, manifestMissing }
+/// [coreMismatch]: the Helper's hash of the Core on disk is not the bundled
+/// manifest's, as when a packager strips the binary; reinstalling the Helper
+/// cannot fix that.
+enum HelperReadiness { ready, notReady, manifestMissing, coreMismatch }
 
 final class HelperStartResponse {
   final String sessionId;
@@ -233,7 +236,7 @@ final class HelperClient {
       final code = _mapFrom(response.data)?['code'];
       if (code == 'coreSha256Mismatch') {
         _logPingFailure('Helper Core SHA256 mismatch', logFailure);
-        return HelperReadiness.notReady;
+        return HelperReadiness.coreMismatch;
       }
       if (protocolVersion == helperProtocolVersion) {
         _logPingFailure(

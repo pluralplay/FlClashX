@@ -346,6 +346,60 @@ void main() {
     ]);
   });
 
+  group('cards the user arranged', () {
+    final first = DateTime(2026, 10, 19, 10);
+
+    Future<void> arrange() async {
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              dashboardWidgets: [DashboardWidget.outboundMode],
+              ownedSettings: {...state.ownedSettings, dashboardWidgetsSetting},
+            ),
+          );
+      await settle();
+    }
+
+    test('survive the next update without denywidgets', () async {
+      final profile = _profile(
+        1,
+        widgets: 'announcement,outboundMode',
+        updatedAt: first,
+      );
+      await select(profile);
+      await arrange();
+
+      await put(
+        profile.copyWith(lastUpdateDate: first.add(const Duration(hours: 1))),
+      );
+
+      expect(container.read(appSettingProvider).dashboardWidgets, [
+        DashboardWidget.outboundMode,
+      ]);
+    });
+
+    test('give way to the panel under denywidgets', () async {
+      final profile = _profile(
+        1,
+        widgets: 'announcement,outboundMode',
+        special: 'denywidgets',
+        updatedAt: first,
+      );
+      await select(profile);
+      await arrange();
+
+      await put(
+        profile.copyWith(lastUpdateDate: first.add(const Duration(hours: 1))),
+      );
+
+      expect(container.read(appSettingProvider).dashboardWidgets, [
+        DashboardWidget.announcement,
+        DashboardWidget.outboundMode,
+      ]);
+    });
+  });
+
   test('an update applied before a restart is not applied again', () async {
     final updatedAt = DateTime(2026, 10, 19, 10, 0, 0, 750);
     container

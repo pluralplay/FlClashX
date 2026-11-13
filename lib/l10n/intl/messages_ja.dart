@@ -223,16 +223,13 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} リクエストヘッダー";
 
-  static String m94(received, total, percent) =>
-      "${received} / ${total} · ${percent}%";
+  static String m94(label) => "${label}はURLである必要があります";
 
-  static String m95(label) => "${label}はURLである必要があります";
+  static String m95(appName) => "${appName} の VPN 接続が許可されませんでした";
 
-  static String m96(appName) => "${appName} の VPN 接続が許可されませんでした";
+  static String m96(count) => "${count} 年前";
 
   static String m97(count) => "${count} 年前";
-
-  static String m98(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1059,7 +1056,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "noData": MessageLookupByLibrary.simpleMessage("データがありません"),
     "noInfo": MessageLookupByLibrary.simpleMessage("情報がありません"),
     "noLogsToday": MessageLookupByLibrary.simpleMessage("今日のログはありません"),
-    "noLongerRemind": MessageLookupByLibrary.simpleMessage("今後表示しない"),
     "noNetwork": MessageLookupByLibrary.simpleMessage("ネットワークがありません"),
     "noNetworkApp": MessageLookupByLibrary.simpleMessage("ネットワーク不使用アプリ"),
     "noResolveHostname": MessageLookupByLibrary.simpleMessage("ホスト名を解決しない"),
@@ -1159,6 +1155,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("自動更新間隔を入力してください"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("詳細"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("期限切れ"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "プロファイルが変更されています。自動更新を無効にしますか？",
@@ -1699,7 +1696,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("名称未設定"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("固定を解除"),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
-    "updateDownloadProgress": m94,
     "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
       "接続の開始または停止が終わるまでお待ちください。",
     ),
@@ -1745,6 +1741,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateHandedOff": MessageLookupByLibrary.simpleMessage(
       "開いたインストーラでアップデートを完了してください。",
     ),
+    "updateHide": MessageLookupByLibrary.simpleMessage("非表示"),
     "updateInstall": MessageLookupByLibrary.simpleMessage("インストール"),
     "updateInstalling": MessageLookupByLibrary.simpleMessage("インストーラを起動しています…"),
     "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
@@ -1762,7 +1759,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "upload": MessageLookupByLibrary.simpleMessage("アップロード"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("アップロード帯域幅"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m95,
+    "urlTip": m94,
     "useHosts": MessageLookupByLibrary.simpleMessage("Hostsを使用"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("システムのHostsを使用"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("使用済みトラフィック"),
@@ -1787,7 +1784,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN は VpnService でシステムの全トラフィックを自動的にルーティングします。",
     ),
-    "vpnPermissionNotGranted": m96,
+    "vpnPermissionNotGranted": m95,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "このデバイスでは管理者によって VPN が制限されています",
     ),
@@ -1798,8 +1795,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "システムに書き込むを有効にするとシステムクロックも設定します。Android では無視されます。",
     ),
-    "yearsAgo": m97,
-    "yearsAgoShort": m98,
+    "yearsAgo": m96,
+    "yearsAgoShort": m97,
     "yes": MessageLookupByLibrary.simpleMessage("はい"),
     "zhCN": MessageLookupByLibrary.simpleMessage("簡体字中国語"),
   };

@@ -18,6 +18,10 @@ const hideIpSetting = 'app.hideIp';
 /// Driven by `flclashx-special: novibrate`.
 const vibrationSetting = 'app.vibration';
 
+/// Cards the user arranged; `flclashx-widgets` replaces them only under
+/// `denywidgets`.
+const dashboardWidgetsSetting = 'app.dashboardWidgets';
+
 /// The config keys a subscription takes over and the user may take back.
 const managedClashKeys = {
   'mode',

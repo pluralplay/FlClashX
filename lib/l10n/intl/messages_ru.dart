@@ -256,18 +256,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "Заголовки ${transport}";
 
-  static String m94(received, total, percent) =>
-      "${received} из ${total} · ${percent}%";
+  static String m94(label) => "Значение «${label}» должно быть URL";
 
-  static String m95(label) => "Значение «${label}» должно быть URL";
-
-  static String m96(appName) =>
+  static String m95(appName) =>
       "Вы не дали ${appName} разрешение на подключение VPN";
 
-  static String m97(count) =>
+  static String m96(count) =>
       "${Intl.plural(count, one: '${count} год назад', few: '${count} года назад', many: '${count} лет назад', other: '${count} года назад')}";
 
-  static String m98(count) =>
+  static String m97(count) =>
       "${Intl.plural(count, one: '${count} г. назад', few: '${count} г. назад', many: '${count} лет назад', other: '${count} г. назад')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
@@ -1290,9 +1287,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "noData": MessageLookupByLibrary.simpleMessage("Нет данных"),
     "noInfo": MessageLookupByLibrary.simpleMessage("Нет информации"),
     "noLogsToday": MessageLookupByLibrary.simpleMessage("За сегодня логов нет"),
-    "noLongerRemind": MessageLookupByLibrary.simpleMessage(
-      "Больше не напоминать",
-    ),
     "noNetwork": MessageLookupByLibrary.simpleMessage("Нет сети"),
     "noNetworkApp": MessageLookupByLibrary.simpleMessage("Приложения без сети"),
     "noResolveHostname": MessageLookupByLibrary.simpleMessage(
@@ -1428,6 +1422,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("Введите интервал автообновления"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("Подробнее"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("Истекла"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "Профиль изменён. Отключить автообновление?",
@@ -2072,7 +2067,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("Без названия"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("Открепить окно"),
     "update": MessageLookupByLibrary.simpleMessage("Обновить"),
-    "updateDownloadProgress": m94,
     "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
       "Дождитесь, пока подключение запустится или остановится.",
     ),
@@ -2118,6 +2112,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateHandedOff": MessageLookupByLibrary.simpleMessage(
       "Завершите обновление в открывшемся установщике.",
     ),
+    "updateHide": MessageLookupByLibrary.simpleMessage("Скрыть"),
     "updateInstall": MessageLookupByLibrary.simpleMessage("Установить"),
     "updateInstalling": MessageLookupByLibrary.simpleMessage(
       "Запускаем установщик…",
@@ -2143,7 +2138,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "upload": MessageLookupByLibrary.simpleMessage("Отдача"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("Скорость отдачи"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m95,
+    "urlTip": m94,
     "useHosts": MessageLookupByLibrary.simpleMessage("Использовать hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Использовать системный hosts",
@@ -2172,7 +2167,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN автоматически направляет весь системный трафик через VpnService.",
     ),
-    "vpnPermissionNotGranted": m96,
+    "vpnPermissionNotGranted": m95,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "VPN на этом устройстве ограничен администратором",
     ),
@@ -2189,8 +2184,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "«Записывать в систему» также устанавливает системные часы; Android это игнорирует.",
     ),
-    "yearsAgo": m97,
-    "yearsAgoShort": m98,
+    "yearsAgo": m96,
+    "yearsAgoShort": m97,
     "yes": MessageLookupByLibrary.simpleMessage("Да"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Упрощённый китайский"),
   };

@@ -20,7 +20,7 @@ provides=("${_appname}=${pkgver}")
 depends=(
     'libayatana-appindicator'
 )
-options=('!strip' '!emptydirs')
+options=('!strip' '!debug' '!emptydirs')
 source=("${_appname}.sh")
 source_aarch64=("${_appname}-${pkgver}-${pkgrel}-aarch64.deb::${url}/releases/download/v${pkgver}-pre.${pkgrel}/${_asset}-linux-arm64.deb")
 source_x86_64=("${_appname}-${pkgver}-${pkgrel}-x86_64.deb::${url}/releases/download/v${pkgver}-pre.${pkgrel}/${_asset}-linux-amd64.deb")

@@ -2,6 +2,49 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.3",
+      "tag": "v0.5.3",
+      "date": "2026-11-13",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "376b12c",
+              "scope": "profiles",
+              "text": "The current profile's menu on the Profiles page opens its details: counts, subscription and external resources"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "1d18f35",
+              "scope": "headers",
+              "text": "Dashboard cards you arranged stay put when the subscription updates, unless the panel denies editing them"
+            },
+            {
+              "id": "7c98452",
+              "scope": "linux",
+              "text": "TUN on Linux reports a Core the Helper refuses instead of failing silently, and AUR packages no longer break the Core's checksum (#156)"
+            },
+            {
+              "id": "eb61bd8",
+              "scope": "profiles",
+              "text": "Rules added to a profile can target its proxy groups again (#154)"
+            },
+            {
+              "id": "9bd0c0d",
+              "scope": "update",
+              "text": "The update reminder's Hide skips only that release, and the download shows its progress in the Download button"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.2",
       "tag": "v0.5.2",
       "date": "2026-11-13",

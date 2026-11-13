@@ -220,16 +220,13 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} 请求头";
 
-  static String m94(received, total, percent) =>
-      "${received} / ${total} · ${percent}%";
+  static String m94(label) => "${label}必须为URL";
 
-  static String m95(label) => "${label}必须为URL";
+  static String m95(appName) => "你没有允许 ${appName} 建立 VPN 连接";
 
-  static String m96(appName) => "你没有允许 ${appName} 建立 VPN 连接";
+  static String m96(count) => "${count} 年前";
 
   static String m97(count) => "${count} 年前";
-
-  static String m98(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -968,7 +965,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "noData": MessageLookupByLibrary.simpleMessage("暂无数据"),
     "noInfo": MessageLookupByLibrary.simpleMessage("暂无信息"),
     "noLogsToday": MessageLookupByLibrary.simpleMessage("今天还没有日志"),
-    "noLongerRemind": MessageLookupByLibrary.simpleMessage("不再提示"),
     "noNetwork": MessageLookupByLibrary.simpleMessage("无网络"),
     "noNetworkApp": MessageLookupByLibrary.simpleMessage("无网络应用"),
     "noResolveHostname": MessageLookupByLibrary.simpleMessage("不解析主机名"),
@@ -1058,6 +1054,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("请输入自动更新间隔时间"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("详情"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("已到期"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "配置文件已经修改，是否关闭自动更新？",
@@ -1542,7 +1539,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("未命名"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("取消置顶"),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
-    "updateDownloadProgress": m94,
     "updateErrorBusy": MessageLookupByLibrary.simpleMessage("请等待连接完成启动或停止。"),
     "updateErrorChecksum": MessageLookupByLibrary.simpleMessage(
       "下载与版本校验和不符，已删除。",
@@ -1574,6 +1570,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "updateExiting": MessageLookupByLibrary.simpleMessage("正在退出以完成更新…"),
     "updateHandedOff": MessageLookupByLibrary.simpleMessage("请在打开的安装程序中完成更新。"),
+    "updateHide": MessageLookupByLibrary.simpleMessage("隐藏"),
     "updateInstall": MessageLookupByLibrary.simpleMessage("安装"),
     "updateInstalling": MessageLookupByLibrary.simpleMessage("正在启动安装程序…"),
     "updateOpenedImage": MessageLookupByLibrary.simpleMessage(
@@ -1591,7 +1588,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "upload": MessageLookupByLibrary.simpleMessage("上传"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("上行带宽"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m95,
+    "urlTip": m94,
     "useHosts": MessageLookupByLibrary.simpleMessage("使用Hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("使用系统Hosts"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("已用流量"),
@@ -1614,7 +1611,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN 通过 VpnService 自动路由系统所有流量。",
     ),
-    "vpnPermissionNotGranted": m96,
+    "vpnPermissionNotGranted": m95,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "此设备的管理员限制了 VPN",
     ),
@@ -1625,8 +1622,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "写入系统会同时设置系统时钟，Android 上不生效。",
     ),
-    "yearsAgo": m97,
-    "yearsAgoShort": m98,
+    "yearsAgo": m96,
+    "yearsAgoShort": m97,
     "yes": MessageLookupByLibrary.simpleMessage("是"),
     "zhCN": MessageLookupByLibrary.simpleMessage("中文简体"),
   };

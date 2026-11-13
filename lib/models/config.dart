@@ -265,6 +265,9 @@ abstract class AppSettingProps with _$AppSettingProps {
     TabAnimation tabAnimation,
     @Default(true) bool floatingNavigationBar,
     @Default(false) bool autoCheckUpdate,
+
+    /// The release tag the user hid; automatic checks skip only that one.
+    String? hiddenUpdate,
     @Default(true)
     @JsonKey(readValue: _readSidebarExpanded)
     bool sidebarExpanded,
