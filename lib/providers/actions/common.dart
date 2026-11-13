@@ -125,8 +125,12 @@ class CommonAction extends _$CommonAction {
       );
       return false;
     }
+    if (res == null ||
+        res['tag_name'] == ref.read(appSettingProvider).hiddenUpdate) {
+      return false;
+    }
     await checkUpdateResultHandle(data: res);
-    return res != null;
+    return true;
   }
 
   TextSpan _releaseSpan(BuildContext context, String tagName, String? body) {
@@ -218,11 +222,15 @@ class CommonAction extends _$CommonAction {
           notes: notes,
           onOpenReleasePage: () =>
               unawaited(launchUrl(releasePageOf(data, repository: repository))),
-          onStopReminding: isUser
+          onHide: isUser
               ? null
               : () => ref
                     .read(appSettingProvider.notifier)
-                    .update((state) => state.copyWith(autoCheckUpdate: false)),
+                    .update(
+                      (state) => state.copyWith(
+                        hiddenUpdate: data['tag_name'] as String,
+                      ),
+                    ),
           createController: () {
             final controller = UpdateController(
               release: data,

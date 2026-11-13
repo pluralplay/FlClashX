@@ -265,18 +265,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "En-têtes ${transport}";
 
-  static String m94(received, total, percent) =>
-      "${received} sur ${total} · ${percent} %";
+  static String m94(label) => "${label} doit être une URL";
 
-  static String m95(label) => "${label} doit être une URL";
-
-  static String m96(appName) =>
+  static String m95(appName) =>
       "Vous n\'avez pas autorisé ${appName} à se connecter en VPN";
 
-  static String m97(count) =>
+  static String m96(count) =>
       "${Intl.plural(count, one: 'il y a 1 an', other: 'il y a ${count} ans')}";
 
-  static String m98(count) =>
+  static String m97(count) =>
       "${Intl.plural(count, other: 'il y a ${count} a')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
@@ -1327,9 +1324,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "noLogsToday": MessageLookupByLibrary.simpleMessage(
       "Aucun journal pour aujourd\'hui",
     ),
-    "noLongerRemind": MessageLookupByLibrary.simpleMessage(
-      "Ne plus me le rappeler",
-    ),
     "noNetwork": MessageLookupByLibrary.simpleMessage("Aucun réseau"),
     "noNetworkApp": MessageLookupByLibrary.simpleMessage("Apps sans réseau"),
     "noResolveHostname": MessageLookupByLibrary.simpleMessage(
@@ -2133,7 +2127,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Désépingler la fenêtre",
     ),
     "update": MessageLookupByLibrary.simpleMessage("Mettre à jour"),
-    "updateDownloadProgress": m94,
     "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
       "Attendez que la connexion ait fini de démarrer ou de s\'arrêter.",
     ),
@@ -2179,6 +2172,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateHandedOff": MessageLookupByLibrary.simpleMessage(
       "Terminez la mise à jour dans le programme d\'installation ouvert.",
     ),
+    "updateHide": MessageLookupByLibrary.simpleMessage("Masquer"),
     "updateInstall": MessageLookupByLibrary.simpleMessage("Installer"),
     "updateInstalling": MessageLookupByLibrary.simpleMessage(
       "Lancement du programme d\'installation…",
@@ -2206,7 +2200,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Bande passante d’envoi",
     ),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m95,
+    "urlTip": m94,
     "useHosts": MessageLookupByLibrary.simpleMessage("Utiliser hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage(
       "Utiliser les hosts du système",
@@ -2233,7 +2227,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "Le VPN fait passer automatiquement tout le trafic du système par VpnService.",
     ),
-    "vpnPermissionNotGranted": m96,
+    "vpnPermissionNotGranted": m95,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "L\'administrateur de cet appareil restreint le VPN",
     ),
@@ -2248,8 +2242,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Écrire dans le système règle aussi l’horloge système ; Android l’ignore.",
     ),
-    "yearsAgo": m97,
-    "yearsAgoShort": m98,
+    "yearsAgo": m96,
+    "yearsAgoShort": m97,
     "yes": MessageLookupByLibrary.simpleMessage("Oui"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chinois simplifié"),
   };

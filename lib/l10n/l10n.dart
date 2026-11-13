@@ -4431,16 +4431,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Don't remind me again`
-  String get noLongerRemind {
-    return Intl.message(
-      'Don\'t remind me again',
-      name: 'noLongerRemind',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Access control settings`
   String get accessControlSettings {
     return Intl.message(
@@ -8542,14 +8532,9 @@ class AppLocalizations {
     return Intl.message('Install', name: 'updateInstall', desc: '', args: []);
   }
 
-  /// `{received} of {total} · {percent}%`
-  String updateDownloadProgress(Object received, Object total, Object percent) {
-    return Intl.message(
-      '$received of $total · $percent%',
-      name: 'updateDownloadProgress',
-      desc: '',
-      args: [received, total, percent],
-    );
+  /// `Hide`
+  String get updateHide {
+    return Intl.message('Hide', name: 'updateHide', desc: '', args: []);
   }
 
   /// `Checking the download…`

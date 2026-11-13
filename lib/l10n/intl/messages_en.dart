@@ -256,18 +256,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} Headers";
 
-  static String m94(received, total, percent) =>
-      "${received} of ${total} · ${percent}%";
+  static String m94(label) => "${label} must be a URL";
 
-  static String m95(label) => "${label} must be a URL";
-
-  static String m96(appName) =>
+  static String m95(appName) =>
       "You did not allow ${appName} to connect as a VPN";
 
-  static String m97(count) =>
+  static String m96(count) =>
       "${Intl.plural(count, one: '1 year ago', other: '${count} years ago')}";
 
-  static String m98(count) => "${Intl.plural(count, other: '${count}y ago')}";
+  static String m97(count) => "${Intl.plural(count, other: '${count}y ago')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1233,9 +1230,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "noLogsToday": MessageLookupByLibrary.simpleMessage(
       "There are no logs for today",
     ),
-    "noLongerRemind": MessageLookupByLibrary.simpleMessage(
-      "Don\'t remind me again",
-    ),
     "noNetwork": MessageLookupByLibrary.simpleMessage("No network"),
     "noNetworkApp": MessageLookupByLibrary.simpleMessage("No-network apps"),
     "noResolveHostname": MessageLookupByLibrary.simpleMessage(
@@ -1975,7 +1969,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("Unnamed"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("Unpin window"),
     "update": MessageLookupByLibrary.simpleMessage("Update"),
-    "updateDownloadProgress": m94,
     "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
       "Wait until the connection finishes starting or stopping.",
     ),
@@ -2021,6 +2014,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateHandedOff": MessageLookupByLibrary.simpleMessage(
       "Finish the update in the installer that opened.",
     ),
+    "updateHide": MessageLookupByLibrary.simpleMessage("Hide"),
     "updateInstall": MessageLookupByLibrary.simpleMessage("Install"),
     "updateInstalling": MessageLookupByLibrary.simpleMessage(
       "Starting the installer…",
@@ -2046,7 +2040,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "upload": MessageLookupByLibrary.simpleMessage("Upload"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("Upload bandwidth"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m95,
+    "urlTip": m94,
     "useHosts": MessageLookupByLibrary.simpleMessage("Use hosts"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("Use system hosts"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("Used traffic"),
@@ -2071,7 +2065,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN routes all system traffic through VpnService automatically.",
     ),
-    "vpnPermissionNotGranted": m96,
+    "vpnPermissionNotGranted": m95,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "VPN is restricted on this device by its administrator",
     ),
@@ -2084,8 +2078,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "Write to system also sets the system clock; Android ignores it.",
     ),
-    "yearsAgo": m97,
-    "yearsAgoShort": m98,
+    "yearsAgo": m96,
+    "yearsAgoShort": m97,
     "yes": MessageLookupByLibrary.simpleMessage("Yes"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Simplified Chinese"),
   };

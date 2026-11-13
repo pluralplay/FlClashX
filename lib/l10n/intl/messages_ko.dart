@@ -226,16 +226,13 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m93(transport) => "${transport} 요청 헤더";
 
-  static String m94(received, total, percent) =>
-      "${received} / ${total} · ${percent}%";
+  static String m94(label) => "${label}은(는) URL이어야 합니다";
 
-  static String m95(label) => "${label}은(는) URL이어야 합니다";
+  static String m95(appName) => "${appName}의 VPN 연결을 허용하지 않았습니다";
 
-  static String m96(appName) => "${appName}의 VPN 연결을 허용하지 않았습니다";
+  static String m96(count) => "${Intl.plural(count, other: '${count}년 전')}";
 
   static String m97(count) => "${Intl.plural(count, other: '${count}년 전')}";
-
-  static String m98(count) => "${Intl.plural(count, other: '${count}년 전')}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -1042,7 +1039,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "noData": MessageLookupByLibrary.simpleMessage("데이터 없음"),
     "noInfo": MessageLookupByLibrary.simpleMessage("정보 없음"),
     "noLogsToday": MessageLookupByLibrary.simpleMessage("오늘 로그가 없습니다"),
-    "noLongerRemind": MessageLookupByLibrary.simpleMessage("다시 알리지 않음"),
     "noNetwork": MessageLookupByLibrary.simpleMessage("네트워크 없음"),
     "noNetworkApp": MessageLookupByLibrary.simpleMessage("네트워크 미사용 앱"),
     "noResolveHostname": MessageLookupByLibrary.simpleMessage("호스트 이름 확인 안 함"),
@@ -1670,7 +1666,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "unnamed": MessageLookupByLibrary.simpleMessage("이름 없음"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("창 고정 해제"),
     "update": MessageLookupByLibrary.simpleMessage("업데이트"),
-    "updateDownloadProgress": m94,
     "updateErrorBusy": MessageLookupByLibrary.simpleMessage(
       "연결이 시작되거나 중지될 때까지 기다리세요.",
     ),
@@ -1716,6 +1711,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateHandedOff": MessageLookupByLibrary.simpleMessage(
       "열린 설치 프로그램에서 업데이트를 완료하세요.",
     ),
+    "updateHide": MessageLookupByLibrary.simpleMessage("숨기기"),
     "updateInstall": MessageLookupByLibrary.simpleMessage("설치"),
     "updateInstalling": MessageLookupByLibrary.simpleMessage(
       "설치 프로그램을 시작하는 중…",
@@ -1735,7 +1731,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "upload": MessageLookupByLibrary.simpleMessage("업로드"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("업로드 대역폭"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
-    "urlTip": m95,
+    "urlTip": m94,
     "useHosts": MessageLookupByLibrary.simpleMessage("hosts 사용"),
     "useSystemHosts": MessageLookupByLibrary.simpleMessage("시스템 hosts 사용"),
     "usedTraffic": MessageLookupByLibrary.simpleMessage("사용한 트래픽"),
@@ -1760,7 +1756,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "vpnEnableDesc": MessageLookupByLibrary.simpleMessage(
       "VPN은 VpnService를 통해 모든 시스템 트래픽을 자동으로 라우팅합니다.",
     ),
-    "vpnPermissionNotGranted": m96,
+    "vpnPermissionNotGranted": m95,
     "vpnRestrictedByAdministrator": MessageLookupByLibrary.simpleMessage(
       "이 기기에서는 관리자가 VPN을 제한했습니다",
     ),
@@ -1771,8 +1767,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage(
       "시스템에 기록하면 시스템 시계도 설정합니다. Android에서는 무시됩니다.",
     ),
-    "yearsAgo": m97,
-    "yearsAgoShort": m98,
+    "yearsAgo": m96,
+    "yearsAgoShort": m97,
     "yes": MessageLookupByLibrary.simpleMessage("예"),
     "zhCN": MessageLookupByLibrary.simpleMessage("중국어 간체"),
   };
