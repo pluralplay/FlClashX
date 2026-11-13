@@ -205,6 +205,7 @@
   "testUrl": "测速链接",
   "delayTestTimeout": "延迟测试超时",
   "sync": "同步",
+  "profileDetails": "详情",
   "exclude": "从最近任务中隐藏",
   "compact": "紧凑",
   "oneline": "单行",

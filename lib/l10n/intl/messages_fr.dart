@@ -1463,6 +1463,7 @@ class MessageLookup extends MessageLookupByLibrary {
           "Veuillez saisir l’intervalle de mise à jour automatique",
         ),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("Détails"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("Expirée"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "Le profil a été modifié. Désactiver la mise à jour automatique ?",

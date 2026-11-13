@@ -205,6 +205,7 @@
   "testUrl": "Test URL",
   "delayTestTimeout": "Delay test timeout",
   "sync": "Sync",
+  "profileDetails": "Details",
   "exclude": "Hide from recent tasks",
   "compact": "Compact",
   "oneline": "Single line",

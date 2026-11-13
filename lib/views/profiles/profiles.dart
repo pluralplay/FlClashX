@@ -6,6 +6,8 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/views/dashboard/widgets/profile_detail.dart'
+    show showProfileDetailSheet;
 import 'package:fl_clash/views/profiles/custom/custom.dart';
 import 'package:fl_clash/views/profiles/extend/extend.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -442,6 +444,12 @@ class ProfileItem extends ConsumerWidget {
           onPressed: () {
             updateProfile(ref);
           },
+        ),
+      if (profile.id == groupValue)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.info,
+          label: appLocalizations.profileDetails,
+          onPressed: () => showProfileDetailSheet(context),
         ),
       if (!isCustom)
         CommonPopupMenuItem(

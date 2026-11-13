@@ -248,6 +248,25 @@ void main() {
     expect(find.text(l.subscriptionInfo), findsNothing);
   });
 
+  testWidgets('only the current profile offers its details', (tester) async {
+    final l = currentAppLocalizations;
+    final current = urlProfile('current');
+    final other = urlProfile('other');
+    await pumpProfiles(
+      tester,
+      profiles: [current, other],
+      currentProfileId: current.id,
+    );
+
+    await openProfileMenu(tester, 'current');
+    expect(find.text(l.profileDetails), findsOneWidget);
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+
+    await openProfileMenu(tester, 'other');
+    expect(find.text(l.profileDetails), findsNothing);
+  });
+
   testWidgets('a custom profile lists its final config and no extend', (
     tester,
   ) async {

@@ -205,6 +205,7 @@
   "testUrl": "테스트 URL",
   "delayTestTimeout": "지연 테스트 시간 제한",
   "sync": "동기화",
+  "profileDetails": "자세히",
   "exclude": "최근 작업에서 숨기기",
   "compact": "간결하게",
   "oneline": "한 줄",

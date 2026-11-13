@@ -1422,6 +1422,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("Введите интервал автообновления"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("Подробнее"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("Истекла"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "Профиль изменён. Отключить автообновление?",

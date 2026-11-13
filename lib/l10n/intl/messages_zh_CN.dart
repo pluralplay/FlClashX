@@ -1054,6 +1054,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("请输入自动更新间隔时间"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("详情"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("已到期"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "配置文件已经修改，是否关闭自动更新？",

@@ -1134,6 +1134,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("자동 업데이트 간격을 입력하세요"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("자세히"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("만료됨"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "프로필이 수정되었습니다. 자동 업데이트를 끄시겠습니까?",

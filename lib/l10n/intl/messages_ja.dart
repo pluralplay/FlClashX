@@ -1155,6 +1155,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("自動更新間隔を入力してください"),
     "profileDaysFigure": m63,
+    "profileDetails": MessageLookupByLibrary.simpleMessage("詳細"),
     "profileExpired": MessageLookupByLibrary.simpleMessage("期限切れ"),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "プロファイルが変更されています。自動更新を無効にしますか？",

@@ -1646,6 +1646,11 @@ class AppLocalizations {
     return Intl.message('Sync', name: 'sync', desc: '', args: []);
   }
 
+  /// `Details`
+  String get profileDetails {
+    return Intl.message('Details', name: 'profileDetails', desc: '', args: []);
+  }
+
   /// `Hide from recent tasks`
   String get exclude {
     return Intl.message(

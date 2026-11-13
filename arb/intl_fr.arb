@@ -205,6 +205,7 @@
   "testUrl": "URL de test",
   "delayTestTimeout": "Délai d’expiration du test de latence",
   "sync": "Synchroniser",
+  "profileDetails": "Détails",
   "exclude": "Masquer des tâches récentes",
   "compact": "Compact",
   "oneline": "Une ligne",
