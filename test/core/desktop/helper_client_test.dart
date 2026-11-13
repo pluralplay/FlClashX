@@ -527,7 +527,7 @@ void main() {
         ),
       );
 
-      expect(await client.readiness(), HelperReadiness.notReady);
+      expect(await client.readiness(), HelperReadiness.coreMismatch);
     },
   );
 
@@ -684,6 +684,8 @@ void main() {
     helperReadiness = HelperReadiness.notReady;
     expect(await resolver.resolve(), same(direct));
     helperReadiness = HelperReadiness.manifestMissing;
+    expect(await resolver.resolve(), same(direct));
+    helperReadiness = HelperReadiness.coreMismatch;
     expect(await resolver.resolve(), same(direct));
   });
 

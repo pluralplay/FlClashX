@@ -433,6 +433,17 @@ Future<AuthorizeCode> registerHelperService(
         level: MessageLevel.error,
       );
       return AuthorizeCode.error;
+    case HelperReadiness.coreMismatch:
+      commonPrint.log(
+        'the Core on disk does not match the bundled manifest, so the Helper '
+        'refuses it; a package build may have stripped the binary',
+        logLevel: LogLevel.error,
+      );
+      dialogs.showNotifier(
+        currentAppLocalizations.helperCorruptTip,
+        level: MessageLevel.error,
+      );
+      return AuthorizeCode.error;
     case HelperReadiness.notReady:
       break;
   }
