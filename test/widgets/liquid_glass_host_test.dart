@@ -415,6 +415,38 @@ void main() {
     expect(await levelBeside(4), 1);
   });
 
+  testWidgets('frost beside frost shares a level, frost over frost does not', (
+    tester,
+  ) async {
+    const frost = LiquidGlassStyle(
+      tint: Colors.transparent,
+      blur: 24,
+      refraction: 0,
+      bevel: 0,
+    );
+    Future<LiquidGlassCapture> captureWith(Rect second) async {
+      await tester.pumpWidget(
+        _app(
+          Stack(
+            children: [
+              const Positioned.fill(child: ColoredBox(color: _red)),
+              _pane(const Rect.fromLTWH(100, 100, 200, 100), style: frost),
+              _pane(second, style: frost),
+            ],
+          ),
+        ),
+      );
+      return _capture();
+    }
+
+    final beside = await captureWith(const Rect.fromLTWH(100, 212, 200, 100));
+    expect(beside.panes.map((pane) => pane.level), [0, 0]);
+    expect(beside.snapshots, 1);
+
+    final over = await captureWith(const Rect.fromLTWH(150, 150, 200, 100));
+    expect(over.panes.last.level, 1);
+  });
+
   Widget bandsScene(Color changing) => _app(
     Stack(
       children: [

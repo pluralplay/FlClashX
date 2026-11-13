@@ -7,6 +7,7 @@ import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/core/spill.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/app.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart';
@@ -67,7 +68,14 @@ class CoreController {
         if (isExists) {
           continue;
         }
-        final data = await rootBundle.load('assets/data/$geoFileName');
+        final asset = 'assets/data/$geoFileName';
+        // rootBundle inflates the asset on the platform thread, which Android
+        // shares with the UI: the four files stall frames for over 100 ms.
+        if (app case final app?) {
+          await app.extractAsset(asset, geoFile.path);
+          continue;
+        }
+        final data = await rootBundle.load(asset);
         final List<int> bytes = data.buffer.asUint8List();
         await geoFile.writeAsBytes(bytes, flush: true);
       }

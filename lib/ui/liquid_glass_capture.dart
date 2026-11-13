@@ -440,7 +440,8 @@ class _LiquidGlassHostLayer extends ContainerLayer {
         if ((identical(entry.root, this) ||
                 before.ancestors.contains(entry.root)) &&
             (group == null || !identical(before.pane.group, group)) &&
-            before.device.overlaps(entry.reach)) {
+            before.device.overlaps(entry.reach) &&
+            !_besideFrost(before, entry)) {
           entry.level = math.max(entry.level, before.level + 1);
         }
       }
@@ -491,6 +492,13 @@ class _LiquidGlassHostLayer extends ContainerLayer {
       return true;
     }());
   }
+
+  /// Frost beside frost, as cards in a list: only the blur's margin reaches
+  /// the neighbour, and a level apiece costs a whole snapshot per card.
+  static bool _besideFrost(_Behind before, _Behind entry) =>
+      before.style.refraction == 0 &&
+      entry.style.refraction == 0 &&
+      !before.device.overlaps(entry.device);
 
   void _gather(
     ContainerLayer layer,

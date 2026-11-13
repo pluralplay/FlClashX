@@ -51,6 +51,14 @@ void main() {
     expect(helperSocketPathFor(pre: false), '/run/flclashx/helper.sock');
     expect(helperSocketPathFor(pre: true), '/run/flclashx-pre/helper.sock');
     expect(identity, contains('"flclashx-pre"'));
+    for (final pre in [false, true]) {
+      final unit = helperUnitPathFor(pre: pre);
+      expect(unit, startsWith('/etc/systemd/system/'));
+      expect(
+        identity,
+        contains('"${unit.split('/').last.replaceAll('.service', '')}"'),
+      );
+    }
     expect(
       isPreExecutable(r'C:\Program Files\FlClashX Pre\FlClashXPre.exe'),
       isTrue,

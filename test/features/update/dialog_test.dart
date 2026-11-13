@@ -72,6 +72,7 @@ void main() {
                   context: context,
                   child: UpdateDialog(
                     createController: () => controller,
+                    version: 'v0.5.2',
                     notes: const TextSpan(text: 'Release notes'),
                     onOpenReleasePage: () => releasePageOpens++,
                     onHide: reminder ? () => hides++ : null,
@@ -97,6 +98,11 @@ void main() {
   testWidgets('offers download, the release page and closing', (tester) async {
     final l10n = await pump(tester);
     expect(find.text('Release notes'), findsOneWidget);
+    expect(find.text('v0.5.2'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text(l10n.goDownload)).dy,
+      lessThan(tester.getCenter(find.text(l10n.close)).dy),
+    );
     await tester.tap(find.text(l10n.goDownload));
     expect(controller.calls, ['download']);
     await tester.tap(find.text(l10n.updateViewOnGitHub));

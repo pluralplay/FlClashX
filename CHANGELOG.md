@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.3 (2026-11-13)
+## v0.5.3 (2026-11-14)
 
 **Features**
 
@@ -13,6 +13,14 @@
 - **linux** TUN on Linux reports a Core the Helper refuses instead of failing silently, and AUR packages no longer break the Core's checksum (#156) (7c98452)
 - **profiles** Rules added to a profile can target its proxy groups again (#154) (eb61bd8)
 - **update** The update reminder's Hide skips only that release, and the download shows its progress in the Download button (9bd0c0d)
+- **settings** Picking a language no longer fails when the settings page is rebuilt during the menu's close (ef4eada)
+- **linux** An autostarted Linux session waits for the Helper instead of asking to install it again (a4d80c6)
+- **windows** Windows PCs whose install date is out of range start again and send their HWID (a4359ea)
+
+**Performance**
+
+- **ui** Glass cards scroll smoother on weak phones (f235adc)
+- **android** Android starts smoother on first run (2c34c9e)
 
 ## v0.5.2 (2026-11-13)
 

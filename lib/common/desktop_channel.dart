@@ -22,3 +22,6 @@ String helperPortKeyFor(String service) =>
 
 String helperSocketPathFor({required bool pre}) =>
     '/run/${pre ? 'flclashx-pre' : 'flclashx'}/helper.sock';
+
+String helperUnitPathFor({required bool pre}) =>
+    '/etc/systemd/system/${pre ? 'flclashx-pre-helper' : 'flclashx-helper'}.service';
