@@ -17,8 +17,7 @@ const deviceModelHeader = 'x-device-model';
 const _machineGuidKey = r'SOFTWARE\Microsoft\Cryptography';
 const _compactHwidLength = 16;
 
-/// What a panel is told about this device, as request headers: a stable
-/// hardware id and the OS, its version and the model, those present.
+/// Request headers that tell a panel which device, OS and model this is.
 class DeviceIdentity {
   DeviceIdentity({DeviceInfoPlugin? plugin, Future<String?>? androidId})
     : _plugin = plugin ?? DeviceInfoPlugin(),
@@ -68,9 +67,11 @@ class DeviceIdentity {
     }
     if (Platform.isWindows) {
       final info = await _plugin.windowsInfo;
+      final guid = _machineGuid();
       return (
-        _machineGuid() ??
-            '${info.computerName}-${info.deviceId}-${info.productId}',
+        guid != null
+            ? windowsHwidSource(guid)
+            : '${info.computerName}-${info.deviceId}-${info.productId}',
         'Windows',
         info.displayVersion,
         info.productName,
@@ -122,6 +123,11 @@ String compactHwid(String id) => sha256
     .toString()
     .substring(0, _compactHwidLength)
     .toUpperCase();
+
+/// FlClashX 0.4 hashed win32_registry 2's `toString()`; panels know devices by it.
+@visibleForTesting
+String windowsHwidSource(String machineGuid) =>
+    'StringValue(MachineGuid, $machineGuid)';
 
 final Future<String?> _noId = Future.value();
 
