@@ -477,12 +477,12 @@ Future<AuthorizeCode> registerHelperService(
   return isRunning ? AuthorizeCode.success : AuthorizeCode.error;
 }
 
-Future<bool> _waitForHelperService() async {
-  const timeout = Duration(seconds: 6);
+Future<bool> _waitForHelperService({
+  Duration timeout = const Duration(seconds: 6),
+}) async {
   const interval = Duration(seconds: 1);
-  const maxAttempts = 6;
   final stopwatch = Stopwatch()..start();
-  for (var attempt = 0; attempt < maxAttempts; attempt++) {
+  while (true) {
     final remaining = timeout - stopwatch.elapsed;
     if (remaining <= Duration.zero) return false;
     final isRunning =
@@ -490,10 +490,9 @@ Future<bool> _waitForHelperService() async {
         HelperReadiness.ready;
     if (isRunning) return true;
     final delay = timeout - stopwatch.elapsed;
-    if (delay <= Duration.zero || attempt == maxAttempts - 1) return false;
+    if (delay <= Duration.zero) return false;
     await Future.delayed(delay < interval ? delay : interval);
   }
-  return false;
 }
 
 final windows = system.isWindows ? Windows() : null;
@@ -508,8 +507,32 @@ class Linux {
     return _instance!;
   }
 
-  Future<AuthorizeCode> registerService() {
+  Future<AuthorizeCode> registerService() async {
+    if (await _isHelperStillStarting()) {
+      commonPrint.log(
+        'waiting for the helper service to start with the system',
+      );
+      if (await _waitForHelperService(timeout: const Duration(seconds: 30))) {
+        commonPrint.log('helper service started with the system');
+        return AuthorizeCode.success;
+      }
+    }
     return registerHelperService(installService);
+  }
+
+  Future<bool> _isHelperStillStarting() async {
+    if (!File(helperUnitPath).existsSync() ||
+        FileSystemEntity.typeSync(helperSocketPath) !=
+            FileSystemEntityType.notFound) {
+      return false;
+    }
+    try {
+      final result = await Process.run('systemctl', ['is-system-running']);
+      final state = result.stdout.toString().trim();
+      return state == 'starting' || state == 'initializing';
+    } catch (_) {
+      return false;
+    }
   }
 
   /// pkexec and sudo both name the requesting user to the installer, which is
