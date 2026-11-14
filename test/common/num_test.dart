@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_clash/common/num.dart';
 import 'package:test/test.dart';
 
@@ -53,6 +55,19 @@ void main() {
       final result = 0.traffic;
       expect(result.value, '0');
       expect(result.unit, 'B');
+    });
+  });
+
+  group('num.quota', () {
+    test('keeps hundredths a tenth would round away', () {
+      final result = (math.pow(1024, 4) * 14.65).quota;
+      expect(result.value, '14.65');
+      expect(result.unit, 'TB');
+    });
+
+    test('drops trailing zeros', () {
+      expect((math.pow(1024, 3) * 14.7).quota.value, '14.7');
+      expect((math.pow(1024, 3) * 100).quota.value, '100');
     });
   });
 

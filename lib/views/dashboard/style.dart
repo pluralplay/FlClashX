@@ -120,6 +120,11 @@ String dashboardTraffic(num bytes) {
   return '${show.value} ${show.unit}';
 }
 
+String dashboardQuota(num bytes) {
+  final show = bytes.quota;
+  return '${show.value} ${show.unit}';
+}
+
 /// The dashboard's text roles; every figure reads in tabular digits.
 abstract final class DashboardText {
   static TextStyle cardTitle(BuildContext context) => AppTextStyle.footnote

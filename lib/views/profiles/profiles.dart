@@ -331,7 +331,7 @@ class ProfileItem extends ConsumerWidget {
     final info = _subscriptionInfo;
     if (info != null && info.usage != null) {
       final used = info.upload + info.download;
-      return '${used.traffic.show} / ${info.total.traffic.show}';
+      return '${used.quota.show} / ${info.total.quota.show}';
     }
     final appLocalizations = context.appLocalizations;
     return switch (profile.type) {

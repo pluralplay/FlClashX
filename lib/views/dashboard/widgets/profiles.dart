@@ -344,11 +344,11 @@ class _PlanFiguresState extends State<_PlanFigures> {
                 child: _Figure(
                   value: usage == null
                       ? appLocalizations.profileTrafficUnlimited
-                      : dashboardTraffic(math.max(0, usage.total - usage.used)),
+                      : dashboardQuota(math.max(0, usage.total - usage.used)),
                   label: usage == null
                       ? null
                       : appLocalizations.profileLeftOfTotal(
-                          dashboardTraffic(usage.total),
+                          dashboardQuota(usage.total),
                         ),
                   tone: nearlyUsed ? colors.warn : null,
                   figure: figure,
