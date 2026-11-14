@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/service_probe.dart' show routedOutbound;
 import 'package:fl_clash/features/features.dart';
@@ -83,29 +82,33 @@ class _HeroDashboardState extends ConsumerState<HeroDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: 12,
-                      children: [
-                        _ServiceLogo(
-                          url: headers.serviceLogo,
-                          size: _inlineLogoSize,
-                          radius: AppRadius.md,
-                        ),
-                        Flexible(
-                          child: EmojiText(
-                            headers.serviceName ?? appName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyle.title2.of(
-                              context,
-                              emphasized: true,
+                    if (!headers.noService) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: 12,
+                        children: [
+                          if (!headers.noLogo)
+                            _ServiceLogo(
+                              url: headers.serviceLogo,
+                              size: _inlineLogoSize,
+                              radius: AppRadius.md,
+                            ),
+                          Flexible(
+                            child: EmojiText(
+                              headers.serviceName ?? appName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  (headers.noLogo
+                                          ? AppTextStyle.title1
+                                          : AppTextStyle.title2)
+                                      .of(context, emphasized: true),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     const AnnouncementCard(),
                     if (ref.watch(announcementProvider) != null)
                       const SizedBox(height: _gap),
@@ -127,11 +130,11 @@ class _HeroDashboardState extends ConsumerState<HeroDashboard> {
   }
 }
 
-class _EmptyHero extends StatelessWidget {
+class _EmptyHero extends ConsumerWidget {
   const _EmptyHero();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -147,12 +150,10 @@ class _EmptyHero extends StatelessWidget {
         const SizedBox(height: 24),
         SizedBox(
           height: _connectHeight,
-          child: AddProfileMenu(
-            builder: (open) => FilledButton.icon(
-              onPressed: open,
-              icon: const GlyphIcon(AppGlyphs.add, fill: 1),
-              label: Text(appLocalizations.addProfile),
-            ),
+          child: FilledButton.icon(
+            onPressed: () => addProfileByLink(context, ref),
+            icon: const GlyphIcon(AppGlyphs.add, fill: 1),
+            label: Text(appLocalizations.addProfile),
           ),
         ),
       ],
@@ -225,7 +226,7 @@ class _ServerPanel extends ConsumerWidget {
     final colorScheme = context.colorScheme;
     final colors = DashboardColors.of(context);
     final groups = ref.watch(currentGroupsStateProvider).value;
-    final picked = _pickedGroupOf(groups, group);
+    final picked = groups.panelServerGroup(group);
     final groupName = picked?.name;
     final selected = groupName == null
         ? null
@@ -250,19 +251,14 @@ class _ServerPanel extends ConsumerWidget {
     final hideIp = ref.watch(
       appSettingProvider.select((state) => state.hideIp),
     );
-    final server = picked?.all.firstWhereOrNull(
-      (proxy) => proxy.name == serverName,
-    );
-    final nameCode =
-        serverName.flagCountryCode ??
-        server?.serverDescription?.flagCountryCode ??
-        leaf?.proxyName.flagCountryCode;
-    final code = nameCode ?? (isStart ? ipInfo?.countryCode : null);
+    final code = picked == null || serverName.isEmpty
+        ? null
+        : serverFlagCode(picked, serverName, leaf);
     final others = picked == null
         ? const <String>[]
         : ref
               .watch(groupFlagsProvider(picked.name))
-              .where((other) => other != nameCode)
+              .where((other) => other != code)
               .toList();
     final otherCount = others.isNotEmpty
         ? others.length
@@ -299,7 +295,7 @@ class _ServerPanel extends ConsumerWidget {
           ])
         : null;
     void changeServer() => showProxiesSheet(context, groupName: groupName);
-    final swap = groups.isEmpty || hideIp
+    final swap = groups.isEmpty
         ? null
         : SizedBox(
             height: AppTextStyle.headline.leading,
@@ -415,21 +411,6 @@ class _ServerPanel extends ConsumerWidget {
       ),
     );
   }
-}
-
-Group? _pickedGroupOf(List<Group> groups, String? name) {
-  if (name != null) {
-    final named = groups.getGroup(name);
-    if (named != null) {
-      return named;
-    }
-  }
-  for (final group in groups) {
-    if (group.realNow.isNotEmpty && !isBuiltinOutbound(group.realNow)) {
-      return group;
-    }
-  }
-  return groups.firstOrNull;
 }
 
 /// The server's flag in a circle and a count of the group's other

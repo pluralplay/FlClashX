@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/service_probe.dart';
 import 'package:fl_clash/features/features.dart';
@@ -20,9 +21,17 @@ import 'package:material_ui/material_ui.dart';
 import 'card.dart';
 import 'proxy_groups.dart';
 
-const _builtinOutbounds = {'DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'};
-
-bool isBuiltinOutbound(String name) => _builtinOutbounds.contains(name);
+/// The country of the first flag emoji on [name], the pick of [group]: in the
+/// name itself, the panel's description of it, or the node it resolves to.
+/// The outbound IP's own country never stands in, since a relay would put
+/// a different flag beside the name the panel gave.
+String? serverFlagCode(Group group, String name, SelectedProxyState? leaf) =>
+    name.flagCountryCode ??
+    group.all
+        .firstWhereOrNull((proxy) => proxy.name == name)
+        ?.serverDescription
+        ?.flagCountryCode ??
+    leaf?.proxyName.flagCountryCode;
 
 const _decorationGrowth = 0.12;
 
@@ -71,6 +80,9 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
     );
     final isStart = ref.watch(isStartProvider);
     final suspended = isStart && ref.watch(suspendProvider);
+    final hideIp = ref.watch(
+      appSettingProvider.select((state) => state.hideIp),
+    );
     final entry = ref.watch(
       outboundIpProbeProvider.select((state) => state.entryOf(routedOutbound)),
     );
@@ -83,6 +95,30 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
     final quality = qualityState?.value;
     final qualityLoading =
         qualityState != null && quality == null && qualityState.isLoading;
+    final serverGroup = ref
+        .watch(currentGroupsStateProvider)
+        .value
+        .panelServerGroup(
+          ref.watch(
+            currentProfileProvider.select(
+              (state) => state?.headers.serverGroup,
+            ),
+          ),
+        );
+    final picked = serverGroup == null
+        ? null
+        : ref.watch(selectedProxyNameProvider(serverGroup.name));
+    final server = serverGroup == null || picked == null || picked.isEmpty
+        ? null
+        : (
+            group: serverGroup.name,
+            name: picked,
+            flag: serverFlagCode(
+              serverGroup,
+              picked,
+              ref.watch(realSelectedProxyStateProvider(picked)),
+            ),
+          );
     final metrics = _OutboundMetrics.of(density);
     final appLocalizations = context.appLocalizations;
     final colorScheme = context.colorScheme;
@@ -165,11 +201,13 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                             alignment: AlignmentDirectional.centerStart,
                             child: _ExitRow(
                               info: ipInfo,
+                              server: server,
                               failed: failed,
                               checking:
                                   phase == ProbePhase.probing || qualityLoading,
                               onRefresh: () => _refresh(ipInfo?.ip),
                               active: isStart,
+                              hideIp: hideIp,
                               metrics: metrics,
                             ),
                           ),
@@ -177,11 +215,13 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                       else
                         _ExitRow(
                           info: ipInfo,
+                          server: server,
                           failed: failed,
                           checking:
                               phase == ProbePhase.probing || qualityLoading,
                           onRefresh: () => _refresh(ipInfo?.ip),
                           active: isStart,
+                          hideIp: hideIp,
                           metrics: metrics,
                         ),
                     ],
@@ -275,18 +315,22 @@ class _OutboundMetrics {
 class _ExitRow extends StatelessWidget {
   const _ExitRow({
     required this.info,
+    required this.server,
     required this.failed,
     required this.checking,
     required this.onRefresh,
     required this.active,
+    required this.hideIp,
     required this.metrics,
   });
 
   final IpInfo? info;
+  final _PanelServer? server;
   final bool failed;
   final bool checking;
   final VoidCallback onRefresh;
   final bool active;
+  final bool hideIp;
   final _OutboundMetrics metrics;
 
   @override
@@ -299,7 +343,12 @@ class _ExitRow extends StatelessWidget {
       color: active ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
     ).copyWith(letterSpacing: 0);
     final info = this.info;
-    final Widget address = info != null
+    final server = this.server;
+    final Widget address = hideIp
+        ? server == null
+              ? const SizedBox.shrink()
+              : _ServerName(server: server, style: style)
+        : info != null
         ? _IpAddress(ip: info.ip, style: style)
         : failed
         ? Text(
@@ -313,7 +362,7 @@ class _ExitRow extends StatelessWidget {
       spacing: 12,
       children: [
         CountryBadge(
-          countryCode: info?.countryCode,
+          countryCode: server?.flag,
           size: metrics.badgeSize,
           active: active,
           checking: checking,
@@ -340,20 +389,49 @@ class _ExitRow extends StatelessWidget {
   }
 }
 
-class _IpAddress extends ConsumerWidget {
+typedef _PanelServer = ({String group, String name, String? flag});
+
+/// The hero page's server, standing in for an address the user hid.
+class _ServerName extends StatelessWidget {
+  const _ServerName({required this.server, required this.style});
+
+  final _PanelServer server;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: context.appLocalizations.changeServer,
+      child: FocusRing(
+        shape: AppShape.xs,
+        standsOff: true,
+        child: InkWell(
+          mouseCursor: clickableCursor,
+          onTap: () => showProxiesSheet(context, groupName: server.group),
+          customBorder: AppShape.xs,
+          hoverColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          child: EmojiText(
+            server.name.withoutLeadingFlag,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IpAddress extends StatelessWidget {
   const _IpAddress({required this.ip, required this.style});
 
   final String ip;
   final TextStyle style;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hideIp = ref.watch(
-      appSettingProvider.select((state) => state.hideIp),
-    );
-    if (hideIp) {
-      return const SizedBox.shrink();
-    }
+  Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return Tooltip(
       message: appLocalizations.details(appLocalizations.outboundIp),

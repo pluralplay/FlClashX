@@ -44,11 +44,13 @@ void main() {
     int httpPort = 0,
     bool checkCertificate = true,
     bool androidSecure = false,
+    bool safeMode = false,
   }) {
     final container = ProviderContainer(
       overrides: [
         excludeSSIDsProvider.overrideWithValue(excludeSSIDs),
         androidSecureProvider.overrideWithValue(androidSecure),
+        safeModeProvider.overrideWithValue(safeMode),
       ],
     );
     addTearDown(container.dispose);
@@ -133,6 +135,13 @@ void main() {
         buildContainer(androidSecure: true),
         remote,
       ),
+      'DIRECT',
+    );
+  });
+
+  test('goes direct in safe mode, where the core opens no port', () {
+    expect(
+      FlClashHttpOverrides.findProxyFor(buildContainer(safeMode: true), remote),
       'DIRECT',
     );
   });

@@ -267,26 +267,6 @@ void main() {
     });
   });
 
-  group('sidebar blur', () {
-    testWidgets('starts off, with a working toggle on supported platforms', (
-      tester,
-    ) async {
-      await pumpThemeView(tester);
-      final toggle = find.text('Background blur');
-
-      expect(readTheme().sidebarBlur, isFalse);
-      if (!Platform.isMacOS && !Platform.isWindows) {
-        expect(toggle, findsNothing);
-        return;
-      }
-
-      expect(toggle, findsOneWidget);
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
-      expect(readTheme().sidebarBlur, isTrue);
-    });
-  });
-
   group('liquid glass', () {
     testWidgets('is off until a tier is chosen, and switches back', (
       tester,

@@ -213,6 +213,53 @@ void main() {
     expect(find.byWidgetPredicate(fromFile), findsOneWidget);
   });
 
+  testWidgets('nologo leaves the logo out and the name larger', (tester) async {
+    setUp_(
+      profiles: [
+        _profile(
+          headers: const {
+            'flclashx-servicelogo': logo,
+            'flclashx-servicename': 'Proxeyed',
+            'flclashx-special': 'nologo',
+          },
+        ),
+      ],
+      groups: logoGroups(),
+      logoPath: icon,
+    );
+    await pump(tester);
+
+    expect(find.byWidgetPredicate(fromFile), findsNothing);
+    expect(
+      tester.widget<Text>(find.text('Proxeyed').first).style?.fontSize,
+      AppTextStyle.title1.size,
+    );
+  });
+
+  testWidgets('noservice leaves both the logo and the name out', (
+    tester,
+  ) async {
+    setUp_(
+      profiles: [
+        _profile(
+          headers: const {
+            'flclashx-servicelogo': logo,
+            'flclashx-servicename': 'Proxeyed',
+            'flclashx-special': 'noservice',
+          },
+        ),
+      ],
+      groups: logoGroups(),
+      logoPath: icon,
+    );
+    await pump(tester);
+
+    expect(find.byWidgetPredicate(fromFile), findsNothing);
+    expect(find.text('Proxeyed'), findsNothing);
+    expect(find.text(appName), findsNothing);
+    expect(find.text('Amsterdam', findRichText: true), findsOneWidget);
+  });
+
   testWidgets('the app icon stands in until the logo is on disk', (
     tester,
   ) async {
@@ -406,7 +453,7 @@ void main() {
 
     expect(find.text(_ip), findsNothing);
     expect(find.text('*****'), findsNothing);
-    expect(find.byGlyph(AppGlyphs.swap), findsNothing);
+    expect(find.byGlyph(AppGlyphs.swap), findsOneWidget);
     await tester.tap(find.text('Amsterdam'));
     await tester.pumpAndSettle();
 

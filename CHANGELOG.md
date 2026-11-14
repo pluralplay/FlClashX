@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.4 (2026-11-14)
+
+**Features**
+
+- **proxies** The proxies page's top buttons are glass, as on every other page (287aaec)
+- **headers** flclashx-special takes onegroup (the proxies page shows only the server group's proxies), nologo (no service logo on the hero page) and noservice (no logo or name there) (2883815)
+- **dashboard** Flags on the dashboard and in service status come from the server's name, not the outbound IP's country, and the hero card keeps its swap arrows with the IP hidden (63402f7)
+- **profiles** Adding a profile by link asks only for the link, with a one-tap Add from clipboard and the HWID always sent; the dashboard adds by link right away and stays open (a0c08d6)
+- **theme** The Background blur switch is gone from Theme settings; it changed nothing visible (4b1018c)
+- **dashboard** With the IP hidden, the status card shows the current server, and tapping it changes the server (c5671a0)
+
+**Bug Fixes**
+
+- **profiles** A subscription's remaining, used and total data show two decimals, so 14.65 TB no longer reads as 14.7 TB (65276c5)
+
 ## v0.5.3 (2026-11-14)
 
 **Features**

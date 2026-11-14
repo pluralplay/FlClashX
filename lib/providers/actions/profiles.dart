@@ -552,8 +552,11 @@ class ProfilesAction extends _$ProfilesAction {
     String? label,
     String ageSecretKey = '',
     bool sendDeviceHeaders = true,
+    bool showProfiles = true,
   }) async {
-    _showProfiles();
+    if (showProfiles) {
+      _showProfiles();
+    }
     final profile = await globalState.loadingRun(
       tag: LoadingTag.profiles,
       () => link.isShareLink

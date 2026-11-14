@@ -65,10 +65,6 @@ class ThemeView extends StatelessWidget {
             child: _LiquidGlassItem(),
           ),
           const SizedBox(height: 16),
-          if (system.isMacOS || system.isWindows) ...const [
-            _SidebarBlurItem(),
-            SizedBox(height: 16),
-          ],
           if (system.isAndroid) ...const [
             ManagedSetting(
               settingKey: vibrationSetting,
@@ -909,35 +905,6 @@ class _LiquidGlassItem extends ConsumerWidget {
         ref
             .read(themeSettingProvider.notifier)
             .update((state) => state.copyWith(liquidGlass: value));
-      },
-    );
-  }
-}
-
-class _SidebarBlurItem extends ConsumerWidget {
-  const _SidebarBlurItem();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final appLocalizations = context.appLocalizations;
-    final sidebarBlur = ref.watch(
-      themeSettingProvider.select((state) => state.sidebarBlur),
-    );
-    return ListItem.toggle(
-      leading: const GlyphIcon(AppGlyphs.blur),
-      horizontalTitleGap: 12,
-      title: Text(
-        appLocalizations.backgroundBlur,
-        style: AppTextStyle.subheadline
-            .of(context, emphasized: true)
-            .copyWith(color: context.colorScheme.onSurfaceVariant),
-      ),
-      subtitle: Text(appLocalizations.sidebarBlurDesc),
-      value: sidebarBlur,
-      onChanged: (value) {
-        ref
-            .read(themeSettingProvider.notifier)
-            .update((state) => state.copyWith(sidebarBlur: value));
       },
     );
   }

@@ -1,3 +1,4 @@
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/theme_manager.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -60,7 +61,7 @@ void main() {
       notifier.value = change(notifier.value);
     }
 
-    update((props) => props.copyWith(sidebarBlur: !props.sidebarBlur));
+    update((props) => props.copyWith(liquidGlass: LiquidGlassMode.ultra));
     await tester.pump();
     update((props) => props.copyWith(pureBlack: !props.pureBlack));
     await tester.pump();

@@ -2,6 +2,59 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.4",
+      "tag": "v0.5.4",
+      "date": "2026-11-14",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "287aaec",
+              "scope": "proxies",
+              "text": "The proxies page's top buttons are glass, as on every other page"
+            },
+            {
+              "id": "2883815",
+              "scope": "headers",
+              "text": "flclashx-special takes onegroup (the proxies page shows only the server group's proxies), nologo (no service logo on the hero page) and noservice (no logo or name there)"
+            },
+            {
+              "id": "63402f7",
+              "scope": "dashboard",
+              "text": "Flags on the dashboard and in service status come from the server's name, not the outbound IP's country, and the hero card keeps its swap arrows with the IP hidden"
+            },
+            {
+              "id": "a0c08d6",
+              "scope": "profiles",
+              "text": "Adding a profile by link asks only for the link, with a one-tap Add from clipboard and the HWID always sent; the dashboard adds by link right away and stays open"
+            },
+            {
+              "id": "4b1018c",
+              "scope": "theme",
+              "text": "The Background blur switch is gone from Theme settings; it changed nothing visible"
+            },
+            {
+              "id": "c5671a0",
+              "scope": "dashboard",
+              "text": "With the IP hidden, the status card shows the current server, and tapping it changes the server"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "65276c5",
+              "scope": "profiles",
+              "text": "A subscription's remaining, used and total data show two decimals, so 14.65 TB no longer reads as 14.7 TB"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.3",
       "tag": "v0.5.3",
       "date": "2026-11-14",

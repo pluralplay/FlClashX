@@ -215,14 +215,16 @@ void main() {
     expect(surfaceOf(tester, 'G0').shadows, isNull);
   });
 
-  testWidgets('the proxies page draws no glass with glass on', (tester) async {
+  testWidgets('the bar of the proxies page is glass with glass on', (
+    tester,
+  ) async {
     await pumpList(
       tester,
       list: const LiquidGlassScope(enabled: true, child: ProxiesView()),
     );
 
     expect(find.byType(ProxiesListView), findsOneWidget);
-    expect(find.byType(LiquidGlass), findsNothing);
+    expect(find.byType(LiquidGlass), findsWidgets);
   });
 
   testWidgets('a header covers nothing at rest, so no square shows behind '

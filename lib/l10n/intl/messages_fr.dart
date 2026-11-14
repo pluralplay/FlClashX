@@ -315,14 +315,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "add": MessageLookupByLibrary.simpleMessage("Ajouter"),
     "addCustomProxy": MessageLookupByLibrary.simpleMessage("Ajouter un proxy"),
     "addFilters": MessageLookupByLibrary.simpleMessage("Ajouter des filtres"),
+    "addFromClipboard": MessageLookupByLibrary.simpleMessage(
+      "Ajouter depuis le presse-papiers",
+    ),
     "addNodes": MessageLookupByLibrary.simpleMessage("Ajouter des nœuds"),
     "addOverrideEntry": MessageLookupByLibrary.simpleMessage(
       "Ajouter une entrée de remplacement",
     ),
     "addProfile": MessageLookupByLibrary.simpleMessage("Ajouter un profil"),
-    "addProfileFromClipboard": MessageLookupByLibrary.simpleMessage(
-      "Ajouter un profil depuis le presse-papiers",
-    ),
     "addProxyChain": MessageLookupByLibrary.simpleMessage("Ajouter une chaîne"),
     "addProxyChainHop": MessageLookupByLibrary.simpleMessage(
       "Ajouter un relais",
@@ -429,9 +429,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Intervalle de mise à jour automatique",
     ),
     "back": MessageLookupByLibrary.simpleMessage("Retour"),
-    "backgroundBlur": MessageLookupByLibrary.simpleMessage(
-      "Flou d’arrière-plan",
-    ),
     "backup": MessageLookupByLibrary.simpleMessage("Sauvegarde"),
     "backupAndRestore": MessageLookupByLibrary.simpleMessage(
       "Sauvegarde et restauration",
@@ -444,9 +441,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "basicStrategy": MessageLookupByLibrary.simpleMessage("Stratégies de base"),
     "batchAdd": MessageLookupByLibrary.simpleMessage("Ajout groupé"),
     "batchImport": MessageLookupByLibrary.simpleMessage("Importation groupée"),
-    "batchLinkInputTip": MessageLookupByLibrary.simpleMessage(
-      "Un lien par ligne",
-    ),
     "batchListInputTip": MessageLookupByLibrary.simpleMessage(
       "Un élément par ligne, ou séparés par des virgules",
     ),
@@ -991,9 +985,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "importFile": MessageLookupByLibrary.simpleMessage(
       "Importer depuis un fichier",
-    ),
-    "importFromLink": MessageLookupByLibrary.simpleMessage(
-      "Importer depuis un lien",
     ),
     "importUrl": MessageLookupByLibrary.simpleMessage(
       "Importer depuis une URL",
@@ -1929,9 +1920,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage(
       "Afficher le mot de passe",
-    ),
-    "sidebarBlurDesc": MessageLookupByLibrary.simpleMessage(
-      "Le flou d’arrière-plan laisse voir le bureau derrière la fenêtre à travers la barre latérale.",
     ),
     "silentLaunch": MessageLookupByLibrary.simpleMessage(
       "Lancement silencieux",

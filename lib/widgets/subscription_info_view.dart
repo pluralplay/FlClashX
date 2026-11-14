@@ -33,8 +33,8 @@ class SubscriptionInfoView extends StatelessWidget {
     final total = info.total;
     final progress = (use / total).clamp(0.0, 1.0).toDouble();
 
-    final useShow = use.traffic.show;
-    final totalShow = total.traffic.show;
+    final useShow = use.quota.show;
+    final totalShow = total.quota.show;
     final expireShow = info.expire != 0
         ? DateTime.fromMillisecondsSinceEpoch(info.expire * 1000).showDate
         : context.appLocalizations.infiniteTime;
@@ -117,11 +117,11 @@ class SubscriptionInfoDetailView extends StatelessWidget {
             items: [
               _buildItem(
                 label: appLocalizations.usedTraffic,
-                value: used.traffic.show,
+                value: used.quota.show,
               ),
               _buildItem(
                 label: appLocalizations.totalTraffic,
-                value: subscriptionInfo.total.traffic.show,
+                value: subscriptionInfo.total.quota.show,
               ),
             ],
           ),

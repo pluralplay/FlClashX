@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:fl_clash/common/window.dart';
 import 'package:fl_clash/models/config.dart';
 import 'package:flutter/services.dart';
@@ -89,87 +87,6 @@ void main() {
   });
 
   // Runs before any probe succeeds: the singleton caches a supported effect.
-  test('an unsupported probe is retried the next time blur is on', () async {
-    const tint = Color(0xFF112233);
-    if (Platform.isLinux) {
-      return;
-    }
-    var supported = false;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_windowChannel, (call) async {
-          methodCalls.add(call);
-          return call.method == 'isEffectSupported' ? supported : null;
-        });
-
-    final first = await Window().setBlur(
-      enabled: true,
-      brightness: Brightness.dark,
-      tint: tint,
-    );
-    supported = true;
-    final second = await Window().setBlur(
-      enabled: true,
-      brightness: Brightness.dark,
-      tint: tint,
-    );
-
-    expect(first, isNull);
-    expect(second, 0.5);
-    expect(
-      methodCalls.where((call) => call.method == 'isEffectSupported'),
-      hasLength(Platform.isWindows ? 4 : 3),
-    );
-    expect(methodCalls.last.arguments['effect'], isNot('none'));
-  });
-
-  test('blur respects the platform effect support and brightness', () async {
-    const tint = Color(0xFF112233);
-    final active = await Window().setBlur(
-      enabled: true,
-      brightness: Brightness.dark,
-      tint: tint,
-    );
-
-    if (Platform.isLinux) {
-      expect(active, isNull);
-      expect(methodCalls, isEmpty);
-      return;
-    }
-
-    expect(active, 0.5);
-    expect(calls.last, 'setEffect');
-    expect(methodCalls.last.arguments, {
-      'effect': Platform.isWindows ? 'mica' : 'glass',
-      'tint': Platform.isWindows
-          ? tint.withValues(alpha: 0.5).toARGB32()
-          : null,
-      'brightness': 'dark',
-    });
-  });
-
-  test('blur off sets the effect back to none', () async {
-    const tint = Color(0xFF112233);
-    final active = await Window().setBlur(
-      enabled: false,
-      brightness: Brightness.light,
-      tint: tint,
-    );
-
-    expect(active, isNull);
-    if (Platform.isLinux) {
-      expect(methodCalls, isEmpty);
-      return;
-    }
-
-    expect(methodCalls.last.arguments, {
-      'effect': 'none',
-      'tint': Platform.isWindows
-          ? tint.withValues(alpha: 0.5).toARGB32()
-          : null,
-      'brightness': 'light',
-    });
-  });
-
   test('close asks the platform to close the window', () async {
     await Window().close();
 

@@ -170,10 +170,21 @@ void main() {
   setUpAll(() => registerFallbackValue(const OutboundIpParams(timeout: 0)));
 
   group('the exit address', () {
-    testWidgets('shows beside its country flag, opening the details', (
+    testWidgets('shows beside the flag of its server, opening the details', (
       tester,
     ) async {
       await tester.pumpWidget(_app((_, _) async => _residential));
+      ProviderScope.containerOf(
+        tester.element(find.byType(CurrentOutboundCard)),
+      ).read(groupsProvider.notifier).value = const [
+        Group(
+          type: GroupType.Selector,
+          name: 'Auto',
+          hidden: false,
+          now: '\u{1F1F3}\u{1F1F1} NL-01',
+          all: [Proxy(name: '\u{1F1F3}\u{1F1F1} NL-01', type: 'ss')],
+        ),
+      ];
       await tester.pump();
 
       expect(find.text(_ip), findsOneWidget);
@@ -181,7 +192,7 @@ void main() {
       expect(find.text('GB'), findsNothing);
       expect(
         tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode,
-        'GB',
+        'NL',
       );
       expect(find.text('Residential'), findsNothing);
       expect(find.text('Quality Good'), findsNothing);
@@ -207,7 +218,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CountryFlag), findsOneWidget);
+      expect(find.byType(CountryFlag), findsNothing);
       expect(find.text('Not running'), findsNothing);
       expect(find.byType(DashboardChip), findsNothing);
       expect(find.text(_ip), findsOneWidget);
@@ -404,6 +415,37 @@ void main() {
       ];
       await tester.pump();
       await tester.tap(find.byTooltip('Change server'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProxiesView), findsOneWidget);
+    });
+
+    testWidgets('a hidden address gives its place to the server', (
+      tester,
+    ) async {
+      _useTallView(tester);
+      await tester.pumpWidget(_app((_, _) async => _residential));
+      final container = containerOf(tester);
+      container.listen(appSettingProvider, (_, _) {});
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(hideIp: true));
+      container.read(groupsProvider.notifier).value = const [
+        Group(
+          type: GroupType.Selector,
+          name: 'Auto',
+          hidden: false,
+          now: '🇭🇰 HK-01',
+          all: [
+            Proxy(name: '🇭🇰 HK-01', type: 'ss'),
+            Proxy(name: 'SG-01', type: 'ss'),
+          ],
+        ),
+      ];
+      await tester.pump();
+
+      expect(find.text(_ip), findsNothing);
+      await tester.tap(find.text('HK-01'));
       await tester.pumpAndSettle();
 
       expect(find.byType(ProxiesView), findsOneWidget);

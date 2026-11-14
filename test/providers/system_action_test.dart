@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' show Brightness, Color, Locale;
+import 'dart:ui' show Locale;
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -82,13 +82,6 @@ class _GeometryWindowPort implements WindowPort {
     }
     return geometry;
   }
-
-  @override
-  Future<double?> setBlur({
-    required bool enabled,
-    required Brightness brightness,
-    required Color tint,
-  }) async => null;
 
   @override
   Future<void> close() async {}

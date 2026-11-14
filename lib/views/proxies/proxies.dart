@@ -32,7 +32,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   List<CommonPopupMenuItem> _buildMenuItems(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return [
-      if (_isTab)
+      if (_isTab && !ref.watch(oneGroupProvider))
         CommonPopupMenuItem(
           glyph: AppGlyphs.locate,
           label: appLocalizations.scrollToSelected,
@@ -57,7 +57,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   }
 
   IconButtonData? _buildPrimaryAction() {
-    if (!_isTab) {
+    if (!_isTab || ref.watch(oneGroupProvider)) {
       return null;
     }
     final isDelayTesting = ref.watch(currentGroupDelayTestingProvider);
@@ -122,6 +122,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     );
     final isLoading = ref.watch(loadingProvider(LoadingTag.proxies));
     final picker = widget.picker;
+    final oneGroup = ref.watch(oneGroupProvider);
     final primaryAction = _buildPrimaryAction();
     final mode = ref.watch(
       patchClashConfigProvider.select((state) => state.mode),
@@ -154,27 +155,26 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
         ),
       ],
     ];
-    return LiquidGlassScope(
-      enabled: false,
-      child: CommonScaffold(
-        isLoading: isLoading,
-        resizeToAvoidBottomInset: false,
-        // The picker sheet keeps the bar it had, close last.
-        primaryAction: picker ? primaryAction : null,
-        groupActions: !picker,
-        searchActions: [?primaryAction],
-        iconActions: [
-          ...barActions,
-          if (!_isTab && !picker) _buildFoldAllAction(),
-        ],
-        menuItems: picker ? const [] : _buildMenuItems(context),
-        title: context.appLocalizations.proxies,
-        searchState: AppBarSearchState(onSearch: _onSearch),
-        body: switch (proxiesType) {
-          ProxiesType.tab => _tabView,
-          ProxiesType.list => const ProxiesListView(),
-        },
-      ),
+    return CommonScaffold(
+      isLoading: isLoading,
+      resizeToAvoidBottomInset: false,
+      // The picker sheet keeps the bar it had, close last.
+      primaryAction: picker ? primaryAction : null,
+      groupActions: !picker,
+      searchActions: [?primaryAction],
+      iconActions: [
+        ...barActions,
+        if (!_isTab && !picker && !oneGroup) _buildFoldAllAction(),
+      ],
+      menuItems: picker ? const [] : _buildMenuItems(context),
+      title: context.appLocalizations.proxies,
+      searchState: AppBarSearchState(onSearch: _onSearch),
+      body: oneGroup
+          ? const ProxiesOneGroupView()
+          : switch (proxiesType) {
+              ProxiesType.tab => _tabView,
+              ProxiesType.list => const ProxiesListView(),
+            },
     );
   }
 }

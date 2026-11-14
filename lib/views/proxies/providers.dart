@@ -363,7 +363,7 @@ class _TrafficMeter extends StatelessWidget {
       spacing: 6,
       children: [
         Text(
-          '${used.traffic.show} / ${info.total.traffic.show}',
+          '${used.quota.show} / ${info.total.quota.show}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

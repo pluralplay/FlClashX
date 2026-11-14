@@ -1059,67 +1059,6 @@ abstract class _$SideWidth extends $Notifier<double> {
   }
 }
 
-/// The opacity the sidebar keeps its own color at over the backdrop the native
-/// window draws behind the content, or null while it draws none.
-
-@ProviderFor(WindowBlur)
-final windowBlurProvider = WindowBlurProvider._();
-
-/// The opacity the sidebar keeps its own color at over the backdrop the native
-/// window draws behind the content, or null while it draws none.
-final class WindowBlurProvider extends $NotifierProvider<WindowBlur, double?> {
-  /// The opacity the sidebar keeps its own color at over the backdrop the native
-  /// window draws behind the content, or null while it draws none.
-  WindowBlurProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'windowBlurProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$windowBlurHash();
-
-  @$internal
-  @override
-  WindowBlur create() => WindowBlur();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(double? value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<double?>(value),
-    );
-  }
-}
-
-String _$windowBlurHash() => r'0233223726071e4dd10bcb5875977dc652100e15';
-
-/// The opacity the sidebar keeps its own color at over the backdrop the native
-/// window draws behind the content, or null while it draws none.
-
-abstract class _$WindowBlur extends $Notifier<double?> {
-  double? build();
-  @$mustCallSuper
-  @override
-  WhenComplete runBuild() {
-    final ref = this.ref as $Ref<double?, double?>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<double?, double?>,
-              double?,
-              Object?,
-              Object?
-            >;
-    return element.handleCreate(ref, build);
-  }
-}
-
 @ProviderFor(viewWidth)
 final viewWidthProvider = ViewWidthProvider._();
 

@@ -93,22 +93,6 @@ ColorScheme _cachedColorScheme(
   return colorScheme;
 }
 
-typedef WindowBlurRequest = ({bool enabled, Brightness brightness, Color tint});
-
-@riverpod
-WindowBlurRequest windowBlurRequest(Ref ref) {
-  final enabled = ref.watch(
-    themeSettingProvider.select((state) => state.sidebarBlur),
-  );
-  final brightness = ref.watch(currentBrightnessProvider);
-  final colorScheme = ref.watch(genColorSchemeProvider(brightness));
-  return (
-    enabled: enabled,
-    brightness: brightness,
-    tint: colorScheme.surfaceContainer,
-  );
-}
-
 @riverpod
 Brightness currentBrightness(Ref ref) {
   final themeMode = ref.watch(

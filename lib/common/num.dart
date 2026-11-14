@@ -19,7 +19,12 @@ extension NumExt on num {
     return formatted;
   }
 
-  TrafficShow get traffic {
+  TrafficShow get traffic => _traffic(1);
+
+  /// A plan's data, in hundredths: at 14.65 TB a tenth is off by 50 GB.
+  TrafficShow get quota => _traffic(2);
+
+  TrafficShow _traffic(int decimals) {
     const units = TrafficUnit.values;
     var size = toDouble();
     var unitIndex = 0;
@@ -28,7 +33,7 @@ extension NumExt on num {
       unitIndex++;
     }
     return TrafficShow(
-      value: size.fixed(decimals: 1),
+      value: size.fixed(decimals: decimals),
       unit: units[unitIndex].name,
     );
   }

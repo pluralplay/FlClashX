@@ -310,14 +310,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "add": MessageLookupByLibrary.simpleMessage("Añadir"),
     "addCustomProxy": MessageLookupByLibrary.simpleMessage("Añadir proxy"),
     "addFilters": MessageLookupByLibrary.simpleMessage("Añadir filtros"),
+    "addFromClipboard": MessageLookupByLibrary.simpleMessage(
+      "Añadir desde el portapapeles",
+    ),
     "addNodes": MessageLookupByLibrary.simpleMessage("Añadir nodos"),
     "addOverrideEntry": MessageLookupByLibrary.simpleMessage(
       "Añadir entrada de sobrescritura",
     ),
     "addProfile": MessageLookupByLibrary.simpleMessage("Añadir perfil"),
-    "addProfileFromClipboard": MessageLookupByLibrary.simpleMessage(
-      "Añadir perfil desde el portapapeles",
-    ),
     "addProxyChain": MessageLookupByLibrary.simpleMessage("Añadir cadena"),
     "addProxyChainHop": MessageLookupByLibrary.simpleMessage("Añadir salto"),
     "addProxyGroup": MessageLookupByLibrary.simpleMessage(
@@ -426,9 +426,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Intervalo de actualización automática",
     ),
     "back": MessageLookupByLibrary.simpleMessage("Atrás"),
-    "backgroundBlur": MessageLookupByLibrary.simpleMessage(
-      "Desenfoque de fondo",
-    ),
     "backup": MessageLookupByLibrary.simpleMessage("Copia de seguridad"),
     "backupAndRestore": MessageLookupByLibrary.simpleMessage(
       "Copia de seguridad y restauración",
@@ -445,9 +442,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "batchAdd": MessageLookupByLibrary.simpleMessage("Añadir en lote"),
     "batchImport": MessageLookupByLibrary.simpleMessage("Importar en lote"),
-    "batchLinkInputTip": MessageLookupByLibrary.simpleMessage(
-      "Un enlace por línea",
-    ),
     "batchListInputTip": MessageLookupByLibrary.simpleMessage(
       "Un elemento por línea, o separados por comas",
     ),
@@ -990,9 +984,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "importFile": MessageLookupByLibrary.simpleMessage(
       "Importar desde archivo",
-    ),
-    "importFromLink": MessageLookupByLibrary.simpleMessage(
-      "Importar desde enlace",
     ),
     "importUrl": MessageLookupByLibrary.simpleMessage("Importar desde URL"),
     "inbound": MessageLookupByLibrary.simpleMessage("Entrada"),
@@ -1929,9 +1920,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Botón de detener en la notificación",
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage("Mostrar contraseña"),
-    "sidebarBlurDesc": MessageLookupByLibrary.simpleMessage(
-      "El desenfoque de fondo deja ver el escritorio detrás de la ventana a través de la barra lateral.",
-    ),
     "silentLaunch": MessageLookupByLibrary.simpleMessage("Inicio silencioso"),
     "silentLaunchDesc": MessageLookupByLibrary.simpleMessage(
       "El inicio silencioso arranca sin mostrar la ventana.",

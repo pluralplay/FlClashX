@@ -773,53 +773,6 @@ final class GenColorSchemeFamily extends $Family
   String toString() => r'genColorSchemeProvider';
 }
 
-@ProviderFor(windowBlurRequest)
-final windowBlurRequestProvider = WindowBlurRequestProvider._();
-
-final class WindowBlurRequestProvider
-    extends
-        $FunctionalProvider<
-          WindowBlurRequest,
-          WindowBlurRequest,
-          WindowBlurRequest
-        >
-    with $Provider<WindowBlurRequest> {
-  WindowBlurRequestProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'windowBlurRequestProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$windowBlurRequestHash();
-
-  @$internal
-  @override
-  $ProviderElement<WindowBlurRequest> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  WindowBlurRequest create(Ref ref) {
-    return windowBlurRequest(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(WindowBlurRequest value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<WindowBlurRequest>(value),
-    );
-  }
-}
-
-String _$windowBlurRequestHash() => r'90b7a731689db7fa39d979866c428843b1073cf8';
-
 @ProviderFor(currentBrightness)
 final currentBrightnessProvider = CurrentBrightnessProvider._();
 
@@ -3989,6 +3942,46 @@ final class WidgetEditingDeniedProvider
 
 String _$widgetEditingDeniedHash() =>
     r'7b80292720b5fa889e0e8a79cebaf93e2208ad1a';
+
+@ProviderFor(oneGroup)
+final oneGroupProvider = OneGroupProvider._();
+
+final class OneGroupProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  OneGroupProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'oneGroupProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$oneGroupHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return oneGroup(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$oneGroupHash() => r'9d0f1eada0301d39fe11b2a27bf7da73d1153257';
 
 /// The outbound modes the current panel leaves on offer.
 
