@@ -15,6 +15,10 @@
 // path is what normally turns the system proxy off.
 constexpr char kClearStaleProxyArgument[] = "--clear-stale-proxy";
 
+// Dart asks the running app over its own channel; handing this launch to the
+// running window would only raise it.
+constexpr char kRestartCoreArgument[] = "--restart-core";
+
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   std::vector<std::string> command_line_arguments =
@@ -24,7 +28,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     return ProxyPluginClearStaleProxy() ? EXIT_SUCCESS : EXIT_FAILURE;
   }
 
-  if (HWND running = WindowPluginFindRunningWindow()) {
+  const bool restart_core =
+      std::find(command_line_arguments.begin(), command_line_arguments.end(),
+                kRestartCoreArgument) != command_line_arguments.end();
+  if (HWND running = restart_core ? nullptr : WindowPluginFindRunningWindow()) {
     SendAppLink(running);
     WindowPluginActivateWindow(running);
     return EXIT_SUCCESS;

@@ -15,6 +15,10 @@ const _detailSwap = 0.5;
 // beside filled bodies; a solid line, such as a dot, grows with them.
 const _filledLineWidth = 2.2;
 
+/// The width a glyph's lines take at [fill], for strokes drawn beside one.
+double glyphLineWidth(double fill) =>
+    lerpDouble(Glyph.strokeWidth, _filledLineWidth, fill.clamp(0, 1))!;
+
 class GlyphPainter extends CustomPainter {
   const GlyphPainter({
     required this.glyph,
@@ -30,11 +34,7 @@ class GlyphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final opaque = color.withValues(alpha: 1);
     final stroke = _stroke(opaque, Glyph.strokeWidth);
-    final lineWidth = lerpDouble(
-      Glyph.strokeWidth,
-      _filledLineWidth,
-      fill.clamp(0, 1),
-    )!;
+    final lineWidth = glyphLineWidth(fill);
     final line = _stroke(opaque, lineWidth);
     final area = Paint()..color = opaque;
     Paint paintFor(GlyphShape shape) => shape.solid

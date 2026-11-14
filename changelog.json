@@ -8,6 +8,21 @@
       "prerelease": false,
       "groups": [
         {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "3b06ac9",
+              "scope": "dashboard",
+              "text": "The Core status button shows a heartbeat that morphs between running, connecting and down instead of a green or red fill"
+            },
+            {
+              "id": "d499d7f",
+              "scope": "desktop",
+              "text": "FlClashX --restart-core restarts the Core of the running app from a script or terminal on Windows, macOS and Linux, with an exit code for the result (#155)"
+            }
+          ]
+        },
+        {
           "type": "fix",
           "entries": [
             {

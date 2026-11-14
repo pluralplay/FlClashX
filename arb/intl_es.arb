@@ -1033,5 +1033,7 @@
   "updateErrorBusy": "Espera a que la conexión termine de iniciarse o detenerse.",
   "updateErrorSafeMode": "El modo seguro no instala actualizaciones.",
   "updateErrorPermission": "Permite instalar apps de este origen y vuelve a tocar Instalar.",
-  "updateErrorInstall": "No se pudo instalar la actualización."
+  "updateErrorInstall": "No se pudo instalar la actualización.",
+  "coreRestartedByCommand": "Núcleo reiniciado por un comando",
+  "coreRestartByCommandFailed": "El comando no pudo reiniciar el núcleo"
 }

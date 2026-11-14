@@ -5,6 +5,10 @@ import LaunchAtLogin
 
 class MainFlutterWindow: NSWindow {
     override func awakeFromNib() {
+        // A command-line call exits within a second; it should not flash a Dock icon.
+        if CommandLine.arguments.contains("--restart-core") {
+            NSApp.setActivationPolicy(.prohibited)
+        }
         let flutterViewController = FlutterViewController()
         let windowFrame = self.frame
         self.contentViewController = flutterViewController

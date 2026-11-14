@@ -461,6 +461,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "coreBlockedBySmartAppControlTip": MessageLookupByLibrary.simpleMessage(
       "서명되지 않아 Windows Smart App Control이 FlClashCore.exe를 차단했습니다. Windows 보안 → 앱 및 브라우저 컨트롤 → Smart App Control 설정에서 끔을 선택한 후 FlClashX를 다시 시작하세요. Smart App Control은 Windows를 다시 설치하지 않으면 다시 켤 수 없습니다.",
     ),
+    "coreRestartByCommandFailed": MessageLookupByLibrary.simpleMessage(
+      "명령으로 코어를 다시 시작하지 못했습니다",
+    ),
+    "coreRestartedByCommand": MessageLookupByLibrary.simpleMessage(
+      "명령으로 코어를 다시 시작했습니다",
+    ),
     "coreStatus": MessageLookupByLibrary.simpleMessage("코어 상태"),
     "crashDetected": MessageLookupByLibrary.simpleMessage("비정상 종료 감지됨"),
     "crashDetectedTip": m6,

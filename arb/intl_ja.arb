@@ -1033,5 +1033,7 @@
   "updateErrorBusy": "接続の開始または停止が終わるまでお待ちください。",
   "updateErrorSafeMode": "セーフモードではアップデートをインストールしません。",
   "updateErrorPermission": "このソースからのアプリのインストールを許可してから、もう一度「インストール」をタップしてください。",
-  "updateErrorInstall": "アップデートをインストールできませんでした。"
+  "updateErrorInstall": "アップデートをインストールできませんでした。",
+  "coreRestartedByCommand": "コマンドでコアを再起動しました",
+  "coreRestartByCommandFailed": "コマンドでコアを再起動できませんでした"
 }

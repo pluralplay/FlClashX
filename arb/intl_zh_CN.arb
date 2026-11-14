@@ -1033,5 +1033,7 @@
   "updateErrorBusy": "请等待连接完成启动或停止。",
   "updateErrorSafeMode": "安全模式不会安装更新。",
   "updateErrorPermission": "请允许安装来自此来源的应用，然后再次点按安装。",
-  "updateErrorInstall": "无法安装更新。"
+  "updateErrorInstall": "无法安装更新。",
+  "coreRestartedByCommand": "已通过命令重启核心",
+  "coreRestartByCommandFailed": "命令未能重启核心"
 }

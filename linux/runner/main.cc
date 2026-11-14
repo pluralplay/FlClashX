@@ -11,5 +11,14 @@ int main(int argc, char** argv) {
   XInitThreads();
 #endif
   g_autoptr(MyApplication) app = my_application_new();
+  // Dart asks the running app over its own channel; a unique application would
+  // forward this launch to the running instance, which only raises its window.
+  for (int i = 1; i < argc; i++) {
+    if (g_strcmp0(argv[i], "--restart-core") == 0) {
+      g_application_set_flags(G_APPLICATION(app),
+                              G_APPLICATION_HANDLES_COMMAND_LINE | G_APPLICATION_NON_UNIQUE);
+      break;
+    }
+  }
   return g_application_run(G_APPLICATION(app), argc, argv);
 }

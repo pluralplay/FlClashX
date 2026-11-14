@@ -437,6 +437,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "coreBlockedBySmartAppControlTip": MessageLookupByLibrary.simpleMessage(
       "Windows 智能应用控制拦截了未签名的 FlClashCore.exe。请打开 Windows 安全中心 → 应用和浏览器控制 → 智能应用控制设置，选择「关闭」后重新启动 FlClashX。智能应用控制关闭后无法再开启，除非重装 Windows。",
     ),
+    "coreRestartByCommandFailed": MessageLookupByLibrary.simpleMessage(
+      "命令未能重启核心",
+    ),
+    "coreRestartedByCommand": MessageLookupByLibrary.simpleMessage("已通过命令重启核心"),
     "coreStatus": MessageLookupByLibrary.simpleMessage("核心状态"),
     "crashDetected": MessageLookupByLibrary.simpleMessage("检测到崩溃"),
     "crashDetectedTip": m6,
