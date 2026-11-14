@@ -378,6 +378,7 @@ void main() {
     WidgetTester tester, {
     required FutureOr<OutboundIpResult?> Function(OutboundIpParams params)
     outboundIp,
+    AppSettingProps settings = const AppSettingProps(),
   }) async {
     answer(
       (params) => [
@@ -390,7 +391,7 @@ void main() {
           ),
       ],
     );
-    await tester.pumpWidget(app(outboundIp: outboundIp));
+    await tester.pumpWidget(app(outboundIp: outboundIp, settings: settings));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(ServiceStatusCard));
@@ -400,183 +401,35 @@ void main() {
     return find.byType(ServiceStatusSheet);
   }
 
-  testWidgets(
-    'the sheet shows the flag of each node and the address it leaves from',
-    (tester) async {
-      final outboundIps = <String>[];
-      final sheet = await openCheckedSheet(
-        tester,
-        outboundIp: (params) {
-          outboundIps.add(params.proxyName);
-          return _address('203.0.113.7', 'US');
-        },
-      );
-
-      expect(outboundIps, ['\u{1F1ED}\u{1F1F0} HK-01']);
-      expect(
-        find.descendant(of: sheet, matching: find.text('203.0.113.7')),
-        findsWidgets,
-      );
-      expect(
-        find.descendant(of: sheet, matching: find.text('\u{1F1ED}\u{1F1F0}')),
-        findsWidgets,
-      );
-      expect(
-        find.descendant(of: sheet, matching: find.text('\u{1F1FA}\u{1F1F8}')),
-        findsNothing,
-      );
-      expect(
-        find.descendant(
-          of: sheet,
-          matching: find.text('\u{1F1ED}\u{1F1F0} HK-01'),
-        ),
-        findsNothing,
-      );
-    },
-  );
-
-  testWidgets('an address in the sheet opens its quality as a page of it', (
+  testWidgets('the sheet shows where each service leaves from by location', (
     tester,
   ) async {
+    final asked = <String>[];
     final sheet = await openCheckedSheet(
       tester,
-      outboundIp: (_) => _address('203.0.113.7', 'US'),
-    );
-
-    await tester.tap(
-      find.descendant(of: sheet, matching: find.text('203.0.113.7')).first,
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(commonDuration * 2);
-    final title = find.text('Outbound IP');
-    expect(title, findsOneWidget);
-    expect(find.byType(ServiceStatusSheet), findsNothing);
-    expect(
-      Navigator.of(tester.element(title)).widget,
-      isA<SheetPagesNavigator>(),
-    );
-
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pump();
-    await tester.pump(commonDuration * 2);
-    expect(find.byType(ServiceStatusSheet), findsOneWidget);
-    expect(title, findsNothing);
-    await tester.pump(const Duration(seconds: 1));
-  });
-
-  const quality = IpQuality(
-    ip: '203.0.113.7',
-    source: IpQualitySource.ipInfo,
-    type: IpType.residential,
-    organization: 'Example Broadband',
-    asn: 64500,
-  );
-
-  for (final loaded in [false, true]) {
-    testWidgets(
-      'a quality page settles the sheet once at the short sheet height '
-      '${loaded ? 'when loaded' : 'while loading'}',
-      (tester) async {
-        tester.view.physicalSize = const Size(400, 800);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        answer(
-          (params) => [
-            for (final name in params.names)
-              _item(name, ServiceProbeStatus.available, chains: ['HK-01']),
-          ],
-        );
-        await tester.pumpWidget(
-          app(
-            outboundIp: (_) => _address('203.0.113.7', 'US'),
-            ipQuality: loaded ? quality : null,
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byType(ServiceStatusCard));
-        await tester.pumpAndSettle();
-        final sheet = find.byType(ServiceStatusSheet);
-        double height() => tester.getSize(find.byType(PagedSheet)).height;
-
-        await tester.tap(
-          find.descendant(of: sheet, matching: find.text('203.0.113.7')).first,
-        );
-        final heights = <double>[];
-        for (var frame = 0; frame < 12; frame++) {
-          await tester.pump(const Duration(milliseconds: 50));
-          heights.add(height());
-        }
-        for (var i = 1; i < heights.length; i++) {
-          expect(heights[i], lessThanOrEqualTo(heights[i - 1]));
-        }
-        expect(heights.last, 800 * snapSheetDetents.first);
-
-        await tester.pumpWidget(const SizedBox());
-        await tester.pump(const Duration(seconds: 1));
+      outboundIp: (params) {
+        asked.add(params.proxyName);
+        return _address('203.0.113.7', 'US');
       },
     );
-  }
-
-  testWidgets('the address sheet is as tall loading as loaded', (tester) async {
-    tester.view.physicalSize = const Size(600, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    Future<double> heightOf(IpQuality? ipQuality) async {
-      answer(
-        (_) => [
-          _item('google', ServiceProbeStatus.available, chains: ['HK-01']),
-        ],
-      );
-      await tester.pumpWidget(
-        app(
-          outboundIp: (_) => _address('203.0.113.7', 'US'),
-          ipQuality: ipQuality,
-          settings: only([ServiceTarget.google]),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byType(ServiceStatusCard));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('203.0.113.7').first);
-      await tester.pump();
-      await tester.pump(commonDuration * 2);
-      final height = tester
-          .getSize(
-            find
-                .ancestor(
-                  of: find.text('Outbound IP'),
-                  matching: find.byType(CommonScaffold),
-                )
-                .first,
-          )
-          .height;
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump(const Duration(seconds: 1));
-      return height;
-    }
-
-    final loading = await heightOf(null);
-    expect(find.text('Residential'), findsNothing);
-    expect(await heightOf(quality), loading);
-  });
-
-  testWidgets('a sheet row falls back to the node without an address', (
-    tester,
-  ) async {
-    final sheet = await openCheckedSheet(tester, outboundIp: (_) => null);
 
     expect(
-      find.descendant(
-        of: sheet,
-        matching: find.text('\u{1F1ED}\u{1F1F0} HK-01'),
-      ),
+      find.descendant(of: sheet, matching: find.text('HK-01')),
       findsWidgets,
     );
     expect(
-      find.descendant(of: sheet, matching: find.text('\u{1F1EF}\u{1F1F5}')),
+      find.descendant(of: sheet, matching: find.text('\u{1F1ED}\u{1F1F0}')),
+      findsWidgets,
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text('203.0.113.7')),
       findsNothing,
     );
+    expect(
+      find.descendant(of: sheet, matching: find.byTooltip('Outbound location')),
+      findsWidgets,
+    );
+    expect(asked, isNot(contains('\u{1F1ED}\u{1F1F0} HK-01')));
   });
 
   testWidgets('tapping the card lists every service in a sheet', (
@@ -789,10 +642,7 @@ void main() {
 
     claude.complete();
     await tester.pumpAndSettle();
-    expect(
-      find.descendant(of: row, matching: find.text('203.0.113.7')),
-      findsOne,
-    );
+    expect(find.descendant(of: row, matching: find.text('Node A')), findsOne);
     expect(tester.getSize(row).height, unchecked);
   });
 
