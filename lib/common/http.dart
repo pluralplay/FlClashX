@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/state.dart';
 import 'package:flutter/services.dart';
@@ -44,6 +45,8 @@ class FlClashHttpOverrides extends HttpOverrides {
     final isStart = read(isStartProvider);
     final suspend = read(suspendProvider);
     if (!isStart || suspend) return 'DIRECT';
+    // A safe mode Core runs without its listeners, so the port is closed.
+    if (read(safeModeProvider)) return 'DIRECT';
     if (read(androidSecureProvider)) return 'DIRECT';
     final localPort = read(
       patchClashConfigProvider.select(
