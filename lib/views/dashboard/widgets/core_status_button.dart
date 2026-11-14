@@ -155,6 +155,9 @@ const _flatlineWave = [
 ];
 const _flatlineAliveTo = 4;
 
+// A running Core reads as a healthy heartbeat whatever the theme's accent.
+const _coreUp = Color(0xFF1E9B55);
+
 typedef _Wave = ({List<Offset> points, Color color});
 
 /// A heartbeat line for the Core. While it is up a beat runs along the line
@@ -217,7 +220,7 @@ class _CorePulseState extends State<CorePulse> with TickerProviderStateMixin {
     return switch (status) {
       CoreStatus.connected => (
         points: _beatWave,
-        color: colorScheme.primary.withValues(alpha: 0.5),
+        color: _coreUp.withValues(alpha: 0.5),
       ),
       CoreStatus.connecting => (
         points: _searchWave,
@@ -276,7 +279,7 @@ class _CorePulseState extends State<CorePulse> with TickerProviderStateMixin {
           to: _waveOf(widget.status),
           morph: _morph,
           motion: _motion,
-          beat: colorScheme.primary,
+          beat: _coreUp,
           sweep: colorScheme.warning,
           lineWidth: glyphLineWidth(iconTheme.fill ?? 0),
         ),
