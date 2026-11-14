@@ -170,10 +170,21 @@ void main() {
   setUpAll(() => registerFallbackValue(const OutboundIpParams(timeout: 0)));
 
   group('the exit address', () {
-    testWidgets('shows beside its country flag, opening the details', (
+    testWidgets('shows beside the flag of its server, opening the details', (
       tester,
     ) async {
       await tester.pumpWidget(_app((_, _) async => _residential));
+      ProviderScope.containerOf(
+        tester.element(find.byType(CurrentOutboundCard)),
+      ).read(groupsProvider.notifier).value = const [
+        Group(
+          type: GroupType.Selector,
+          name: 'Auto',
+          hidden: false,
+          now: '\u{1F1F3}\u{1F1F1} NL-01',
+          all: [Proxy(name: '\u{1F1F3}\u{1F1F1} NL-01', type: 'ss')],
+        ),
+      ];
       await tester.pump();
 
       expect(find.text(_ip), findsOneWidget);
@@ -181,7 +192,7 @@ void main() {
       expect(find.text('GB'), findsNothing);
       expect(
         tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode,
-        'GB',
+        'NL',
       );
       expect(find.text('Residential'), findsNothing);
       expect(find.text('Quality Good'), findsNothing);
@@ -207,7 +218,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CountryFlag), findsOneWidget);
+      expect(find.byType(CountryFlag), findsNothing);
       expect(find.text('Not running'), findsNothing);
       expect(find.byType(DashboardChip), findsNothing);
       expect(find.text(_ip), findsOneWidget);

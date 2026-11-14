@@ -449,20 +449,18 @@ mixin _NodeAddressWatch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 }
 
-/// Node names tend to carry their own flag emoji, so a service shows where
-/// its traffic leaves from as a flag and the address instead, and falls
-/// back to the node only when the address could not be looked up.
+/// Shows where a service's traffic leaves from as the flag emoji its node
+/// carries and the address, and falls back to the node, flag and all, only
+/// when the address could not be looked up.
 class _OutboundIpLine extends StatelessWidget {
   const _OutboundIpLine({
     required this.ip,
-    required this.region,
     required this.pending,
     required this.fallback,
     required this.style,
   });
 
   final IpInfo? ip;
-  final String? region;
   final bool pending;
   final String? fallback;
   final TextStyle? style;
@@ -471,8 +469,9 @@ class _OutboundIpLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final ip = this.ip;
     final fallback = this.fallback;
-    final flag = ip?.countryCode ?? region;
-    if (flag == null && ip == null && !pending && fallback == null) {
+    final showsNode = ip == null && !pending;
+    final flag = showsNode ? null : fallback?.flagCountryCode;
+    if (ip == null && !pending && fallback == null) {
       return _NoValue(style: style);
     }
     final line = Row(
@@ -894,7 +893,6 @@ class _ServiceRowState extends ConsumerState<_ServiceRow>
             ? SkeletonText(width: 96, style: secondary)
             : _OutboundIpLine(
                 ip: outboundIp,
-                region: check?.region,
                 pending:
                     ipEntry != null &&
                     ipEntry.phase != ProbePhase.failed &&

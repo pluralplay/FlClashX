@@ -386,7 +386,7 @@ void main() {
             name,
             ServiceProbeStatus.available,
             region: 'JP',
-            chains: ['HK-01'],
+            chains: ['\u{1F1ED}\u{1F1F0} HK-01'],
           ),
       ],
     );
@@ -401,7 +401,7 @@ void main() {
   }
 
   testWidgets(
-    'the sheet shows the flag and the address each node leaves from',
+    'the sheet shows the flag of each node and the address it leaves from',
     (tester) async {
       final outboundIps = <String>[];
       final sheet = await openCheckedSheet(
@@ -412,17 +412,24 @@ void main() {
         },
       );
 
-      expect(outboundIps, ['HK-01']);
+      expect(outboundIps, ['\u{1F1ED}\u{1F1F0} HK-01']);
       expect(
         find.descendant(of: sheet, matching: find.text('203.0.113.7')),
         findsWidgets,
       );
       expect(
-        find.descendant(of: sheet, matching: find.text('\u{1F1FA}\u{1F1F8}')),
+        find.descendant(of: sheet, matching: find.text('\u{1F1ED}\u{1F1F0}')),
         findsWidgets,
       );
       expect(
-        find.descendant(of: sheet, matching: find.text('HK-01')),
+        find.descendant(of: sheet, matching: find.text('\u{1F1FA}\u{1F1F8}')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: sheet,
+          matching: find.text('\u{1F1ED}\u{1F1F0} HK-01'),
+        ),
         findsNothing,
       );
     },
@@ -531,7 +538,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byType(ServiceStatusCard));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('\u{1F1FA}\u{1F1F8}').first);
+      await tester.tap(find.text('203.0.113.7').first);
       await tester.pump();
       await tester.pump(commonDuration * 2);
       final height = tester
@@ -560,12 +567,15 @@ void main() {
     final sheet = await openCheckedSheet(tester, outboundIp: (_) => null);
 
     expect(
-      find.descendant(of: sheet, matching: find.text('HK-01')),
+      find.descendant(
+        of: sheet,
+        matching: find.text('\u{1F1ED}\u{1F1F0} HK-01'),
+      ),
       findsWidgets,
     );
     expect(
       find.descendant(of: sheet, matching: find.text('\u{1F1EF}\u{1F1F5}')),
-      findsWidgets,
+      findsNothing,
     );
   });
 

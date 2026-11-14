@@ -406,7 +406,7 @@ void main() {
 
     expect(find.text(_ip), findsNothing);
     expect(find.text('*****'), findsNothing);
-    expect(find.byGlyph(AppGlyphs.swap), findsNothing);
+    expect(find.byGlyph(AppGlyphs.swap), findsOneWidget);
     await tester.tap(find.text('Amsterdam'));
     await tester.pumpAndSettle();
 

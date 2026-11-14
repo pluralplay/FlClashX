@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/service_probe.dart' show routedOutbound;
 import 'package:fl_clash/features/features.dart';
@@ -223,7 +222,7 @@ class _ServerPanel extends ConsumerWidget {
     final colorScheme = context.colorScheme;
     final colors = DashboardColors.of(context);
     final groups = ref.watch(currentGroupsStateProvider).value;
-    final picked = panelServerGroup(groups, group);
+    final picked = groups.panelServerGroup(group);
     final groupName = picked?.name;
     final selected = groupName == null
         ? null
@@ -248,19 +247,14 @@ class _ServerPanel extends ConsumerWidget {
     final hideIp = ref.watch(
       appSettingProvider.select((state) => state.hideIp),
     );
-    final server = picked?.all.firstWhereOrNull(
-      (proxy) => proxy.name == serverName,
-    );
-    final nameCode =
-        serverName.flagCountryCode ??
-        server?.serverDescription?.flagCountryCode ??
-        leaf?.proxyName.flagCountryCode;
-    final code = nameCode ?? (isStart ? ipInfo?.countryCode : null);
+    final code = picked == null || serverName.isEmpty
+        ? null
+        : serverFlagCode(picked, serverName, leaf);
     final others = picked == null
         ? const <String>[]
         : ref
               .watch(groupFlagsProvider(picked.name))
-              .where((other) => other != nameCode)
+              .where((other) => other != code)
               .toList();
     final otherCount = others.isNotEmpty
         ? others.length
@@ -297,7 +291,7 @@ class _ServerPanel extends ConsumerWidget {
           ])
         : null;
     void changeServer() => showProxiesSheet(context, groupName: groupName);
-    final swap = groups.isEmpty || hideIp
+    final swap = groups.isEmpty
         ? null
         : SizedBox(
             height: AppTextStyle.headline.leading,

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/service_probe.dart';
 import 'package:fl_clash/features/features.dart';
@@ -20,25 +21,17 @@ import 'package:material_ui/material_ui.dart';
 import 'card.dart';
 import 'proxy_groups.dart';
 
-const _builtinOutbounds = {'DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'};
-
-bool isBuiltinOutbound(String name) => _builtinOutbounds.contains(name);
-
-/// The group the panel named for its server, else the first with a live pick.
-Group? panelServerGroup(List<Group> groups, String? name) {
-  if (name != null) {
-    final named = groups.getGroup(name);
-    if (named != null) {
-      return named;
-    }
-  }
-  for (final group in groups) {
-    if (group.realNow.isNotEmpty && !isBuiltinOutbound(group.realNow)) {
-      return group;
-    }
-  }
-  return groups.firstOrNull;
-}
+/// The country of the first flag emoji on [name], the pick of [group]: in the
+/// name itself, the panel's description of it, or the node it resolves to.
+/// The outbound IP's own country never stands in, since a relay would put
+/// a different flag beside the name the panel gave.
+String? serverFlagCode(Group group, String name, SelectedProxyState? leaf) =>
+    name.flagCountryCode ??
+    group.all
+        .firstWhereOrNull((proxy) => proxy.name == name)
+        ?.serverDescription
+        ?.flagCountryCode ??
+    leaf?.proxyName.flagCountryCode;
 
 const _decorationGrowth = 0.12;
 
@@ -102,6 +95,30 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
     final quality = qualityState?.value;
     final qualityLoading =
         qualityState != null && quality == null && qualityState.isLoading;
+    final serverGroup = ref
+        .watch(currentGroupsStateProvider)
+        .value
+        .panelServerGroup(
+          ref.watch(
+            currentProfileProvider.select(
+              (state) => state?.headers.serverGroup,
+            ),
+          ),
+        );
+    final picked = serverGroup == null
+        ? null
+        : ref.watch(selectedProxyNameProvider(serverGroup.name));
+    final server = serverGroup == null || picked == null || picked.isEmpty
+        ? null
+        : (
+            group: serverGroup.name,
+            name: picked,
+            flag: serverFlagCode(
+              serverGroup,
+              picked,
+              ref.watch(realSelectedProxyStateProvider(picked)),
+            ),
+          );
     final metrics = _OutboundMetrics.of(density);
     final appLocalizations = context.appLocalizations;
     final colorScheme = context.colorScheme;
@@ -184,6 +201,7 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                             alignment: AlignmentDirectional.centerStart,
                             child: _ExitRow(
                               info: ipInfo,
+                              server: server,
                               failed: failed,
                               checking:
                                   phase == ProbePhase.probing || qualityLoading,
@@ -197,6 +215,7 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                       else
                         _ExitRow(
                           info: ipInfo,
+                          server: server,
                           failed: failed,
                           checking:
                               phase == ProbePhase.probing || qualityLoading,
@@ -296,6 +315,7 @@ class _OutboundMetrics {
 class _ExitRow extends StatelessWidget {
   const _ExitRow({
     required this.info,
+    required this.server,
     required this.failed,
     required this.checking,
     required this.onRefresh,
@@ -305,6 +325,7 @@ class _ExitRow extends StatelessWidget {
   });
 
   final IpInfo? info;
+  final _PanelServer? server;
   final bool failed;
   final bool checking;
   final VoidCallback onRefresh;
@@ -322,8 +343,11 @@ class _ExitRow extends StatelessWidget {
       color: active ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
     ).copyWith(letterSpacing: 0);
     final info = this.info;
+    final server = this.server;
     final Widget address = hideIp
-        ? _ServerName(style: style)
+        ? server == null
+              ? const SizedBox.shrink()
+              : _ServerName(server: server, style: style)
         : info != null
         ? _IpAddress(ip: info.ip, style: style)
         : failed
@@ -338,7 +362,7 @@ class _ExitRow extends StatelessWidget {
       spacing: 12,
       children: [
         CountryBadge(
-          countryCode: info?.countryCode,
+          countryCode: server?.flag,
           size: metrics.badgeSize,
           active: active,
           checking: checking,
@@ -365,25 +389,17 @@ class _ExitRow extends StatelessWidget {
   }
 }
 
-/// The hero page's server, standing in for an address the user hid.
-class _ServerName extends ConsumerWidget {
-  const _ServerName({required this.style});
+typedef _PanelServer = ({String group, String name, String? flag});
 
+/// The hero page's server, standing in for an address the user hid.
+class _ServerName extends StatelessWidget {
+  const _ServerName({required this.server, required this.style});
+
+  final _PanelServer server;
   final TextStyle style;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final groupName = ref.watch(
-      currentProfileProvider.select((state) => state?.headers.serverGroup),
-    );
-    final groups = ref.watch(currentGroupsStateProvider).value;
-    final group = panelServerGroup(groups, groupName);
-    final selected = group == null
-        ? null
-        : ref.watch(selectedProxyNameProvider(group.name));
-    if (group == null || selected == null || selected.isEmpty) {
-      return const SizedBox.shrink();
-    }
+  Widget build(BuildContext context) {
     return Tooltip(
       message: context.appLocalizations.changeServer,
       child: FocusRing(
@@ -391,13 +407,13 @@ class _ServerName extends ConsumerWidget {
         standsOff: true,
         child: InkWell(
           mouseCursor: clickableCursor,
-          onTap: () => showProxiesSheet(context, groupName: group.name),
+          onTap: () => showProxiesSheet(context, groupName: server.group),
           customBorder: AppShape.xs,
           hoverColor: Colors.transparent,
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
           child: EmojiText(
-            selected.withoutLeadingFlag,
+            server.name.withoutLeadingFlag,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: style,

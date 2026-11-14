@@ -513,11 +513,32 @@ abstract class Group with _$Group {
 
 final _groupsByName = Expando<Map<String, Group>>();
 
+const _builtinOutbounds = {'DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'};
+
+bool isBuiltinOutbound(String name) => _builtinOutbounds.contains(name);
+
 extension GroupsExt on List<Group> {
   /// Indexed once per list, so a list must not change after its first lookup.
   Group? getGroup(String groupName) => (_groupsByName[this] ??= {
     for (final group in this) group.name: group,
   })[groupName];
+
+  /// The group the panel named for its server, else the first with a live
+  /// pick.
+  Group? panelServerGroup(String? name) {
+    if (name != null) {
+      final named = getGroup(name);
+      if (named != null) {
+        return named;
+      }
+    }
+    for (final group in this) {
+      if (group.realNow.isNotEmpty && !isBuiltinOutbound(group.realNow)) {
+        return group;
+      }
+    }
+    return firstOrNull;
+  }
 }
 
 extension GroupExt on Group {
