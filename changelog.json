@@ -2,6 +2,29 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.5",
+      "tag": "v0.5.5",
+      "date": "2026-11-14",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "ae53900",
+              "scope": "android",
+              "text": "Themed launcher icons show the X alone instead of a dark square around it"
+            },
+            {
+              "id": "f57fc26",
+              "scope": "android",
+              "text": "Tapping the Quick Settings tile no longer closes the notification shade"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.4",
       "tag": "v0.5.4",
       "date": "2026-11-14",
