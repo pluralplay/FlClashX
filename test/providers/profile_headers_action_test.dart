@@ -31,11 +31,11 @@ Profile _profile(
 void main() {
   late ProviderContainer container;
 
-  ThemeStyle style() => container.read(themeSettingProvider).style;
+  ThemeMode themeMode() => container.read(themeSettingProvider).themeMode;
 
-  void setStyle(ThemeStyle style) => container
+  void setThemeMode(ThemeMode mode) => container
       .read(themeSettingProvider.notifier)
-      .update((state) => state.copyWith(style: style));
+      .update((state) => state.copyWith(themeMode: mode));
 
   setUp(() {
     container = ProviderContainer(
@@ -69,10 +69,10 @@ void main() {
     container.listen(navigationItemsStateProvider, (_, _) {});
     container.listen(configProvider, (_, _) {});
 
-    await select(_profile(1, view: 'app.navbar:floating;app.board:extended'));
+    await select(_profile(1, view: 'app.navbar:floating;app.theme:dark'));
 
     expect(container.read(appSettingProvider).floatingNavigationBar, isTrue);
-    expect(style(), ThemeStyle.enhanced);
+    expect(themeMode(), ThemeMode.dark);
     expect(() => container.read(navigationItemsStateProvider), returnsNormally);
     expect(() => container.read(configProvider), returnsNormally);
   });
@@ -97,14 +97,37 @@ void main() {
     },
   );
 
+  test('the view header hides the proxies that timed out', () async {
+    await select(_profile(1, view: 'proxies.hidetimeout:true'));
+    expect(
+      container.read(proxiesStyleSettingProvider).hideTimeoutProxies,
+      isTrue,
+    );
+
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) =>
+              state.copyWith(ownedSettings: {'view.proxies.hidetimeout'}),
+        );
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: false));
+    await select(_profile(2, view: 'proxies.hidetimeout:true'));
+    expect(
+      container.read(proxiesStyleSettingProvider).hideTimeoutProxies,
+      isFalse,
+    );
+  });
+
   test('a view key the user took over is left to the user', () async {
     container
         .read(appSettingProvider.notifier)
-        .update((state) => state.copyWith(ownedSettings: {'view.app.board'}));
+        .update((state) => state.copyWith(ownedSettings: {'view.app.theme'}));
 
-    await select(_profile(1, view: 'app.board:extended;proxies.type:tab'));
+    await select(_profile(1, view: 'app.theme:dark;proxies.type:tab'));
 
-    expect(style(), ThemeStyle.original);
+    expect(themeMode(), ThemeMode.system);
     expect(container.read(proxiesStyleSettingProvider).type, ProxiesType.tab);
   });
 
@@ -284,37 +307,37 @@ void main() {
     );
   });
 
-  test('the header picks the style when its profile is switched to', () async {
-    await select(_profile(1, view: 'app.board:extended'));
-    expect(style(), ThemeStyle.enhanced);
+  test('the header picks the theme when its profile is switched to', () async {
+    await select(_profile(1, view: 'app.theme:dark'));
+    expect(themeMode(), ThemeMode.dark);
 
-    await select(_profile(2, view: 'app.board:standard'));
-    expect(style(), ThemeStyle.original);
+    await select(_profile(2, view: 'app.theme:light'));
+    expect(themeMode(), ThemeMode.light);
   });
 
   test('a profile without the header leaves the choice alone', () async {
-    setStyle(ThemeStyle.enhanced);
+    setThemeMode(ThemeMode.dark);
     await select(_profile(1));
-    expect(style(), ThemeStyle.enhanced);
+    expect(themeMode(), ThemeMode.dark);
   });
 
   test('every update of the profile applies the header again', () async {
     final first = DateTime(2026, 10, 19, 10);
-    await select(_profile(1, view: 'app.board:extended', updatedAt: first));
-    expect(style(), ThemeStyle.enhanced);
+    await select(_profile(1, view: 'app.theme:dark', updatedAt: first));
+    expect(themeMode(), ThemeMode.dark);
 
-    setStyle(ThemeStyle.original);
-    await put(_profile(1, view: 'app.board:extended', updatedAt: first));
-    expect(style(), ThemeStyle.original);
+    setThemeMode(ThemeMode.light);
+    await put(_profile(1, view: 'app.theme:dark', updatedAt: first));
+    expect(themeMode(), ThemeMode.light);
 
     await put(
       _profile(
         1,
-        view: 'app.board:extended',
+        view: 'app.theme:dark',
         updatedAt: first.add(const Duration(hours: 1)),
       ),
     );
-    expect(style(), ThemeStyle.enhanced);
+    expect(themeMode(), ThemeMode.dark);
   });
 
   test('a change between updates leaves the edited dashboard alone', () async {
@@ -407,7 +430,7 @@ void main() {
         .update(
           (state) => state.copyWith(
             appliedHeadersUpdate: profileHeadersUpdateOf(
-              _profile(1, view: 'app.board:extended', updatedAt: updatedAt),
+              _profile(1, view: 'app.theme:dark', updatedAt: updatedAt),
             ),
           ),
         );
@@ -415,12 +438,12 @@ void main() {
     await select(
       _profile(
         1,
-        view: 'app.board:extended',
+        view: 'app.theme:dark',
         updatedAt: DateTime(2026, 10, 19, 10),
       ),
     );
 
-    expect(style(), ThemeStyle.original);
+    expect(themeMode(), ThemeMode.system);
   });
 
   test('a second update within the same second applies its headers', () async {
@@ -442,17 +465,17 @@ void main() {
   test('a profile restored after the last was deleted applies again', () async {
     final profile = _profile(
       1,
-      view: 'app.board:extended',
+      view: 'app.theme:dark',
       updatedAt: DateTime(2026, 10, 19, 10),
     );
     await select(profile);
     container.read(currentProfileIdProvider.notifier).value = null;
     await settle();
-    setStyle(ThemeStyle.original);
+    setThemeMode(ThemeMode.light);
 
     await select(profile);
 
-    expect(style(), ThemeStyle.enhanced);
+    expect(themeMode(), ThemeMode.dark);
   });
 
   test(

@@ -10,12 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'edit.dart';
-import 'hero.dart';
+import 'provider_mode.dart';
 import 'layout.dart';
 import 'style.dart';
 import 'wide.dart';
 import 'widget_registry.dart';
 import 'widgets/core_status_button.dart';
+import 'widgets/profile_detail.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key, this.platform});
@@ -52,15 +53,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   Widget build(BuildContext context) {
     final platform = widget.platform ?? SupportPlatform.currentPlatform;
     final scale = math.max(1.0, MediaQuery.textScalerOf(context).scale(1));
-    final hero = ref.watch(
-      themeSettingProvider.select(
-        (state) => state.style == ThemeStyle.enhanced,
-      ),
-    );
-    final mode = hero
-        ? ref.watch(patchClashConfigProvider.select((state) => state.mode))
-        : null;
-    final editable = !hero && !ref.watch(widgetEditingDeniedProvider);
+    final providerMode = ref.watch(providerModeProvider);
+    final editable = !ref.watch(widgetEditingDeniedProvider);
     final chosen = ref.watch(
       appSettingProvider.select((state) => state.dashboardWidgetsChosen),
     );
@@ -84,16 +78,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             )
           : null,
       iconActions: [
-        if (mode != null && ref.watch(globalModeAllowedProvider))
-          IconButtonData(
-            glyph: mode == Mode.global ? AppGlyphs.proxies : AppGlyphs.rules,
-            tooltip:
-                '${appLocalizations.outboundMode}: '
-                '${mode == Mode.global ? appLocalizations.global : appLocalizations.rule}',
-            onPressed: () => ref
-                .read(setupActionProvider.notifier)
-                .pickMode(mode == Mode.global ? Mode.rule : Mode.global),
-          ),
         if (editable && !editing)
           IconButtonData(
             glyph: AppGlyphs.edit,
@@ -106,13 +90,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         builder: (context, constraints) {
           final room = constraints.biggest / scale;
           final layout = DashboardDensity.of(room);
-          if (hero) {
-            return DashboardDensityScope(
-              density: DashboardDensity.mobile,
-              scale: scale,
-              child: const HeroDashboard(),
-            );
-          }
           _wide = layout.isDesktop;
           final arranged = editing
               ? (chosen ? null : _editedArrangement)
@@ -128,6 +105,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 arranged: arranged,
                 columns: dashboardColumnsOf(room.width),
                 gap: gap,
+                providerMode: providerMode,
               ),
             );
           }
@@ -139,6 +117,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               arranged: arranged,
               gap: gap,
               editing: editing,
+              providerMode: providerMode,
               cardKeyOf: _cardKeyOf,
               onDone: () => _setEditing(false, platform),
             ),
@@ -155,12 +134,14 @@ class _WideCards extends ConsumerWidget {
     required this.arranged,
     required this.columns,
     required this.gap,
+    required this.providerMode,
   });
 
   final SupportPlatform platform;
   final List<DashboardWidget>? arranged;
   final int columns;
   final double gap;
+  final bool providerMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -170,13 +151,40 @@ class _WideCards extends ConsumerWidget {
           dashboardStateProvider.select((state) => state.dashboardWidgets),
         );
     final announcement = ref.watch(announcementProvider) != null;
-    return WideDashboard(
-      cards: withFixedCards([
-        for (final widget in saved)
-          if (widget.platforms.contains(platform)) widget,
-      ], announcement: announcement),
+    final dashboard = WideDashboard(
+      cards: withFixedCards(
+        [
+          for (final widget in saved)
+            if (widget.platforms.contains(platform)) widget,
+        ],
+        announcement: announcement,
+        providerMode: providerMode,
+      ),
       columns: columns,
       gap: gap,
+      header: providerMode ? const ProviderHeader() : null,
+    );
+    if (!providerMode) {
+      return dashboard;
+    }
+    return Column(
+      children: [
+        Expanded(child: dashboard),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            0,
+            24,
+            24 + MediaQuery.paddingOf(context).bottom,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: providerConnectMaxWidth,
+            ),
+            child: const ProviderConnectButton(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -187,6 +195,7 @@ class _MobileDashboard extends ConsumerWidget {
     required this.arranged,
     required this.gap,
     required this.editing,
+    required this.providerMode,
     required this.cardKeyOf,
     required this.onDone,
   });
@@ -197,6 +206,7 @@ class _MobileDashboard extends ConsumerWidget {
   final List<DashboardWidget>? arranged;
   final double gap;
   final bool editing;
+  final bool providerMode;
   final GlobalKey Function(DashboardWidget widget) cardKeyOf;
   final VoidCallback onDone;
 
@@ -209,8 +219,18 @@ class _MobileDashboard extends ConsumerWidget {
         );
     final announcement = ref.watch(announcementProvider) != null;
     final top = MediaQuery.paddingOf(context).top + 4;
-    final bottom = 16 + context.bottomInset;
-    return CustomScrollView(
+    final footed = providerMode && !editing;
+    // The start button takes the bottom inset when it holds the foot.
+    final bottom = footed ? 12.0 : 16 + context.bottomInset;
+    final pullable =
+        !editing &&
+        platform == SupportPlatform.Android &&
+        ref.watch(
+          currentProfileProvider.select(
+            (profile) => profile?.type == ProfileType.url,
+          ),
+        );
+    final Widget scroll = CustomScrollView(
       // A viewport per card lays them all out and holds the scroll end still.
       scrollCacheExtent: editing
           ? ScrollCacheExtent.viewport(DashboardWidget.values.length.toDouble())
@@ -219,10 +239,14 @@ class _MobileDashboard extends ConsumerWidget {
         SliverLayoutBuilder(
           builder: (context, constraints) {
             final side = dashboardMobileSideOf(constraints.crossAxisExtent);
-            final widgets = withFixedCards([
-              for (final widget in saved)
-                if (widget.platforms.contains(platform)) widget,
-            ], announcement: announcement);
+            final widgets = withFixedCards(
+              [
+                for (final widget in saved)
+                  if (widget.platforms.contains(platform)) widget,
+              ],
+              announcement: announcement,
+              providerMode: providerMode,
+            );
             if (editing) {
               return DashboardEditor(
                 platform: platform,
@@ -241,6 +265,11 @@ class _MobileDashboard extends ConsumerWidget {
                 child: Column(
                   spacing: gap,
                   children: [
+                    if (providerMode)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 4),
+                        child: ProviderHeader(),
+                      ),
                     for (final widget in widgets)
                       RepaintBoundary(
                         key: cardKeyOf(widget),
@@ -251,6 +280,38 @@ class _MobileDashboard extends ConsumerWidget {
               ),
             );
           },
+        ),
+      ],
+    );
+    final appLocalizations = context.appLocalizations;
+    final content = pullable
+        ? PullAction(
+            labels: (
+              pull: appLocalizations.pullToUpdateSubscription,
+              release: appLocalizations.releaseToUpdateSubscription,
+              running: appLocalizations.updatingSubscription,
+              done: appLocalizations.subscriptionUpdated,
+            ),
+            onPull: () async {
+              final profile = ref.read(currentProfileProvider);
+              if (profile == null || profile.type != ProfileType.url) {
+                return false;
+              }
+              return syncProfile(ref, profile);
+            },
+            child: scroll,
+          )
+        : scroll;
+    if (!footed) {
+      return content;
+    }
+    final side = dashboardMobileSideOf(MediaQuery.sizeOf(context).width);
+    return Column(
+      children: [
+        Expanded(child: content),
+        Padding(
+          padding: EdgeInsets.fromLTRB(side, 0, side, 16 + context.bottomInset),
+          child: const ProviderConnectButton(),
         ),
       ],
     );

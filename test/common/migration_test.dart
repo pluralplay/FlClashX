@@ -447,11 +447,8 @@ void main() {
 
         final config = await Migration(store: store).run();
 
-        expect(
-          config.themeProps,
-          defaultThemeProps.copyWith(style: ThemeStyle.enhanced),
-        );
-        expect(store.savedConfig?.themeProps.style, ThemeStyle.enhanced);
+        expect(config.themeProps, defaultThemeProps);
+        expect(store.savedConfig?.themeProps, defaultThemeProps);
         expect(store.upgradeVersion, Migration.upgradeVersion);
         expect(
           store.events.where((event) => event == 'saveConfig'),

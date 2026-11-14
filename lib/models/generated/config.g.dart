@@ -391,9 +391,6 @@ _ThemeProps _$ThemePropsFromJson(Map<String, dynamic> json) => _ThemeProps(
   themeMode:
       $enumDecodeNullable(_$ThemeModeEnumMap, json['themeMode']) ??
       ThemeMode.system,
-  style:
-      $enumDecodeNullable(_$ThemeStyleEnumMap, json['style']) ??
-      ThemeStyle.original,
   colorStyle:
       $enumDecodeNullable(
         _$ColorStyleEnumMap,
@@ -418,7 +415,6 @@ Map<String, dynamic> _$ThemePropsToJson(_ThemeProps instance) =>
       'primaryColor': instance.primaryColor,
       'primaryColors': instance.primaryColors,
       'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
-      'style': _$ThemeStyleEnumMap[instance.style]!,
       'colorStyle': _$ColorStyleEnumMap[instance.colorStyle]!,
       'pureBlack': instance.pureBlack,
       'liquidGlass': _$LiquidGlassModeEnumMap[instance.liquidGlass]!,
@@ -430,11 +426,6 @@ const _$ThemeModeEnumMap = {
   ThemeMode.system: 'system',
   ThemeMode.light: 'light',
   ThemeMode.dark: 'dark',
-};
-
-const _$ThemeStyleEnumMap = {
-  ThemeStyle.original: 'original',
-  ThemeStyle.enhanced: 'enhanced',
 };
 
 const _$ColorStyleEnumMap = {

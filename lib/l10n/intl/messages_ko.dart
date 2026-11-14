@@ -1080,6 +1080,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "outbound": MessageLookupByLibrary.simpleMessage("아웃바운드"),
     "outboundExit": MessageLookupByLibrary.simpleMessage("출구"),
     "outboundIp": MessageLookupByLibrary.simpleMessage("아웃바운드 IP"),
+    "outboundLocation": MessageLookupByLibrary.simpleMessage("발신 위치"),
     "outboundMode": MessageLookupByLibrary.simpleMessage("아웃바운드 모드"),
     "overrideDestination": MessageLookupByLibrary.simpleMessage("대상 덮어쓰기"),
     "overrideDestinationDesc": MessageLookupByLibrary.simpleMessage(
@@ -1219,6 +1220,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyType": MessageLookupByLibrary.simpleMessage("프록시 유형"),
     "pruneCache": MessageLookupByLibrary.simpleMessage("캐시 정리"),
     "publicKey": MessageLookupByLibrary.simpleMessage("공개 키"),
+    "pullToTestDelay": MessageLookupByLibrary.simpleMessage("아래로 당겨 지연 테스트"),
+    "pullToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "아래로 당겨 구독 업데이트",
+    ),
     "pureBlack": MessageLookupByLibrary.simpleMessage("퓨어 블랙"),
     "pureBlackMode": MessageLookupByLibrary.simpleMessage("퓨어 블랙 모드"),
     "qrcode": MessageLookupByLibrary.simpleMessage("QR 코드"),
@@ -1237,6 +1242,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "releaseMemory": MessageLookupByLibrary.simpleMessage("메모리 해제"),
     "releaseMemoryFailed": MessageLookupByLibrary.simpleMessage(
       "메모리를 해제하지 못했습니다",
+    ),
+    "releaseToTestDelay": MessageLookupByLibrary.simpleMessage(
+      "놓으면 지연을 테스트합니다",
+    ),
+    "releaseToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "놓으면 구독을 업데이트합니다",
     ),
     "remote": MessageLookupByLibrary.simpleMessage("원격"),
     "remoteDestination": MessageLookupByLibrary.simpleMessage("원격 목적지"),
@@ -1582,6 +1593,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "구독이 오늘 만료됩니다",
     ),
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage("구독 정보"),
+    "subscriptionUpdated": MessageLookupByLibrary.simpleMessage("구독을 업데이트했습니다"),
     "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage(
       "sudo 비밀번호를 입력하세요",
     ),
@@ -1609,12 +1621,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "theme": MessageLookupByLibrary.simpleMessage("테마"),
     "themeColor": MessageLookupByLibrary.simpleMessage("테마 색상"),
     "themeMode": MessageLookupByLibrary.simpleMessage("외관"),
-    "themeStyle": MessageLookupByLibrary.simpleMessage("테마 모드"),
-    "themeStyleDesc": MessageLookupByLibrary.simpleMessage(
-      "향상됨은 홈 화면에 위젯 그리드 대신 서비스 로고, 요금제, 서버, 연결 버튼을 표시합니다.",
-    ),
-    "themeStyleEnhanced": MessageLookupByLibrary.simpleMessage("향상됨"),
-    "themeStyleOriginal": MessageLookupByLibrary.simpleMessage("오리지널"),
     "tight": MessageLookupByLibrary.simpleMessage("좁게"),
     "time": MessageLookupByLibrary.simpleMessage("시간"),
     "timeout": MessageLookupByLibrary.simpleMessage("시간 초과"),
@@ -1727,6 +1733,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "updateVerifying": MessageLookupByLibrary.simpleMessage("다운로드를 확인하는 중…"),
     "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("GitHub에서 보기"),
+    "updatingSubscription": MessageLookupByLibrary.simpleMessage("구독 업데이트 중…"),
     "upload": MessageLookupByLibrary.simpleMessage("업로드"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("업로드 대역폭"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),

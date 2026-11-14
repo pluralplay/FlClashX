@@ -13,6 +13,7 @@ const _manifestDeadline = Duration(seconds: 20);
 
 final _stableTag = RegExp(r'^v\d+\.\d+\.\d+$');
 final _preTag = RegExp(r'^v\d+\.\d+\.\d+-pre\.\d+$');
+final _minVersion = RegExp(r'^v?(\d+\.\d+\.\d+(-pre\.\d+)?)$');
 
 final class UpdateManifestException implements Exception {
   final String reason;
@@ -23,7 +24,9 @@ final class UpdateManifestException implements Exception {
   String toString() => 'update manifest rejected: $reason';
 }
 
-/// Null when the manifest offers nothing newer than [currentVersion].
+/// Null when the manifest offers nothing newer than [currentVersion]. An
+/// app older than the manifest's `minVersion` gets the update as required
+/// (`_required`), which it may not hide.
 Future<Map<String, dynamic>?> fetchManifestUpdate(
   Dio dio,
   Uri url, {
@@ -41,12 +44,21 @@ Future<Map<String, dynamic>?> fetchManifestUpdate(
   if (compareVersions(version.substring(1), currentVersion) <= 0) {
     return null;
   }
-  return {...manifest, 'tag_name': version, '_isManifest': true};
+  final minVersion = manifest['minVersion'] as String?;
+  return {
+    ...manifest,
+    'tag_name': version,
+    '_isManifest': true,
+    '_required':
+        minVersion != null && compareVersions(currentVersion, minVersion) < 0,
+  };
 }
 
 /// The version must be one of this channel's own tags: a pre-release installs
 /// as a separate app, so neither channel may hand the other a build. Only
-/// the signed fields and the asset URLs are passed on.
+/// the signed fields, the asset URLs and a well-formed `minVersion` are
+/// passed on. `minVersion` is unsigned: it can only make a signed update
+/// harder to put off, never change what gets installed.
 Future<Map<String, dynamic>> verifyUpdateManifest(
   Object? json, {
   required bool pre,
@@ -87,8 +99,13 @@ Future<Map<String, dynamic>> verifyUpdateManifest(
       !await verifyUpdateManifestSignature(message, signature, keys: keys)) {
     throw const UpdateManifestException('bad signature');
   }
+  final minVersion = switch (json['minVersion']) {
+    final String value => _minVersion.firstMatch(value.trim())?.group(1),
+    _ => null,
+  };
   return {
     'version': version,
+    'minVersion': ?minVersion,
     'assets': [
       for (final asset in assets.cast<Map>())
         {'name': asset['name'], 'url': asset['url'], 'sha256': asset['sha256']},

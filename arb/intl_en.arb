@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "Please enter the auto-update interval",
   "profileAutoUpdateIntervalInvalidValidationDesc": "Please enter a valid interval",
   "themeMode": "Appearance",
-  "themeStyle": "Theme mode",
-  "themeStyleOriginal": "Original",
-  "themeStyleEnhanced": "Enhanced",
-  "themeStyleDesc": "Enhanced puts the service logo, plan, server and a connect button on the home page in place of the widget grid.",
   "website": "Website",
   "support": "Support",
   "themeColor": "Theme color",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "Allow installing apps from this source, then tap Install again.",
   "updateErrorInstall": "The update couldn't be installed.",
   "coreRestartedByCommand": "Core restarted by a command",
-  "coreRestartByCommandFailed": "The command could not restart the core"
+  "coreRestartByCommandFailed": "The command could not restart the core",
+  "outboundLocation": "Outbound location",
+  "pullToUpdateSubscription": "Pull down to update the subscription",
+  "releaseToUpdateSubscription": "Release to update the subscription",
+  "updatingSubscription": "Updating the subscription…",
+  "subscriptionUpdated": "Subscription updated",
+  "pullToTestDelay": "Pull down to test the delay",
+  "releaseToTestDelay": "Release to test the delay"
 }

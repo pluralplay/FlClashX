@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:fl_clash/features/update/asset.dart';
 import 'package:fl_clash/features/update/identity.dart';
 import 'package:fl_clash/plugins/app.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 enum UpdateInstallResult { exiting, handedOff, openedImage }
@@ -72,9 +73,9 @@ Future<UpdatePlatform> resolveUpdatePlatform({required ExitApp exitApp}) async {
     );
   }
   if (Platform.isWindows) {
-    final installed = await File(
-      p.join(p.dirname(executable), 'unins000.exe'),
-    ).exists();
+    final installed = await hasInnoUninstaller(
+      Directory(p.dirname(executable)),
+    );
     return WindowsUpdatePlatform(
       executable: executable,
       target: UpdateTarget(
@@ -433,5 +434,21 @@ Future<void> _removeQuietly(String path) async {
     }
   } on FileSystemException {
     return;
+  }
+}
+
+final _innoUninstaller = RegExp(r'^unins\d{3}\.exe$', caseSensitive: false);
+
+/// Whether the setup installed this copy: Inno Setup leaves its uninstaller
+/// beside the app. Over a FlClashX 0.4 install it is `unins001.exe`, since the
+/// old app's `unins000.exe` held the name until the setup retired it.
+@visibleForTesting
+Future<bool> hasInnoUninstaller(Directory directory) async {
+  try {
+    return await directory.list().any(
+      (entry) => _innoUninstaller.hasMatch(p.basename(entry.path)),
+    );
+  } on FileSystemException {
+    return false;
   }
 }

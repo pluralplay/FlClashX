@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "Veuillez saisir l’intervalle de mise à jour automatique",
   "profileAutoUpdateIntervalInvalidValidationDesc": "Veuillez saisir un intervalle valide",
   "themeMode": "Apparence",
-  "themeStyle": "Mode du thème",
-  "themeStyleOriginal": "Original",
-  "themeStyleEnhanced": "Amélioré",
-  "themeStyleDesc": "Amélioré affiche sur l’accueil le logo du service, le forfait, le serveur et un bouton de connexion à la place de la grille de widgets.",
   "website": "Site web",
   "support": "Assistance",
   "themeColor": "Couleur du thème",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "Autorisez l'installation d'apps depuis cette source, puis touchez à nouveau Installer.",
   "updateErrorInstall": "La mise à jour n'a pas pu être installée.",
   "coreRestartedByCommand": "Cœur redémarré par une commande",
-  "coreRestartByCommandFailed": "La commande n’a pas pu redémarrer le cœur"
+  "coreRestartByCommandFailed": "La commande n’a pas pu redémarrer le cœur",
+  "outboundLocation": "Emplacement de sortie",
+  "pullToUpdateSubscription": "Tirez pour mettre à jour l’abonnement",
+  "releaseToUpdateSubscription": "Relâchez pour mettre à jour l’abonnement",
+  "updatingSubscription": "Mise à jour de l’abonnement…",
+  "subscriptionUpdated": "Abonnement mis à jour",
+  "pullToTestDelay": "Tirez pour tester la latence",
+  "releaseToTestDelay": "Relâchez pour tester la latence"
 }

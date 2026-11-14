@@ -23,6 +23,32 @@ ProcessRunner _owners(Set<String> owning, List<String> calls) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('hasInnoUninstaller', () {
+    late Directory dir;
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('inno'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('a portable copy has none', () async {
+      File('${dir.path}/FlClashX.exe').createSync();
+      expect(await hasInnoUninstaller(dir), isFalse);
+    });
+
+    test('the setup leaves unins000, or unins001 over a 0.4 install', () async {
+      File('${dir.path}/unins001.exe').createSync();
+      File('${dir.path}/unins001.dat').createSync();
+      expect(await hasInnoUninstaller(dir), isTrue);
+
+      File('${dir.path}/unins001.exe').deleteSync();
+      File('${dir.path}/UNINS000.EXE').createSync();
+      expect(await hasInnoUninstaller(dir), isTrue);
+    });
+
+    test('a missing folder counts as none', () async {
+      expect(await hasInnoUninstaller(Directory('${dir.path}/gone')), isFalse);
+    });
+  });
+
   group('detectLinuxInstall', () {
     Future<UpdateInstallKind> detect(
       String executable, {

@@ -1344,6 +1344,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "outbound": MessageLookupByLibrary.simpleMessage("Исходящие"),
     "outboundExit": MessageLookupByLibrary.simpleMessage("Выход"),
     "outboundIp": MessageLookupByLibrary.simpleMessage("Исходящий IP"),
+    "outboundLocation": MessageLookupByLibrary.simpleMessage(
+      "Исходящая локация",
+    ),
     "outboundMode": MessageLookupByLibrary.simpleMessage(
       "Режим исходящего трафика",
     ),
@@ -1511,6 +1514,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyType": MessageLookupByLibrary.simpleMessage("Тип прокси"),
     "pruneCache": MessageLookupByLibrary.simpleMessage("Очистить кэш"),
     "publicKey": MessageLookupByLibrary.simpleMessage("Открытый ключ"),
+    "pullToTestDelay": MessageLookupByLibrary.simpleMessage(
+      "Потяните, чтобы проверить задержку",
+    ),
+    "pullToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "Потяните, чтобы обновить подписку",
+    ),
     "pureBlack": MessageLookupByLibrary.simpleMessage("Чисто чёрный"),
     "pureBlackMode": MessageLookupByLibrary.simpleMessage("Чисто чёрный режим"),
     "qrcode": MessageLookupByLibrary.simpleMessage("QR-код"),
@@ -1531,6 +1540,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "releaseMemory": MessageLookupByLibrary.simpleMessage("Освободить память"),
     "releaseMemoryFailed": MessageLookupByLibrary.simpleMessage(
       "Не удалось освободить память",
+    ),
+    "releaseToTestDelay": MessageLookupByLibrary.simpleMessage(
+      "Отпустите, чтобы проверить задержку",
+    ),
+    "releaseToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "Отпустите, чтобы обновить подписку",
     ),
     "remote": MessageLookupByLibrary.simpleMessage("Удалённо"),
     "remoteDestination": MessageLookupByLibrary.simpleMessage(
@@ -1966,6 +1981,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage(
       "Информация о подписке",
     ),
+    "subscriptionUpdated": MessageLookupByLibrary.simpleMessage(
+      "Подписка обновлена",
+    ),
     "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage(
       "Введите пароль для sudo",
     ),
@@ -2003,12 +2021,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "theme": MessageLookupByLibrary.simpleMessage("Тема"),
     "themeColor": MessageLookupByLibrary.simpleMessage("Цвет темы"),
     "themeMode": MessageLookupByLibrary.simpleMessage("Оформление"),
-    "themeStyle": MessageLookupByLibrary.simpleMessage("Режим темы"),
-    "themeStyleDesc": MessageLookupByLibrary.simpleMessage(
-      "Улучшенный показывает на главной логотип сервиса, тариф, сервер и кнопку подключения вместо сетки виджетов.",
-    ),
-    "themeStyleEnhanced": MessageLookupByLibrary.simpleMessage("Улучшенный"),
-    "themeStyleOriginal": MessageLookupByLibrary.simpleMessage("Оригинальный"),
     "tight": MessageLookupByLibrary.simpleMessage("Плотный"),
     "time": MessageLookupByLibrary.simpleMessage("Время"),
     "timeout": MessageLookupByLibrary.simpleMessage("Тайм-аут"),
@@ -2132,6 +2144,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage(
       "Открыть на GitHub",
+    ),
+    "updatingSubscription": MessageLookupByLibrary.simpleMessage(
+      "Обновляю подписку…",
     ),
     "upload": MessageLookupByLibrary.simpleMessage("Отдача"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("Скорость отдачи"),

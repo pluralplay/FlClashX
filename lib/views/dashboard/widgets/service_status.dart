@@ -2,9 +2,6 @@ import 'dart:math';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/service_probe.dart';
-import 'package:fl_clash/features/features.dart';
-import 'package:fl_clash/models/models.dart';
-import 'package:fl_clash/providers/outbound_ip.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/routed_probe.dart';
 import 'package:fl_clash/providers/service_status.dart';
@@ -424,92 +421,40 @@ class _CheckAllButton extends StatelessWidget {
   }
 }
 
-mixin _NodeAddressWatch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
-  late final OutboundIpProbe _ips;
-  String? _node;
+/// Where a service's traffic leaves from, as the node's flag and name; the
+/// address itself stays out of the list.
+class _LocationLine extends StatelessWidget {
+  const _LocationLine({required this.node, required this.style});
 
-  @override
-  void initState() {
-    super.initState();
-    _ips = ref.read(outboundIpProbeProvider.notifier);
-  }
-
-  @override
-  void dispose() {
-    _showNode(null);
-    super.dispose();
-  }
-
-  void _showNode(String? node) {
-    final previous = _node;
-    if (node == previous) return;
-    _node = node;
-    if (node != null) _ips.watch(node);
-    if (previous != null) _ips.unwatch(previous);
-  }
-}
-
-/// Shows where a service's traffic leaves from as the flag emoji its node
-/// carries and the address, and falls back to the node, flag and all, only
-/// when the address could not be looked up.
-class _OutboundIpLine extends StatelessWidget {
-  const _OutboundIpLine({
-    required this.ip,
-    required this.pending,
-    required this.fallback,
-    required this.style,
-  });
-
-  final IpInfo? ip;
-  final bool pending;
-  final String? fallback;
+  final String? node;
   final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
-    final ip = this.ip;
-    final fallback = this.fallback;
-    final showsNode = ip == null && !pending;
-    final flag = showsNode ? null : fallback?.flagCountryCode;
-    if (ip == null && !pending && fallback == null) {
+    final node = this.node;
+    if (node == null) {
       return _NoValue(style: style);
     }
-    final line = Row(
-      spacing: 4,
-      children: [
-        if (flag != null)
-          Text(
-            flag.countryFlagEmoji,
-            style: style?.copyWith(fontFamily: FontFamily.twEmoji.value),
-          ),
-        if (ip != null)
-          Flexible(
-            child: IpQualityText(ip: ip.ip, style: style),
-          )
-        else if (pending)
-          Flexible(child: SkeletonText(width: 88, style: style))
-        else if (fallback != null)
+    final flag = node.flagCountryCode;
+    return Tooltip(
+      message: context.appLocalizations.outboundLocation,
+      child: Row(
+        spacing: 4,
+        children: [
+          if (flag != null)
+            Text(
+              flag.countryFlagEmoji,
+              style: style?.copyWith(fontFamily: FontFamily.twEmoji.value),
+            ),
           Flexible(
             child: Text(
-              fallback,
+              node.withoutLeadingFlag,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: style,
             ),
           ),
-      ],
-    );
-    if (ip == null) return line;
-    return Tooltip(
-      message: context.appLocalizations.outboundIp,
-      child: InkWell(
-        mouseCursor: clickableCursor,
-        onTap: () => showIpQualitySheet(context, ip: ip.ip),
-        customBorder: AppShape.xs,
-        hoverColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        child: line,
+        ],
       ),
     );
   }
@@ -838,7 +783,7 @@ class _ServiceManageItem extends StatelessWidget {
   }
 }
 
-class _ServiceRow extends ConsumerStatefulWidget {
+class _ServiceRow extends StatelessWidget {
   const _ServiceRow({
     required this.target,
     required this.entry,
@@ -850,34 +795,18 @@ class _ServiceRow extends ConsumerStatefulWidget {
   final VoidCallback onCheck;
 
   @override
-  ConsumerState<_ServiceRow> createState() => _ServiceRowState();
-}
-
-class _ServiceRowState extends ConsumerState<_ServiceRow>
-    with _NodeAddressWatch<_ServiceRow> {
-  @override
   Widget build(BuildContext context) {
     final secondary = AppTextStyle.footnote
         .of(context)
         .copyWith(color: context.colorScheme.onSurfaceVariant);
-    final target = widget.target;
-    final entry = widget.entry;
     final check = entry.value;
     final loading = entry.isLoading;
-    final node = check?.node;
-    _showNode(node);
-    final ipEntry = node != null
-        ? ref.watch(
-            outboundIpProbeProvider.select((state) => state.entryOf(node)),
-          )
-        : null;
-    final outboundIp = ipEntry?.value;
     final service = _ServiceView(target, entry, entry.phase);
     return LayoutBuilder(
       builder: (context, constraints) => DecorationListItem(
         minVerticalPadding: _rowBadgeInset,
         contentPadding: const EdgeInsets.only(left: _rowBadgeInset, right: 16),
-        onPressed: loading ? null : widget.onCheck,
+        onPressed: loading ? null : onCheck,
         leading: _ServiceBadge(
           target: target,
           size: _rowBadgeSize,
@@ -891,15 +820,7 @@ class _ServiceRowState extends ConsumerState<_ServiceRow>
         // there and a check does not resize the row.
         subtitle: loading
             ? SkeletonText(width: 96, style: secondary)
-            : _OutboundIpLine(
-                ip: outboundIp,
-                pending:
-                    ipEntry != null &&
-                    ipEntry.phase != ProbePhase.failed &&
-                    outboundIp == null,
-                fallback: node,
-                style: secondary,
-              ),
+            : _LocationLine(node: check?.node, style: secondary),
         trailing: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: constraints.maxWidth * _rowStatusShare,

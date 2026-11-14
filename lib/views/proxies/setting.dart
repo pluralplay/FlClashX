@@ -117,6 +117,7 @@ class ProxiesSetting extends ConsumerWidget {
             items: [
               ConfigToggleItem(
                 title: (l) => l.hideTimeoutProxies,
+                managedKey: 'view.proxies.hidetimeout',
                 selector: proxiesStyleSettingProvider.select(
                   (state) => state.hideTimeoutProxies,
                 ),

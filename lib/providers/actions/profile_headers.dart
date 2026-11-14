@@ -83,6 +83,9 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
               iconStyle:
                   asked('view.proxies.icon', view.icon) ?? state.iconStyle,
               cardType: asked('view.proxies.card', view.card) ?? state.cardType,
+              hideTimeoutProxies:
+                  asked('view.proxies.hidetimeout', view.hideTimeout) ??
+                  state.hideTimeoutProxies,
             ),
           );
       if (view.touchesTheme) {
@@ -91,7 +94,6 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
             .read(themeSettingProvider.notifier)
             .update(
               (state) => state.copyWith(
-                style: asked('view.app.board', view.board) ?? state.style,
                 themeMode:
                     asked('view.app.theme', view.themeMode) ?? state.themeMode,
                 liquidGlass:

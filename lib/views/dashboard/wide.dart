@@ -16,6 +16,9 @@ const _servicePairColumnMin = 290.0;
 
 const _maxColumnWidth = 440.0;
 
+// The provider line holds a 56 logo.
+const _headerHeight = 60.0;
+
 /// The rows of the wide dashboard; cards share a row only with their kind.
 enum WideRowKind { announcement, top, control, middle, bottom }
 
@@ -98,11 +101,15 @@ class WideDashboard extends ConsumerWidget {
     required this.cards,
     required this.columns,
     required this.gap,
+    this.header,
   });
 
   final List<DashboardWidget> cards;
   final int columns;
   final double gap;
+
+  /// A line over the rows, such as the provider's logo and name.
+  final Widget? header;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -142,8 +149,10 @@ class WideDashboard extends ConsumerWidget {
           start: base.start + inset,
           end: base.end + inset,
         );
+        final header = this.header;
         final rowsHeight =
             padding.vertical +
+            (header == null ? 0 : _headerHeight * scale + gap) +
             gap * (rows.length - 1) +
             rows
                 .where((row) => !bottomLast || row != last)
@@ -193,7 +202,11 @@ class WideDashboard extends ConsumerWidget {
               padding: padding,
               child: Column(
                 spacing: gap,
-                children: [for (final row in rows) rowOf(row)],
+                children: [
+                  if (header != null)
+                    SizedBox(height: _headerHeight * scale, child: header),
+                  for (final row in rows) rowOf(row),
+                ],
               ),
             ),
           ),
