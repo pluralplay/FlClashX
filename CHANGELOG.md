@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.6 (2026-11-15)
+
+**Features**
+
+- **dashboard** The Core heartbeat is dark green while the Core runs, whatever the theme colour (1e30319)
+- **update** Provider update manifests take a minVersion that makes the update required for older apps (e007013)
+- **headers** flclashx-view takes proxies.hidetimeout to hide or show proxies that timed out (d608a21)
+- **dashboard** The service status card shows the outbound location, a flag and the node's name, instead of the IP (4049f88)
+- **android** On Android, pulling the dashboard down updates the subscription and pulling the proxies page down tests the delays (641f761)
+- **dashboard** The extended dashboard is replaced by flclashx-special: providermode, which adds the provider's logo, name and a start button to the standard dashboard; app.board is no longer read (02bed3b)
+
+**Bug Fixes**
+
+- **windows** Self-update on Windows recognises installs upgraded from 0.4 instead of treating them as portable (1a434eb)
+
 ## v0.5.5 (2026-11-14)
 
 **Features**

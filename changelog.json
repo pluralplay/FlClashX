@@ -2,6 +2,59 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.6",
+      "tag": "v0.5.6",
+      "date": "2026-11-15",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "1e30319",
+              "scope": "dashboard",
+              "text": "The Core heartbeat is dark green while the Core runs, whatever the theme colour"
+            },
+            {
+              "id": "e007013",
+              "scope": "update",
+              "text": "Provider update manifests take a minVersion that makes the update required for older apps"
+            },
+            {
+              "id": "d608a21",
+              "scope": "headers",
+              "text": "flclashx-view takes proxies.hidetimeout to hide or show proxies that timed out"
+            },
+            {
+              "id": "4049f88",
+              "scope": "dashboard",
+              "text": "The service status card shows the outbound location, a flag and the node's name, instead of the IP"
+            },
+            {
+              "id": "641f761",
+              "scope": "android",
+              "text": "On Android, pulling the dashboard down updates the subscription and pulling the proxies page down tests the delays"
+            },
+            {
+              "id": "02bed3b",
+              "scope": "dashboard",
+              "text": "The extended dashboard is replaced by flclashx-special: providermode, which adds the provider's logo, name and a start button to the standard dashboard; app.board is no longer read"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "1a434eb",
+              "scope": "windows",
+              "text": "Self-update on Windows recognises installs upgraded from 0.4 instead of treating them as portable"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.5",
       "tag": "v0.5.5",
       "date": "2026-11-14",
