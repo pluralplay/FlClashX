@@ -15,8 +15,10 @@ int main(int argc, char** argv) {
   // forward this launch to the running instance, which only raises its window.
   for (int i = 1; i < argc; i++) {
     if (g_strcmp0(argv[i], "--restart-core") == 0) {
-      g_application_set_flags(G_APPLICATION(app),
-                              G_APPLICATION_HANDLES_COMMAND_LINE | G_APPLICATION_NON_UNIQUE);
+      g_application_set_flags(
+          G_APPLICATION(app),
+          static_cast<GApplicationFlags>(G_APPLICATION_HANDLES_COMMAND_LINE |
+                                         G_APPLICATION_NON_UNIQUE));
       break;
     }
   }
