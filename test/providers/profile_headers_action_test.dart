@@ -97,6 +97,29 @@ void main() {
     },
   );
 
+  test('the view header hides the proxies that timed out', () async {
+    await select(_profile(1, view: 'proxies.hidetimeout:true'));
+    expect(
+      container.read(proxiesStyleSettingProvider).hideTimeoutProxies,
+      isTrue,
+    );
+
+    container
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) =>
+              state.copyWith(ownedSettings: {'view.proxies.hidetimeout'}),
+        );
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(hideTimeoutProxies: false));
+    await select(_profile(2, view: 'proxies.hidetimeout:true'));
+    expect(
+      container.read(proxiesStyleSettingProvider).hideTimeoutProxies,
+      isFalse,
+    );
+  });
+
   test('a view key the user took over is left to the user', () async {
     container
         .read(appSettingProvider.notifier)

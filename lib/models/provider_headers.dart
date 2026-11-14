@@ -251,8 +251,8 @@ String _decodeAnnouncement(String raw) {
 /// `key:value;...` over the look of the app. `proxies.*` keys shape the
 /// proxies page: `type` list|tab, `sort` none|delay|name, `layout`
 /// loose|standard|tight, `icon` filled|plain|hidden, `card`
-/// loose|standard|compact|oneline. `app.*` keys shape the app: `navbar`
-/// floating|docked, `tabs` slide|fade, `glass`
+/// loose|standard|compact|oneline, `hidetimeout` true|false. `app.*` keys
+/// shape the app: `navbar` floating|docked, `tabs` slide|fade, `glass`
 /// none|standard|ultra, `color` RRGGBB|AARRGGBB, `style`
 /// vivid|tinted|soft|monochrome, `black` true|false, `theme` auto|light|dark.
 class ViewRequest {
@@ -262,6 +262,7 @@ class ViewRequest {
     this.layout,
     this.icon,
     this.card,
+    this.hideTimeout,
     this.themeMode,
     this.floatingNavigationBar,
     this.tabAnimation,
@@ -276,6 +277,7 @@ class ViewRequest {
   final ProxiesLayout? layout;
   final ProxiesIconStyle? icon;
   final ProxyCardType? card;
+  final bool? hideTimeout;
   final ThemeMode? themeMode;
   final bool? floatingNavigationBar;
   final TabAnimation? tabAnimation;
@@ -318,6 +320,7 @@ class ViewRequest {
     ProxiesLayout? layout;
     ProxiesIconStyle? icon;
     ProxyCardType? card;
+    bool? hideTimeout;
     ThemeMode? themeMode;
     bool? floatingNavigationBar;
     TabAnimation? tabAnimation;
@@ -350,6 +353,8 @@ class ViewRequest {
           icon = named(ProxiesIconStyle.values, value) ?? icon;
         case (false, 'card'):
           card = named(ProxyCardType.values, value) ?? card;
+        case (false, 'hidetimeout'):
+          hideTimeout = _boolOf(value) ?? hideTimeout;
         case (true, 'theme'):
           themeMode = themeModeNames[value] ?? themeMode;
         case (true, 'navbar'):
@@ -376,6 +381,7 @@ class ViewRequest {
       layout: layout,
       icon: icon,
       card: card,
+      hideTimeout: hideTimeout,
       themeMode: themeMode,
       floatingNavigationBar: floatingNavigationBar,
       tabAnimation: tabAnimation,
@@ -393,6 +399,7 @@ class ViewRequest {
     layout,
     icon,
     card,
+    hideTimeout,
     themeMode,
     floatingNavigationBar,
     tabAnimation,

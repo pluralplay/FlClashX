@@ -83,6 +83,9 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
               iconStyle:
                   asked('view.proxies.icon', view.icon) ?? state.iconStyle,
               cardType: asked('view.proxies.card', view.card) ?? state.cardType,
+              hideTimeoutProxies:
+                  asked('view.proxies.hidetimeout', view.hideTimeout) ??
+                  state.hideTimeoutProxies,
             ),
           );
       if (view.touchesTheme) {

@@ -198,6 +198,21 @@ void main() {
       expect(ViewRequest.parse('proxies.card:min')?.card, isNull);
     });
 
+    test('hidetimeout hides or shows the proxies that timed out', () {
+      expect(
+        ViewRequest.parse('proxies.hidetimeout:true')?.hideTimeout,
+        isTrue,
+      );
+      expect(
+        ViewRequest.parse('proxies.hidetimeout:False')?.hideTimeout,
+        isFalse,
+      );
+      expect(ViewRequest.parse('proxies.hidetimeout:maybe'), isNull);
+      expect(managedViewKeysOf(ViewRequest.parse('proxies.hidetimeout:true')), {
+        'view.proxies.hidetimeout',
+      });
+    });
+
     test('reads the app keys only under their prefix', () {
       expect(
         ViewRequest.parse(
