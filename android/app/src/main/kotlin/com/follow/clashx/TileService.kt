@@ -1,8 +1,12 @@
 package com.follow.clashx
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.os.Build
 import android.service.quicksettings.Tile
+import androidx.core.content.ContextCompat
+import com.follow.clashx.common.GlobalState
 import com.follow.clashx.common.QuickAction
 import com.follow.clashx.common.quickIntent
 import com.follow.clashx.common.toPendingIntent
@@ -25,13 +29,26 @@ class TileService : android.service.quicksettings.TileService() {
         }
     }
 
-    // Always route through QuickActionActivity: startActivityAndCollapse is
-    // what closes the shade, so toggling the service in place would leave
-    // the panel open after a tap.
+    // A tap toggles in place and leaves the shade open: the system lets the app start a foreground
+    // service for a short while after a tile click. Only a start that still needs a permission
+    // prompt goes through QuickActionActivity, whose startActivityAndCollapse closes the shade.
     override fun onClick() {
         super.onClick()
-        openQuickAction()
+        if (ServiceState.isRunRequested || canStartInPlace()) {
+            GlobalState.launch { ServiceState.handleToggleAction() }
+        } else {
+            openQuickAction()
+        }
     }
+
+    private fun canStartInPlace(): Boolean =
+        AndroidServiceStateHost.isVpnPermissionGranted() &&
+            AndroidServiceStateHost.isLocalNetworkPermissionGranted() &&
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) == PackageManager.PERMISSION_GRANTED)
 
     override fun onStopListening() {
         scope?.cancel()
