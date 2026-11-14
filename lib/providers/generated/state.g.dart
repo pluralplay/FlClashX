@@ -3943,6 +3943,46 @@ final class WidgetEditingDeniedProvider
 String _$widgetEditingDeniedHash() =>
     r'7b80292720b5fa889e0e8a79cebaf93e2208ad1a';
 
+@ProviderFor(oneGroup)
+final oneGroupProvider = OneGroupProvider._();
+
+final class OneGroupProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  OneGroupProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'oneGroupProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$oneGroupHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return oneGroup(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$oneGroupHash() => r'9d0f1eada0301d39fe11b2a27bf7da73d1153257';
+
 /// The outbound modes the current panel leaves on offer.
 
 @ProviderFor(availableModes)

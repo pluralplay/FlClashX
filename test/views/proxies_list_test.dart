@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -19,6 +20,7 @@ import '../helpers/test_profiles.dart';
 void main() {
   setUpAll(() => registerFallbackValue(Duration.zero));
   proxiesBarTests();
+  oneGroupTests();
   proxyDescriptionTests();
   testWidgets('a group description takes the place of the location it '
       'picked, which shows only without one', (tester) async {
@@ -575,5 +577,81 @@ void proxiesBarTests() {
     await tester.tap(find.byTooltip('Collapse all groups'));
     await tester.pumpAndSettle();
     expect(container.read(unfoldSetProvider), {'Hidden'});
+  });
+}
+
+void oneGroupTests() {
+  testWidgets('onegroup shows the proxies of the server group alone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final profile = Profile.normal().copyWith(
+      currentGroupName: 'Auto',
+      unfoldSet: {'Auto', 'Manual'},
+      providerHeaders: const {
+        'flclashx-special': 'onegroup',
+        'flclashx-serverinfo': 'Manual',
+      },
+    );
+    final groups = [
+      const Group(
+        name: 'Auto',
+        type: GroupType.URLTest,
+        hidden: false,
+        now: 'Proxy 1',
+        all: [Proxy(name: 'Proxy 1', type: 'ss')],
+      ),
+      const Group(
+        name: 'Manual',
+        type: GroupType.Selector,
+        hidden: false,
+        now: 'Proxy 2',
+        all: [
+          Proxy(name: 'Proxy 2', type: 'ss'),
+          Proxy(name: 'Proxy 3', type: 'ss'),
+        ],
+      ),
+    ];
+    final container = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+        currentGroupsStateProvider.overrideWithValue(
+          GroupsState(value: groups),
+        ),
+        groupsProvider.overrideWithValue(groups),
+      ],
+    );
+    addTearDown(container.dispose);
+    globalState.container = container;
+    container
+        .read(viewSizeProvider.notifier)
+        .update((_) => const Size(500, 1000));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(child: ProxiesView()),
+      ),
+    );
+    final l10n = currentAppLocalizations;
+
+    for (final type in ProxiesType.values) {
+      container
+          .read(proxiesStyleSettingProvider.notifier)
+          .update((state) => state.copyWith(type: type));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProxyCard), findsNWidgets(2), reason: type.name);
+      expect(find.text('Proxy 1'), findsNothing);
+      expect(find.text('Auto'), findsNothing);
+      expect(find.text('Manual'), findsNothing);
+      expect(find.byType(ListHeader), findsNothing);
+      expect(find.byTooltip(l10n.delayTestAll), findsOneWidget);
+      expect(find.byTooltip(l10n.foldAllGroups), findsNothing);
+      expect(find.byTooltip(l10n.unfoldAllGroups), findsNothing);
+    }
   });
 }

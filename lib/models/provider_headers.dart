@@ -99,6 +99,16 @@ class ProviderHeaders {
 
   bool get noVibration => specials?.contains('novibrate') ?? false;
 
+  /// `flclashx-special: onegroup` shows the proxies page as the server group's
+  /// proxies alone, without group headers or delay tests.
+  bool get oneGroup => specials?.contains('onegroup') ?? false;
+
+  /// `flclashx-special: nologo` leaves the service's logo off the hero page.
+  bool get noLogo => specials?.contains('nologo') ?? false;
+
+  /// `flclashx-special: noservice` leaves the service's logo and name off it.
+  bool get noService => specials?.contains('noservice') ?? false;
+
   /// A provider's own update manifest, replacing GitHub as the update source.
   String? get updateManifestUrl => _httpsUrl(text('flclashx-update'));
 

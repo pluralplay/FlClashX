@@ -82,29 +82,33 @@ class _HeroDashboardState extends ConsumerState<HeroDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: 12,
-                      children: [
-                        _ServiceLogo(
-                          url: headers.serviceLogo,
-                          size: _inlineLogoSize,
-                          radius: AppRadius.md,
-                        ),
-                        Flexible(
-                          child: EmojiText(
-                            headers.serviceName ?? appName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyle.title2.of(
-                              context,
-                              emphasized: true,
+                    if (!headers.noService) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: 12,
+                        children: [
+                          if (!headers.noLogo)
+                            _ServiceLogo(
+                              url: headers.serviceLogo,
+                              size: _inlineLogoSize,
+                              radius: AppRadius.md,
+                            ),
+                          Flexible(
+                            child: EmojiText(
+                              headers.serviceName ?? appName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  (headers.noLogo
+                                          ? AppTextStyle.title1
+                                          : AppTextStyle.title2)
+                                      .of(context, emphasized: true),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     const AnnouncementCard(),
                     if (ref.watch(announcementProvider) != null)
                       const SizedBox(height: _gap),

@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/models/common.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
@@ -306,6 +306,81 @@ class ProxyGroupView extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Under `flclashx-special: onegroup`, the proxies of the panel's server
+/// group alone: no tabs or group header, so no group delay test, folding or
+/// pick shown above them.
+class ProxiesOneGroupView extends ConsumerStatefulWidget {
+  const ProxiesOneGroupView({super.key});
+
+  @override
+  ConsumerState<ProxiesOneGroupView> createState() =>
+      _ProxiesOneGroupViewState();
+}
+
+class _ProxiesOneGroupViewState extends ConsumerState<ProxiesOneGroupView> {
+  late final ScrollController _controller = sheetScrollController(context);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    ref.watch(themeSettingProvider.select((state) => state.textScale));
+    final group = ref
+        .watch(proxiesTabStateProvider.select((state) => state.groups))
+        .panelServerGroup(
+          ref.watch(
+            currentProfileProvider.select(
+              (profile) => profile?.headers.serverGroup,
+            ),
+          ),
+        );
+    final cardType = ref.watch(
+      proxiesTabStateProvider.select((state) => state.proxyCardType),
+    );
+    final proxiesLayout = ref.watch(
+      proxiesStyleSettingProvider.select((state) => state.layout),
+    );
+    final isSearching = ref.watch(
+      queryProvider(
+        QueryTag.proxies,
+      ).select((query) => SearchQuery(query).isNotEmpty),
+    );
+    return NullStatusSwitcher(
+      isEmpty: group == null || group.all.isEmpty,
+      isSearching: isSearching,
+      nullStatus: NullStatus(
+        illustration: NullStatusIllustration.proxies,
+        label: appLocalizations.nullTip(appLocalizations.proxies),
+      ),
+      child: group == null
+          ? const SizedBox.shrink()
+          : AppBarClearance(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: context.contentTopPadding - context.appBarInset,
+                ),
+                child: WidthBuilder(
+                  builder: (_, width) => ProxyGroupView(
+                    controller: _controller,
+                    group: group,
+                    columns: getProxiesColumns(
+                      max(width - 32, 0),
+                      proxiesLayout,
+                    ),
+                    cardType: cardType,
+                  ),
+                ),
+              ),
+            ),
     );
   }
 }
