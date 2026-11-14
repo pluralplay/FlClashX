@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "Введите интервал автообновления",
   "profileAutoUpdateIntervalInvalidValidationDesc": "Введите корректный интервал",
   "themeMode": "Оформление",
-  "themeStyle": "Режим темы",
-  "themeStyleOriginal": "Оригинальный",
-  "themeStyleEnhanced": "Улучшенный",
-  "themeStyleDesc": "Улучшенный показывает на главной логотип сервиса, тариф, сервер и кнопку подключения вместо сетки виджетов.",
   "website": "Сайт",
   "support": "Поддержка",
   "themeColor": "Цвет темы",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "Разрешите установку приложений из этого источника и снова нажмите «Установить».",
   "updateErrorInstall": "Не удалось установить обновление.",
   "coreRestartedByCommand": "Ядро перезапущено командой",
-  "coreRestartByCommandFailed": "Команде не удалось перезапустить ядро"
+  "coreRestartByCommandFailed": "Команде не удалось перезапустить ядро",
+  "outboundLocation": "Исходящая локация",
+  "pullToUpdateSubscription": "Потяните, чтобы обновить подписку",
+  "releaseToUpdateSubscription": "Отпустите, чтобы обновить подписку",
+  "updatingSubscription": "Обновляю подписку…",
+  "subscriptionUpdated": "Подписка обновлена",
+  "pullToTestDelay": "Потяните, чтобы проверить задержку",
+  "releaseToTestDelay": "Отпустите, чтобы проверить задержку"
 }

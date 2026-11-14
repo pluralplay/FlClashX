@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "Introduce el intervalo de actualización automática",
   "profileAutoUpdateIntervalInvalidValidationDesc": "Introduce un intervalo válido",
   "themeMode": "Apariencia",
-  "themeStyle": "Modo del tema",
-  "themeStyleOriginal": "Original",
-  "themeStyleEnhanced": "Mejorado",
-  "themeStyleDesc": "Mejorado muestra en la página principal el logotipo del servicio, el plan, el servidor y un botón de conexión en lugar de la cuadrícula de widgets.",
   "website": "Sitio web",
   "support": "Soporte",
   "themeColor": "Color del tema",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "Permite instalar apps de este origen y vuelve a tocar Instalar.",
   "updateErrorInstall": "No se pudo instalar la actualización.",
   "coreRestartedByCommand": "Núcleo reiniciado por un comando",
-  "coreRestartByCommandFailed": "El comando no pudo reiniciar el núcleo"
+  "coreRestartByCommandFailed": "El comando no pudo reiniciar el núcleo",
+  "outboundLocation": "Ubicación de salida",
+  "pullToUpdateSubscription": "Desliza hacia abajo para actualizar la suscripción",
+  "releaseToUpdateSubscription": "Suelta para actualizar la suscripción",
+  "updatingSubscription": "Actualizando la suscripción…",
+  "subscriptionUpdated": "Suscripción actualizada",
+  "pullToTestDelay": "Desliza hacia abajo para medir la latencia",
+  "releaseToTestDelay": "Suelta para medir la latencia"
 }

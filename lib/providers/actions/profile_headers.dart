@@ -91,7 +91,6 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
             .read(themeSettingProvider.notifier)
             .update(
               (state) => state.copyWith(
-                style: asked('view.app.board', view.board) ?? state.style,
                 themeMode:
                     asked('view.app.theme', view.themeMode) ?? state.themeMode,
                 liquidGlass:

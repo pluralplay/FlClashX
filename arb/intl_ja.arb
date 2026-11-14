@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "自動更新間隔を入力してください",
   "profileAutoUpdateIntervalInvalidValidationDesc": "有効な間隔を入力してください",
   "themeMode": "外観",
-  "themeStyle": "テーマモード",
-  "themeStyleOriginal": "オリジナル",
-  "themeStyleEnhanced": "強化版",
-  "themeStyleDesc": "強化版では、ウィジェットグリッドの代わりにサービスのロゴ、プラン、サーバー、接続ボタンをホームに表示します。",
   "website": "ウェブサイト",
   "support": "サポート",
   "themeColor": "テーマカラー",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "このソースからのアプリのインストールを許可してから、もう一度「インストール」をタップしてください。",
   "updateErrorInstall": "アップデートをインストールできませんでした。",
   "coreRestartedByCommand": "コマンドでコアを再起動しました",
-  "coreRestartByCommandFailed": "コマンドでコアを再起動できませんでした"
+  "coreRestartByCommandFailed": "コマンドでコアを再起動できませんでした",
+  "outboundLocation": "送信元の場所",
+  "pullToUpdateSubscription": "下に引いてサブスクリプションを更新",
+  "releaseToUpdateSubscription": "指を離すとサブスクリプションを更新",
+  "updatingSubscription": "サブスクリプションを更新中…",
+  "subscriptionUpdated": "サブスクリプションを更新しました",
+  "pullToTestDelay": "下に引いて遅延をテスト",
+  "releaseToTestDelay": "指を離すと遅延をテスト"
 }

@@ -2875,7 +2875,7 @@ as double,
 /// @nodoc
 mixin _$ThemeProps implements DiagnosticableTreeMixin {
 
- int? get primaryColor; List<int> get primaryColors; ThemeMode get themeMode; ThemeStyle get style;@JsonKey(readValue: _readColorStyle) ColorStyle get colorStyle; bool get pureBlack;@JsonKey(readValue: _readLiquidGlass) LiquidGlassMode get liquidGlass; TextScale get textScale;@JsonKey(name: 'systemFontFamily') String? get fontFamily;
+ int? get primaryColor; List<int> get primaryColors; ThemeMode get themeMode;@JsonKey(readValue: _readColorStyle) ColorStyle get colorStyle; bool get pureBlack;@JsonKey(readValue: _readLiquidGlass) LiquidGlassMode get liquidGlass; TextScale get textScale;@JsonKey(name: 'systemFontFamily') String? get fontFamily;
 /// Create a copy of ThemeProps
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2890,26 +2890,26 @@ void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   final _this = this as ThemeProps;
   properties
     ..add(DiagnosticsProperty('type', 'ThemeProps'))
-    ..add(DiagnosticsProperty('primaryColor', _this.primaryColor))..add(DiagnosticsProperty('primaryColors', _this.primaryColors))..add(DiagnosticsProperty('themeMode', _this.themeMode))..add(DiagnosticsProperty('style', _this.style))..add(DiagnosticsProperty('colorStyle', _this.colorStyle))..add(DiagnosticsProperty('pureBlack', _this.pureBlack))..add(DiagnosticsProperty('liquidGlass', _this.liquidGlass))..add(DiagnosticsProperty('textScale', _this.textScale))..add(DiagnosticsProperty('fontFamily', _this.fontFamily));
+    ..add(DiagnosticsProperty('primaryColor', _this.primaryColor))..add(DiagnosticsProperty('primaryColors', _this.primaryColors))..add(DiagnosticsProperty('themeMode', _this.themeMode))..add(DiagnosticsProperty('colorStyle', _this.colorStyle))..add(DiagnosticsProperty('pureBlack', _this.pureBlack))..add(DiagnosticsProperty('liquidGlass', _this.liquidGlass))..add(DiagnosticsProperty('textScale', _this.textScale))..add(DiagnosticsProperty('fontFamily', _this.fontFamily));
 }
 
 @override
 bool operator ==(Object other) {
   final _this = this as ThemeProps;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemeProps&&(identical(other.primaryColor, _this.primaryColor) || other.primaryColor == _this.primaryColor)&&const DeepCollectionEquality().equals(other.primaryColors, _this.primaryColors)&&(identical(other.themeMode, _this.themeMode) || other.themeMode == _this.themeMode)&&(identical(other.style, _this.style) || other.style == _this.style)&&(identical(other.colorStyle, _this.colorStyle) || other.colorStyle == _this.colorStyle)&&(identical(other.pureBlack, _this.pureBlack) || other.pureBlack == _this.pureBlack)&&(identical(other.liquidGlass, _this.liquidGlass) || other.liquidGlass == _this.liquidGlass)&&(identical(other.textScale, _this.textScale) || other.textScale == _this.textScale)&&(identical(other.fontFamily, _this.fontFamily) || other.fontFamily == _this.fontFamily));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemeProps&&(identical(other.primaryColor, _this.primaryColor) || other.primaryColor == _this.primaryColor)&&const DeepCollectionEquality().equals(other.primaryColors, _this.primaryColors)&&(identical(other.themeMode, _this.themeMode) || other.themeMode == _this.themeMode)&&(identical(other.colorStyle, _this.colorStyle) || other.colorStyle == _this.colorStyle)&&(identical(other.pureBlack, _this.pureBlack) || other.pureBlack == _this.pureBlack)&&(identical(other.liquidGlass, _this.liquidGlass) || other.liquidGlass == _this.liquidGlass)&&(identical(other.textScale, _this.textScale) || other.textScale == _this.textScale)&&(identical(other.fontFamily, _this.fontFamily) || other.fontFamily == _this.fontFamily));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as ThemeProps;
-  return Object.hash(runtimeType,_this.primaryColor,const DeepCollectionEquality().hash(_this.primaryColors),_this.themeMode,_this.style,_this.colorStyle,_this.pureBlack,_this.liquidGlass,_this.textScale,_this.fontFamily);
+  return Object.hash(runtimeType,_this.primaryColor,const DeepCollectionEquality().hash(_this.primaryColors),_this.themeMode,_this.colorStyle,_this.pureBlack,_this.liquidGlass,_this.textScale,_this.fontFamily);
 }
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
   final _this = this as ThemeProps;
-  return 'ThemeProps(primaryColor: ${_this.primaryColor}, primaryColors: ${_this.primaryColors}, themeMode: ${_this.themeMode}, style: ${_this.style}, colorStyle: ${_this.colorStyle}, pureBlack: ${_this.pureBlack}, liquidGlass: ${_this.liquidGlass}, textScale: ${_this.textScale}, fontFamily: ${_this.fontFamily})';
+  return 'ThemeProps(primaryColor: ${_this.primaryColor}, primaryColors: ${_this.primaryColors}, themeMode: ${_this.themeMode}, colorStyle: ${_this.colorStyle}, pureBlack: ${_this.pureBlack}, liquidGlass: ${_this.liquidGlass}, textScale: ${_this.textScale}, fontFamily: ${_this.fontFamily})';
 }
 
 
@@ -2920,7 +2920,7 @@ abstract mixin class $ThemePropsCopyWith<$Res>  {
   factory $ThemePropsCopyWith(ThemeProps value, $Res Function(ThemeProps) _then) = _$ThemePropsCopyWithImpl;
 @useResult
 $Res call({
- int? primaryColor, List<int> primaryColors, ThemeMode themeMode, ThemeStyle style,@JsonKey(readValue: _readColorStyle) ColorStyle colorStyle, bool pureBlack,@JsonKey(readValue: _readLiquidGlass) LiquidGlassMode liquidGlass, TextScale textScale,@JsonKey(name: 'systemFontFamily') String? fontFamily
+ int? primaryColor, List<int> primaryColors, ThemeMode themeMode,@JsonKey(readValue: _readColorStyle) ColorStyle colorStyle, bool pureBlack,@JsonKey(readValue: _readLiquidGlass) LiquidGlassMode liquidGlass, TextScale textScale,@JsonKey(name: 'systemFontFamily') String? fontFamily
 });
 
 
@@ -2937,13 +2937,12 @@ class _$ThemePropsCopyWithImpl<$Res>
 
 /// Create a copy of ThemeProps
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? primaryColor = freezed,Object? primaryColors = null,Object? themeMode = null,Object? style = null,Object? colorStyle = null,Object? pureBlack = null,Object? liquidGlass = null,Object? textScale = null,Object? fontFamily = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? primaryColor = freezed,Object? primaryColors = null,Object? themeMode = null,Object? colorStyle = null,Object? pureBlack = null,Object? liquidGlass = null,Object? textScale = null,Object? fontFamily = freezed,}) {
   return _then(ThemeProps(
 primaryColor: freezed == primaryColor ? _self.primaryColor : primaryColor // ignore: cast_nullable_to_non_nullable
 as int?,primaryColors: null == primaryColors ? _self.primaryColors : primaryColors // ignore: cast_nullable_to_non_nullable
 as List<int>,themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
-as ThemeMode,style: null == style ? _self.style : style // ignore: cast_nullable_to_non_nullable
-as ThemeStyle,colorStyle: null == colorStyle ? _self.colorStyle : colorStyle // ignore: cast_nullable_to_non_nullable
+as ThemeMode,colorStyle: null == colorStyle ? _self.colorStyle : colorStyle // ignore: cast_nullable_to_non_nullable
 as ColorStyle,pureBlack: null == pureBlack ? _self.pureBlack : pureBlack // ignore: cast_nullable_to_non_nullable
 as bool,liquidGlass: null == liquidGlass ? _self.liquidGlass : liquidGlass // ignore: cast_nullable_to_non_nullable
 as LiquidGlassMode,textScale: null == textScale ? _self.textScale : textScale // ignore: cast_nullable_to_non_nullable
@@ -3042,10 +3041,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? primaryColor,  List<int> primaryColors,  ThemeMode themeMode,  ThemeStyle style, @JsonKey(readValue: _readColorStyle)  ColorStyle colorStyle,  bool pureBlack, @JsonKey(readValue: _readLiquidGlass)  LiquidGlassMode liquidGlass,  TextScale textScale, @JsonKey(name: 'systemFontFamily')  String? fontFamily)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? primaryColor,  List<int> primaryColors,  ThemeMode themeMode, @JsonKey(readValue: _readColorStyle)  ColorStyle colorStyle,  bool pureBlack, @JsonKey(readValue: _readLiquidGlass)  LiquidGlassMode liquidGlass,  TextScale textScale, @JsonKey(name: 'systemFontFamily')  String? fontFamily)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ThemeProps() when $default != null:
-return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.style,_that.colorStyle,_that.pureBlack,_that.liquidGlass,_that.textScale,_that.fontFamily);case _:
+return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.colorStyle,_that.pureBlack,_that.liquidGlass,_that.textScale,_that.fontFamily);case _:
   return orElse();
 
 }
@@ -3063,10 +3062,10 @@ return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.sty
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? primaryColor,  List<int> primaryColors,  ThemeMode themeMode,  ThemeStyle style, @JsonKey(readValue: _readColorStyle)  ColorStyle colorStyle,  bool pureBlack, @JsonKey(readValue: _readLiquidGlass)  LiquidGlassMode liquidGlass,  TextScale textScale, @JsonKey(name: 'systemFontFamily')  String? fontFamily)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? primaryColor,  List<int> primaryColors,  ThemeMode themeMode, @JsonKey(readValue: _readColorStyle)  ColorStyle colorStyle,  bool pureBlack, @JsonKey(readValue: _readLiquidGlass)  LiquidGlassMode liquidGlass,  TextScale textScale, @JsonKey(name: 'systemFontFamily')  String? fontFamily)  $default,) {final _that = this;
 switch (_that) {
 case _ThemeProps():
-return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.style,_that.colorStyle,_that.pureBlack,_that.liquidGlass,_that.textScale,_that.fontFamily);case _:
+return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.colorStyle,_that.pureBlack,_that.liquidGlass,_that.textScale,_that.fontFamily);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3083,10 +3082,10 @@ return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.sty
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? primaryColor,  List<int> primaryColors,  ThemeMode themeMode,  ThemeStyle style, @JsonKey(readValue: _readColorStyle)  ColorStyle colorStyle,  bool pureBlack, @JsonKey(readValue: _readLiquidGlass)  LiquidGlassMode liquidGlass,  TextScale textScale, @JsonKey(name: 'systemFontFamily')  String? fontFamily)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? primaryColor,  List<int> primaryColors,  ThemeMode themeMode, @JsonKey(readValue: _readColorStyle)  ColorStyle colorStyle,  bool pureBlack, @JsonKey(readValue: _readLiquidGlass)  LiquidGlassMode liquidGlass,  TextScale textScale, @JsonKey(name: 'systemFontFamily')  String? fontFamily)?  $default,) {final _that = this;
 switch (_that) {
 case _ThemeProps() when $default != null:
-return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.style,_that.colorStyle,_that.pureBlack,_that.liquidGlass,_that.textScale,_that.fontFamily);case _:
+return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.colorStyle,_that.pureBlack,_that.liquidGlass,_that.textScale,_that.fontFamily);case _:
   return null;
 
 }
@@ -3098,7 +3097,7 @@ return $default(_that.primaryColor,_that.primaryColors,_that.themeMode,_that.sty
 @JsonSerializable()
 
 class _ThemeProps with DiagnosticableTreeMixin implements ThemeProps {
-  const _ThemeProps({this.primaryColor,  List<int> primaryColors = defaultPrimaryColors, this.themeMode = ThemeMode.system, this.style = ThemeStyle.original, @JsonKey(readValue: _readColorStyle) this.colorStyle = ColorStyle.vivid, this.pureBlack = false, @JsonKey(readValue: _readLiquidGlass) this.liquidGlass = LiquidGlassMode.none, this.textScale = const TextScale(), @JsonKey(name: 'systemFontFamily') this.fontFamily}): _primaryColors = primaryColors;
+  const _ThemeProps({this.primaryColor,  List<int> primaryColors = defaultPrimaryColors, this.themeMode = ThemeMode.system, @JsonKey(readValue: _readColorStyle) this.colorStyle = ColorStyle.vivid, this.pureBlack = false, @JsonKey(readValue: _readLiquidGlass) this.liquidGlass = LiquidGlassMode.none, this.textScale = const TextScale(), @JsonKey(name: 'systemFontFamily') this.fontFamily}): _primaryColors = primaryColors;
   factory _ThemeProps.fromJson(Map<String, dynamic> json) => _$ThemePropsFromJson(json);
 
 @override final  int? primaryColor;
@@ -3110,7 +3109,6 @@ class _ThemeProps with DiagnosticableTreeMixin implements ThemeProps {
 }
 
 @override@JsonKey() final  ThemeMode themeMode;
-@override@JsonKey() final  ThemeStyle style;
 @override@JsonKey(readValue: _readColorStyle) final  ColorStyle colorStyle;
 @override@JsonKey() final  bool pureBlack;
 @override@JsonKey(readValue: _readLiquidGlass) final  LiquidGlassMode liquidGlass;
@@ -3131,23 +3129,23 @@ Map<String, dynamic> toJson() {
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     properties
     ..add(DiagnosticsProperty('type', 'ThemeProps'))
-    ..add(DiagnosticsProperty('primaryColor', primaryColor))..add(DiagnosticsProperty('primaryColors', primaryColors))..add(DiagnosticsProperty('themeMode', themeMode))..add(DiagnosticsProperty('style', style))..add(DiagnosticsProperty('colorStyle', colorStyle))..add(DiagnosticsProperty('pureBlack', pureBlack))..add(DiagnosticsProperty('liquidGlass', liquidGlass))..add(DiagnosticsProperty('textScale', textScale))..add(DiagnosticsProperty('fontFamily', fontFamily));
+    ..add(DiagnosticsProperty('primaryColor', primaryColor))..add(DiagnosticsProperty('primaryColors', primaryColors))..add(DiagnosticsProperty('themeMode', themeMode))..add(DiagnosticsProperty('colorStyle', colorStyle))..add(DiagnosticsProperty('pureBlack', pureBlack))..add(DiagnosticsProperty('liquidGlass', liquidGlass))..add(DiagnosticsProperty('textScale', textScale))..add(DiagnosticsProperty('fontFamily', fontFamily));
 }
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ThemeProps&&(identical(other.primaryColor, primaryColor) || other.primaryColor == primaryColor)&&const DeepCollectionEquality().equals(other.primaryColors, _primaryColors)&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.style, style) || other.style == style)&&(identical(other.colorStyle, colorStyle) || other.colorStyle == colorStyle)&&(identical(other.pureBlack, pureBlack) || other.pureBlack == pureBlack)&&(identical(other.liquidGlass, liquidGlass) || other.liquidGlass == liquidGlass)&&(identical(other.textScale, textScale) || other.textScale == textScale)&&(identical(other.fontFamily, fontFamily) || other.fontFamily == fontFamily));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ThemeProps&&(identical(other.primaryColor, primaryColor) || other.primaryColor == primaryColor)&&const DeepCollectionEquality().equals(other.primaryColors, _primaryColors)&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.colorStyle, colorStyle) || other.colorStyle == colorStyle)&&(identical(other.pureBlack, pureBlack) || other.pureBlack == pureBlack)&&(identical(other.liquidGlass, liquidGlass) || other.liquidGlass == liquidGlass)&&(identical(other.textScale, textScale) || other.textScale == textScale)&&(identical(other.fontFamily, fontFamily) || other.fontFamily == fontFamily));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,primaryColor,const DeepCollectionEquality().hash(_primaryColors),themeMode,style,colorStyle,pureBlack,liquidGlass,textScale,fontFamily);
+    return Object.hash(runtimeType,primaryColor,const DeepCollectionEquality().hash(_primaryColors),themeMode,colorStyle,pureBlack,liquidGlass,textScale,fontFamily);
 }
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-    return 'ThemeProps(primaryColor: $primaryColor, primaryColors: $primaryColors, themeMode: $themeMode, style: $style, colorStyle: $colorStyle, pureBlack: $pureBlack, liquidGlass: $liquidGlass, textScale: $textScale, fontFamily: $fontFamily)';
+    return 'ThemeProps(primaryColor: $primaryColor, primaryColors: $primaryColors, themeMode: $themeMode, colorStyle: $colorStyle, pureBlack: $pureBlack, liquidGlass: $liquidGlass, textScale: $textScale, fontFamily: $fontFamily)';
 }
 
 
@@ -3158,7 +3156,7 @@ abstract mixin class _$ThemePropsCopyWith<$Res> implements $ThemePropsCopyWith<$
   factory _$ThemePropsCopyWith(_ThemeProps value, $Res Function(_ThemeProps) _then) = __$ThemePropsCopyWithImpl;
 @override @useResult
 $Res call({
- int? primaryColor, List<int> primaryColors, ThemeMode themeMode, ThemeStyle style,@JsonKey(readValue: _readColorStyle) ColorStyle colorStyle, bool pureBlack,@JsonKey(readValue: _readLiquidGlass) LiquidGlassMode liquidGlass, TextScale textScale,@JsonKey(name: 'systemFontFamily') String? fontFamily
+ int? primaryColor, List<int> primaryColors, ThemeMode themeMode,@JsonKey(readValue: _readColorStyle) ColorStyle colorStyle, bool pureBlack,@JsonKey(readValue: _readLiquidGlass) LiquidGlassMode liquidGlass, TextScale textScale,@JsonKey(name: 'systemFontFamily') String? fontFamily
 });
 
 
@@ -3175,13 +3173,12 @@ class __$ThemePropsCopyWithImpl<$Res>
 
 /// Create a copy of ThemeProps
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? primaryColor = freezed,Object? primaryColors = null,Object? themeMode = null,Object? style = null,Object? colorStyle = null,Object? pureBlack = null,Object? liquidGlass = null,Object? textScale = null,Object? fontFamily = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? primaryColor = freezed,Object? primaryColors = null,Object? themeMode = null,Object? colorStyle = null,Object? pureBlack = null,Object? liquidGlass = null,Object? textScale = null,Object? fontFamily = freezed,}) {
   return _then(_ThemeProps(
 primaryColor: freezed == primaryColor ? _self.primaryColor : primaryColor // ignore: cast_nullable_to_non_nullable
 as int?,primaryColors: null == primaryColors ? _self._primaryColors : primaryColors // ignore: cast_nullable_to_non_nullable
 as List<int>,themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
-as ThemeMode,style: null == style ? _self.style : style // ignore: cast_nullable_to_non_nullable
-as ThemeStyle,colorStyle: null == colorStyle ? _self.colorStyle : colorStyle // ignore: cast_nullable_to_non_nullable
+as ThemeMode,colorStyle: null == colorStyle ? _self.colorStyle : colorStyle // ignore: cast_nullable_to_non_nullable
 as ColorStyle,pureBlack: null == pureBlack ? _self.pureBlack : pureBlack // ignore: cast_nullable_to_non_nullable
 as bool,liquidGlass: null == liquidGlass ? _self.liquidGlass : liquidGlass // ignore: cast_nullable_to_non_nullable
 as LiquidGlassMode,textScale: null == textScale ? _self.textScale : textScale // ignore: cast_nullable_to_non_nullable

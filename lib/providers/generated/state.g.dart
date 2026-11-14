@@ -3983,6 +3983,46 @@ final class OneGroupProvider extends $FunctionalProvider<bool, bool, bool>
 
 String _$oneGroupHash() => r'9d0f1eada0301d39fe11b2a27bf7da73d1153257';
 
+@ProviderFor(providerMode)
+final providerModeProvider = ProviderModeProvider._();
+
+final class ProviderModeProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  ProviderModeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'providerModeProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$providerModeHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return providerMode(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$providerModeHash() => r'159f339d1640a30ac2e86a482d43cfa1fd00aa3b';
+
 /// The outbound modes the current panel leaves on offer.
 
 @ProviderFor(availableModes)

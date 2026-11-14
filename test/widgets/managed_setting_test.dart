@@ -235,25 +235,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('a view key dims its block on the theme page', (tester) async {
-    await pumpTheme(tester, 'app.board:extended');
-
-    expect(
-      find.ancestor(
-        of: find.text('Theme mode'),
-        matching: find.byType(Opacity),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.ancestor(
-        of: find.text('Pure black mode'),
-        matching: find.byType(Opacity),
-      ),
-      findsNothing,
-    );
-  });
-
   testWidgets('the theme key dims the appearance block', (tester) async {
     await pumpTheme(tester, 'app.theme:dark');
 

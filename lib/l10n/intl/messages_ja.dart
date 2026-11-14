@@ -1099,6 +1099,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "outbound": MessageLookupByLibrary.simpleMessage("アウトバウンド"),
     "outboundExit": MessageLookupByLibrary.simpleMessage("出口"),
     "outboundIp": MessageLookupByLibrary.simpleMessage("アウトバウンド IP"),
+    "outboundLocation": MessageLookupByLibrary.simpleMessage("送信元の場所"),
     "outboundMode": MessageLookupByLibrary.simpleMessage("アウトバウンドモード"),
     "overrideDestination": MessageLookupByLibrary.simpleMessage("宛先を上書き"),
     "overrideDestinationDesc": MessageLookupByLibrary.simpleMessage(
@@ -1240,6 +1241,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyType": MessageLookupByLibrary.simpleMessage("プロキシタイプ"),
     "pruneCache": MessageLookupByLibrary.simpleMessage("キャッシュを整理"),
     "publicKey": MessageLookupByLibrary.simpleMessage("公開鍵"),
+    "pullToTestDelay": MessageLookupByLibrary.simpleMessage("下に引いて遅延をテスト"),
+    "pullToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "下に引いてサブスクリプションを更新",
+    ),
     "pureBlack": MessageLookupByLibrary.simpleMessage("ピュアブラック"),
     "pureBlackMode": MessageLookupByLibrary.simpleMessage("ピュアブラックモード"),
     "qrcode": MessageLookupByLibrary.simpleMessage("QRコード"),
@@ -1260,6 +1265,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "releaseMemory": MessageLookupByLibrary.simpleMessage("メモリを解放"),
     "releaseMemoryFailed": MessageLookupByLibrary.simpleMessage(
       "メモリの解放に失敗しました",
+    ),
+    "releaseToTestDelay": MessageLookupByLibrary.simpleMessage("指を離すと遅延をテスト"),
+    "releaseToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "指を離すとサブスクリプションを更新",
     ),
     "remote": MessageLookupByLibrary.simpleMessage("リモート"),
     "remoteDestination": MessageLookupByLibrary.simpleMessage("リモート宛先"),
@@ -1613,6 +1622,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "サブスクリプションは今日で終了します",
     ),
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage("サブスクリプション情報"),
+    "subscriptionUpdated": MessageLookupByLibrary.simpleMessage(
+      "サブスクリプションを更新しました",
+    ),
     "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage("sudo のパスワードを入力"),
     "support": MessageLookupByLibrary.simpleMessage("サポート"),
     "suspended": MessageLookupByLibrary.simpleMessage("一時停止中…"),
@@ -1638,12 +1650,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "theme": MessageLookupByLibrary.simpleMessage("テーマ"),
     "themeColor": MessageLookupByLibrary.simpleMessage("テーマカラー"),
     "themeMode": MessageLookupByLibrary.simpleMessage("外観"),
-    "themeStyle": MessageLookupByLibrary.simpleMessage("テーマモード"),
-    "themeStyleDesc": MessageLookupByLibrary.simpleMessage(
-      "強化版では、ウィジェットグリッドの代わりにサービスのロゴ、プラン、サーバー、接続ボタンをホームに表示します。",
-    ),
-    "themeStyleEnhanced": MessageLookupByLibrary.simpleMessage("強化版"),
-    "themeStyleOriginal": MessageLookupByLibrary.simpleMessage("オリジナル"),
     "tight": MessageLookupByLibrary.simpleMessage("コンパクト"),
     "time": MessageLookupByLibrary.simpleMessage("時刻"),
     "timeout": MessageLookupByLibrary.simpleMessage("タイムアウト"),
@@ -1752,6 +1758,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "updateVerifying": MessageLookupByLibrary.simpleMessage("ダウンロードを確認しています…"),
     "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("GitHub で表示"),
+    "updatingSubscription": MessageLookupByLibrary.simpleMessage(
+      "サブスクリプションを更新中…",
+    ),
     "upload": MessageLookupByLibrary.simpleMessage("アップロード"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("アップロード帯域幅"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),

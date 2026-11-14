@@ -377,24 +377,11 @@ void main() {
       );
 
       final config = Config.realFromJson(data.configMap);
-      expect(config.themeProps.style, ThemeStyle.enhanced);
       expect(config.appSettingProps.dashboardWidgets, [
         DashboardWidget.currentOutbound,
         DashboardWidget.announcement,
         DashboardWidget.profiles,
       ]);
-    });
-
-    test('keeps a FlClashX 0.4 config without the hero flag on the standard '
-        'page', () async {
-      final data = await migrateLegacyConfig(
-        configMap: legacyConfig(profiles: const []),
-        sourcePath: source.path,
-        targetPath: target.path,
-      );
-
-      final config = Config.realFromJson(data.configMap);
-      expect(config.themeProps.style, ThemeStyle.original);
     });
 
     test(

@@ -92,13 +92,21 @@ void main() {
       expect(const ProviderHeaders({}).serviceName, isNull);
     });
 
-    test('the board key picks the extended or the standard page', () {
-      ThemeStyle? board(String? value) =>
-          ProviderHeaders({'flclashx-view': ?value}).view?.board;
-      expect(board('app.board:extended'), ThemeStyle.enhanced);
-      expect(board('type:tab;app.board:Standard'), ThemeStyle.original);
-      expect(board('app.board:fancy'), isNull);
-      expect(board(null), isNull);
+    test('the board key of older panels changes nothing', () {
+      expect(
+        const ProviderHeaders({'flclashx-view': 'app.board:extended'}).view,
+        isNull,
+      );
+    });
+
+    test('providermode is a special flag', () {
+      expect(
+        const ProviderHeaders({
+          'flclashx-special': 'hideip, ProviderMode',
+        }).providerMode,
+        isTrue,
+      );
+      expect(const ProviderHeaders({}).providerMode, isFalse);
     });
   });
 
@@ -196,15 +204,10 @@ void main() {
           'app.board:extended;app.navbar:docked;app.tabs:fade;app.glass:ultra',
         ),
         const ViewRequest(
-          board: ThemeStyle.enhanced,
           floatingNavigationBar: false,
           tabAnimation: TabAnimation.fade,
           liquidGlass: LiquidGlassMode.ultra,
         ),
-      );
-      expect(
-        ViewRequest.parse('app.board:Standard')?.board,
-        ThemeStyle.original,
       );
       expect(
         ViewRequest.parse('app.navbar:floating')?.floatingNavigationBar,

@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "자동 업데이트 간격을 입력하세요",
   "profileAutoUpdateIntervalInvalidValidationDesc": "올바른 간격을 입력하세요",
   "themeMode": "외관",
-  "themeStyle": "테마 모드",
-  "themeStyleOriginal": "오리지널",
-  "themeStyleEnhanced": "향상됨",
-  "themeStyleDesc": "향상됨은 홈 화면에 위젯 그리드 대신 서비스 로고, 요금제, 서버, 연결 버튼을 표시합니다.",
   "website": "웹사이트",
   "support": "지원",
   "themeColor": "테마 색상",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "이 출처의 앱 설치를 허용한 다음 설치를 다시 탭하세요.",
   "updateErrorInstall": "업데이트를 설치하지 못했습니다.",
   "coreRestartedByCommand": "명령으로 코어를 다시 시작했습니다",
-  "coreRestartByCommandFailed": "명령으로 코어를 다시 시작하지 못했습니다"
+  "coreRestartByCommandFailed": "명령으로 코어를 다시 시작하지 못했습니다",
+  "outboundLocation": "발신 위치",
+  "pullToUpdateSubscription": "아래로 당겨 구독 업데이트",
+  "releaseToUpdateSubscription": "놓으면 구독을 업데이트합니다",
+  "updatingSubscription": "구독 업데이트 중…",
+  "subscriptionUpdated": "구독을 업데이트했습니다",
+  "pullToTestDelay": "아래로 당겨 지연 테스트",
+  "releaseToTestDelay": "놓으면 지연을 테스트합니다"
 }

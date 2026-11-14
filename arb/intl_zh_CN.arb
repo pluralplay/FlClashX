@@ -99,10 +99,6 @@
   "profileAutoUpdateIntervalNullValidationDesc": "请输入自动更新间隔时间",
   "profileAutoUpdateIntervalInvalidValidationDesc": "请输入有效间隔时间格式",
   "themeMode": "外观",
-  "themeStyle": "主题模式",
-  "themeStyleOriginal": "原版",
-  "themeStyleEnhanced": "增强版",
-  "themeStyleDesc": "增强版在主页显示服务标志、套餐、服务器和连接按钮，取代小部件网格。",
   "website": "网站",
   "support": "支持",
   "themeColor": "主题色彩",
@@ -1035,5 +1031,12 @@
   "updateErrorPermission": "请允许安装来自此来源的应用，然后再次点按安装。",
   "updateErrorInstall": "无法安装更新。",
   "coreRestartedByCommand": "已通过命令重启核心",
-  "coreRestartByCommandFailed": "命令未能重启核心"
+  "coreRestartByCommandFailed": "命令未能重启核心",
+  "outboundLocation": "出站位置",
+  "pullToUpdateSubscription": "下拉以更新订阅",
+  "releaseToUpdateSubscription": "松开以更新订阅",
+  "updatingSubscription": "正在更新订阅…",
+  "subscriptionUpdated": "订阅已更新",
+  "pullToTestDelay": "下拉以测试延迟",
+  "releaseToTestDelay": "松开以测试延迟"
 }

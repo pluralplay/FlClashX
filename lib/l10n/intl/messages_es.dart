@@ -1382,6 +1382,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "outbound": MessageLookupByLibrary.simpleMessage("Salida"),
     "outboundExit": MessageLookupByLibrary.simpleMessage("Salida"),
     "outboundIp": MessageLookupByLibrary.simpleMessage("IP de salida"),
+    "outboundLocation": MessageLookupByLibrary.simpleMessage(
+      "Ubicación de salida",
+    ),
     "outboundMode": MessageLookupByLibrary.simpleMessage("Modo de salida"),
     "overrideDestination": MessageLookupByLibrary.simpleMessage(
       "Sobrescribir destino",
@@ -1557,6 +1560,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyType": MessageLookupByLibrary.simpleMessage("Tipo de proxy"),
     "pruneCache": MessageLookupByLibrary.simpleMessage("Depurar caché"),
     "publicKey": MessageLookupByLibrary.simpleMessage("Clave pública"),
+    "pullToTestDelay": MessageLookupByLibrary.simpleMessage(
+      "Desliza hacia abajo para medir la latencia",
+    ),
+    "pullToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "Desliza hacia abajo para actualizar la suscripción",
+    ),
     "pureBlack": MessageLookupByLibrary.simpleMessage("Negro puro"),
     "pureBlackMode": MessageLookupByLibrary.simpleMessage("Modo negro puro"),
     "qrcode": MessageLookupByLibrary.simpleMessage("Código QR"),
@@ -1579,6 +1588,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "releaseMemory": MessageLookupByLibrary.simpleMessage("Liberar memoria"),
     "releaseMemoryFailed": MessageLookupByLibrary.simpleMessage(
       "No se pudo liberar la memoria",
+    ),
+    "releaseToTestDelay": MessageLookupByLibrary.simpleMessage(
+      "Suelta para medir la latencia",
+    ),
+    "releaseToUpdateSubscription": MessageLookupByLibrary.simpleMessage(
+      "Suelta para actualizar la suscripción",
     ),
     "remote": MessageLookupByLibrary.simpleMessage("Remoto"),
     "remoteDestination": MessageLookupByLibrary.simpleMessage("Destino remoto"),
@@ -2024,6 +2039,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage(
       "Información de la suscripción",
     ),
+    "subscriptionUpdated": MessageLookupByLibrary.simpleMessage(
+      "Suscripción actualizada",
+    ),
     "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage(
       "Introduce tu contraseña para sudo",
     ),
@@ -2057,12 +2075,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "theme": MessageLookupByLibrary.simpleMessage("Tema"),
     "themeColor": MessageLookupByLibrary.simpleMessage("Color del tema"),
     "themeMode": MessageLookupByLibrary.simpleMessage("Apariencia"),
-    "themeStyle": MessageLookupByLibrary.simpleMessage("Modo del tema"),
-    "themeStyleDesc": MessageLookupByLibrary.simpleMessage(
-      "Mejorado muestra en la página principal el logotipo del servicio, el plan, el servidor y un botón de conexión en lugar de la cuadrícula de widgets.",
-    ),
-    "themeStyleEnhanced": MessageLookupByLibrary.simpleMessage("Mejorado"),
-    "themeStyleOriginal": MessageLookupByLibrary.simpleMessage("Original"),
     "tight": MessageLookupByLibrary.simpleMessage("Ajustado"),
     "time": MessageLookupByLibrary.simpleMessage("Hora"),
     "timeout": MessageLookupByLibrary.simpleMessage("Tiempo agotado"),
@@ -2185,6 +2197,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Comprobando la descarga…",
     ),
     "updateViewOnGitHub": MessageLookupByLibrary.simpleMessage("Ver en GitHub"),
+    "updatingSubscription": MessageLookupByLibrary.simpleMessage(
+      "Actualizando la suscripción…",
+    ),
     "upload": MessageLookupByLibrary.simpleMessage("Subida"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage(
       "Ancho de banda de subida",

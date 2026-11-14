@@ -13,7 +13,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/routed_probe.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
-import 'package:fl_clash/views/dashboard/hero.dart';
+import 'package:fl_clash/views/dashboard/provider_mode.dart';
 import 'package:fl_clash/views/dashboard/widgets/widgets.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,26 +135,14 @@ void main() {
         container: container,
         child: TestApp(
           locale: const Locale('en'),
-          child: child ?? const Scaffold(body: HeroDashboard()),
+          child: child ?? const Scaffold(body: _ProviderPieces()),
         ),
       ),
     );
     await tester.pump();
   }
 
-  testWidgets('offers to add a profile when there is none', (tester) async {
-    setUp_();
-    await pump(tester);
-
-    expect(find.text('Add profile'), findsOneWidget);
-    expect(find.text(appName), findsOneWidget);
-    expect(find.byType(ProfilesCard), findsNothing);
-    expect(find.byTooltip('Start'), findsNothing);
-  });
-
-  testWidgets('names the service, its support page and the plan', (
-    tester,
-  ) async {
+  testWidgets('names the service and its server', (tester) async {
     setUp_(
       profiles: [
         _profile(
@@ -175,9 +163,6 @@ void main() {
 
     expect(find.text('Proxeyed'), findsOneWidget);
     expect(find.text(appName), findsNothing);
-    expect(find.byTooltip('Support'), findsOneWidget);
-    expect(find.byTooltip('Update'), findsOneWidget);
-    expect(find.byType(ProfilesCard), findsOneWidget);
     expect(find.text('Amsterdam', findRichText: true), findsOneWidget);
     expect(find.text(_ip), findsNothing);
     expect(
@@ -361,14 +346,11 @@ void main() {
     expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
   });
 
-  testWidgets('the app name stands in and the support button stays away', (
-    tester,
-  ) async {
+  testWidgets('the app name stands in for the service', (tester) async {
     setUp_(profiles: [_profile()]);
     await pump(tester);
 
     expect(find.text(appName), findsOneWidget);
-    expect(find.byTooltip('Support'), findsNothing);
     expect(find.text('Change server'), findsOneWidget);
   });
 
@@ -407,13 +389,14 @@ void main() {
     final ips = container.read(outboundIpProbeProvider.notifier) as _Ips;
 
     await tester.tap(find.byTooltip('Retry'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(ips.refreshed, [routedOutbound]);
     expect(find.byGlyph(AppGlyphs.chevronForward), findsNothing);
+    expect(find.byType(ProxiesView), findsNothing);
   });
 
-  testWidgets('the address opens the same details as the standard card', (
+  testWidgets('the address opens the picker like the rest of the card', (
     tester,
   ) async {
     setUp_(
@@ -430,7 +413,8 @@ void main() {
     await tester.tap(find.text(_ip));
     await tester.pumpAndSettle();
 
-    expect(find.text(currentAppLocalizations.outboundIp), findsOneWidget);
+    expect(find.byType(ProxiesView), findsOneWidget);
+    expect(find.text(currentAppLocalizations.outboundIp), findsNothing);
   });
 
   testWidgets('a hidden IP leaves the server card to a title that swaps', (
@@ -503,7 +487,7 @@ void main() {
     expect(container.read(appSettingProvider).hideIp, isTrue);
   });
 
-  testWidgets('the swap button opens the server picker', (tester) async {
+  testWidgets('the whole card opens the server picker', (tester) async {
     setUp_(
       profiles: [
         _profile(headers: const {'flclashx-serverinfo': 'Auto'}),
@@ -514,27 +498,8 @@ void main() {
     );
     await pump(tester);
 
-    await tester.tap(find.byTooltip('Change server').first);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ProxiesView), findsOneWidget);
-  });
-
-  testWidgets('the delay opens the server picker as the swap button does', (
-    tester,
-  ) async {
-    setUp_(
-      profiles: [
-        _profile(headers: const {'flclashx-serverinfo': 'Auto'}),
-      ],
-      groups: [
-        _group('Auto', ['🇳🇱 Amsterdam'], now: '🇳🇱 Amsterdam'),
-      ],
-    );
-    await pump(tester);
-
-    expect(find.byTooltip('Change server'), findsNWidgets(2));
-    await tester.tap(find.byTooltip('Change server').last);
+    expect(find.byTooltip('Change server'), findsNothing);
+    await tester.tap(find.byGlyph(AppGlyphs.swap));
     await tester.pumpAndSettle();
 
     expect(find.byType(ProxiesView), findsOneWidget);
@@ -559,47 +524,63 @@ void main() {
     expect(find.byTooltip('Start'), findsOneWidget);
   });
 
-  testWidgets('the bar holds the mode button, flipping rule and global', (
+  testWidgets('providermode dresses the dashboard as the provider', (
     tester,
   ) async {
-    setUp_(profiles: [_profile()]);
-    container.listen(themeSettingProvider, (_, _) {});
-    container
-        .read(themeSettingProvider.notifier)
-        .update((state) => state.copyWith(style: ThemeStyle.enhanced));
+    setUp_(
+      profiles: [
+        _profile(
+          headers: const {
+            'flclashx-servicename': 'Proxeyed',
+            'flclashx-special': 'providermode',
+          },
+        ),
+      ],
+      groups: logoGroups(),
+    );
     await pump(tester, child: const DashboardView());
     await tester.pump();
 
-    await tester.tap(find.byTooltip('Outbound mode: Rule'));
-    await tester.pumpAndSettle();
-    expect(container.read(patchClashConfigProvider).mode, Mode.global);
-    expect(find.byTooltip('Outbound mode: Global'), findsOneWidget);
-    expect(find.byGlyph(AppGlyphs.proxies), findsWidgets);
-  });
-
-  testWidgets('the dashboard swaps its grid for the hero in enhanced style', (
-    tester,
-  ) async {
-    setUp_(profiles: [_profile()]);
-    container.listen(themeSettingProvider, (_, _) {});
-    container
-        .read(themeSettingProvider.notifier)
-        .update((state) => state.copyWith(style: ThemeStyle.enhanced));
-    await pump(tester, child: const DashboardView());
-    await tester.pump();
-
-    expect(find.byType(HeroDashboard), findsOneWidget);
+    expect(find.byType(ProviderHeader), findsOneWidget);
+    expect(find.text('Proxeyed'), findsOneWidget);
+    expect(find.byType(ServerLocationCard), findsOneWidget);
     expect(find.byType(CurrentOutboundCard), findsNothing);
-    expect(find.byTooltip('Edit dashboard'), findsNothing);
-
-    container
-        .read(themeSettingProvider.notifier)
-        .update((state) => state.copyWith(style: ThemeStyle.original));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.byType(HeroDashboard), findsNothing);
-    expect(find.byType(CurrentOutboundCard), findsOneWidget);
+    expect(find.byType(ProviderConnectButton), findsOneWidget);
+    expect(find.byTooltip('Edit dashboard'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('without providermode the dashboard keeps its status card', (
+    tester,
+  ) async {
+    setUp_(profiles: [_profile()], groups: logoGroups());
+    await pump(tester, child: const DashboardView());
+    await tester.pump();
+
+    expect(find.byType(CurrentOutboundCard), findsOneWidget);
+    expect(find.byType(ServerLocationCard), findsNothing);
+    expect(find.byType(ProviderHeader), findsNothing);
+    expect(find.byType(ProviderConnectButton), findsNothing);
+  });
+}
+
+/// The provider pieces stacked as a dashboard shows them.
+class _ProviderPieces extends StatelessWidget {
+  const _ProviderPieces();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        spacing: 12,
+        children: [
+          ProviderHeader(),
+          ServerLocationCard(),
+          Spacer(),
+          ProviderConnectButton(),
+        ],
+      ),
+    );
+  }
 }

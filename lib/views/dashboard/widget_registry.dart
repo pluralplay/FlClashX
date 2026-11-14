@@ -1,12 +1,14 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/dashboard/widgets/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 extension DashboardWidgetView on DashboardWidget {
   Widget get card => switch (this) {
-    DashboardWidget.currentOutbound => const CurrentOutboundCard(),
+    DashboardWidget.currentOutbound => const _StatusCard(),
     DashboardWidget.announcement => const AnnouncementCard(),
     DashboardWidget.networkSpeed => const NetworkSpeedCard(),
     DashboardWidget.outboundMode => const OutboundModeCard(),
@@ -63,23 +65,37 @@ extension DashboardWidgetView on DashboardWidget {
     };
   }
 
-  /// The status card holds the start button, which has nowhere else to go,
-  /// and the announcement comes and goes with the subscription.
-  bool get removable =>
-      this != DashboardWidget.currentOutbound &&
+  /// The status card holds the start button, which has nowhere else to go
+  /// unless [providerMode] puts it at the foot of the page, and the
+  /// announcement comes and goes with the subscription.
+  bool removable({required bool providerMode}) =>
+      (providerMode || this != DashboardWidget.currentOutbound) &&
       this != DashboardWidget.announcement;
 }
 
-/// The saved cards with the status card and, while the subscription sends
-/// one, the announcement; a card the list never placed goes on top.
+/// The status card, or under `providermode` the server's location.
+class _StatusCard extends ConsumerWidget {
+  const _StatusCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      ref.watch(providerModeProvider)
+      ? const ServerLocationCard()
+      : const CurrentOutboundCard();
+}
+
+/// The saved cards with the status card, unless [providerMode] lets it go,
+/// and, while the subscription sends one, the announcement; a card the list
+/// never placed goes on top.
 List<DashboardWidget> withFixedCards(
   List<DashboardWidget> saved, {
   required bool announcement,
+  bool providerMode = false,
 }) {
   return [
     if (announcement && !saved.contains(DashboardWidget.announcement))
       DashboardWidget.announcement,
-    if (!saved.contains(DashboardWidget.currentOutbound))
+    if (!providerMode && !saved.contains(DashboardWidget.currentOutbound))
       DashboardWidget.currentOutbound,
     for (final card in saved)
       if (announcement || card != DashboardWidget.announcement) card,
