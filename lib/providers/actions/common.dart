@@ -126,7 +126,8 @@ class CommonAction extends _$CommonAction {
       return false;
     }
     if (res == null ||
-        res['tag_name'] == ref.read(appSettingProvider).hiddenUpdate) {
+        res['_required'] != true &&
+            res['tag_name'] == ref.read(appSettingProvider).hiddenUpdate) {
       return false;
     }
     await checkUpdateResultHandle(data: res);
@@ -207,17 +208,20 @@ class CommonAction extends _$CommonAction {
       final context = globalState.navigatorKey.currentContext!;
       final notes = _releaseSpan(context, data['body'] as String?);
       final platform = await _updatePlatform();
+      final required = data['_required'] == true;
       final downloader = UpdateDownloader(
         root: () async =>
             Directory(join((await appPath.cacheDir.future).path, 'update')),
       );
       await dialogs.showCommonDialog<void>(
+        // A required update is not put off by a tap beside it.
+        dismissible: !required,
         child: UpdateDialog(
           version: data['tag_name'] as String,
           notes: notes,
           onOpenReleasePage: () =>
               unawaited(launchUrl(releasePageOf(data, repository: repository))),
-          onHide: isUser
+          onHide: isUser || required
               ? null
               : () => ref
                     .read(appSettingProvider.notifier)

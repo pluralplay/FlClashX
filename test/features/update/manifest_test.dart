@@ -108,6 +108,40 @@ void main() {
     expect(res?['assets'], isNotEmpty);
   });
 
+  group('minVersion', () {
+    Future<Map<String, dynamic>?> serveMin(
+      Object? minVersion, {
+      String current = '0.5.0',
+    }) async => serve({
+      ...await _signed(_manifest('v0.5.2')),
+      'minVersion': minVersion,
+    }, current: current);
+
+    test('makes the update required for an older app', () async {
+      final res = await serveMin('v0.5.1');
+      expect(res?['_required'], isTrue);
+      expect(res?['minVersion'], '0.5.1');
+    });
+
+    test('leaves it optional for an app at or above it', () async {
+      expect((await serveMin('0.5.1', current: '0.5.1'))?['_required'], false);
+      expect((await serveMin('0.4.0'))?['_required'], isFalse);
+    });
+
+    test('a malformed one is ignored', () async {
+      for (final value in ['latest', 5, 'v0.5', null]) {
+        final res = await serveMin(value);
+        expect(res?['_required'], isFalse, reason: '$value');
+        expect(res?.containsKey('minVersion'), isFalse, reason: '$value');
+      }
+    });
+
+    test('is outside the signature', () async {
+      final signed = await _signed(_manifest('v0.5.2'));
+      expect(await serve({...signed, 'minVersion': '9.9.9'}), isNotNull);
+    });
+  });
+
   test('a manifest no newer than the build offers nothing', () async {
     expect(
       await serve(await _signed(_manifest('v0.5.2')), current: '0.5.2'),
@@ -252,7 +286,13 @@ void main() {
       });
       expect(
         res?.keys,
-        unorderedEquals(['version', 'assets', 'tag_name', '_isManifest']),
+        unorderedEquals([
+          'version',
+          'assets',
+          'tag_name',
+          '_isManifest',
+          '_required',
+        ]),
       );
     });
 
