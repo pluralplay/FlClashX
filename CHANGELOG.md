@@ -2,6 +2,11 @@
 
 ## v0.5.5 (2026-11-14)
 
+**Features**
+
+- **dashboard** The Core status button shows a heartbeat that morphs between running, connecting and down instead of a green or red fill (3b06ac9)
+- **desktop** FlClashX --restart-core restarts the Core of the running app from a script or terminal on Windows, macOS and Linux, with an exit code for the result (#155) (d499d7f)
+
 **Bug Fixes**
 
 - **android** Themed launcher icons show the X alone instead of a dark square around it (ae53900)
