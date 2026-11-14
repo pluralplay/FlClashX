@@ -225,7 +225,7 @@ class _ServerPanel extends ConsumerWidget {
     final colorScheme = context.colorScheme;
     final colors = DashboardColors.of(context);
     final groups = ref.watch(currentGroupsStateProvider).value;
-    final picked = _pickedGroupOf(groups, group);
+    final picked = panelServerGroup(groups, group);
     final groupName = picked?.name;
     final selected = groupName == null
         ? null
@@ -415,21 +415,6 @@ class _ServerPanel extends ConsumerWidget {
       ),
     );
   }
-}
-
-Group? _pickedGroupOf(List<Group> groups, String? name) {
-  if (name != null) {
-    final named = groups.getGroup(name);
-    if (named != null) {
-      return named;
-    }
-  }
-  for (final group in groups) {
-    if (group.realNow.isNotEmpty && !isBuiltinOutbound(group.realNow)) {
-      return group;
-    }
-  }
-  return groups.firstOrNull;
 }
 
 /// The server's flag in a circle and a count of the group's other

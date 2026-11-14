@@ -409,6 +409,37 @@ void main() {
       expect(find.byType(ProxiesView), findsOneWidget);
     });
 
+    testWidgets('a hidden address gives its place to the server', (
+      tester,
+    ) async {
+      _useTallView(tester);
+      await tester.pumpWidget(_app((_, _) async => _residential));
+      final container = containerOf(tester);
+      container.listen(appSettingProvider, (_, _) {});
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(hideIp: true));
+      container.read(groupsProvider.notifier).value = const [
+        Group(
+          type: GroupType.Selector,
+          name: 'Auto',
+          hidden: false,
+          now: '🇭🇰 HK-01',
+          all: [
+            Proxy(name: '🇭🇰 HK-01', type: 'ss'),
+            Proxy(name: 'SG-01', type: 'ss'),
+          ],
+        ),
+      ];
+      await tester.pump();
+
+      expect(find.text(_ip), findsNothing);
+      await tester.tap(find.text('HK-01'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProxiesView), findsOneWidget);
+    });
+
     testWidgets('counts its run time in a chip only while running', (
       tester,
     ) async {

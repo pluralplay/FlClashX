@@ -24,6 +24,22 @@ const _builtinOutbounds = {'DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'};
 
 bool isBuiltinOutbound(String name) => _builtinOutbounds.contains(name);
 
+/// The group the panel named for its server, else the first with a live pick.
+Group? panelServerGroup(List<Group> groups, String? name) {
+  if (name != null) {
+    final named = groups.getGroup(name);
+    if (named != null) {
+      return named;
+    }
+  }
+  for (final group in groups) {
+    if (group.realNow.isNotEmpty && !isBuiltinOutbound(group.realNow)) {
+      return group;
+    }
+  }
+  return groups.firstOrNull;
+}
+
 const _decorationGrowth = 0.12;
 
 const _decorationTurn = 2 * math.pi / 12;
@@ -71,6 +87,9 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
     );
     final isStart = ref.watch(isStartProvider);
     final suspended = isStart && ref.watch(suspendProvider);
+    final hideIp = ref.watch(
+      appSettingProvider.select((state) => state.hideIp),
+    );
     final entry = ref.watch(
       outboundIpProbeProvider.select((state) => state.entryOf(routedOutbound)),
     );
@@ -170,6 +189,7 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                                   phase == ProbePhase.probing || qualityLoading,
                               onRefresh: () => _refresh(ipInfo?.ip),
                               active: isStart,
+                              hideIp: hideIp,
                               metrics: metrics,
                             ),
                           ),
@@ -182,6 +202,7 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                               phase == ProbePhase.probing || qualityLoading,
                           onRefresh: () => _refresh(ipInfo?.ip),
                           active: isStart,
+                          hideIp: hideIp,
                           metrics: metrics,
                         ),
                     ],
@@ -279,6 +300,7 @@ class _ExitRow extends StatelessWidget {
     required this.checking,
     required this.onRefresh,
     required this.active,
+    required this.hideIp,
     required this.metrics,
   });
 
@@ -287,6 +309,7 @@ class _ExitRow extends StatelessWidget {
   final bool checking;
   final VoidCallback onRefresh;
   final bool active;
+  final bool hideIp;
   final _OutboundMetrics metrics;
 
   @override
@@ -299,7 +322,9 @@ class _ExitRow extends StatelessWidget {
       color: active ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
     ).copyWith(letterSpacing: 0);
     final info = this.info;
-    final Widget address = info != null
+    final Widget address = hideIp
+        ? _ServerName(style: style)
+        : info != null
         ? _IpAddress(ip: info.ip, style: style)
         : failed
         ? Text(
@@ -340,20 +365,57 @@ class _ExitRow extends StatelessWidget {
   }
 }
 
-class _IpAddress extends ConsumerWidget {
+/// The hero page's server, standing in for an address the user hid.
+class _ServerName extends ConsumerWidget {
+  const _ServerName({required this.style});
+
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groupName = ref.watch(
+      currentProfileProvider.select((state) => state?.headers.serverGroup),
+    );
+    final groups = ref.watch(currentGroupsStateProvider).value;
+    final group = panelServerGroup(groups, groupName);
+    final selected = group == null
+        ? null
+        : ref.watch(selectedProxyNameProvider(group.name));
+    if (group == null || selected == null || selected.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Tooltip(
+      message: context.appLocalizations.changeServer,
+      child: FocusRing(
+        shape: AppShape.xs,
+        standsOff: true,
+        child: InkWell(
+          mouseCursor: clickableCursor,
+          onTap: () => showProxiesSheet(context, groupName: group.name),
+          customBorder: AppShape.xs,
+          hoverColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          child: EmojiText(
+            selected.withoutLeadingFlag,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IpAddress extends StatelessWidget {
   const _IpAddress({required this.ip, required this.style});
 
   final String ip;
   final TextStyle style;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hideIp = ref.watch(
-      appSettingProvider.select((state) => state.hideIp),
-    );
-    if (hideIp) {
-      return const SizedBox.shrink();
-    }
+  Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return Tooltip(
       message: appLocalizations.details(appLocalizations.outboundIp),
