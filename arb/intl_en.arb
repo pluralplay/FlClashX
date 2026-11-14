@@ -1033,5 +1033,7 @@
   "updateErrorBusy": "Wait until the connection finishes starting or stopping.",
   "updateErrorSafeMode": "Safe mode doesn't install updates.",
   "updateErrorPermission": "Allow installing apps from this source, then tap Install again.",
-  "updateErrorInstall": "The update couldn't be installed."
+  "updateErrorInstall": "The update couldn't be installed.",
+  "coreRestartedByCommand": "Core restarted by a command",
+  "coreRestartByCommandFailed": "The command could not restart the core"
 }

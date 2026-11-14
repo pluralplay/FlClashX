@@ -1033,5 +1033,7 @@
   "updateErrorBusy": "Attendez que la connexion ait fini de démarrer ou de s'arrêter.",
   "updateErrorSafeMode": "Le mode sans échec n'installe pas les mises à jour.",
   "updateErrorPermission": "Autorisez l'installation d'apps depuis cette source, puis touchez à nouveau Installer.",
-  "updateErrorInstall": "La mise à jour n'a pas pu être installée."
+  "updateErrorInstall": "La mise à jour n'a pas pu être installée.",
+  "coreRestartedByCommand": "Cœur redémarré par une commande",
+  "coreRestartByCommandFailed": "La commande n’a pas pu redémarrer le cœur"
 }

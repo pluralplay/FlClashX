@@ -8711,6 +8711,26 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Core restarted by a command`
+  String get coreRestartedByCommand {
+    return Intl.message(
+      'Core restarted by a command',
+      name: 'coreRestartedByCommand',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The command could not restart the core`
+  String get coreRestartByCommandFailed {
+    return Intl.message(
+      'The command could not restart the core',
+      name: 'coreRestartByCommandFailed',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

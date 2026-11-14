@@ -1033,5 +1033,7 @@
   "updateErrorBusy": "연결이 시작되거나 중지될 때까지 기다리세요.",
   "updateErrorSafeMode": "안전 모드에서는 업데이트를 설치하지 않습니다.",
   "updateErrorPermission": "이 출처의 앱 설치를 허용한 다음 설치를 다시 탭하세요.",
-  "updateErrorInstall": "업데이트를 설치하지 못했습니다."
+  "updateErrorInstall": "업데이트를 설치하지 못했습니다.",
+  "coreRestartedByCommand": "명령으로 코어를 다시 시작했습니다",
+  "coreRestartByCommandFailed": "명령으로 코어를 다시 시작하지 못했습니다"
 }

@@ -14,11 +14,15 @@ import 'common/app_data.dart';
 import 'common/common.dart';
 import 'common/preferences_store.dart';
 import 'common/window.dart';
+import 'providers/providers.dart';
 
 void main(List<String> args) {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      if (args.contains(restartCoreArgument)) {
+        exit((await runRestartCoreCli()).code);
+      }
       fileLogger.enable();
       if (Platform.isWindows || Platform.isLinux) {
         SharedPreferencesStorePlatform.instance = AtomicFilePreferencesStore(
@@ -49,6 +53,13 @@ void main(List<String> args) {
             child: const Application(),
           ),
         );
+        if (system.isDesktop) {
+          unawaited(
+            coreCliServer.start(
+              restartCore: () => _restartCoreByCommand(container),
+            ),
+          );
+        }
       } catch (e, s) {
         runApp(
           InitErrorApp(
@@ -67,6 +78,29 @@ void main(List<String> args) {
       );
     },
   );
+}
+
+/// A restart asked from the command line shows in the app as one asked there.
+Future<bool> _restartCoreByCommand(ProviderContainer container) async {
+  final appLocalizations = currentAppLocalizations;
+  try {
+    final restarted = await container
+        .read(coreActionProvider.notifier)
+        .restartCore();
+    dialogs.showNotifier(
+      restarted
+          ? appLocalizations.coreRestartedByCommand
+          : appLocalizations.coreRestartByCommandFailed,
+      level: restarted ? MessageLevel.info : MessageLevel.error,
+    );
+    return restarted;
+  } catch (error) {
+    dialogs.showNotifier(
+      '${appLocalizations.coreRestartByCommandFailed}: $error',
+      level: MessageLevel.error,
+    );
+    rethrow;
+  }
 }
 
 Future<void> _exitAfterInitFailure() async {
