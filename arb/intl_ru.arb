@@ -225,8 +225,6 @@
   "onlyStatisticsProxy": "Учитывать только трафик прокси",
   "showNotificationStopAction": "Кнопка остановки в уведомлении",
   "pureBlackMode": "Чисто чёрный режим",
-  "backgroundBlur": "Размытие фона",
-  "sidebarBlurDesc": "Размытие фона показывает рабочий стол за окном сквозь боковую панель.",
   "liquidGlass": "Жидкое стекло",
   "liquidGlassReduced": "Стекло упрощено насовсем: устройство не успевает.",
   "vibration": "Вибрация",

@@ -225,8 +225,6 @@
   "onlyStatisticsProxy": "Contar solo el tráfico del proxy",
   "showNotificationStopAction": "Botón de detener en la notificación",
   "pureBlackMode": "Modo negro puro",
-  "backgroundBlur": "Desenfoque de fondo",
-  "sidebarBlurDesc": "El desenfoque de fondo deja ver el escritorio detrás de la ventana a través de la barra lateral.",
   "liquidGlass": "Liquid Glass",
   "liquidGlassReduced": "Liquid Glass simplificado de forma permanente: el dispositivo no da abasto.",
   "vibration": "Vibración",

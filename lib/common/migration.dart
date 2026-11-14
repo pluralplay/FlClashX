@@ -121,7 +121,8 @@ class Migration {
     1: _resetThemeColors,
     2: _keepGlassLook,
     3: _followSystemColors,
-    4: _turnOffSidebarBlur,
+    // Its setting is gone, but a stored upgradeVersion still counts it.
+    4: _unchanged,
   };
 
   Future<Config> run() async {
@@ -318,9 +319,7 @@ Config _followSystemColors(Config config) {
   );
 }
 
-// Releases stored sidebar blur on while its switch stayed hidden.
-Config _turnOffSidebarBlur(Config config) =>
-    config.copyWith(themeProps: config.themeProps.copyWith(sidebarBlur: false));
+Config _unchanged(Config config) => config;
 
 bool _isV0(Map<String, Object?>? configMap) =>
     configMap?['proxiesStyle'] != null;

@@ -773,53 +773,6 @@ final class GenColorSchemeFamily extends $Family
   String toString() => r'genColorSchemeProvider';
 }
 
-@ProviderFor(windowBlurRequest)
-final windowBlurRequestProvider = WindowBlurRequestProvider._();
-
-final class WindowBlurRequestProvider
-    extends
-        $FunctionalProvider<
-          WindowBlurRequest,
-          WindowBlurRequest,
-          WindowBlurRequest
-        >
-    with $Provider<WindowBlurRequest> {
-  WindowBlurRequestProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'windowBlurRequestProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$windowBlurRequestHash();
-
-  @$internal
-  @override
-  $ProviderElement<WindowBlurRequest> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  WindowBlurRequest create(Ref ref) {
-    return windowBlurRequest(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(WindowBlurRequest value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<WindowBlurRequest>(value),
-    );
-  }
-}
-
-String _$windowBlurRequestHash() => r'90b7a731689db7fa39d979866c428843b1073cf8';
-
 @ProviderFor(currentBrightness)
 final currentBrightnessProvider = CurrentBrightnessProvider._();
 

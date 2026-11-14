@@ -225,8 +225,6 @@
   "onlyStatisticsProxy": "Ne compter que le trafic proxy",
   "showNotificationStopAction": "Bouton Arrêter dans la notification",
   "pureBlackMode": "Mode noir pur",
-  "backgroundBlur": "Flou d’arrière-plan",
-  "sidebarBlurDesc": "Le flou d’arrière-plan laisse voir le bureau derrière la fenêtre à travers la barre latérale.",
   "liquidGlass": "Liquid Glass",
   "liquidGlassReduced": "Liquid Glass simplifié durablement : l'appareil ne suit pas.",
   "vibration": "Vibrations",

@@ -226,7 +226,6 @@ class AppSidebarContainer extends ConsumerWidget {
     final navigationItems = navigationState.navigationItems;
     final viewMode = navigationState.viewMode;
     final currentIndex = navigationState.currentIndex;
-    final backdropOpacity = ref.watch(windowBlurProvider);
     final page = SurfaceLevel.page.colorOf(context.colorScheme);
     final chrome = context.colorScheme.chromeSurface;
     void onSelected(int index) {
@@ -236,15 +235,13 @@ class AppSidebarContainer extends ConsumerWidget {
     final hasSidebar = viewMode != ViewMode.mobile;
     final isLtr = Directionality.of(context) == TextDirection.ltr;
     return Container(
-      color: backdropOpacity != null ? Colors.transparent : page,
+      color: page,
       child: Row(
         children: [
           AnimatedVisibility.sidebar(
             visible: hasSidebar,
             child: Material(
-              color: backdropOpacity != null
-                  ? chrome.withValues(alpha: backdropOpacity)
-                  : chrome,
+              color: chrome,
               shape: BorderDirectional(end: Divider.createBorderSide(context)),
               child: MediaQuery.removePadding(
                 context: context,

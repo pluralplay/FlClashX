@@ -225,8 +225,6 @@
   "onlyStatisticsProxy": "仅统计代理流量",
   "showNotificationStopAction": "通知栏显示停止按钮",
   "pureBlackMode": "纯黑模式",
-  "backgroundBlur": "背景模糊",
-  "sidebarBlurDesc": "背景模糊会让侧边栏透出窗口后方的桌面。",
   "liquidGlass": "液态玻璃",
   "liquidGlassReduced": "设备性能不足，液态玻璃已永久简化。",
   "vibration": "振动",

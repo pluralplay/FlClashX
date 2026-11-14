@@ -405,7 +405,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Auto-update interval",
     ),
     "back": MessageLookupByLibrary.simpleMessage("Back"),
-    "backgroundBlur": MessageLookupByLibrary.simpleMessage("Background blur"),
     "backup": MessageLookupByLibrary.simpleMessage("Backup"),
     "backupAndRestore": MessageLookupByLibrary.simpleMessage(
       "Backup and restore",
@@ -1784,9 +1783,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Stop button in notification",
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage("Show password"),
-    "sidebarBlurDesc": MessageLookupByLibrary.simpleMessage(
-      "Background blur lets the desktop behind the window show through the sidebar.",
-    ),
     "silentLaunch": MessageLookupByLibrary.simpleMessage("Silent launch"),
     "silentLaunchDesc": MessageLookupByLibrary.simpleMessage(
       "Silent launch starts without showing the window.",

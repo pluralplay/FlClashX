@@ -1786,26 +1786,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Background blur`
-  String get backgroundBlur {
-    return Intl.message(
-      'Background blur',
-      name: 'backgroundBlur',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Background blur lets the desktop behind the window show through the sidebar.`
-  String get sidebarBlurDesc {
-    return Intl.message(
-      'Background blur lets the desktop behind the window show through the sidebar.',
-      name: 'sidebarBlurDesc',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Liquid Glass`
   String get liquidGlass {
     return Intl.message(

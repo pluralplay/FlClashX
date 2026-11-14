@@ -255,16 +255,6 @@ class SideWidth extends _$SideWidth with AutoDisposeNotifierMixin {
   }
 }
 
-/// The opacity the sidebar keeps its own color at over the backdrop the native
-/// window draws behind the content, or null while it draws none.
-@Riverpod(keepAlive: true)
-class WindowBlur extends _$WindowBlur with AutoDisposeNotifierMixin {
-  @override
-  double? build() {
-    return null;
-  }
-}
-
 @Riverpod(keepAlive: true)
 double viewWidth(Ref ref) {
   return ref.watch(viewSizeProvider).width;

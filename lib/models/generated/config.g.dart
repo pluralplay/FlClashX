@@ -401,7 +401,6 @@ _ThemeProps _$ThemePropsFromJson(Map<String, dynamic> json) => _ThemeProps(
       ) ??
       ColorStyle.vivid,
   pureBlack: json['pureBlack'] as bool? ?? false,
-  sidebarBlur: json['sidebarBlur'] as bool? ?? false,
   liquidGlass:
       $enumDecodeNullable(
         _$LiquidGlassModeEnumMap,
@@ -422,7 +421,6 @@ Map<String, dynamic> _$ThemePropsToJson(_ThemeProps instance) =>
       'style': _$ThemeStyleEnumMap[instance.style]!,
       'colorStyle': _$ColorStyleEnumMap[instance.colorStyle]!,
       'pureBlack': instance.pureBlack,
-      'sidebarBlur': instance.sidebarBlur,
       'liquidGlass': _$LiquidGlassModeEnumMap[instance.liquidGlass]!,
       'textScale': instance.textScale,
       'systemFontFamily': instance.fontFamily,

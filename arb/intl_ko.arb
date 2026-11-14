@@ -225,8 +225,6 @@
   "onlyStatisticsProxy": "프록시 트래픽만 집계",
   "showNotificationStopAction": "알림에 중지 버튼 표시",
   "pureBlackMode": "퓨어 블랙 모드",
-  "backgroundBlur": "배경 흐림",
-  "sidebarBlurDesc": "배경 흐림은 창 뒤의 바탕화면을 사이드바에 비쳐 보이게 합니다.",
   "liquidGlass": "Liquid Glass",
   "liquidGlassReduced": "기기가 따라가지 못해 Liquid Glass를 계속 단순화합니다.",
   "vibration": "진동",

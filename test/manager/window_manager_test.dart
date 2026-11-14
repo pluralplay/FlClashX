@@ -35,26 +35,12 @@ class _RecordingSystemAction extends SystemAction {
   }
 }
 
-typedef _BlurRequest = ({bool enabled, Brightness brightness, Color tint});
-
 class _RecordingWindowPort implements WindowPort {
   Rect bounds = const Rect.fromLTWH(0, 0, 1000, 800);
   int shows = 0;
   Completer<void>? geometryGate;
   bool isNormal = true;
   bool supportsPosition = true;
-  bool supportsBlur = true;
-  final blurRequests = <_BlurRequest>[];
-
-  @override
-  Future<double?> setBlur({
-    required bool enabled,
-    required Brightness brightness,
-    required Color tint,
-  }) async {
-    blurRequests.add((enabled: enabled, brightness: brightness, tint: tint));
-    return enabled && supportsBlur ? 0 : null;
-  }
 
   @override
   Future<WindowProps?> captureNormalGeometry(WindowProps current) async {
@@ -246,74 +232,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('sidebar blur starts off and start-up still asks for no effect', (
-    tester,
-  ) async {
-    await pumpWindowManager(tester);
-    await tester.pumpAndSettle();
-
-    expect(container.read(themeSettingProvider).sidebarBlur, isFalse);
-    expect(window.blurRequests.single.enabled, isFalse);
-    expect(container.read(windowBlurProvider), isNull);
-  });
-
-  group('sidebar blur', () {
-    setUp(() {
-      container
-          .read(themeSettingProvider.notifier)
-          .update((state) => state.copyWith(sidebarBlur: true));
-    });
-
-    testWidgets('is applied on start and mirrored into the provider', (
-      tester,
-    ) async {
-      await pumpWindowManager(tester);
-      await tester.pumpAndSettle();
-
-      expect(window.blurRequests, hasLength(1));
-      expect(window.blurRequests.single.enabled, isTrue);
-      expect(window.blurRequests.single.brightness, Brightness.dark);
-      expect(container.read(windowBlurProvider), 0);
-    });
-
-    testWidgets('a platform without a backdrop leaves the provider off', (
-      tester,
-    ) async {
-      window.supportsBlur = false;
-      await pumpWindowManager(tester);
-      await tester.pumpAndSettle();
-
-      expect(container.read(windowBlurProvider), isNull);
-    });
-
-    testWidgets('turning the setting off drops the backdrop', (tester) async {
-      await pumpWindowManager(tester);
-      await tester.pumpAndSettle();
-
-      container
-          .read(themeSettingProvider.notifier)
-          .update((state) => state.copyWith(sidebarBlur: false));
-      await tester.pumpAndSettle();
-
-      expect(window.blurRequests.last.enabled, isFalse);
-      expect(container.read(windowBlurProvider), isNull);
-    });
-
-    testWidgets('a theme mode change reapplies the effect', (tester) async {
-      await pumpWindowManager(tester);
-      await tester.pumpAndSettle();
-
-      container
-          .read(themeSettingProvider.notifier)
-          .update((state) => state.copyWith(themeMode: ThemeMode.light));
-      await tester.pumpAndSettle();
-
-      expect(window.blurRequests.last.enabled, isTrue);
-      expect(window.blurRequests.last.brightness, Brightness.light);
-      expect(container.read(windowBlurProvider), 0);
-    });
   });
 
   testWidgets('an activate request shows the window through the port', (
