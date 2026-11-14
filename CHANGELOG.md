@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.5 (2026-11-14)
+
+**Bug Fixes**
+
+- **android** Themed launcher icons show the X alone instead of a dark square around it (ae53900)
+- **android** Tapping the Quick Settings tile no longer closes the notification shade (f57fc26)
+
 ## v0.5.4 (2026-11-14)
 
 **Features**
