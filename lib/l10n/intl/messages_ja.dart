@@ -264,12 +264,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "add": MessageLookupByLibrary.simpleMessage("追加"),
     "addCustomProxy": MessageLookupByLibrary.simpleMessage("プロキシを追加"),
     "addFilters": MessageLookupByLibrary.simpleMessage("フィルターを追加"),
+    "addFromClipboard": MessageLookupByLibrary.simpleMessage("クリップボードから追加"),
     "addNodes": MessageLookupByLibrary.simpleMessage("ノードを追加"),
     "addOverrideEntry": MessageLookupByLibrary.simpleMessage("上書き項目を追加"),
     "addProfile": MessageLookupByLibrary.simpleMessage("プロファイルを追加"),
-    "addProfileFromClipboard": MessageLookupByLibrary.simpleMessage(
-      "クリップボードからプロファイルを追加",
-    ),
     "addProxyChain": MessageLookupByLibrary.simpleMessage("チェーンを追加"),
     "addProxyChainHop": MessageLookupByLibrary.simpleMessage("中継を追加"),
     "addProxyGroup": MessageLookupByLibrary.simpleMessage("プロキシグループを追加"),
@@ -350,9 +348,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "basicStrategy": MessageLookupByLibrary.simpleMessage("基本ポリシー"),
     "batchAdd": MessageLookupByLibrary.simpleMessage("一括追加"),
     "batchImport": MessageLookupByLibrary.simpleMessage("一括インポート"),
-    "batchLinkInputTip": MessageLookupByLibrary.simpleMessage(
-      "1行に1つのリンクを入力してください",
-    ),
     "batchListInputTip": MessageLookupByLibrary.simpleMessage(
       "1行に1項目、またはカンマ区切りで入力してください",
     ),
@@ -788,7 +783,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "インポートすると、このプロファイルの現在のプロキシグループ、ルール、設定が置き換えられます",
     ),
     "importFile": MessageLookupByLibrary.simpleMessage("ファイルからインポート"),
-    "importFromLink": MessageLookupByLibrary.simpleMessage("リンクからインポート"),
     "importUrl": MessageLookupByLibrary.simpleMessage("URLからインポート"),
     "inbound": MessageLookupByLibrary.simpleMessage("インバウンド"),
     "includeInterface": MessageLookupByLibrary.simpleMessage("対象インターフェース"),

@@ -1,11 +1,11 @@
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/profiles/add.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,10 +14,9 @@ import '../helpers/test_app.dart';
 import '../helpers/test_profiles.dart';
 
 class _RecordingProfilesAction extends ProfilesAction {
-  final batches = <List<String>>[];
   final singles = <String>[];
-  final ageSecretKeys = <String>[];
   final deviceHeaderChoices = <bool>[];
+  final pageChoices = <bool>[];
 
   @override
   Future<Profile?> addProfileFromLink(
@@ -25,22 +24,14 @@ class _RecordingProfilesAction extends ProfilesAction {
     String? label,
     String ageSecretKey = '',
     bool sendDeviceHeaders = true,
+    bool showProfiles = true,
   }) async {
     singles.add(link);
-    ageSecretKeys.add(ageSecretKey);
     deviceHeaderChoices.add(sendDeviceHeaders);
+    pageChoices.add(showProfiles);
     return null;
   }
-
-  @override
-  Future<void> addProfilesFromLinks(List<String> links) async =>
-      batches.add(links);
 }
-
-Finder _field(String title) => find.descendant(
-  of: find.widgetWithText(FormRow, title),
-  matching: find.byType(TextFormField),
-);
 
 ProviderContainer _containerFor(
   WidgetTester tester, {
@@ -86,6 +77,47 @@ Future<void> _openMenu(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openLinkDialog(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: TestApp(
+        child: Scaffold(
+          body: Center(
+            child: Consumer(
+              builder: (context, ref, _) => FilledButton(
+                onPressed: () => addProfileByLink(context, ref),
+                child: const Text('add'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('add'));
+  await tester.pumpAndSettle();
+}
+
+void _mockClipboard(WidgetTester tester, String? text) {
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async => call.method == 'Clipboard.getData' ? {'text': text} : null,
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    ),
+  );
+}
+
+TextButton _button(WidgetTester tester, String label) =>
+    tester.widget<TextButton>(find.widgetWithText(TextButton, label));
+
 void main() {
   testWidgets('offers the QR code, file, link, and custom entries', (
     tester,
@@ -102,124 +134,118 @@ void main() {
     expect(tester.takeException(), null);
   });
 
-  testWidgets('a batch link import skips existing profiles and adds the rest', (
-    tester,
-  ) async {
-    final action = _RecordingProfilesAction();
-    final container = _containerFor(
-      tester,
-      profilesAction: action,
-      profiles: [Profile.normal(url: 'https://example.com/old')],
-    );
-
-    await _openMenu(tester, container);
-
-    final l10n = currentAppLocalizations;
-    await tester.tap(find.text(l10n.link));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip(l10n.batchImport));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byType(TextField),
-      'https://example.com/a\nhttps://example.com/old\nhttps://example.com/b',
-    );
-    await tester.pump();
-    await tester.tap(find.text(l10n.submit));
-    await tester.pumpAndSettle();
-
-    expect(action.batches, [
-      ['https://example.com/a', 'https://example.com/b'],
-    ]);
-    expect(tester.takeException(), null);
-  });
-
-  testWidgets('the link import takes a proxy share link', (tester) async {
+  testWidgets('the menu link entry asks for the link alone', (tester) async {
     final action = _RecordingProfilesAction();
     final container = _containerFor(tester, profilesAction: action);
 
     await _openMenu(tester, container);
-
     final l10n = currentAppLocalizations;
     await tester.tap(find.text(l10n.link));
     await tester.pumpAndSettle();
+
+    expect(find.byType(AddProfileLinkDialog), findsOne);
+    expect(find.byType(TextField), findsOne);
+    expect(find.text(l10n.sendDeviceHeaders), findsNothing);
+  });
+
+  testWidgets('adds only once a link is typed, with the HWID sent', (
+    tester,
+  ) async {
+    final action = _RecordingProfilesAction();
+    final container = _containerFor(tester, profilesAction: action);
+
+    await _openLinkDialog(tester, container);
+    final l10n = currentAppLocalizations;
+    expect(_button(tester, l10n.add).onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), ' https://example.com/sub ');
+    await tester.pump();
+    expect(_button(tester, l10n.add).onPressed, isNotNull);
+    await tester.tap(find.text(l10n.add));
+    await tester.pumpAndSettle();
+
+    expect(action.singles, ['https://example.com/sub']);
+    expect(action.deviceHeaderChoices, [true]);
+    expect(action.pageChoices, [false]);
+    expect(find.byType(AddProfileLinkDialog), findsNothing);
+  });
+
+  testWidgets('takes a proxy share link', (tester) async {
+    final action = _RecordingProfilesAction();
+    final container = _containerFor(tester, profilesAction: action);
+
+    await _openLinkDialog(tester, container);
     await tester.enterText(
-      _field(l10n.link),
+      find.byType(TextField),
       'trojan://pass@example.com:443#HK',
     );
-    await tester.pump();
-    await tester.tap(find.text(l10n.submit));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
     expect(action.singles, ['trojan://pass@example.com:443#HK']);
-    expect(tester.takeException(), null);
   });
 
-  testWidgets('the link import passes the age secret key along', (
+  testWidgets('rejects what is neither kind of link and stays open', (
     tester,
   ) async {
     final action = _RecordingProfilesAction();
     final container = _containerFor(tester, profilesAction: action);
 
-    await _openMenu(tester, container);
-
+    await _openLinkDialog(tester, container);
     final l10n = currentAppLocalizations;
-    await tester.tap(find.text(l10n.link));
-    await tester.pumpAndSettle();
-    await tester.enterText(_field(l10n.link), 'https://example.com/sub');
-    await tester.enterText(_field(l10n.ageSecretKey), ' AGE-SECRET-KEY-1A ');
-    await tester.pump();
-    await tester.tap(find.text(l10n.submit));
-    await tester.pumpAndSettle();
-
-    expect(action.singles, ['https://example.com/sub']);
-    expect(action.ageSecretKeys, ['AGE-SECRET-KEY-1A']);
-    expect(action.deviceHeaderChoices, [true]);
-    expect(tester.takeException(), null);
-  });
-
-  testWidgets('the link import lets the device id be kept back', (
-    tester,
-  ) async {
-    final action = _RecordingProfilesAction();
-    final container = _containerFor(tester, profilesAction: action);
-
-    await _openMenu(tester, container);
-
-    final l10n = currentAppLocalizations;
-    await tester.tap(find.text(l10n.link));
-    await tester.pumpAndSettle();
-    await tester.enterText(_field(l10n.link), 'https://example.com/sub');
-    await tester.tap(find.widgetWithText(FormRow, l10n.sendDeviceHeaders));
-    await tester.pump();
-    await tester.tap(find.text(l10n.submit));
-    await tester.pumpAndSettle();
-
-    expect(action.singles, ['https://example.com/sub']);
-    expect(action.deviceHeaderChoices, [false]);
-    expect(tester.takeException(), null);
-  });
-
-  testWidgets('the link import rejects what is neither kind of link', (
-    tester,
-  ) async {
-    final action = _RecordingProfilesAction();
-    final container = _containerFor(tester, profilesAction: action);
-
-    await _openMenu(tester, container);
-
-    final l10n = currentAppLocalizations;
-    await tester.tap(find.text(l10n.link));
-    await tester.pumpAndSettle();
     await tester.enterText(
-      _field(l10n.link),
+      find.byType(TextField),
       'wireguard://key@example.com:51820',
     );
     await tester.pump();
-    await tester.tap(find.text(l10n.submit));
+    await tester.tap(find.text(l10n.add));
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.invalidLinkTip), findsOne);
+    expect(find.byType(AddProfileLinkDialog), findsOne);
     expect(action.singles, isEmpty);
-    expect(tester.takeException(), null);
+  });
+
+  testWidgets('adds the link on the clipboard in one tap', (tester) async {
+    _mockClipboard(tester, ' https://example.com/sub ');
+    final action = _RecordingProfilesAction();
+    final container = _containerFor(tester, profilesAction: action);
+
+    await _openLinkDialog(tester, container);
+    await tester.tap(find.text(currentAppLocalizations.addFromClipboard));
+    await tester.pumpAndSettle();
+
+    expect(action.singles, ['https://example.com/sub']);
+    expect(action.deviceHeaderChoices, [true]);
+  });
+
+  testWidgets('a clipboard without a link says so and stays open', (
+    tester,
+  ) async {
+    _mockClipboard(tester, 'not a link');
+    final action = _RecordingProfilesAction();
+    final container = _containerFor(tester, profilesAction: action);
+
+    await _openLinkDialog(tester, container);
+    final l10n = currentAppLocalizations;
+    await tester.tap(find.text(l10n.addFromClipboard));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.invalidLinkTip), findsOne);
+    expect(find.byType(AddProfileLinkDialog), findsOne);
+    expect(action.singles, isEmpty);
+  });
+
+  testWidgets('cancel closes without adding', (tester) async {
+    final action = _RecordingProfilesAction();
+    final container = _containerFor(tester, profilesAction: action);
+
+    await _openLinkDialog(tester, container);
+    await tester.enterText(find.byType(TextField), 'https://example.com/sub');
+    await tester.tap(find.text(currentAppLocalizations.cancel));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AddProfileLinkDialog), findsNothing);
+    expect(action.singles, isEmpty);
   });
 }

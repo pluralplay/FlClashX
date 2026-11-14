@@ -6,10 +6,114 @@ import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/profiles/custom/custom.dart';
-import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Asks for the link alone and adds the profile with the device headers on,
+/// which the profile's own settings can turn off later. The page it was asked
+/// from stays, so a profile added from the dashboard lands on it.
+Future<void> addProfileByLink(BuildContext context, WidgetRef ref) async {
+  final profilesAction = ref.read(profilesActionProvider.notifier);
+  final link = await dialogs.showCommonDialog<String>(
+    context: context,
+    child: const AddProfileLinkDialog(),
+  );
+  if (link != null) {
+    unawaited(profilesAction.addProfileFromLink(link, showProfiles: false));
+  }
+}
+
+class AddProfileLinkDialog extends StatefulWidget {
+  const AddProfileLinkDialog({super.key});
+
+  @override
+  State<AddProfileLinkDialog> createState() => _AddProfileLinkDialogState();
+}
+
+class _AddProfileLinkDialogState extends State<AddProfileLinkDialog> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool _isLink(String text) => text.isUrl || text.isShareLink;
+
+  void _submit() {
+    final link = _controller.text.trim();
+    if (link.isEmpty) {
+      return;
+    }
+    if (!_isLink(link)) {
+      setState(() => _error = context.appLocalizations.invalidLinkTip);
+      return;
+    }
+    Navigator.of(context).pop(link);
+  }
+
+  Future<void> _addFromClipboard() async {
+    final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
+    if (!mounted) {
+      return;
+    }
+    if (text == null || !_isLink(text)) {
+      setState(() => _error = context.appLocalizations.invalidLinkTip);
+      return;
+    }
+    Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return CommonDialog(
+      title: appLocalizations.addProfile,
+      hasFields: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(appLocalizations.cancel),
+        ),
+        TextButton(
+          onPressed: _controller.text.trim().isEmpty ? null : _submit,
+          child: Text(appLocalizations.add),
+        ),
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            autocorrect: false,
+            keyboardType: TextInputType.url,
+            textInputAction: TextInputAction.done,
+            inputFormatters: TextInputLimits.limit(TextInputLimits.url),
+            decoration: InputDecoration(
+              hintText: appLocalizations.link,
+              errorText: _error,
+              errorMaxLines: 2,
+            ),
+            onChanged: (_) => setState(() => _error = null),
+            onSubmitted: (_) => _submit(),
+          ),
+          TonalButton(
+            glyph: AppGlyphs.paste,
+            label: appLocalizations.addFromClipboard,
+            onPressed: () => unawaited(_addFromClipboard()),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// The ways to add a profile, in a menu out of the control [builder] makes.
 class AddProfileMenu extends ConsumerWidget {
@@ -37,52 +141,6 @@ class AddProfileMenu extends ConsumerWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(profilesAction.addProfileFromLink(url));
     });
-  }
-
-  Future<void> _toAdd(BuildContext context, WidgetRef ref) async {
-    final profilesAction = ref.read(profilesActionProvider.notifier);
-    final appLocalizations = context.appLocalizations;
-    final res = await showNamedUrlsForm(
-      context,
-      title: appLocalizations.importFromLink,
-      urlLabel: appLocalizations.link,
-      batchTip: appLocalizations.batchLinkInputTip,
-      urlValidator: (value) {
-        if (value == null || value.isEmpty) {
-          return appLocalizations.emptyTip(appLocalizations.link);
-        }
-        if (!value.isUrl && !value.isShareLink) {
-          return appLocalizations.invalidLinkTip;
-        }
-        return null;
-      },
-      existingUrls: {
-        for (final profile in ref.read(profilesProvider))
-          if (profile.url.isNotEmpty) profile.url,
-      },
-      withAgeSecretKey: true,
-      withDeviceHeaders: true,
-      clipboardImport: true,
-    );
-    switch (res) {
-      case null:
-        return;
-      case [final single]:
-        unawaited(
-          profilesAction.addProfileFromLink(
-            single.url,
-            label: single.label,
-            ageSecretKey: single.ageSecretKey,
-            sendDeviceHeaders: single.sendDeviceHeaders,
-          ),
-        );
-      default:
-        unawaited(
-          profilesAction.addProfilesFromLinks([
-            for (final item in res) item.url,
-          ]),
-        );
-    }
   }
 
   Future<void> _toSendFromPhone(WidgetRef ref) async {
@@ -147,7 +205,7 @@ class AddProfileMenu extends ConsumerWidget {
           CommonPopupMenuItem(
             glyph: AppGlyphs.cloudDownload,
             label: appLocalizations.link,
-            onPressed: () => _toAdd(context, ref),
+            onPressed: () => addProfileByLink(context, ref),
           ),
           if (system.isTV)
             CommonPopupMenuItem(

@@ -127,11 +127,11 @@ class _HeroDashboardState extends ConsumerState<HeroDashboard> {
   }
 }
 
-class _EmptyHero extends StatelessWidget {
+class _EmptyHero extends ConsumerWidget {
   const _EmptyHero();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -147,12 +147,10 @@ class _EmptyHero extends StatelessWidget {
         const SizedBox(height: 24),
         SizedBox(
           height: _connectHeight,
-          child: AddProfileMenu(
-            builder: (open) => FilledButton.icon(
-              onPressed: open,
-              icon: const GlyphIcon(AppGlyphs.add, fill: 1),
-              label: Text(appLocalizations.addProfile),
-            ),
+          child: FilledButton.icon(
+            onPressed: () => addProfileByLink(context, ref),
+            icon: const GlyphIcon(AppGlyphs.add, fill: 1),
+            label: Text(appLocalizations.addProfile),
           ),
         ),
       ],

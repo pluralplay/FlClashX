@@ -303,14 +303,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "add": MessageLookupByLibrary.simpleMessage("Add"),
     "addCustomProxy": MessageLookupByLibrary.simpleMessage("Add proxy"),
     "addFilters": MessageLookupByLibrary.simpleMessage("Add filters"),
+    "addFromClipboard": MessageLookupByLibrary.simpleMessage(
+      "Add from clipboard",
+    ),
     "addNodes": MessageLookupByLibrary.simpleMessage("Add nodes"),
     "addOverrideEntry": MessageLookupByLibrary.simpleMessage(
       "Add override entry",
     ),
     "addProfile": MessageLookupByLibrary.simpleMessage("Add profile"),
-    "addProfileFromClipboard": MessageLookupByLibrary.simpleMessage(
-      "Add profile from clipboard",
-    ),
     "addProxyChain": MessageLookupByLibrary.simpleMessage("Add a chain"),
     "addProxyChainHop": MessageLookupByLibrary.simpleMessage("Add a hop"),
     "addProxyGroup": MessageLookupByLibrary.simpleMessage("Add proxy group"),
@@ -417,9 +417,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "basicStrategy": MessageLookupByLibrary.simpleMessage("Basic strategies"),
     "batchAdd": MessageLookupByLibrary.simpleMessage("Batch add"),
     "batchImport": MessageLookupByLibrary.simpleMessage("Batch import"),
-    "batchLinkInputTip": MessageLookupByLibrary.simpleMessage(
-      "One link per line",
-    ),
     "batchListInputTip": MessageLookupByLibrary.simpleMessage(
       "One item per line, or separated by commas",
     ),
@@ -929,7 +926,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Importing replaces the proxy groups, rules and settings this profile has now",
     ),
     "importFile": MessageLookupByLibrary.simpleMessage("Import from file"),
-    "importFromLink": MessageLookupByLibrary.simpleMessage("Import from link"),
     "importUrl": MessageLookupByLibrary.simpleMessage("Import from URL"),
     "inbound": MessageLookupByLibrary.simpleMessage("Inbound"),
     "includeInterface": MessageLookupByLibrary.simpleMessage(

@@ -870,16 +870,6 @@ class AppLocalizations {
     return Intl.message('Dark', name: 'dark', desc: '', args: []);
   }
 
-  /// `Import from link`
-  String get importFromLink {
-    return Intl.message(
-      'Import from link',
-      name: 'importFromLink',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Send from phone`
   String get sendFromPhone {
     return Intl.message(
@@ -1881,11 +1871,11 @@ class AppLocalizations {
     );
   }
 
-  /// `Add profile from clipboard`
-  String get addProfileFromClipboard {
+  /// `Add from clipboard`
+  String get addFromClipboard {
     return Intl.message(
-      'Add profile from clipboard',
-      name: 'addProfileFromClipboard',
+      'Add from clipboard',
+      name: 'addFromClipboard',
       desc: '',
       args: [],
     );
@@ -3746,16 +3736,6 @@ class AppLocalizations {
     return Intl.message(
       'One URL per line',
       name: 'batchUrlInputTip',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `One link per line`
-  String get batchLinkInputTip {
-    return Intl.message(
-      'One link per line',
-      name: 'batchLinkInputTip',
       desc: '',
       args: [],
     );

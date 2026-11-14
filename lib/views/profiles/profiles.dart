@@ -107,7 +107,7 @@ class _ProfilesViewState extends ConsumerState<ProfilesView> {
           isLoading: isLoading,
           title: appLocalizations.profiles,
           iconActions: picker ? const [] : _buildActions(state.profiles),
-          actions: state.profiles.isEmpty || picker
+          actions: picker
               ? null
               : [
                   AddProfileMenu(
@@ -124,13 +124,11 @@ class _ProfilesViewState extends ConsumerState<ProfilesView> {
               label: appLocalizations.nullTip(appLocalizations.profiles),
               description: appLocalizations.nullProfileDesc,
               illustration: NullStatusIllustration.profile,
-              action: AddProfileMenu(
-                builder: (open) => TonalButton(
-                  size: TonalButtonSize.bar,
-                  glyph: AppGlyphs.addCircle,
-                  label: appLocalizations.addProfile,
-                  onPressed: open,
-                ),
+              action: TonalButton(
+                size: TonalButtonSize.bar,
+                glyph: AppGlyphs.addCircle,
+                label: appLocalizations.addProfile,
+                onPressed: () => addProfileByLink(context, ref),
               ),
             ),
             child: _ProfilesGrid(

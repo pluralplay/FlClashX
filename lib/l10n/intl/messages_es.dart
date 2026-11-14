@@ -310,14 +310,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "add": MessageLookupByLibrary.simpleMessage("Añadir"),
     "addCustomProxy": MessageLookupByLibrary.simpleMessage("Añadir proxy"),
     "addFilters": MessageLookupByLibrary.simpleMessage("Añadir filtros"),
+    "addFromClipboard": MessageLookupByLibrary.simpleMessage(
+      "Añadir desde el portapapeles",
+    ),
     "addNodes": MessageLookupByLibrary.simpleMessage("Añadir nodos"),
     "addOverrideEntry": MessageLookupByLibrary.simpleMessage(
       "Añadir entrada de sobrescritura",
     ),
     "addProfile": MessageLookupByLibrary.simpleMessage("Añadir perfil"),
-    "addProfileFromClipboard": MessageLookupByLibrary.simpleMessage(
-      "Añadir perfil desde el portapapeles",
-    ),
     "addProxyChain": MessageLookupByLibrary.simpleMessage("Añadir cadena"),
     "addProxyChainHop": MessageLookupByLibrary.simpleMessage("Añadir salto"),
     "addProxyGroup": MessageLookupByLibrary.simpleMessage(
@@ -442,9 +442,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "batchAdd": MessageLookupByLibrary.simpleMessage("Añadir en lote"),
     "batchImport": MessageLookupByLibrary.simpleMessage("Importar en lote"),
-    "batchLinkInputTip": MessageLookupByLibrary.simpleMessage(
-      "Un enlace por línea",
-    ),
     "batchListInputTip": MessageLookupByLibrary.simpleMessage(
       "Un elemento por línea, o separados por comas",
     ),
@@ -987,9 +984,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "importFile": MessageLookupByLibrary.simpleMessage(
       "Importar desde archivo",
-    ),
-    "importFromLink": MessageLookupByLibrary.simpleMessage(
-      "Importar desde enlace",
     ),
     "importUrl": MessageLookupByLibrary.simpleMessage("Importar desde URL"),
     "inbound": MessageLookupByLibrary.simpleMessage("Entrada"),
