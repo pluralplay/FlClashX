@@ -11,11 +11,14 @@ import 'setting.dart';
 import 'tab.dart';
 
 class ProxiesView extends ConsumerStatefulWidget {
-  const ProxiesView({super.key, this.picker = false});
+  const ProxiesView({super.key, this.picker = false, this.platform});
 
   /// Leaves the bar only its search and delay test, for picking a proxy from a
   /// sheet.
   final bool picker;
+
+  /// The host's platform when null; Android pulls the page down to test.
+  final SupportPlatform? platform;
 
   @override
   ConsumerState<ProxiesView> createState() => _ProxiesViewState();
@@ -90,6 +93,27 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       onPressed: () => ref
           .read(proxiesActionProvider.notifier)
           .setShownGroupsUnfolded(!allUnfolded),
+    );
+  }
+
+  Widget _pullToTest(Widget body) {
+    final platform = widget.platform ?? SupportPlatform.currentPlatform;
+    if (widget.picker || platform != SupportPlatform.Android) {
+      return body;
+    }
+    final appLocalizations = context.appLocalizations;
+    return PullAction(
+      labels: (
+        pull: appLocalizations.pullToTestDelay,
+        release: appLocalizations.releaseToTestDelay,
+        running: null,
+        done: null,
+      ),
+      onPull: () async {
+        await ref.read(proxiesActionProvider.notifier).delayTestAllGroups();
+        return true;
+      },
+      child: body,
     );
   }
 
@@ -169,12 +193,14 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       menuItems: picker ? const [] : _buildMenuItems(context),
       title: context.appLocalizations.proxies,
       searchState: AppBarSearchState(onSearch: _onSearch),
-      body: oneGroup
-          ? const ProxiesOneGroupView()
-          : switch (proxiesType) {
-              ProxiesType.tab => _tabView,
-              ProxiesType.list => const ProxiesListView(),
-            },
+      body: _pullToTest(
+        oneGroup
+            ? const ProxiesOneGroupView()
+            : switch (proxiesType) {
+                ProxiesType.tab => _tabView,
+                ProxiesType.list => const ProxiesListView(),
+              },
+      ),
     );
   }
 }

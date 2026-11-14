@@ -16,6 +16,7 @@ import 'style.dart';
 import 'wide.dart';
 import 'widget_registry.dart';
 import 'widgets/core_status_button.dart';
+import 'widgets/profile_detail.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key, this.platform});
@@ -221,7 +222,15 @@ class _MobileDashboard extends ConsumerWidget {
     final footed = providerMode && !editing;
     // The start button takes the bottom inset when it holds the foot.
     final bottom = footed ? 12.0 : 16 + context.bottomInset;
-    final scroll = CustomScrollView(
+    final pullable =
+        !editing &&
+        platform == SupportPlatform.Android &&
+        ref.watch(
+          currentProfileProvider.select(
+            (profile) => profile?.type == ProfileType.url,
+          ),
+        );
+    final Widget scroll = CustomScrollView(
       // A viewport per card lays them all out and holds the scroll end still.
       scrollCacheExtent: editing
           ? ScrollCacheExtent.viewport(DashboardWidget.values.length.toDouble())
@@ -274,13 +283,32 @@ class _MobileDashboard extends ConsumerWidget {
         ),
       ],
     );
+    final appLocalizations = context.appLocalizations;
+    final content = pullable
+        ? PullAction(
+            labels: (
+              pull: appLocalizations.pullToUpdateSubscription,
+              release: appLocalizations.releaseToUpdateSubscription,
+              running: appLocalizations.updatingSubscription,
+              done: appLocalizations.subscriptionUpdated,
+            ),
+            onPull: () async {
+              final profile = ref.read(currentProfileProvider);
+              if (profile == null || profile.type != ProfileType.url) {
+                return false;
+              }
+              return syncProfile(ref, profile);
+            },
+            child: scroll,
+          )
+        : scroll;
     if (!footed) {
-      return scroll;
+      return content;
     }
     final side = dashboardMobileSideOf(MediaQuery.sizeOf(context).width);
     return Column(
       children: [
-        Expanded(child: scroll),
+        Expanded(child: content),
         Padding(
           padding: EdgeInsets.fromLTRB(side, 0, side, 16 + context.bottomInset),
           child: const ProviderConnectButton(),
