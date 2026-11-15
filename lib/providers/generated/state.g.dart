@@ -3943,11 +3943,19 @@ final class WidgetEditingDeniedProvider
 String _$widgetEditingDeniedHash() =>
     r'7b80292720b5fa889e0e8a79cebaf93e2208ad1a';
 
+/// Global mode shows GLOBAL instead of the server's group, so its proxies
+/// keep their group headers.
+
 @ProviderFor(oneGroup)
 final oneGroupProvider = OneGroupProvider._();
 
+/// Global mode shows GLOBAL instead of the server's group, so its proxies
+/// keep their group headers.
+
 final class OneGroupProvider extends $FunctionalProvider<bool, bool, bool>
     with $Provider<bool> {
+  /// Global mode shows GLOBAL instead of the server's group, so its proxies
+  /// keep their group headers.
   OneGroupProvider._()
     : super(
         from: null,
@@ -3981,7 +3989,7 @@ final class OneGroupProvider extends $FunctionalProvider<bool, bool, bool>
   }
 }
 
-String _$oneGroupHash() => r'9d0f1eada0301d39fe11b2a27bf7da73d1153257';
+String _$oneGroupHash() => r'404d09a9446d3603bc82d76031a1d5bd3a9505dc';
 
 @ProviderFor(providerMode)
 final providerModeProvider = ProviderModeProvider._();

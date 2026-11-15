@@ -653,5 +653,16 @@ void oneGroupTests() {
       expect(find.byTooltip(l10n.foldAllGroups), findsNothing);
       expect(find.byTooltip(l10n.unfoldAllGroups), findsNothing);
     }
+
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((state) => state.copyWith(mode: Mode.global));
+    container
+        .read(proxiesStyleSettingProvider.notifier)
+        .update((state) => state.copyWith(type: ProxiesType.list));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListHeader), findsNWidgets(2));
+    expect(find.text('Proxy 1'), findsWidgets);
   });
 }

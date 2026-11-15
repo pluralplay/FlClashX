@@ -132,13 +132,19 @@ bool widgetEditingDenied(Ref ref) {
   );
 }
 
+/// Global mode shows GLOBAL instead of the server's group, so its proxies
+/// keep their group headers.
 @riverpod
 bool oneGroup(Ref ref) {
-  return ref.watch(
-    currentProfileProvider.select(
-      (profile) => profile?.headers.oneGroup ?? false,
-    ),
+  final global = ref.watch(
+    patchClashConfigProvider.select((state) => state.mode == Mode.global),
   );
+  return !global &&
+      ref.watch(
+        currentProfileProvider.select(
+          (profile) => profile?.headers.oneGroup ?? false,
+        ),
+      );
 }
 
 @riverpod
