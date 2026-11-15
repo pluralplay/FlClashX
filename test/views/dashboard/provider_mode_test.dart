@@ -14,6 +14,7 @@ import 'package:fl_clash/providers/routed_probe.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/dashboard/provider_mode.dart';
+import 'package:fl_clash/views/dashboard/wide.dart';
 import 'package:fl_clash/views/dashboard/widgets/widgets.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,8 +126,12 @@ void main() {
     }
   }
 
-  Future<void> pump(WidgetTester tester, {Widget? child}) async {
-    tester.view.physicalSize = const Size(450, 900);
+  Future<void> pump(
+    WidgetTester tester, {
+    Widget? child,
+    Size size = const Size(450, 900),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -584,3 +589,26 @@ class _ProviderPieces extends StatelessWidget {
     );
   }
 }
+  testWidgets('a wide window keeps the provider cards a narrow column', (
+    tester,
+  ) async {
+    setUp_(
+      profiles: [
+        _profile(headers: const {'flclashx-special': 'providermode'}),
+      ],
+      groups: logoGroups(),
+    );
+    await pump(
+      tester,
+      child: const DashboardView(platform: SupportPlatform.MacOS),
+      size: const Size(1400, 900),
+    );
+    await tester.pump();
+
+    expect(find.byType(WideDashboard), findsNothing);
+    final card = tester.getRect(find.byType(ServerLocationCard));
+    expect(card.width, lessThanOrEqualTo(560));
+    expect(card.height, lessThan(120));
+    expect(tester.takeException(), isNull);
+  });
+

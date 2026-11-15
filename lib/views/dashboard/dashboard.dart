@@ -90,13 +90,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         builder: (context, constraints) {
           final room = constraints.biggest / scale;
           final layout = DashboardDensity.of(room);
-          _wide = layout.isDesktop;
+          // The provider's few cards stay a column at any width: the grid
+          // would stretch each over a row sized for the standard cards.
+          final grid = layout.isDesktop && !providerMode;
+          _wide = grid;
           final arranged = editing
               ? (chosen ? null : _editedArrangement)
-              : layout.isDesktop && !chosen
+              : grid && !chosen
               ? wideDashboardWidgetsOf(platform)
               : null;
-          if (layout.isDesktop && !editing) {
+          if (grid && !editing) {
             return DashboardDensityScope(
               density: layout,
               scale: scale,
@@ -105,7 +108,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 arranged: arranged,
                 columns: dashboardColumnsOf(room.width),
                 gap: gap,
-                providerMode: providerMode,
               ),
             );
           }
@@ -134,14 +136,12 @@ class _WideCards extends ConsumerWidget {
     required this.arranged,
     required this.columns,
     required this.gap,
-    required this.providerMode,
   });
 
   final SupportPlatform platform;
   final List<DashboardWidget>? arranged;
   final int columns;
   final double gap;
-  final bool providerMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -151,40 +151,13 @@ class _WideCards extends ConsumerWidget {
           dashboardStateProvider.select((state) => state.dashboardWidgets),
         );
     final announcement = ref.watch(announcementProvider) != null;
-    final dashboard = WideDashboard(
-      cards: withFixedCards(
-        [
-          for (final widget in saved)
-            if (widget.platforms.contains(platform)) widget,
-        ],
-        announcement: announcement,
-        providerMode: providerMode,
-      ),
+    return WideDashboard(
+      cards: withFixedCards([
+        for (final widget in saved)
+          if (widget.platforms.contains(platform)) widget,
+      ], announcement: announcement),
       columns: columns,
       gap: gap,
-      header: providerMode ? const ProviderHeader() : null,
-    );
-    if (!providerMode) {
-      return dashboard;
-    }
-    return Column(
-      children: [
-        Expanded(child: dashboard),
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            0,
-            24,
-            24 + MediaQuery.paddingOf(context).bottom,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: providerConnectMaxWidth,
-            ),
-            child: const ProviderConnectButton(),
-          ),
-        ),
-      ],
     );
   }
 }
