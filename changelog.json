@@ -2,6 +2,64 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.7",
+      "tag": "v0.5.7",
+      "date": "2026-11-16",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "7117ff4",
+              "scope": "headers",
+              "text": "Theme, proxies page look, dashboard cards, app switches and the hideip and novibrate specials from a subscription apply only while its profile is selected, and the user's own settings come back on a profile that does not set them"
+            },
+            {
+              "id": "5a0ea2d",
+              "scope": "update",
+              "text": "An update that finished downloading is installed without downloading again after the dialog was closed, and the installer is removed from the cache once the update is in"
+            },
+            {
+              "id": "a58aab1",
+              "scope": "dashboard",
+              "text": "The status card shows the exit IP's country flag; with Hide IP on the app makes no IP checks at all and the flag comes from the server's name"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "11ae136",
+              "scope": "proxies",
+              "text": "With onegroup, Global mode shows the proxies page with its group headers instead of an empty page"
+            },
+            {
+              "id": "61e099c",
+              "scope": "dashboard",
+              "text": "A long announcement is shown in full on a wide window instead of spilling out of its card or losing lines"
+            },
+            {
+              "id": "1bc0f76",
+              "scope": "dashboard",
+              "text": "With providermode the dashboard stays a centered column on a wide window instead of stretching each card across a row"
+            },
+            {
+              "id": "d221a9c",
+              "scope": "core",
+              "text": "A proxy name a provider shares with a declared proxy always tests the provider's node instead of either one at random after a restart"
+            },
+            {
+              "id": "ae557e7",
+              "scope": "macos",
+              "text": "The macOS core is built with Go 1.26 again and runs on macOS 12 Monterey"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.6",
       "tag": "v0.5.6",
       "date": "2026-11-15",
