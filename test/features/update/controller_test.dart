@@ -17,6 +17,7 @@ final _payload = Uint8List.fromList(List.generate(4096, (i) => i % 256));
 class _Adapter implements HttpClientAdapter {
   String checksum = sha256.convert(_payload).toString();
   Stream<Uint8List>? body;
+  var downloads = 0;
 
   @override
   Future<ResponseBody> fetch(
@@ -29,6 +30,7 @@ class _Adapter implements HttpClientAdapter {
       return ResponseBody.fromString('$checksum  $_name\n', 200);
     }
     if (url == '$_url/$_name') {
+      downloads++;
       final body = this.body;
       return body == null
           ? ResponseBody.fromBytes(_payload, 200)
@@ -65,6 +67,19 @@ class _Platform implements UpdatePlatform {
       final Exception error => throw error,
       _ => throw next as Error,
     };
+  }
+}
+
+class _Downloader extends UpdateDownloader {
+  _Downloader({required super.root, super.dio, this.keeping});
+
+  final Future<void>? keeping;
+
+  @override
+  Future<File> keep(File partial, UpdateAsset asset, String slot) async {
+    final kept = await super.keep(partial, asset, slot);
+    await keeping;
+    return kept;
   }
 }
 
@@ -109,18 +124,22 @@ void main() {
   UpdateController controller({
     Map<String, dynamic>? release,
     bool manifest = false,
+    Future<String> Function(String path) hash = sha256OfFile,
+    Future<void>? keeping,
   }) {
     final controller = UpdateController(
       release: release ?? _release,
       platform: platform,
-      downloader: UpdateDownloader(
+      downloader: _Downloader(
         root: () async => root,
         dio: Dio()..httpClientAdapter = adapter,
+        keeping: keeping,
       ),
       repository: 'pluralplay/FlClashX',
       pre: false,
       manifest: manifest,
       installBlocker: () => blocker,
+      hash: hash,
     );
     controller.addListener(() => states.add(controller.value));
     return controller;
@@ -258,7 +277,112 @@ void main() {
     expect(await files(), hasLength(1));
     update.dispose();
     await pumpEventQueue();
-    expect(await files(), isEmpty);
+    expect(await files(), hasLength(1));
+  });
+
+  test('a dialog closed after the download installs it without downloading '
+      'again', () async {
+    final first = controller();
+    await first.download();
+    first.dispose();
+    await pumpEventQueue();
+    expect(adapter.downloads, 1);
+
+    final again = controller();
+    await again.download();
+    expect(again.value.phase, UpdatePhase.ready);
+    expect(adapter.downloads, 1);
+    platform.installs.add(UpdateInstallResult.exiting);
+    await again.install();
+    expect(again.value.phase, UpdatePhase.done);
+    again.dispose();
+  });
+
+  test(
+    'a cached file that is cut short or changed is downloaded again',
+    () async {
+      final first = controller();
+      await first.download();
+      first.dispose();
+      (await files()).single.writeAsBytesSync(_payload.sublist(0, 100));
+
+      final again = controller();
+      await again.download();
+      expect(again.value.phase, UpdatePhase.ready);
+      expect(adapter.downloads, 2);
+      expect((await files()).single.readAsBytesSync(), _payload);
+      again.dispose();
+    },
+  );
+
+  test(
+    'a cancel while the download moves into place leaves it for a retry',
+    () async {
+      final keeping = Completer<void>();
+      final update = controller(keeping: keeping.future);
+      final first = update.download();
+      while ((await files()).isEmpty ||
+          !(await files()).single.path.endsWith('/0.5.1/$_name')) {
+        await pumpEventQueue();
+      }
+      update.cancel();
+      keeping.complete();
+      await first;
+      expect(update.value.phase, UpdatePhase.idle);
+      expect(await files(), hasLength(1));
+      update.dispose();
+
+      final again = controller();
+      await again.download();
+      expect(again.value.phase, UpdatePhase.ready);
+      expect(adapter.downloads, 1);
+      again.dispose();
+    },
+  );
+
+  test(
+    'a cancelled check of the cached file leaves the retry its file',
+    () async {
+      final first = controller();
+      await first.download();
+      first.dispose();
+
+      final hashing = Completer<void>();
+      var calls = 0;
+      final update = controller(
+        hash: (path) async {
+          if (calls++ == 0) {
+            await hashing.future;
+            return 'c' * 64;
+          }
+          return sha256OfFile(path);
+        },
+      );
+      final stale = update.download();
+      while (calls == 0) {
+        await pumpEventQueue();
+      }
+      update.cancel();
+      await update.download();
+      expect(update.value.phase, UpdatePhase.ready);
+      hashing.complete();
+      await stale;
+
+      expect(update.value.phase, UpdatePhase.ready);
+      expect((await files()).single.readAsBytesSync(), _payload);
+      expect(adapter.downloads, 1);
+      update.dispose();
+    },
+  );
+
+  test('a download for another release is cleared by the next one', () async {
+    final stale = File('${root.path}/0.5.0/$_name')
+      ..createSync(recursive: true);
+    final update = controller();
+    await update.download();
+    expect(stale.existsSync(), isFalse);
+    expect((await files()).single.path, endsWith('/0.5.1/$_name'));
+    update.dispose();
   });
 
   test('a download changed while it waited for Install is refused', () async {

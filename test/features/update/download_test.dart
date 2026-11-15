@@ -235,6 +235,57 @@ void main() {
     expect(await root.exists(), isFalse);
   });
 
+  test(
+    'a start clears installed and unfinished updates, not newer ones',
+    () async {
+      for (final path in [
+        '0.5.0/$_name',
+        '0.5.1/$_name',
+        '0.5.2/$_name',
+        '0.5.2/.partial-1/$_name',
+        'a1b2c3/$_name',
+        'stray',
+      ]) {
+        await File('${root.path}/$path').create(recursive: true);
+      }
+
+      await removeStaleUpdates(root, currentVersion: '0.5.1');
+
+      final left = [
+        for (final entity in await leftovers())
+          if (entity is File) entity.path.substring(root.path.length + 1),
+      ];
+      expect(left, ['0.5.2/$_name']);
+    },
+  );
+
+  test(
+    'a cache that is a link loses the link, never what it points at',
+    () async {
+      final elsewhere = await Directory.systemTemp.createTemp('flclashx_kept');
+      addTearDown(() => elsewhere.delete(recursive: true));
+      final precious = File('${elsewhere.path}/0.5.0/precious')
+        ..createSync(recursive: true);
+      final link = Link('${root.path}/update')..createSync(elsewhere.path);
+
+      await removeStaleUpdates(Directory(link.path), currentVersion: '0.5.1');
+      expect(precious.existsSync(), isTrue);
+      expect(link.existsSync(), isFalse);
+
+      link.createSync(elsewhere.path);
+      await UpdateDownloader(root: () async => Directory(link.path)).purge();
+      expect(precious.existsSync(), isTrue);
+      expect(link.existsSync(), isFalse);
+    },
+  );
+
+  test('a release slot is its version, or a name of its own', () {
+    expect(updateSlotOf('v0.5.6'), '0.5.6');
+    expect(updateSlotOf('v0.5.6-pre.3'), '0.5.6-pre.3');
+    expect(updateSlotOf('../escape'), isNot(contains('/')));
+    expect(updateSlotOf('../escape'), isNot('../escape'));
+  });
+
   test('sha256OfFile hashes off the UI isolate', () async {
     final file = File('${root.path}/payload');
     final payload = List<int>.generate(70000, (i) => i % 256);

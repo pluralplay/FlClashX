@@ -58,9 +58,8 @@ class UpdateState {
 }
 
 /// Downloads, verifies and installs one release. Each run is tagged, so a
-/// cancelled or superseded run that finishes late never writes its outcome,
-/// and every file a run leaves without reaching [UpdatePhase.ready] is
-/// removed in its `finally`.
+/// cancelled or superseded run that finishes late never writes its outcome
+/// nor deletes what a newer run may be using.
 class UpdateController extends ValueNotifier<UpdateState> {
   final Map<String, dynamic> release;
   final UpdatePlatform platform;
@@ -101,10 +100,13 @@ class UpdateController extends ValueNotifier<UpdateState> {
     final run = ++_run;
     final cancelToken = _cancelToken = CancelToken();
     value = const UpdateState(UpdatePhase.downloading);
+    File? partial;
     File? file;
-    var reported = 0;
+    var stopped = false;
     try {
-      await _discard();
+      _file = null;
+      _expected = null;
+      final slot = updateSlotOf(release['tag_name'] as String? ?? '');
       final asset = manifest
           ? manifestUpdateAsset(release, platform.target)
           : selectUpdateAsset(
@@ -113,33 +115,28 @@ class UpdateController extends ValueNotifier<UpdateState> {
               repository: repository,
               pre: pre,
             );
-      await downloader.purge();
       final expected = await downloader.fetchChecksum(
         asset,
         cancelToken: cancelToken,
       );
-      file = await downloader.download(
-        asset,
-        cancelToken: cancelToken,
-        onProgress: (received, total) {
-          if (run != _run ||
-              (received - reported < _progressStep && received != total)) {
-            return;
-          }
-          reported = received;
-          value = UpdateState(
-            UpdatePhase.downloading,
-            received: received,
-            total: total,
-          );
-        },
-      );
       _ensureCurrent(run);
-      value = const UpdateState(UpdatePhase.verifying);
-      if (await hash(file.path) != expected) {
-        throw UpdateException(UpdateErrorKind.checksumMismatch, asset.name);
+      await downloader.purge(keep: slot);
+      _ensureCurrent(run);
+      file = await _cached(asset, slot, expected, run);
+      if (file == null) {
+        partial = await _download(asset, slot, cancelToken, run);
+        _ensureCurrent(run);
+        value = const UpdateState(UpdatePhase.verifying);
+        final actual = await hash(partial.path);
+        _ensureCurrent(run);
+        if (actual != expected) {
+          throw UpdateException(UpdateErrorKind.checksumMismatch, asset.name);
+        }
+        file = await downloader.keep(partial, asset, slot);
+        partial = null;
+        _ensureCurrent(run);
       }
-      _ensureCurrent(run);
+      value = const UpdateState(UpdatePhase.verifying);
       await platform.verify(file);
       _ensureCurrent(run);
       _file = file;
@@ -151,6 +148,7 @@ class UpdateController extends ValueNotifier<UpdateState> {
         value = UpdateState(UpdatePhase.failed, error: error);
       }
     } catch (error) {
+      stopped = error is _Superseded || cancelToken.isCancelled;
       if (run == _run && !cancelToken.isCancelled) {
         final kind = value.phase == UpdatePhase.verifying
             ? UpdateErrorKind.identityMismatch
@@ -164,10 +162,63 @@ class UpdateController extends ValueNotifier<UpdateState> {
       if (identical(_cancelToken, cancelToken)) {
         _cancelToken = null;
       }
-      if (file != null) {
+      if (partial != null) {
+        await _deleteDownload(partial);
+      }
+      if (file != null && !stopped && run == _run) {
         await _deleteDownload(file);
       }
     }
+  }
+
+  Future<File?> _cached(
+    UpdateAsset asset,
+    String slot,
+    String expected,
+    int run,
+  ) async {
+    final file = await downloader.fileOf(asset, slot);
+    final type = await FileSystemEntity.type(file.path, followLinks: false);
+    _ensureCurrent(run);
+    if (type == FileSystemEntityType.notFound) {
+      return null;
+    }
+    value = const UpdateState(UpdatePhase.verifying);
+    final matches =
+        type == FileSystemEntityType.file && await hash(file.path) == expected;
+    _ensureCurrent(run);
+    if (matches) {
+      return file;
+    }
+    value = const UpdateState(UpdatePhase.downloading);
+    await _deleteDownload(file);
+    return null;
+  }
+
+  Future<File> _download(
+    UpdateAsset asset,
+    String slot,
+    CancelToken cancelToken,
+    int run,
+  ) {
+    var reported = 0;
+    return downloader.download(
+      asset,
+      slot: slot,
+      cancelToken: cancelToken,
+      onProgress: (received, total) {
+        if (run != _run ||
+            (received - reported < _progressStep && received != total)) {
+          return;
+        }
+        reported = received;
+        value = UpdateState(
+          UpdatePhase.downloading,
+          received: received,
+          total: total,
+        );
+      },
+    );
   }
 
   void cancel() {
@@ -268,16 +319,12 @@ class UpdateController extends ValueNotifier<UpdateState> {
     }
   }
 
-  /// A file someone else now opens — a setup, a package, a disk image in
-  /// Finder — has to outlive the dialog; the next download purges it.
+  /// A verified download outlives the dialog, for the next one to install.
   @override
   void dispose() {
     _disposed = true;
     _run++;
     _cancelToken?.cancel();
-    if (value.phase != UpdatePhase.done) {
-      unawaited(_discard());
-    }
     super.dispose();
   }
 }

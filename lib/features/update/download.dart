@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/features/update/asset.dart';
 import 'package:path/path.dart' as p;
 
@@ -14,11 +15,76 @@ typedef UpdateProgress = void Function(int received, int? total);
 
 const _checksumLimit = 4096;
 const _maxRedirects = 5;
+const _partialPrefix = '.partial-';
+
+final _versionSlot = RegExp(
+  r'^\d+\.\d+\.\d+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$',
+);
+
+String updateSlotOf(String tag) {
+  final version = tag.startsWith('v') ? tag.substring(1) : tag;
+  return _versionSlot.hasMatch(version) ? version : _randomName();
+}
+
+/// Keeps only releases newer than [currentVersion], minus their partial
+/// downloads. A file still open, a running setup, waits for the next start.
+Future<void> removeStaleUpdates(
+  Directory root, {
+  required String currentVersion,
+}) async {
+  try {
+    if (!await _isRealDirectory(root.path)) {
+      return;
+    }
+    await for (final entity in root.list(followLinks: false)) {
+      if (entity is! Directory || !_isNewer(entity, currentVersion)) {
+        await _deleteQuietly(entity);
+        continue;
+      }
+      await for (final inner in entity.list(followLinks: false)) {
+        if (p.basename(inner.path).startsWith(_partialPrefix)) {
+          await _deleteQuietly(inner);
+        }
+      }
+    }
+  } on FileSystemException {
+    return;
+  }
+}
+
+bool _isNewer(Directory slot, String currentVersion) {
+  final version = p.basename(slot.path);
+  if (!_versionSlot.hasMatch(version)) {
+    return false;
+  }
+  try {
+    return compareVersions(version, currentVersion) > 0;
+  } on FormatException {
+    return false;
+  }
+}
+
+/// A link is removed, never listed: listing it would walk, and the cleanup
+/// delete, whatever it points at.
+Future<bool> _isRealDirectory(String path) async {
+  final type = await FileSystemEntity.type(path, followLinks: false);
+  if (type == FileSystemEntityType.link) {
+    await Link(path).delete();
+  }
+  return type == FileSystemEntityType.directory;
+}
+
+Future<void> _deleteQuietly(FileSystemEntity entity) async {
+  try {
+    await entity.delete(recursive: true);
+  } on FileSystemException {
+    return;
+  }
+}
 
 class UpdateDownloader {
   final Dio _dio;
 
-  /// Each download gets its own directory under here, removed on failure.
   /// Resolved only once a download starts, so showing the dialog never
   /// waits on the cache directory.
   final Future<Directory> Function() root;
@@ -33,13 +99,52 @@ class UpdateDownloader {
             ),
           );
 
-  /// Leftovers of an earlier run: a finished download nobody installed, or a
-  /// disk image Finder was handed.
-  Future<void> purge() async {
+  Future<void> purge({String? keep}) async {
     final directory = await root();
-    if (await directory.exists()) {
-      await directory.delete(recursive: true);
+    if (!await _isRealDirectory(directory.path)) {
+      return;
     }
+    if (keep == null) {
+      await directory.delete(recursive: true);
+      return;
+    }
+    await for (final entity in directory.list(followLinks: false)) {
+      if (p.basename(entity.path) != keep) {
+        await _deleteQuietly(entity);
+      }
+    }
+  }
+
+  Future<Directory> _slot(String slot) async {
+    final directory = await root();
+    await _isRealDirectory(directory.path);
+    final path = p.join(directory.path, slot);
+    await _isRealDirectory(path);
+    return Directory(path);
+  }
+
+  Future<File> fileOf(UpdateAsset asset, String slot) async =>
+      File(p.join((await _slot(slot)).path, asset.name));
+
+  Future<File> keep(File partial, UpdateAsset asset, String slot) async {
+    final target = await fileOf(asset, slot);
+    final existing = await FileSystemEntity.type(
+      target.path,
+      followLinks: false,
+    );
+    switch (existing) {
+      case FileSystemEntityType.notFound:
+        break;
+      case FileSystemEntityType.directory:
+        await Directory(target.path).delete(recursive: true);
+      case FileSystemEntityType.link:
+        await Link(target.path).delete();
+      default:
+        await File(target.path).delete();
+    }
+    final kept = await partial.rename(target.path);
+    await _deleteQuietly(partial.parent);
+    return kept;
   }
 
   Future<String> fetchChecksum(
@@ -65,12 +170,17 @@ class UpdateDownloader {
     return hash;
   }
 
+  /// [keep] moves the partial file where a later dialog would reuse it.
   Future<File> download(
     UpdateAsset asset, {
+    String? slot,
     CancelToken? cancelToken,
     UpdateProgress? onProgress,
   }) async {
-    final directory = Directory(p.join((await root()).path, _randomName()));
+    final parent = await _slot(slot ?? _randomName());
+    final directory = Directory(
+      p.join(parent.path, '$_partialPrefix${_randomName()}'),
+    );
     await directory.create(recursive: true);
     final file = File(p.join(directory.path, asset.name));
     RandomAccessFile? output;
@@ -97,6 +207,7 @@ class UpdateDownloader {
     } catch (_) {
       await output?.close().catchError((_) => output!);
       await directory.delete(recursive: true).catchError((_) => directory);
+      await parent.delete().catchError((_) => parent);
       rethrow;
     }
   }
