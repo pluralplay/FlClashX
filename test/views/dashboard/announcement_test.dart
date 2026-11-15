@@ -42,6 +42,7 @@ void main() {
     WidgetTester tester, {
     Size size = const Size(412, 1400),
     bool navigator = false,
+    SupportPlatform platform = SupportPlatform.Android,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -53,7 +54,7 @@ void main() {
         container: container,
         child: TestApp(
           includeNavigatorKey: navigator,
-          child: const DashboardView(platform: SupportPlatform.Android),
+          child: DashboardView(platform: platform),
         ),
       ),
     );
@@ -195,6 +196,56 @@ void main() {
       DashboardWidget.announcement,
       DashboardWidget.networkSpeed,
     ]);
+
+    await teardown(tester);
+  });
+
+  testWidgets('a wide window gives every line of a long one room', (
+    tester,
+  ) async {
+    const lines = [
+      'Thanks for staying with us, the fastest and safest internet is ours.',
+      '',
+      'Something wrong? Press the update button first.',
+      'Then write to support.',
+    ];
+    setUpProfiles([_profile(announce: lines.join('\n'))]);
+    await pumpDashboard(
+      tester,
+      size: const Size(1000, 1200),
+      platform: SupportPlatform.MacOS,
+    );
+    await tester.pump();
+
+    final card = tester.getRect(find.byType(AnnouncementCard));
+    final last = tester.getRect(find.textContaining(lines.last));
+    expect(last.bottom, lessThanOrEqualTo(card.bottom));
+    final next = tester.getRect(find.byType(CurrentOutboundCard));
+    expect(next.top, greaterThan(card.bottom));
+    expect(tester.takeException(), isNull);
+
+    await teardown(tester);
+  });
+
+  testWidgets('a tall one never overflows a four column window', (
+    tester,
+  ) async {
+    final text = [for (var line = 1; line <= 14; line++) 'Line $line'];
+    setUpProfiles([_profile(announce: text.join('\n'))]);
+    await pumpDashboard(
+      tester,
+      size: const Size(1600, 1000),
+      platform: SupportPlatform.MacOS,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    final card = tester.getRect(find.byType(AnnouncementCard));
+    expect(
+      tester.getRect(find.textContaining('Line 14')).bottom,
+      lessThan(card.bottom),
+    );
 
     await teardown(tester);
   });

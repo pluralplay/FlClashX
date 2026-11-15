@@ -92,7 +92,7 @@ List<DashboardWidget> wideDashboardWidgetsOf(SupportPlatform platform) => [
 /// leave when they come last. A window too short for the tables, and every two
 /// column one, gets the summary cards instead, so no list scrolls inside a page
 /// that scrolls.
-class WideDashboard extends ConsumerWidget {
+class WideDashboard extends ConsumerStatefulWidget {
   const WideDashboard({
     super.key,
     required this.cards,
@@ -105,7 +105,17 @@ class WideDashboard extends ConsumerWidget {
   final double gap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WideDashboard> createState() => _WideDashboardState();
+}
+
+class _WideDashboardState extends ConsumerState<WideDashboard> {
+  double? _announcementHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = widget.cards;
+    final columns = widget.columns;
+    final gap = widget.gap;
     final offers = ref.watch(
       profileOffersProvider.select((offers) => offers.isNotEmpty),
     );
@@ -118,20 +128,26 @@ class WideDashboard extends ConsumerWidget {
       24,
       24 + MediaQuery.paddingOf(context).bottom,
     );
+    final announcementMin = (compact ? 100 : 112) * scale;
     // The profile card's offer buttons need a taller middle row.
-    double heightOf(WideRowKind kind) =>
-        switch (kind) {
-          WideRowKind.announcement => compact ? 100 : 112,
-          WideRowKind.top => compact ? 176 : 208,
-          WideRowKind.control => compact ? 56 : 64,
-          WideRowKind.middle => (compact ? 152 : 176) + (offers ? 44 : 0),
-          WideRowKind.bottom => compact ? 112 : 120,
-        } *
-        scale;
+    double heightOf(WideRowKind kind) => switch (kind) {
+      WideRowKind.announcement => math.max(
+        announcementMin,
+        _announcementHeight ?? 0,
+      ),
+      WideRowKind.top => (compact ? 176 : 208) * scale,
+      WideRowKind.control => (compact ? 56 : 64) * scale,
+      WideRowKind.middle => ((compact ? 152 : 176) + (offers ? 44 : 0)) * scale,
+      WideRowKind.bottom => (compact ? 112 : 120) * scale,
+    };
     final tablesHeight = connectionsTableMinHeight(density, scale);
     final rows = wideRowsOf(cards, columns);
     final last = rows.lastOrNull;
-    final bottomLast = last?.kind == WideRowKind.bottom;
+    // An announcement not yet measured could outgrow a row that fills.
+    final bottomLast =
+        last?.kind == WideRowKind.bottom &&
+        (_announcementHeight != null ||
+            rows.every((row) => row.kind != WideRowKind.announcement));
     return LayoutBuilder(
       builder: (context, constraints) {
         final room =
@@ -157,6 +173,19 @@ class WideDashboard extends ConsumerWidget {
             bottomLast &&
             constraints.maxHeight >= rowsHeight + heightOf(WideRowKind.bottom);
         Widget rowOf(WideRow row) {
+          if (row.kind == WideRowKind.announcement) {
+            return MeasureSize(
+              onChanged: (size) {
+                if (mounted && size.height != _announcementHeight) {
+                  setState(() => _announcementHeight = size.height);
+                }
+              },
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: announcementMin),
+                child: RepaintBoundary(child: row.cards.single.card),
+              ),
+            );
+          }
           final tables = tablesFit && row == last;
           final content = Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
