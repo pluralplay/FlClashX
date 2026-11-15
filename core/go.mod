@@ -1,6 +1,6 @@
 module core
 
-go 1.27.0
+go 1.26.0
 
 // v0.4.29 plus the darwin dscacheutil reap, see third_party/README.md.
 replace github.com/metacubex/sing-tun => ./third_party/sing-tun
