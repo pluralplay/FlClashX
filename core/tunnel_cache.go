@@ -1,9 +1,12 @@
 package core
 
 import (
+	"maps"
 	"reflect"
+	"slices"
 	"sync"
 
+	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/constant"
 	cp "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/tunnel"
@@ -37,7 +40,8 @@ func allProxies() map[string]constant.Proxy {
 		rebuilt[name] = proxy
 	}
 	versions := make(map[string]uint32, len(providers))
-	for name, p := range providers {
+	for _, name := range providerOrder(providers) {
+		p := providers[name]
 		// Version before proxies: the other order can stamp a version newer
 		// than the list that was read, and the cache never recovers.
 		versions[name] = p.Version()
@@ -50,6 +54,17 @@ func allProxies() map[string]constant.Proxy {
 	proxyCache.providers = mapIdentity(providers)
 	proxyCache.versions = versions
 	return rebuilt
+}
+
+// A name both a declared proxy and a provider's node carry resolves to the
+// node, the one a group that uses the provider routes through. Map order would
+// pick a different one on every rebuild.
+func providerOrder(providers map[string]cp.ProxyProvider) []string {
+	names := slices.Sorted(maps.Keys(providers))
+	if index := slices.Index(names, provider.ReservedName); index > 0 {
+		names = slices.Concat([]string{provider.ReservedName}, slices.Delete(names, index, index+1))
+	}
+	return names
 }
 
 func mapIdentity(m any) uintptr {
