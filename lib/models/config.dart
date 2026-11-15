@@ -299,6 +299,10 @@ abstract class AppSettingProps with _$AppSettingProps {
 
     /// The profile update whose panel headers the settings last took.
     String? appliedHeadersUpdate,
+
+    /// The user's own values of the settings the current profile's headers
+    /// now hold, put back once no selected profile sends them.
+    @Default({}) Map<String, Object?> headerBackup,
   }) = _AppSettingProps;
 
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>

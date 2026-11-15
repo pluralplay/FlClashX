@@ -107,6 +107,7 @@ _AppSettingProps _$AppSettingPropsFromJson(
           .toSet() ??
       const {},
   appliedHeadersUpdate: json['appliedHeadersUpdate'] as String?,
+  headerBackup: json['headerBackup'] as Map<String, dynamic>? ?? const {},
 );
 
 Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
@@ -151,6 +152,7 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'ownedSettings': instance.ownedSettings.toList(),
       'panelSetSettings': instance.panelSetSettings.toList(),
       'appliedHeadersUpdate': instance.appliedHeadersUpdate,
+      'headerBackup': instance.headerBackup,
     };
 
 const _$RequestFeedEnumMap = {
