@@ -26,21 +26,8 @@ class ServerLocationCard extends ConsumerStatefulWidget {
   ConsumerState<ServerLocationCard> createState() => _ServerLocationCardState();
 }
 
-class _ServerLocationCardState extends ConsumerState<ServerLocationCard> {
-  late final OutboundIpProbe _probe;
-
-  @override
-  void initState() {
-    super.initState();
-    _probe = ref.read(outboundIpProbeProvider.notifier)..watch(routedOutbound);
-  }
-
-  @override
-  void dispose() {
-    _probe.unwatch(routedOutbound);
-    super.dispose();
-  }
-
+class _ServerLocationCardState extends ConsumerState<ServerLocationCard>
+    with ExitIpLookup<ServerLocationCard> {
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
@@ -72,18 +59,21 @@ class _ServerLocationCardState extends ConsumerState<ServerLocationCard> {
     final entry = ref.watch(
       outboundIpProbeProvider.select((state) => state.entryOf(routedOutbound)),
     );
-    final ipInfo = entry.value;
     final hideIp = ref.watch(
       appSettingProvider.select((state) => state.hideIp),
     );
-    final code = picked == null || serverName.isEmpty
+    final shown = isStart && serverName.isNotEmpty && !hideIp;
+    final ipInfo = shown ? entry.value : null;
+    final checking = shown && entry.isLoading;
+    final nameCode = picked == null || serverName.isEmpty
         ? null
         : serverFlagCode(picked, serverName, leaf);
+    final code = exitCountryCode(ipInfo) ?? nameCode;
     final others = picked == null
         ? const <String>[]
         : ref
               .watch(groupFlagsProvider(picked.name))
-              .where((other) => other != code)
+              .where((other) => other != nameCode)
               .toList();
     final otherCount = others.isNotEmpty
         ? others.length
@@ -94,7 +84,7 @@ class _ServerLocationCardState extends ConsumerState<ServerLocationCard> {
         ? appLocalizations.changeServer
         : serverName.withoutLeadingFlag;
     final ipStyle = DashboardText.label(context);
-    final Widget? ip = !isStart || serverName.isEmpty || hideIp
+    final Widget? ip = !shown
         ? null
         : ipInfo != null
         ? Text(
@@ -103,13 +93,8 @@ class _ServerLocationCardState extends ConsumerState<ServerLocationCard> {
             overflow: TextOverflow.ellipsis,
             style: ipStyle,
           )
-        : entry.isLoading
+        : checking
         ? SkeletonText(width: 110, style: ipStyle)
-        : null;
-    final recheck = isStart && !entry.isLoading
-        ? () => ref.read(outboundIpProbeProvider.notifier).refresh(const [
-            routedOutbound,
-          ])
         : null;
     return DashboardCard(
       semanticLabel: appLocalizations.changeServer,
@@ -124,8 +109,8 @@ class _ServerLocationCardState extends ConsumerState<ServerLocationCard> {
             code: code,
             count: otherCount,
             active: isStart,
-            checking: entry.isLoading,
-            onRefresh: recheck ?? () {},
+            checking: checking,
+            onRefresh: shown ? refreshExitIp : null,
           ),
           Expanded(
             child: Column(
@@ -200,7 +185,7 @@ class _FlagBadge extends StatelessWidget {
   final int count;
   final bool active;
   final bool checking;
-  final VoidCallback onRefresh;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {

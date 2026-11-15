@@ -23,8 +23,6 @@ import 'proxy_groups.dart';
 
 /// The country of the first flag emoji on [name], the pick of [group]: in the
 /// name itself, the panel's description of it, or the node it resolves to.
-/// The outbound IP's own country never stands in, since a relay would put
-/// a different flag beside the name the panel gave.
 String? serverFlagCode(Group group, String name, SelectedProxyState? leaf) =>
     name.flagCountryCode ??
     group.all
@@ -32,6 +30,54 @@ String? serverFlagCode(Group group, String name, SelectedProxyState? leaf) =>
         ?.serverDescription
         ?.flagCountryCode ??
     leaf?.proxyName.flagCountryCode;
+
+/// The country of the exit address [info] names, for the flag beside it.
+String? exitCountryCode(IpInfo? info) {
+  final code = info?.countryCode.trim().toUpperCase();
+  return code == null || code.isEmpty ? null : code;
+}
+
+/// Looks the exit address up while the user shows it; with the address hidden
+/// no checker is asked at all.
+mixin ExitIpLookup<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  late final OutboundIpProbe _exitProbe;
+  var _following = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _exitProbe = ref.read(outboundIpProbeProvider.notifier);
+    ref.listenManual(
+      appSettingProvider.select((state) => state.hideIp),
+      (_, hideIp) => _follow(!hideIp),
+      fireImmediately: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    _follow(false);
+    super.dispose();
+  }
+
+  void _follow(bool wanted) {
+    if (wanted == _following) {
+      return;
+    }
+    _following = wanted;
+    if (wanted) {
+      _exitProbe.watch(routedOutbound);
+    } else {
+      _exitProbe.unwatch(routedOutbound);
+    }
+  }
+
+  void refreshExitIp() {
+    if (_following) {
+      _exitProbe.refresh(const [routedOutbound]);
+    }
+  }
+}
 
 const _decorationGrowth = 0.12;
 
@@ -47,23 +93,11 @@ class CurrentOutboundCard extends ConsumerStatefulWidget {
 }
 
 class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
-    with ProbeStartHold<CurrentOutboundCard> {
-  late final OutboundIpProbe _probe;
-
-  @override
-  void initState() {
-    super.initState();
-    _probe = ref.read(outboundIpProbeProvider.notifier)..watch(routedOutbound);
-  }
-
-  @override
-  void dispose() {
-    _probe.unwatch(routedOutbound);
-    super.dispose();
-  }
-
+    with
+        ProbeStartHold<CurrentOutboundCard>,
+        ExitIpLookup<CurrentOutboundCard> {
   void _refresh(String? ip) {
-    _probe.refresh(const [routedOutbound]);
+    refreshExitIp();
     if (ip != null && ref.read(ipQualityProvider(ip)).hasError) {
       ref.invalidate(ipQualityProvider(ip));
     }
@@ -86,8 +120,8 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
     final entry = ref.watch(
       outboundIpProbeProvider.select((state) => state.entryOf(routedOutbound)),
     );
-    final ipInfo = entry.value;
-    final phase = shownPhase(entry);
+    final ipInfo = hideIp ? null : entry.value;
+    final phase = hideIp ? ProbePhase.empty : shownPhase(entry);
     final failed = phase == ProbePhase.failed && ipInfo == null;
     final qualityState = ipInfo == null
         ? null
@@ -119,6 +153,7 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
               ref.watch(realSelectedProxyStateProvider(picked)),
             ),
           );
+    final flag = exitCountryCode(ipInfo) ?? server?.flag;
     final metrics = _OutboundMetrics.of(density);
     final appLocalizations = context.appLocalizations;
     final colorScheme = context.colorScheme;
@@ -205,9 +240,12 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                               failed: failed,
                               checking:
                                   phase == ProbePhase.probing || qualityLoading,
-                              onRefresh: () => _refresh(ipInfo?.ip),
+                              onRefresh: hideIp
+                                  ? null
+                                  : () => _refresh(ipInfo?.ip),
                               active: isStart,
                               hideIp: hideIp,
+                              flag: flag,
                               metrics: metrics,
                             ),
                           ),
@@ -219,9 +257,10 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                           failed: failed,
                           checking:
                               phase == ProbePhase.probing || qualityLoading,
-                          onRefresh: () => _refresh(ipInfo?.ip),
+                          onRefresh: hideIp ? null : () => _refresh(ipInfo?.ip),
                           active: isStart,
                           hideIp: hideIp,
+                          flag: flag,
                           metrics: metrics,
                         ),
                     ],
@@ -321,6 +360,7 @@ class _ExitRow extends StatelessWidget {
     required this.onRefresh,
     required this.active,
     required this.hideIp,
+    required this.flag,
     required this.metrics,
   });
 
@@ -328,9 +368,10 @@ class _ExitRow extends StatelessWidget {
   final _PanelServer? server;
   final bool failed;
   final bool checking;
-  final VoidCallback onRefresh;
+  final VoidCallback? onRefresh;
   final bool active;
   final bool hideIp;
+  final String? flag;
   final _OutboundMetrics metrics;
 
   @override
@@ -362,7 +403,7 @@ class _ExitRow extends StatelessWidget {
       spacing: 12,
       children: [
         CountryBadge(
-          countryCode: server?.flag,
+          countryCode: flag,
           size: metrics.badgeSize,
           active: active,
           checking: checking,
@@ -466,7 +507,7 @@ Path _badgePath(double progress) => _badgeMorph.toPath(
 
 /// The exit's country on a circle that checks the exit again when tapped and
 /// grows into a turning clover while it is being checked: a turning circle
-/// would show nothing.
+/// would show nothing. Without [onRefresh] it is a plain flag.
 class CountryBadge extends StatefulWidget {
   const CountryBadge({
     super.key,
@@ -481,7 +522,7 @@ class CountryBadge extends StatefulWidget {
   final double size;
   final bool active;
   final bool checking;
-  final VoidCallback onRefresh;
+  final VoidCallback? onRefresh;
 
   @override
   State<CountryBadge> createState() => _CountryBadgeState();
@@ -552,7 +593,8 @@ class _CountryBadgeState extends State<CountryBadge>
     final foreground = widget.active
         ? colorScheme.onSurface
         : colorScheme.onSurfaceVariant;
-    final enabled = !widget.checking;
+    final onRefresh = widget.onRefresh;
+    final enabled = onRefresh != null && !widget.checking;
     final size = widget.size;
     final code = widget.countryCode;
     final tooltip = context.appLocalizations.retry;
@@ -569,6 +611,26 @@ class _CountryBadgeState extends State<CountryBadge>
           color: foreground,
           letterSpacing: 0.04 * AppTextStyle.footnote.size,
         );
+    final badge = AnimatedBuilder(
+      animation: Listenable.merge([_turns, _shape]),
+      builder: (_, child) => ShapeBadge.path(
+        path: _badgePath(_shape.value),
+        color: color,
+        size: size,
+        rotation: _turns.value * 2 * math.pi,
+        ring: _focused ? focusRingSide(colorScheme) : null,
+        background: flag,
+        child: child,
+      ),
+      child: flag != null
+          ? null
+          : code == null || code.isEmpty
+          ? GlyphIcon(AppGlyphs.proxies, size: size * 0.42, color: foreground)
+          : Text(code.toUpperCase(), maxLines: 1, style: codeStyle),
+    );
+    if (onRefresh == null) {
+      return badge;
+    }
     return Tooltip(
       message: tooltip,
       child: Semantics(
@@ -577,35 +639,12 @@ class _CountryBadgeState extends State<CountryBadge>
         label: tooltip,
         child: InkResponse(
           mouseCursor: clickableCursor,
-          onTap: enabled ? widget.onRefresh : null,
+          onTap: enabled ? onRefresh : null,
           onHover: (value) => setState(() => _hovered = value),
           onFocusChange: (value) => setState(() => _focused = value),
           overlayColor: const WidgetStatePropertyAll(Colors.transparent),
           splashFactory: NoSplash.splashFactory,
-          child: ElasticPress(
-            enabled: enabled,
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_turns, _shape]),
-              builder: (_, child) => ShapeBadge.path(
-                path: _badgePath(_shape.value),
-                color: color,
-                size: size,
-                rotation: _turns.value * 2 * math.pi,
-                ring: _focused ? focusRingSide(colorScheme) : null,
-                background: flag,
-                child: child,
-              ),
-              child: flag != null
-                  ? null
-                  : code == null || code.isEmpty
-                  ? GlyphIcon(
-                      AppGlyphs.proxies,
-                      size: size * 0.42,
-                      color: foreground,
-                    )
-                  : Text(code.toUpperCase(), maxLines: 1, style: codeStyle),
-            ),
-          ),
+          child: ElasticPress(enabled: enabled, child: badge),
         ),
       ),
     );
