@@ -113,6 +113,16 @@ class CommonAction extends _$CommonAction {
     }
   }
 
+  Future<Directory> _updateCacheRoot() async =>
+      Directory(join((await appPath.cacheDir.future).path, 'update'));
+
+  /// Clears the downloads of updates this app already runs, once it starts
+  /// after installing one.
+  Future<void> removeInstalledUpdates() async => removeStaleUpdates(
+    await _updateCacheRoot(),
+    currentVersion: globalState.packageInfo.displayVersion,
+  );
+
   Future<bool> autoCheckUpdate() async {
     if (!ref.read(appSettingProvider).autoCheckUpdate) return false;
     final Map<String, dynamic>? res;
@@ -209,10 +219,7 @@ class CommonAction extends _$CommonAction {
       final notes = _releaseSpan(context, data['body'] as String?);
       final platform = await _updatePlatform();
       final required = data['_required'] == true;
-      final downloader = UpdateDownloader(
-        root: () async =>
-            Directory(join((await appPath.cacheDir.future).path, 'update')),
-      );
+      final downloader = UpdateDownloader(root: _updateCacheRoot);
       await dialogs.showCommonDialog<void>(
         // A required update is not put off by a tap beside it.
         dismissible: !required,

@@ -93,7 +93,11 @@ void main() {
       expect(setting.openLogs, isFalse);
 
       await select(_profile(2));
-      expect(container.read(appSettingProvider).minimizeOnExit, isTrue);
+      final own = container.read(appSettingProvider);
+      expect(own.minimizeOnExit, isFalse);
+      expect(own.autoCheckUpdate, isFalse);
+      expect(own.autoRun, isTrue);
+      expect(own.openLogs, isTrue);
     },
   );
 
@@ -497,9 +501,16 @@ void main() {
       await select(_profile(2, view: 'app.color:3366CC;app.black:false'));
       final next = container.read(themeSettingProvider);
       expect(next.primaryColor, 0xFF3366CC);
-      expect(next.colorStyle, ColorStyle.monochrome);
+      expect(next.colorStyle, ColorStyle.vivid);
       expect(next.pureBlack, isFalse);
       expect(next.primaryColors.where((c) => c == 0xFF3366CC), hasLength(1));
+      expect(next.primaryColors, isNot(contains(0xFFFF5733)));
+
+      await select(_profile(3));
+      final own = container.read(themeSettingProvider);
+      expect(own.primaryColor, isNull);
+      expect(own.primaryColors, const ThemeProps().primaryColors);
+      expect(own.pureBlack, isFalse);
     },
   );
 
@@ -539,7 +550,12 @@ void main() {
     );
 
     await select(_profile(2, view: 'proxies.type:tab'));
-    expect(container.read(appSettingProvider).floatingNavigationBar, isFalse);
+    expect(container.read(appSettingProvider).floatingNavigationBar, isTrue);
+    expect(container.read(appSettingProvider).tabAnimation, TabAnimation.fade);
+    expect(
+      container.read(themeSettingProvider).liquidGlass,
+      LiquidGlassMode.none,
+    );
   });
 
   test(
@@ -562,6 +578,7 @@ void main() {
   );
 
   test('the widgets header lays out the standard dashboard', () async {
+    final own = container.read(appSettingProvider).dashboardWidgets;
     await select(_profile(1, widgets: 'memoryInfo,proxyGroups,networkSpeed'));
 
     expect(container.read(appSettingProvider).dashboardWidgets, [
@@ -571,10 +588,213 @@ void main() {
     ]);
 
     await select(_profile(2, widgets: 'nothing-known'));
-    expect(container.read(appSettingProvider).dashboardWidgets, [
-      DashboardWidget.memoryInfo,
-      DashboardWidget.proxyGroups,
-      DashboardWidget.networkSpeed,
-    ]);
+    expect(container.read(appSettingProvider).dashboardWidgets, own);
+    expect(container.read(appSettingProvider).dashboardWidgetsChosen, isFalse);
+  });
+
+  group('settings a profile holds go back to the user\'s', () {
+    test('when switching to a profile without the headers', () async {
+      setThemeMode(ThemeMode.light);
+      container
+          .read(proxiesStyleSettingProvider.notifier)
+          .update((state) => state.copyWith(layout: ProxiesLayout.loose));
+
+      await select(
+        _profile(
+          1,
+          view: 'app.theme:dark;proxies.layout:tight;proxies.type:tab',
+        ),
+      );
+      expect(themeMode(), ThemeMode.dark);
+      expect(
+        container.read(proxiesStyleSettingProvider).layout,
+        ProxiesLayout.tight,
+      );
+
+      await select(_profile(2));
+      final style = container.read(proxiesStyleSettingProvider);
+      expect(themeMode(), ThemeMode.light);
+      expect(style.layout, ProxiesLayout.loose);
+      expect(style.type, ProxiesType.list);
+      expect(container.read(appSettingProvider).headerBackup, isEmpty);
+    });
+
+    test('through two panels that both set them', () async {
+      setThemeMode(ThemeMode.light);
+
+      await select(_profile(1, view: 'app.theme:dark'));
+      await select(_profile(2, view: 'app.theme:auto'));
+      expect(themeMode(), ThemeMode.system);
+
+      await select(_profile(3));
+      expect(themeMode(), ThemeMode.light);
+    });
+
+    test('when an update drops the key', () async {
+      setThemeMode(ThemeMode.light);
+      final first = DateTime(2026, 11, 16, 10);
+      await select(_profile(1, view: 'app.theme:dark', updatedAt: first));
+      expect(themeMode(), ThemeMode.dark);
+
+      await put(
+        _profile(
+          1,
+          view: 'proxies.type:tab',
+          updatedAt: first.add(const Duration(minutes: 1)),
+        ),
+      );
+      expect(themeMode(), ThemeMode.light);
+    });
+
+    test('unless the user took the setting over', () async {
+      setThemeMode(ThemeMode.light);
+      await select(_profile(1, view: 'app.theme:dark'));
+
+      container
+          .read(managedSettingsActionProvider.notifier)
+          .takeOver('view.app.theme');
+      setThemeMode(ThemeMode.system);
+
+      await select(_profile(2));
+      expect(themeMode(), ThemeMode.system);
+      expect(container.read(appSettingProvider).headerBackup, isEmpty);
+    });
+
+    test('for the switches and the cards', () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              openLogs: true,
+              dashboardWidgets: const [DashboardWidget.profiles],
+              dashboardWidgetsChosen: true,
+            ),
+          );
+
+      await select(
+        _profile(1, settings: 'minimize', widgets: 'memoryInfo,networkSpeed'),
+      );
+      var setting = container.read(appSettingProvider);
+      expect(setting.openLogs, isFalse);
+      expect(setting.minimizeOnExit, isTrue);
+      expect(setting.dashboardWidgets, [
+        DashboardWidget.memoryInfo,
+        DashboardWidget.networkSpeed,
+      ]);
+
+      await select(_profile(2));
+      setting = container.read(appSettingProvider);
+      expect(setting.openLogs, isTrue);
+      expect(setting.minimizeOnExit, isFalse);
+      expect(setting.dashboardWidgets, [DashboardWidget.profiles]);
+      expect(setting.dashboardWidgetsChosen, isTrue);
+    });
+
+    test('for hideip and novibrate', () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(hideIp: true, vibration: false));
+
+      await select(_profile(1, special: 'hideip,novibrate'));
+      expect(container.read(appSettingProvider).hideIp, isTrue);
+
+      await select(_profile(2));
+      final setting = container.read(appSettingProvider);
+      expect(setting.hideIp, isTrue);
+      expect(setting.vibration, isFalse);
+      expect(setting.panelSetSettings, isEmpty);
+    });
+
+    test('as the user chose while they held it, once handed back', () async {
+      setThemeMode(ThemeMode.light);
+      await select(_profile(1, view: 'app.theme:dark'));
+
+      final managed = container.read(managedSettingsActionProvider.notifier);
+      managed.takeOver('view.app.theme');
+      setThemeMode(ThemeMode.system);
+      // What release does for the headers, without the profile file read.
+      managed.disown('view.app.theme');
+      container
+          .read(profileHeadersActionProvider.notifier)
+          .apply(
+            profileHeaderSettingsOf(container.read(currentProfileProvider)),
+          );
+      expect(themeMode(), ThemeMode.dark);
+
+      await select(_profile(2));
+      expect(themeMode(), ThemeMode.system);
+    });
+
+    test('for cards denywidgets forced over the user\'s own', () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              dashboardWidgets: const [DashboardWidget.profiles],
+              dashboardWidgetsChosen: true,
+              ownedSettings: {dashboardWidgetsSetting},
+            ),
+          );
+
+      await select(
+        _profile(1, special: 'denywidgets', widgets: 'networkSpeed'),
+      );
+      expect(container.read(appSettingProvider).dashboardWidgets, [
+        DashboardWidget.networkSpeed,
+      ]);
+
+      await select(_profile(2));
+      expect(container.read(appSettingProvider).dashboardWidgets, [
+        DashboardWidget.profiles,
+      ]);
+    });
+
+    test('a flag the panel set before backups stays the panel\'s', () async {
+      final first = DateTime(2026, 11, 16, 10);
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) =>
+                state.copyWith(hideIp: true, panelSetSettings: {hideIpSetting}),
+          );
+
+      await select(_profile(1, special: 'hideip', updatedAt: first));
+      expect(container.read(appSettingProvider).hideIp, isTrue);
+
+      await put(_profile(1, updatedAt: first.add(const Duration(minutes: 1))));
+      expect(container.read(appSettingProvider).hideIp, isFalse);
+    });
+
+    test('past a backup entry it cannot read', () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) => state.copyWith(
+              headerBackup: {'theme.swatches': 'bad', 'theme.mode': 42},
+            ),
+          );
+      setThemeMode(ThemeMode.light);
+
+      await select(_profile(1, view: 'app.theme:dark;app.color:3366CC'));
+      expect(themeMode(), ThemeMode.dark);
+      expect(container.read(themeSettingProvider).primaryColor, 0xFF3366CC);
+
+      await select(_profile(2));
+      expect(themeMode(), ThemeMode.light);
+      expect(container.read(themeSettingProvider).primaryColor, isNull);
+      expect(container.read(appSettingProvider).headerBackup, isEmpty);
+    });
+
+    test('a flag set before the backup existed falls back to off', () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (state) =>
+                state.copyWith(hideIp: true, panelSetSettings: {hideIpSetting}),
+          );
+
+      await select(_profile(1));
+      expect(container.read(appSettingProvider).hideIp, isFalse);
+    });
   });
 }

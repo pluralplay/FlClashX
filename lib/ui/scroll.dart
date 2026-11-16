@@ -608,7 +608,7 @@ class _FloatingScrollbarState extends State<FloatingScrollbar> {
                       },
                       child: label == null
                           ? const SizedBox.shrink()
-                          : _MeasureSize(
+                          : MeasureSize(
                               onChanged: (size) {
                                 if (mounted && size.height != _pillHeight) {
                                   setState(() => _pillHeight = size.height);
@@ -672,27 +672,28 @@ class _ScrollbarHintPill extends StatelessWidget {
   }
 }
 
-class _MeasureSize extends SingleChildRenderObjectWidget {
+/// Reports [child]'s size after each layout that changes it, a frame late.
+class MeasureSize extends SingleChildRenderObjectWidget {
   final ValueChanged<Size> onChanged;
 
-  const _MeasureSize({required this.onChanged, required super.child});
+  const MeasureSize({super.key, required this.onChanged, required super.child});
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _MeasureSizeRenderObject(onChanged);
+    return RenderMeasureSize(onChanged);
   }
 
   @override
   void updateRenderObject(
     BuildContext context,
-    _MeasureSizeRenderObject renderObject,
+    RenderMeasureSize renderObject,
   ) {
     renderObject.onChanged = onChanged;
   }
 }
 
-class _MeasureSizeRenderObject extends RenderProxyBox {
-  _MeasureSizeRenderObject(this.onChanged);
+class RenderMeasureSize extends RenderProxyBox {
+  RenderMeasureSize(this.onChanged);
 
   ValueChanged<Size> onChanged;
   Size? _oldSize;

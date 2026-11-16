@@ -14,6 +14,7 @@ import 'package:fl_clash/providers/routed_probe.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/dashboard/provider_mode.dart';
+import 'package:fl_clash/views/dashboard/wide.dart';
 import 'package:fl_clash/views/dashboard/widgets/widgets.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,7 @@ class _RecordingSetupAction extends SetupAction {
 
 class _Ips extends OutboundIpProbe {
   final refreshed = <String>[];
+  final watched = <String>{};
 
   @override
   void refresh(Iterable<String> targets) {
@@ -55,10 +57,17 @@ class _Ips extends OutboundIpProbe {
   });
 
   @override
-  void watch(String target) {}
+  void watch(String target) => watched.add(target);
 
   @override
-  void unwatch(String target) {}
+  void unwatch(String target) => watched.remove(target);
+}
+
+class _PendingIps extends _Ips {
+  @override
+  RoutedProbeState<String, IpInfo> build() => const RoutedProbeState({
+    routedOutbound: ProbeEntry(phase: ProbePhase.probing),
+  });
 }
 
 Profile _profile({Map<String, String> headers = const {}}) => Profile(
@@ -92,13 +101,14 @@ void main() {
     List<Group> groups = const [],
     bool running = false,
     String? logoPath,
+    OutboundIpProbe Function() ips = _Ips.new,
   }) {
     container = ProviderContainer(
       overrides: [
         initProvider.overrideWithBuild((_, _) => true),
         panelLogoPathProvider.overrideWith((_, _) async => logoPath),
         profilesProvider.overrideWith(() => TestProfiles(profiles)),
-        outboundIpProbeProvider.overrideWith(_Ips.new),
+        outboundIpProbeProvider.overrideWith(ips),
         ipQualityProvider.overrideWith(
           (_, ip) async => IpQuality(
             ip: ip,
@@ -125,8 +135,12 @@ void main() {
     }
   }
 
-  Future<void> pump(WidgetTester tester, {Widget? child}) async {
-    tester.view.physicalSize = const Size(450, 900);
+  Future<void> pump(
+    WidgetTester tester, {
+    Widget? child,
+    Size size = const Size(450, 900),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -373,6 +387,84 @@ void main() {
     expect(find.text(getTimeText(1)), findsOneWidget);
   });
 
+  String? flagOf(WidgetTester tester) =>
+      tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode;
+
+  testWidgets('the flag is the exit country while running', (tester) async {
+    setUp_(
+      profiles: [
+        _profile(headers: const {'flclashx-serverinfo': 'Auto'}),
+      ],
+      groups: [
+        _group('Auto', ['🇳🇱 Amsterdam'], now: '🇳🇱 Amsterdam'),
+      ],
+      running: true,
+    );
+    await pump(tester);
+
+    expect(find.text(_ip), findsOneWidget);
+    expect(flagOf(tester), 'GB');
+  });
+
+  testWidgets('the name flag holds until the exit country is known', (
+    tester,
+  ) async {
+    setUp_(
+      profiles: [
+        _profile(headers: const {'flclashx-serverinfo': 'Auto'}),
+      ],
+      groups: [
+        _group('Auto', ['🇳🇱 Amsterdam'], now: '🇳🇱 Amsterdam'),
+      ],
+      running: true,
+      ips: _PendingIps.new,
+    );
+    await pump(tester);
+
+    expect(find.text(_ip), findsNothing);
+    expect(flagOf(tester), 'NL');
+  });
+
+  testWidgets('a hidden IP asks no checker, also once hidden later', (
+    tester,
+  ) async {
+    setUp_(
+      profiles: [
+        _profile(headers: const {'flclashx-serverinfo': 'Auto'}),
+      ],
+      groups: [
+        _group('Auto', ['🇳🇱 Amsterdam'], now: '🇳🇱 Amsterdam'),
+      ],
+      running: true,
+    );
+    container.listen(appSettingProvider, (_, _) {});
+    void hide(bool hideIp) => container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(hideIp: hideIp));
+    hide(true);
+    await pump(tester);
+    final ips = container.read(outboundIpProbeProvider.notifier) as _Ips;
+
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Retry'), findsNothing);
+    expect(ips.watched, isEmpty);
+    expect(ips.refreshed, isEmpty);
+    expect(flagOf(tester), 'NL');
+
+    hide(false);
+    await tester.pump();
+    expect(ips.watched, {routedOutbound});
+    expect(flagOf(tester), 'GB');
+
+    hide(true);
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Retry'), findsNothing);
+    expect(ips.watched, isEmpty);
+    expect(ips.refreshed, isEmpty);
+    expect(flagOf(tester), 'NL');
+  });
+
   testWidgets('the flag rechecks the exit address while running', (
     tester,
   ) async {
@@ -547,6 +639,29 @@ void main() {
     expect(find.byType(CurrentOutboundCard), findsNothing);
     expect(find.byType(ProviderConnectButton), findsOneWidget);
     expect(find.byTooltip('Edit dashboard'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a wide window keeps the provider cards a narrow column', (
+    tester,
+  ) async {
+    setUp_(
+      profiles: [
+        _profile(headers: const {'flclashx-special': 'providermode'}),
+      ],
+      groups: logoGroups(),
+    );
+    await pump(
+      tester,
+      child: const DashboardView(platform: SupportPlatform.MacOS),
+      size: const Size(1400, 900),
+    );
+    await tester.pump();
+
+    expect(find.byType(WideDashboard), findsNothing);
+    final card = tester.getRect(find.byType(ServerLocationCard));
+    expect(card.width, lessThanOrEqualTo(560));
+    expect(card.height, lessThan(120));
     expect(tester.takeException(), isNull);
   });
 

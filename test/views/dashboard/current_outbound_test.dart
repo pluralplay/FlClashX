@@ -119,11 +119,13 @@ Widget _app(
 Widget _probingApp(
   CoreHandlerInterface core, {
   Future<IpQuality> Function(Ref ref, String ip)? quality,
+  AppSettingProps settings = const AppSettingProps(),
 }) {
   return TestApp(
     locale: const Locale('en'),
     overrides: [
       profilesProvider.overrideWithValue(const [_profile]),
+      appSettingProvider.overrideWithBuild((_, _) => settings),
       routeTrackerProvider.overrideWithBuild(
         (ref, _) => RouteState(
           coreEpoch: 1,
@@ -170,7 +172,7 @@ void main() {
   setUpAll(() => registerFallbackValue(const OutboundIpParams(timeout: 0)));
 
   group('the exit address', () {
-    testWidgets('shows beside the flag of its server, opening the details', (
+    testWidgets('shows beside the flag of its country, opening the details', (
       tester,
     ) async {
       await tester.pumpWidget(_app((_, _) async => _residential));
@@ -192,7 +194,7 @@ void main() {
       expect(find.text('GB'), findsNothing);
       expect(
         tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode,
-        'NL',
+        'GB',
       );
       expect(find.text('Residential'), findsNothing);
       expect(find.text('Quality Good'), findsNothing);
@@ -218,7 +220,10 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CountryFlag), findsNothing);
+      expect(
+        tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode,
+        'GB',
+      );
       expect(find.text('Not running'), findsNothing);
       expect(find.byType(DashboardChip), findsNothing);
       expect(find.text(_ip), findsOneWidget);
@@ -466,6 +471,93 @@ void main() {
       expect(_chip(tester, getTimeText(1)).tone, DashboardChipTone.idle);
       expect(find.text('Running'), findsNothing);
       expect(find.byType(DashboardChip), findsOneWidget);
+    });
+
+    const nlGroups = [
+      Group(
+        type: GroupType.Selector,
+        name: 'Auto',
+        hidden: false,
+        now: '\u{1F1F3}\u{1F1F1} NL-01',
+        all: [Proxy(name: '\u{1F1F3}\u{1F1F1} NL-01', type: 'ss')],
+      ),
+    ];
+
+    String? flagOf(WidgetTester tester) =>
+        tester.widget<CountryFlag>(find.byType(CountryFlag)).countryCode;
+
+    testWidgets('shows the flag of its server until its country is known', (
+      tester,
+    ) async {
+      final core = _MockCore();
+      final answer = Completer<OutboundIpResult?>();
+      when(() => core.outboundIp(any())).thenAnswer((_) => answer.future);
+      await tester.pumpWidget(_probingApp(core));
+      containerOf(tester).read(groupsProvider.notifier).value = nlGroups;
+      await tester.pump();
+      await tester.pump(commonDuration);
+      expect(flagOf(tester), 'NL');
+
+      answer.complete(_address());
+      await tester.pumpAndSettle();
+      expect(find.text(_ip), findsOneWidget);
+      expect(flagOf(tester), 'GB');
+    });
+
+    testWidgets('asks no checker while hidden, also once hidden later', (
+      tester,
+    ) async {
+      final core = _MockCore();
+      var lookups = 0;
+      var qualities = 0;
+      when(() => core.outboundIp(any())).thenAnswer((_) async {
+        lookups++;
+        return _address();
+      });
+      await tester.pumpWidget(
+        _probingApp(
+          core,
+          quality: (_, _) async {
+            qualities++;
+            return _residential;
+          },
+          settings: const AppSettingProps(hideIp: true),
+        ),
+      );
+      final container = containerOf(tester);
+      container.read(groupsProvider.notifier).value = nlGroups;
+      await tester.pump();
+      await tester.pump(commonDuration);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Retry'), findsNothing);
+      expect(lookups, 0);
+      expect(qualities, 0);
+      expect(flagOf(tester), 'NL');
+      expect(find.text('NL-01'), findsOneWidget);
+
+      void hide(bool hideIp) => container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(hideIp: hideIp));
+      hide(false);
+      await tester.pump();
+      await tester.pump(commonDuration);
+      await tester.pumpAndSettle();
+      expect(lookups, 1);
+      expect(qualities, 1);
+      expect(flagOf(tester), 'GB');
+
+      hide(true);
+      await tester.pump();
+      expect(find.byTooltip('Retry'), findsNothing);
+      container
+          .read(routeTrackerProvider.notifier)
+          .applySnapshot(const RouteSnapshot(coreEpoch: 2, routeVersion: 1));
+      await tester.pump(probeSettleDuration);
+      await tester.pumpAndSettle();
+      expect(lookups, 1);
+      expect(qualities, 1);
+      expect(find.text(_ip), findsNothing);
+      expect(flagOf(tester), 'NL');
     });
 
     testWidgets('that fails as the proxy starts shows as checking', (

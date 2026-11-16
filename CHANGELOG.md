@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.7 (2026-11-16)
+
+**Features**
+
+- **headers** Theme, proxies page look, dashboard cards, app switches and the hideip and novibrate specials from a subscription apply only while its profile is selected, and the user's own settings come back on a profile that does not set them (7117ff4)
+- **update** An update that finished downloading is installed without downloading again after the dialog was closed, and the installer is removed from the cache once the update is in (5a0ea2d)
+- **dashboard** The status card shows the exit IP's country flag; with Hide IP on the app makes no IP checks at all and the flag comes from the server's name (a58aab1)
+
+**Bug Fixes**
+
+- **proxies** With onegroup, Global mode shows the proxies page with its group headers instead of an empty page (11ae136)
+- **dashboard** A long announcement is shown in full on a wide window instead of spilling out of its card or losing lines (61e099c)
+- **dashboard** With providermode the dashboard stays a centered column on a wide window instead of stretching each card across a row (1bc0f76)
+- **core** A proxy name a provider shares with a declared proxy always tests the provider's node instead of either one at random after a restart (d221a9c)
+- **macos** The macOS core is built with Go 1.26 again and runs on macOS 12 Monterey (ae557e7)
+
 ## v0.5.6 (2026-11-15)
 
 **Features**

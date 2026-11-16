@@ -104,6 +104,10 @@ class _DashboardEditorState extends ConsumerState<DashboardEditor>
             dashboardWidgets: _keepingHidden(state.dashboardWidgets, shown),
             dashboardWidgetsChosen: true,
             ownedSettings: {...state.ownedSettings, dashboardWidgetsSetting},
+            headerBackup: headerBackupWithout(
+              state.headerBackup,
+              dashboardWidgetsSetting,
+            ),
           ),
         );
   }

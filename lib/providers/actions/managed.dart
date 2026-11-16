@@ -9,8 +9,10 @@ class ManagedSettingsAction extends _$ManagedSettingsAction {
     ref
         .read(appSettingProvider.notifier)
         .update(
-          (state) =>
-              state.copyWith(ownedSettings: {...state.ownedSettings, key}),
+          (state) => state.copyWith(
+            ownedSettings: {...state.ownedSettings, key},
+            headerBackup: headerBackupWithout(state.headerBackup, key),
+          ),
         );
   }
 

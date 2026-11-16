@@ -11,9 +11,6 @@ import 'package:material_ui/material_ui.dart';
 
 import 'style.dart';
 
-/// The widest the start button grows on a wide dashboard.
-const providerConnectMaxWidth = 520.0;
-
 const _logoSize = 56.0;
 const _connectHeight = 56.0;
 

@@ -173,9 +173,17 @@ class Bootstrap {
     await profiles.noticeSubscriptionExpiries();
   }
 
+  /// The cache is cleared first, so a check that offers an update never
+  /// races the cleanup for the download it reuses.
+  Future<void> _checkUpdate() async {
+    final common = _container.read(commonActionProvider.notifier);
+    await common.removeInstalledUpdates();
+    await common.autoCheckUpdate();
+  }
+
   Future<void> _initApp() async {
     unawaited(_container.read(systemActionProvider.notifier).updateTray());
-    unawaited(_container.read(commonActionProvider.notifier).autoCheckUpdate());
+    unawaited(_checkUpdate());
     unawaited(
       autoLaunch?.updateStatus(_container.read(appSettingProvider).autoLaunch),
     );
