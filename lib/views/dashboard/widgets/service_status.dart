@@ -125,7 +125,7 @@ class ServiceStatusCard extends ConsumerStatefulWidget {
 class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     with ProbeStartHold<ServiceStatusCard> {
   late final ServiceStatus _services;
-  Set<ServiceTarget> _shown = const {};
+  Set<ServiceTarget> _enabled = const {};
   Set<ServiceTarget> _watched = const {};
   int? _shownCount;
   var _syncScheduled = false;
@@ -144,24 +144,24 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     super.dispose();
   }
 
-  void _syncShown(Set<ServiceTarget> shown, int count) {
-    if (setEquals(shown, _shown) && count == _shownCount) return;
-    _shown = shown;
-    _shownCount = count;
+  void _syncServices(Set<ServiceTarget> enabled, int shownCount) {
+    if (setEquals(enabled, _enabled) && shownCount == _shownCount) return;
+    _enabled = enabled;
+    _shownCount = shownCount;
     if (_syncScheduled) return;
     _syncScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncScheduled = false;
       if (!mounted) return;
       ref.read(shownServiceCountProvider.notifier).value = _shownCount!;
-      final shown = _shown;
-      for (final target in shown.difference(_watched)) {
+      final enabled = _enabled;
+      for (final target in enabled.difference(_watched)) {
         _services.watch(target);
       }
-      for (final target in _watched.difference(shown)) {
+      for (final target in _watched.difference(enabled)) {
         _services.unwatch(target);
       }
-      _watched = shown;
+      _watched = enabled;
     });
   }
 
@@ -170,30 +170,26 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     final density = DashboardDensityScope.of(context);
     final mobile = !density.isDesktop;
     final appLocalizations = context.appLocalizations;
-    // At most four: what the Core checks at once (serviceCheckConcurrency).
     final shownCount = (mobile ? 1 : 2) * widget.columns;
     final stacked = widget.columns == 1;
-    final shown = ref
-        .watch(enabledServiceTargetsProvider)
-        .take(shownCount)
-        .toList();
-    _syncShown(shown.toSet(), shownCount);
+    final targets = ref.watch(enabledServiceTargetsProvider);
+    _syncServices(targets.toSet(), shownCount);
     final state = ref.watch(serviceStatusProvider);
-    final services = [
-      for (final target in shown)
-        _ServiceView(
-          target,
-          state.entryOf(target),
-          shownPhase(state.entryOf(target)),
-        ),
-    ];
+    final services = targets.map((target) {
+      final entry = state.entryOf(target);
+      return _ServiceView(target, entry, shownPhase(entry));
+    }).toList();
     final problems = services.where((service) => service.abnormal).length;
     final verdict = problems > 0
         ? DashboardChip(
             label: appLocalizations.serviceAbnormalCount(problems),
             tone: DashboardChipTone.warn,
           )
-        : services.every((service) => service.check != null)
+        : services.every(
+            (service) =>
+                service.phase == ProbePhase.fresh &&
+                service.check?.status == ServiceProbeStatus.available,
+          )
         ? DashboardChip(
             label: appLocalizations.serviceAllAvailable,
             tone: DashboardChipTone.ok,
@@ -202,7 +198,7 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     Future<void> openSheet() => showServiceStatusSheet(context);
     final scale = DashboardDensityScope.scaleOf(context);
     final grid = _ServiceGrid(
-      services: services,
+      services: services.take(shownCount).toList(),
       columns: widget.columns,
       fill: !mobile,
       cellHeight:
@@ -235,8 +231,8 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
                     children: [
                       if (!stacked)
                         _CheckAllButton(
-                          loading: shown.any(state.isLoading),
-                          onPressed: () => _services.refresh(shown),
+                          loading: targets.any(state.isLoading),
+                          onPressed: () => _services.refresh(targets),
                         ),
                       DashboardIconButton(
                         glyph: AppGlyphs.chevronForward,
@@ -593,7 +589,7 @@ Future<void> showServiceStatusSheet(BuildContext context) {
   );
 }
 
-/// Every enabled service, read from the cache and checked only on request.
+/// Results for every enabled service, with controls to recheck them.
 class ServiceStatusSheet extends ConsumerWidget {
   const ServiceStatusSheet({super.key});
 

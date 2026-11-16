@@ -133,10 +133,7 @@ void main() {
     );
   }
 
-  /// A phone card shows the first two enabled services.
-  final shownIds = [
-    for (final target in ServiceTarget.values.take(2)) target.id,
-  ];
+  final serviceIds = [for (final target in ServiceTarget.values) target.id];
 
   AppSettingProps only(List<ServiceTarget> targets) => AppSettingProps(
     disabledServices: [
@@ -144,6 +141,9 @@ void main() {
         if (!targets.contains(target)) target.id,
     ],
   );
+
+  ProviderContainer containerOf(WidgetTester tester) =>
+      ProviderScope.containerOf(tester.element(find.byType(ServiceStatusCard)));
 
   Finder tile(ServiceTarget target) => find.descendant(
     of: find.byType(ServiceStatusCard),
@@ -176,12 +176,14 @@ void main() {
     expect(find.text('All available'), findsOneWidget);
   });
 
-  testWidgets('a phone card checks the first two services, and only those', (
+  testWidgets('a phone card waits for results from services off the card', (
     tester,
   ) async {
     final asked = <String>[];
-    answer((params) {
+    final youtube = Completer<void>();
+    answer((params) async {
       asked.addAll(params.names);
+      if (params.names.contains(ServiceTarget.youtube.id)) await youtube.future;
       return [
         for (final name in params.names)
           _item(name, ServiceProbeStatus.available, delay: 45),
@@ -190,35 +192,52 @@ void main() {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    expect(asked, unorderedEquals(shownIds));
+    expect(asked, unorderedEquals(serviceIds));
     for (final target in ServiceTarget.values.take(2)) {
       expect(tile(target), findsOneWidget);
     }
     expect(tile(ServiceTarget.values[2]), findsNothing);
     expect(find.text('45 ms'), findsNWidgets(2));
     expect(find.text(ServiceTarget.google.label), findsNothing);
+    expect(find.text('All available'), findsNothing);
+
+    youtube.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('All available'), findsOneWidget);
   });
 
-  testWidgets('a desktop card checks the first four services', (tester) async {
+  testWidgets('a desktop card checks and refreshes every enabled service', (
+    tester,
+  ) async {
     final asked = <String>[];
-    answer((params) {
+    final recheck = Completer<void>();
+    answer((params) async {
       asked.addAll(params.names);
-      return const [];
+      if (asked.length > serviceIds.length) await recheck.future;
+      return [
+        for (final name in params.names)
+          _item(name, ServiceProbeStatus.available),
+      ];
     });
     await tester.pumpWidget(
       app(width: 320, density: DashboardDensity.standard),
     );
     await tester.pumpAndSettle();
 
-    expect(
-      asked,
-      unorderedEquals([
-        for (final target in ServiceTarget.values.take(4)) target.id,
-      ]),
-    );
+    expect(asked, unorderedEquals(serviceIds));
+    expect(find.text('All available'), findsOneWidget);
     expect(find.byTooltip('Check all'), findsOneWidget);
     expect(find.text('Check all'), findsNothing);
     expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byTooltip('Check all'));
+    await tester.pump();
+    expect(asked.skip(serviceIds.length), unorderedEquals(serviceIds));
+    expect(find.text('All available'), findsNothing);
+
+    recheck.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('All available'), findsOneWidget);
   });
 
   Rect cellOf(WidgetTester tester, ServiceTarget target) => tester.getRect(
@@ -265,7 +284,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(asked, unorderedEquals(shownIds));
+    expect(asked, unorderedEquals(serviceIds));
     expect(cellOf(tester, first).left, cellOf(tester, second).left);
     expect(cellOf(tester, second).top, greaterThan(cellOf(tester, first).top));
     expect(cellOf(tester, first).width, rowWidth(tester));
@@ -450,8 +469,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ServiceStatusSheet), findsOneWidget);
-    expect(asked, unorderedEquals(shownIds));
-    expect(find.text('Not checked'), findsWidgets);
+    expect(asked, unorderedEquals(serviceIds));
+    expect(find.text('Not checked'), findsNothing);
     expect(
       find.descendant(
         of: find.byType(ServiceStatusSheet),
@@ -461,10 +480,10 @@ void main() {
     );
     expect(
       find.descendant(
-        of: find.byType(ServiceStatusSheet),
+        of: find.widgetWithText(ListTile, ServiceTarget.youtube.label),
         matching: find.text('30 ms'),
       ),
-      findsNWidgets(shownIds.length),
+      findsOneWidget,
     );
     expect(
       find.text(
@@ -529,7 +548,7 @@ void main() {
     final sweep = Completer<void>();
     answer((params) async {
       asked.add(params.names);
-      if (asked.length > shownIds.length) await sweep.future;
+      if (asked.length > serviceIds.length) await sweep.future;
       return [
         for (final name in params.names)
           _item(name, ServiceProbeStatus.available, delay: 30),
@@ -539,20 +558,63 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(ServiceStatusCard));
     await tester.pumpAndSettle();
-    expect(asked.expand((names) => names), unorderedEquals(shownIds));
+    expect(asked.expand((names) => names), unorderedEquals(serviceIds));
 
     await tester.tap(checkAllButton());
     await tester.pump();
-    expect(asked.skip(shownIds.length), [
+    expect(asked.skip(serviceIds.length), [
       for (final target in ServiceTarget.values) [target.id],
     ]);
     expect(tester.widget<IconButton>(checkAllButton()).onPressed, isNull);
 
     sweep.complete();
     await tester.pumpAndSettle();
-    expect(asked, hasLength(ServiceTarget.values.length + shownIds.length));
+    expect(asked, hasLength(serviceIds.length * 2));
     expect(find.text('Not checked'), findsNothing);
     expect(tester.widget<IconButton>(checkAllButton()).onPressed, isNotNull);
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('All available'), findsOneWidget);
+  });
+
+  testWidgets('the verdict counts problems in enabled services off the card', (
+    tester,
+  ) async {
+    const shown = [ServiceTarget.google, ServiceTarget.github];
+    const hidden = ServiceTarget.youtube;
+    final asked = <String>[];
+    answer((params) {
+      asked.addAll(params.names);
+      return [
+        for (final name in params.names)
+          _item(
+            name,
+            name == hidden.id
+                ? ServiceProbeStatus.unavailable
+                : ServiceProbeStatus.available,
+          ),
+      ];
+    });
+    await tester.pumpWidget(app(settings: only(shown)));
+    await tester.pumpAndSettle();
+    expect(asked, unorderedEquals(shown.map((target) => target.id)));
+    expect(find.text('All available'), findsOneWidget);
+
+    final settings = containerOf(tester).read(appSettingProvider.notifier);
+    asked.clear();
+    settings.value = only([...shown, hidden]);
+    await tester.pumpAndSettle();
+
+    expect(asked, [hidden.id]);
+    expect(tile(hidden), findsNothing);
+    expect(find.text('1 issue'), findsOneWidget);
+    expect(find.text('All available'), findsNothing);
+
+    settings.value = only(shown);
+    await tester.pumpAndSettle();
+    expect(find.text('1 issue'), findsNothing);
+    expect(find.text('All available'), findsOneWidget);
   });
 
   testWidgets('tapping a sheet row checks its service again', (tester) async {
@@ -578,9 +640,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ServiceStatusSheet), findsOneWidget);
-    expect(asked.skip(shownIds.length), [ServiceTarget.chatgpt.id]);
+    expect(asked.skip(serviceIds.length), [ServiceTarget.chatgpt.id]);
   });
-  testWidgets('a route change checks the shown service again once', (
+  testWidgets('a route change rechecks every enabled service once', (
     tester,
   ) async {
     final asked = <String>[];
@@ -592,31 +654,37 @@ void main() {
           _item(name, ServiceProbeStatus.available, coreEpoch: epoch),
       ];
     });
-    await tester.pumpWidget(app(settings: only([ServiceTarget.google])));
+    final enabled = ServiceTarget.values.take(3).toList();
+    final enabledIds = enabled.map((target) => target.id);
+    await tester.pumpWidget(app(settings: only(enabled)));
     await tester.pumpAndSettle();
-    expect(asked, ['google']);
+    expect(asked, unorderedEquals(enabledIds));
 
     epoch = 2;
+    asked.clear();
     ProviderScope.containerOf(tester.element(find.byType(ServiceStatusCard)))
         .read(routeTrackerProvider.notifier)
         .applySnapshot(const RouteSnapshot(coreEpoch: 2, routeVersion: 1));
     await tester.pumpAndSettle();
 
-    expect(asked, ['google', 'google']);
-    expect(find.text('Available'), findsOneWidget);
+    expect(asked, unorderedEquals(enabledIds));
+    expect(find.text('All available'), findsOneWidget);
   });
 
   testWidgets('a row keeps its height through a check', (tester) async {
     final claude = Completer<void>();
+    var rechecking = false;
     answer((params) async {
-      if (params.names.contains('claude')) await claude.future;
+      if (rechecking && params.names.contains(ServiceTarget.claude.id)) {
+        await claude.future;
+      }
       return [
         for (final name in params.names)
           _item(
             name,
             ServiceProbeStatus.available,
             delay: 30,
-            chains: const ['Node A'],
+            chains: rechecking ? const ['Node A'] : const [],
           ),
       ];
     });
@@ -633,17 +701,18 @@ void main() {
     final row = find.widgetWithText(ListTile, ServiceTarget.claude.label);
     await tester.ensureVisible(row);
     await tester.pumpAndSettle();
-    final unchecked = tester.getSize(row).height;
+    final initialHeight = tester.getSize(row).height;
+    rechecking = true;
     await tester.tap(
       find.descendant(of: row, matching: find.text(ServiceTarget.claude.label)),
     );
     await tester.pump();
-    expect(tester.getSize(row).height, unchecked);
+    expect(tester.getSize(row).height, initialHeight);
 
     claude.complete();
     await tester.pumpAndSettle();
     expect(find.descendant(of: row, matching: find.text('Node A')), findsOne);
-    expect(tester.getSize(row).height, unchecked);
+    expect(tester.getSize(row).height, initialHeight);
   });
 
   testWidgets('the sheet still offers checks while the proxy is off', (
@@ -700,7 +769,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(asked, ['claude', 'google']);
+    expect(asked.take(2), ['claude', 'google']);
+    expect(asked, unorderedEquals(serviceIds.where((id) => id != 'github')));
     expect(
       tester.getCenter(tile(ServiceTarget.claude)).dx,
       lessThan(tester.getCenter(tile(ServiceTarget.google)).dx),
@@ -878,7 +948,7 @@ void main() {
     });
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
-    expect(asked, unorderedEquals(shownIds));
+    expect(asked, unorderedEquals(serviceIds));
 
     ProviderScope.containerOf(
       tester.element(find.byType(ServiceStatusCard)),
@@ -888,7 +958,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tile(ServiceTarget.google), findsNothing);
-    expect(asked.skip(2), [ServiceTarget.values[2].id]);
+    expect(tile(ServiceTarget.youtube), findsOneWidget);
+    expect(asked, hasLength(serviceIds.length));
   });
 
   testWidgets('an unexpected error shows the check as failed', (tester) async {
@@ -916,9 +987,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getCenter(find.text('Check failed')).dy, checking);
   });
-
-  ProviderContainer containerOf(WidgetTester tester) =>
-      ProviderScope.containerOf(tester.element(find.byType(ServiceStatusCard)));
 
   void setStarted(WidgetTester tester, bool started) {
     final runTime = containerOf(tester).read(runTimeProvider.notifier);
