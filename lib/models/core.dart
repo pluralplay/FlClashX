@@ -20,8 +20,11 @@ abstract class SetupParams with _$SetupParams {
 
 @freezed
 abstract class SetupBase with _$SetupBase {
-  const factory SetupBase({required String path, required String overlay}) =
-      _SetupBase;
+  const factory SetupBase({
+    required String path,
+    required String overlay,
+    @JsonKey(name: 'match-target', includeIfNull: false) String? matchTarget,
+  }) = _SetupBase;
 
   factory SetupBase.fromJson(Map<String, dynamic> json) =>
       _$SetupBaseFromJson(json);

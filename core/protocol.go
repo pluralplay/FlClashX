@@ -110,8 +110,9 @@ type SetupParams struct {
 }
 
 type SetupBase struct {
-	Path    string `json:"path"`
-	Overlay string `json:"overlay"`
+	Path        string `json:"path"`
+	Overlay     string `json:"overlay"`
+	MatchTarget string `json:"match-target,omitempty"`
 }
 
 type ProfileBase struct {

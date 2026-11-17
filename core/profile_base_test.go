@@ -195,6 +195,35 @@ func TestHandleBuildProfileWritesTheMergedConfigWhereTheHostReadsSpills(t *testi
 	}
 }
 
+func TestMergeProfileBaseOverridesOnlyTheSubscriptionsMatchRules(t *testing.T) {
+	path := writeBaseProfile(t, baseProfile)
+	document, err := mergeProfileBase(&SetupBase{
+		Path:        path,
+		Overlay:     `{"rules": ["DOMAIN,added.test,g", "MATCH,g"]}`,
+		MatchTarget: "REJECT",
+	})
+	if err != nil {
+		t.Fatalf("mergeProfileBase = %v", err)
+	}
+	raw := config.DefaultRawConfig()
+	if err := document.Decode(raw); err != nil {
+		t.Fatalf("decode merged profile: %v", err)
+	}
+	want := []string{
+		"DOMAIN,added.test,g",
+		"MATCH,g",
+		"DOMAIN-SUFFIX,example.com,g",
+		"MATCH,REJECT",
+		"MATCH,REJECT",
+	}
+	if !reflect.DeepEqual(raw.Rule, want) {
+		t.Errorf("rules = %v, want %v", raw.Rule, want)
+	}
+	if got := raw.SubRules["sub"]; !reflect.DeepEqual(got, []string{"MATCH,g"}) {
+		t.Errorf("sub-rules = %v, want [MATCH,g]", got)
+	}
+}
+
 func TestLoadConfigWithBasePutsTheAddedRulesFirstAndTheOverlayOverTheRest(t *testing.T) {
 	path := writeBaseProfile(t, baseProfile)
 	base, err := handleGetProfileBase(path)

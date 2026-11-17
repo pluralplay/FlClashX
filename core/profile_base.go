@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/metacubex/mihomo/component/age"
@@ -239,7 +240,11 @@ func mergeProfileBase(base *SetupBase) (*yaml.Node, error) {
 			setMappingValue(root, key, value)
 		}
 	}
-	rules, err := appendRules(mappingValue(root, "rules"), mappingValue(profile, "rules"))
+	profileRules := mappingValue(profile, "rules")
+	if target := strings.TrimSpace(base.MatchTarget); target != "" {
+		profileRules = overrideMatchRules(profileRules, target)
+	}
+	rules, err := appendRules(mappingValue(root, "rules"), profileRules)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +311,29 @@ func setMappingValue(mapping *yaml.Node, key string, value *yaml.Node) {
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
 		value,
 	)
+}
+
+func overrideMatchRules(rules *yaml.Node, target string) *yaml.Node {
+	rules = resolveAlias(rules)
+	if rules == nil || rules.Kind != yaml.SequenceNode {
+		return rules
+	}
+	var updated *yaml.Node
+	for i, item := range rules.Content {
+		rule := resolveAlias(item)
+		if rule.Kind != yaml.ScalarNode || !isMatchRule(rule.Value) {
+			continue
+		}
+		if updated == nil {
+			// The original sequence may be shared by another section via an alias.
+			updated = &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Content: slices.Clone(rules.Content)}
+		}
+		updated.Content[i] = &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "MATCH," + target}
+	}
+	if updated == nil {
+		return rules
+	}
+	return updated
 }
 
 // The overlay's rules are the ones the host adds in front of the profile's.
