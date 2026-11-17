@@ -106,7 +106,7 @@ class _StandardContentState extends ConsumerState<StandardContent> {
     List<Rule> rules,
     int index,
     Set<dynamic> selected,
-    Set<String> chains,
+    Set<String> knownTargets,
   ) {
     final rule = rules[index];
     return ReorderableDelayedDragStartListener(
@@ -118,7 +118,7 @@ class _StandardContentState extends ConsumerState<StandardContent> {
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: RuleItem(
             hasMatch: true,
-            knownTargets: chains,
+            knownTargets: knownTargets,
             isEditing: selected.isNotEmpty,
             isSelected: selected.contains(rule.id),
             rule: rule,
@@ -140,8 +140,13 @@ class _StandardContentState extends ConsumerState<StandardContent> {
     _profileId = ProfileIdProvider.of(context)!.profileId;
     final addedRules = ref.watch(profileRulesProvider(_profileId)).value ?? [];
     final selectedRules = ref.watch(itemsProvider(_key));
-    final chains = ref.watch(proxyChainTargetsProvider(_profileId));
-    ref.watch(proxyChainGraphProvider(_profileId));
+    final config = ref.watch(clashConfigProvider(_profileId)).value;
+    final knownTargets = <String>{
+      ...ref.watch(proxyChainTargetsProvider(_profileId)),
+      for (final group in config?.proxyGroups ?? const <ProxyGroup>[])
+        group.name,
+      for (final proxy in config?.proxies ?? const <Proxy>[]) proxy.name,
+    };
     return CommonPopScope(
       onPop: selectedRules.isEmpty
           ? null
@@ -187,9 +192,9 @@ class _StandardContentState extends ConsumerState<StandardContent> {
           SliverReorderableList(
             itemCount: addedRules.length,
             itemBuilder: (_, index) =>
-                _buildRuleItem(addedRules, index, selectedRules, chains),
+                _buildRuleItem(addedRules, index, selectedRules, knownTargets),
             proxyDecorator: (child, index, animation) => commonProxyDecorator(
-              _buildRuleItem(addedRules, index, selectedRules, chains),
+              _buildRuleItem(addedRules, index, selectedRules, knownTargets),
               index,
               animation,
             ),
