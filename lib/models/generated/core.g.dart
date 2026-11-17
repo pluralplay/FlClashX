@@ -26,10 +26,15 @@ Map<String, dynamic> _$SetupParamsToJson(_SetupParams instance) =>
 _SetupBase _$SetupBaseFromJson(Map<String, dynamic> json) => _SetupBase(
   path: json['path'] as String,
   overlay: json['overlay'] as String,
+  matchTarget: json['match-target'] as String?,
 );
 
 Map<String, dynamic> _$SetupBaseToJson(_SetupBase instance) =>
-    <String, dynamic>{'path': instance.path, 'overlay': instance.overlay};
+    <String, dynamic>{
+      'path': instance.path,
+      'overlay': instance.overlay,
+      'match-target': ?instance.matchTarget,
+    };
 
 _ProfileBase _$ProfileBaseFromJson(Map<String, dynamic> json) => _ProfileBase(
   config: json['config'] as Map<String, dynamic>,
