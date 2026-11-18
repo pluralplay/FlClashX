@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:win32_registry/win32_registry.dart';
 
 import 'print.dart';
+import 'system.dart';
 
 const hwidHeader = 'x-hwid';
 const deviceOsHeader = 'x-device-os';
@@ -60,7 +61,7 @@ class DeviceIdentity {
         id != null && id.isNotEmpty
             ? id
             : '${info.brand}-${info.device}-${info.hardware}-${info.id}',
-        'Android',
+        isTelevision(info.systemFeatures) ? 'AndroidTV' : 'Android',
         info.version.release,
         '${info.manufacturer} ${info.model}',
       );
