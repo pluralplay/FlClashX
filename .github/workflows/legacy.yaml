@@ -1,0 +1,232 @@
+name: legacy
+
+# The Intel macOS build lowered to macOS 11.3, the oldest the Flutter engine's
+# imports allow (NSConstantIntegerNumber, Swift 5.4 runtime). Tag: legacy-vX.Y.Z[-pre.N].
+on:
+  push:
+    tags:
+      - 'legacy-v*'
+
+env:
+  FLUTTER_VERSION: '3.50.0'
+  MIN_MACOS: '11.3'
+
+jobs:
+  build:
+    if: github.repository == 'pluralplay/FlClashX'
+    runs-on: macos-26-intel
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.3'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check the tag matches pubspec
+        run: |
+          version=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)
+          tagged=${GITHUB_REF_NAME#legacy-v}
+          if [ "${tagged%%-*}" != "$version" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match pubspec version $version"
+            exit 1
+          fi
+
+      # Stock Go 1.25+ links for macOS 12; MetaCubeX's build reverts that, as
+      # mihomo's own darwin releases do.
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-download-base-url: 'https://github.com/MetaCubeX/go/releases/download/build'
+          go-version: '1.26'
+          cache-dependency-path: core/go.sum
+
+      # Uncached: the SDK is patched below, and the regular Intel build shares
+      # the cache key.
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: false
+
+      - name: Setup Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+
+      - name: Lower Flutter's macOS minimum to 11.3
+        run: |
+          tools="$FLUTTER_ROOT/packages/flutter_tools"
+          lower() {
+            sed -i '' "s/$2/$3/" "$tools/$1"
+            grep -q "$3" "$tools/$1" || { echo "$1 no longer holds $2"; exit 1; }
+          }
+          lower lib/src/darwin/darwin.dart 'macos => Version(12, 0, null)' 'macos => Version(11, 3, null)'
+          lower lib/src/isolated/native_assets/macos/native_assets.dart 'targetMacOSVersion = 13;' 'targetMacOSVersion = 11;'
+          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
+          flutter precache --macos
+          sed -i '' 's/MACOSX_DEPLOYMENT_TARGET = 12.0;/MACOSX_DEPLOYMENT_TARGET = 11.3;/' macos/Runner.xcodeproj/project.pbxproj
+          ! grep -q 'MACOSX_DEPLOYMENT_TARGET = 12' macos/Runner.xcodeproj/project.pbxproj
+
+      # The engine is built for macOS 12 but imports nothing newer than 11.3.
+      - name: Lower the engine's minimum to 11.3
+        run: |
+          found=0
+          while IFS= read -r -d '' binary; do
+            sdk=$(vtool -arch x86_64 -show-build "$binary" | awk '$1 == "sdk" {print $2; exit}')
+            vtool -set-build-version macos "$MIN_MACOS" "$sdk" -replace -output "$binary.lowered" "$binary"
+            mv "$binary.lowered" "$binary"
+            codesign --force --sign - --preserve-metadata=identifier "$binary"
+            found=$((found + 1))
+          done < <(find "$FLUTTER_ROOT/bin/cache/artifacts/engine" -path '*/FlutterMacOS.framework/Versions/A/FlutterMacOS' -type f -print0)
+          [ "$found" -gt 0 ] || { echo 'no FlutterMacOS in the engine cache'; exit 1; }
+
+      # sqlite3's prebuilt library targets macOS 13; its own release built here does not.
+      - name: Build SQLite from source
+        env:
+          SQLITE: sqlite-amalgamation-3530400
+          SQLITE_SHA256: 1e71ddf93849c6a6ecf58b827c0692073d2dd7ee40196158068f7b29f422e87d
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/sqlite.zip" "https://sqlite.org/2026/$SQLITE.zip"
+          echo "$SQLITE_SHA256  $RUNNER_TEMP/sqlite.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/sqlite.zip" -d build
+          perl -0pi -e 's/^  user_defines:\n/  user_defines:\n    sqlite3:\n      source: source\n      path: build\/$ENV{SQLITE}\/sqlite3.c\n/m' pubspec.yaml
+          grep -q "path: build/$SQLITE/sqlite3.c" pubspec.yaml
+
+      - name: Get Flutter dependency
+        run: |
+          flutter --version
+          go version
+          flutter pub get
+
+      - name: Disable Impeller on Intel macOS
+        run: plutil -replace FLTEnableImpeller -bool NO macos/Runner/Info.plist
+
+      - name: Fetch CA certificates
+        env:
+          CA_BUNDLE: cacert-2026-10-20.pem
+          CA_BUNDLE_SHA256: 796f1389bfea13c0ed78f663b765baaff54a508e5483786bd6ece73c5e3e3cbe
+        run: |
+          bundle=assets/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" "https://curl.se/ca/$CA_BUNDLE"
+          echo "$CA_BUNDLE_SHA256  $bundle" | sha256sum -c -
+
+      - name: Import macOS signing certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          INTERMEDIATE_SHA256: 7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          intermediate="$RUNNER_TEMP/DeveloperIDCA.cer"
+          curl -fsSL --retry 3 -o "$intermediate" https://www.apple.com/certificateauthority/DeveloperIDCA.cer
+          echo "$INTERMEDIATE_SHA256  $intermediate" | shasum -a 256 -c -
+          security import "$intermediate" -k "$keychain"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$keychain"
+
+      - name: Setup
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+        run: dart setup.dart macos --env stable -v
+
+      - name: Check every binary runs on macOS ${{ env.MIN_MACOS }}
+        run: |
+          app=build/macos/Build/Products/Release/FlClashX.app
+          [ -d "$app" ] || { echo "$app was not built"; exit 1; }
+          checked=0
+          failed=0
+          while IFS= read -r -d '' file; do
+            file -b "$file" | grep -q 'Mach-O' || continue
+            info=$(vtool -arch x86_64 -show-build "$file" 2>&1) || {
+              echo "vtool failed on ${file#$app/}: $info"; failed=1; continue; }
+            minos=$(awk '$1 == "minos" || $1 == "version" {print $2; exit}' <<< "$info")
+            if [ -z "$minos" ]; then
+              echo "no minimum macOS in ${file#$app/}"; failed=1; continue
+            fi
+            checked=$((checked + 1))
+            echo "$minos  ${file#$app/}"
+            if [ "$(printf '%s\n%s\n' "$minos" "$MIN_MACOS" | sort -V | tail -1)" != "$MIN_MACOS" ]; then
+              failed=1
+            fi
+          done < <(find "$app" -type f -print0)
+          plist_min=$(plutil -extract LSMinimumSystemVersion raw "$app/Contents/Info.plist")
+          echo "LSMinimumSystemVersion $plist_min"
+          [ "$plist_min" = "$MIN_MACOS" ] || failed=1
+          if [ "$checked" = 0 ] || [ "$failed" = 1 ]; then
+            echo "not every binary runs on macOS $MIN_MACOS (checked $checked)"
+            exit 1
+          fi
+
+      - name: Notarize
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          key="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY_ID.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key"
+          auth=(--key "$key" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
+          dmg=dist/FlClashX-macos-amd64.dmg
+          result="$(xcrun notarytool submit "$dmg" "${auth[@]}" --wait --timeout 1h --output-format json)" || true
+          echo "$result"
+          if [ "$(jq -r '.status // empty' <<<"$result")" != Accepted ]; then
+            id="$(jq -r '.id // empty' <<<"$result")"
+            [ -n "$id" ] && xcrun notarytool log "$id" "${auth[@]}"
+            exit 1
+          fi
+          xcrun stapler staple "$dmg"
+          for attempt in 1 2 3; do
+            xcrun stapler validate "$dmg" && break
+            [ "$attempt" = 3 ] && exit 1
+            sleep 20
+          done
+          rm "$key"
+          mv "$dmg" dist/FlClashX-legacy-macos-amd64.dmg
+
+      - name: Upload
+        uses: actions/upload-artifact@v6
+        with:
+          name: artifact-legacy-macos-amd64
+          path: ./dist/FlClashX-legacy-macos-amd64.dmg
+
+  release:
+    needs: [build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v7
+        with:
+          name: artifact-legacy-macos-amd64
+          path: ./dist
+
+      - name: Write the notes
+        id: notes
+        run: |
+          version=${GITHUB_REF_NAME#legacy-v}
+          echo "name=FlClashX $version Legacy" >> "$GITHUB_OUTPUT"
+          (cd dist && sha256sum FlClashX-legacy-macos-amd64.dmg > FlClashX-legacy-macos-amd64.dmg.sha256)
+          cat > notes.md << EOF
+          **FlClashX $version** для Intel-маков на macOS 11.3+ (Big Sur), где обычная сборка (macOS 12+) не запускается.
+
+          Тестовая сборка. Обновления, которые предложит приложение, не ставить: обычная версия на macOS 11 не стартует.
+          EOF
+
+      # The app reads only v-prefixed tags, so neither channel picks this one up.
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ steps.notes.outputs.name }}
+          files: ./dist/*
+          body_path: notes.md
+          prerelease: true
+          make_latest: false
