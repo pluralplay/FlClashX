@@ -128,7 +128,7 @@ sudo dnf install libayatana-appindicator-gtk3     # Fedora
 
 ## 从源码构建
 
-需要 [Flutter](https://docs.flutter.dev/get-started/install) 3.47（发布版本使用 3.47.6）、[Go](https://go.dev/dl/) 1.27，以及通过 rustup 安装的 [Rust](https://rustup.rs/)。除 Android 外，每个平台都要在各自的系统上构建；Android 可以在任何系统上构建。
+需要 [Flutter](https://docs.flutter.dev/get-started/install) 3.50、[Go](https://go.dev/dl/) 1.27，以及通过 rustup 安装的 [Rust](https://rustup.rs/)。除 Android 外，每个平台都要在各自的系统上构建；Android 可以在任何系统上构建。
 
 ```bash
 git clone https://github.com/pluralplay/FlClashX.git

@@ -66,7 +66,7 @@ void main() {
   testWidgets('a tile start request starts a stopped core', (tester) async {
     final listener = await pumpTileManager(tester);
 
-    listener.onStart();
+    await listener.onStart();
     await tester.pumpAndSettle();
 
     expect(_RecordingSetupAction.requests, [true]);
@@ -80,7 +80,7 @@ void main() {
     container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
     await tester.pump();
 
-    listener.onStart();
+    await listener.onStart();
     await tester.pumpAndSettle();
 
     expect(_RecordingSetupAction.requests, isEmpty);
@@ -94,7 +94,7 @@ void main() {
     container.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
     await tester.pump();
 
-    listener.onStart();
+    await listener.onStart();
     await tester.pumpAndSettle();
 
     expect(_RecordingSetupAction.requests, [true]);

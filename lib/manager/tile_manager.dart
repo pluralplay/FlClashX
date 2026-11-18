@@ -32,7 +32,7 @@ class _TileContainerState extends ConsumerState<TileManager> with TileListener {
     }
     unawaited(app?.tip(currentAppLocalizations.startVpn));
     await ref.read(setupActionProvider.notifier).setRunning(true);
-    super.onStart();
+    await super.onStart();
   }
 
   @override

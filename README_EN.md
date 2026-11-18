@@ -128,7 +128,7 @@ Builds are on [GitHub Releases](https://github.com/pluralplay/FlClashX/releases)
 
 ## Build from source
 
-You need [Flutter](https://docs.flutter.dev/get-started/install) 3.47 (release builds use 3.47.6), [Go](https://go.dev/dl/) 1.27 and [Rust](https://rustup.rs/) installed through rustup. Each platform builds on its own host, except Android, which builds anywhere.
+You need [Flutter](https://docs.flutter.dev/get-started/install) 3.50, [Go](https://go.dev/dl/) 1.27 and [Rust](https://rustup.rs/) installed through rustup. Each platform builds on its own host, except Android, which builds anywhere.
 
 ```bash
 git clone https://github.com/pluralplay/FlClashX.git

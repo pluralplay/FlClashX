@@ -629,10 +629,14 @@ void main() {
     final editor = await openEditor(tester, 'editable');
     expect(shownText(tester), 'payload:\n  - old\n');
 
-    editor.onSave!(
-      tester.element(find.byType(EditorPage)),
-      'editable',
-      const EditorContent.text('payload:\n  - new\n'),
+    unawaited(
+      Future.sync(
+        () => editor.onSave!(
+          tester.element(find.byType(EditorPage)),
+          'editable',
+          const EditorContent.text('payload:\n  - new\n'),
+        ),
+      ),
     );
     await pumpUntil(tester, find.byType(EditorPage), found: false);
 
@@ -671,10 +675,14 @@ void main() {
     await pump(tester, container);
     final editor = await openEditor(tester, 'replaced');
 
-    editor.onSave!(
-      tester.element(find.byType(EditorPage)),
-      'replaced',
-      const EditorContent.text('payload:\n  - new\n'),
+    unawaited(
+      Future.sync(
+        () => editor.onSave!(
+          tester.element(find.byType(EditorPage)),
+          'replaced',
+          const EditorContent.text('payload:\n  - new\n'),
+        ),
+      ),
     );
     final tip = find.text(currentAppLocalizations.providerReplacedTip);
     await pumpUntil(tester, tip);
@@ -717,7 +725,15 @@ void main() {
     await pumpTransitions(tester);
     const saved = 'payload:\n  - new\n';
 
-    editor.onSave!(editorContext, 'covered', const EditorContent.text(saved));
+    unawaited(
+      Future.sync(
+        () => editor.onSave!(
+          editorContext,
+          'covered',
+          const EditorContent.text(saved),
+        ),
+      ),
+    );
     sideLoaded.complete('');
     for (var i = 0; i < 20; i++) {
       await tester.runAsync(
@@ -781,10 +797,14 @@ void main() {
     await pump(tester, container);
 
     final editor = await openEditor(tester, 'rejected');
-    editor.onSave!(
-      tester.element(find.byType(EditorPage)),
-      'rejected',
-      const EditorContent.text('payload: broken\n'),
+    unawaited(
+      Future.sync(
+        () => editor.onSave!(
+          tester.element(find.byType(EditorPage)),
+          'rejected',
+          const EditorContent.text('payload: broken\n'),
+        ),
+      ),
     );
     await pumpUntil(tester, find.text('invalid payload'));
 

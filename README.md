@@ -128,7 +128,7 @@ sudo dnf install libayatana-appindicator-gtk3     # Fedora
 
 ## Сборка из исходников
 
-Нужны [Flutter](https://docs.flutter.dev/get-started/install) 3.47 (релизы собираются на 3.47.6), [Go](https://go.dev/dl/) 1.27 и [Rust](https://rustup.rs/), установленный через rustup. Каждая платформа собирается на своей системе, кроме Android, который собирается где угодно.
+Нужны [Flutter](https://docs.flutter.dev/get-started/install) 3.50, [Go](https://go.dev/dl/) 1.27 и [Rust](https://rustup.rs/), установленный через rustup. Каждая платформа собирается на своей системе, кроме Android, который собирается где угодно.
 
 ```bash
 git clone https://github.com/pluralplay/FlClashX.git
