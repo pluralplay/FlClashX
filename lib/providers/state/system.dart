@@ -84,6 +84,7 @@ TrayState trayState(Ref ref) {
     safeMode: safeMode,
     hotKeys: hotKeys,
     globalModeAllowed: ref.watch(globalModeAllowedProvider),
+    onlyTun: !ref.watch(systemProxyAllowedProvider),
   );
 }
 
@@ -263,7 +264,8 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
         vpnSetting.systemProxy &&
         !networkSetting.authenticated &&
         !safeMode &&
-        !androidSecure,
+        !androidSecure &&
+        ref.watch(systemProxyAllowedProvider),
     port: clashConfig.mixedPort,
     ipv6: vpnSetting.ipv6,
     dnsHijacking: vpnSetting.dnsHijacking,

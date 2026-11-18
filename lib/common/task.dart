@@ -90,6 +90,8 @@ typedef ConfigCounts = ({int groups, int proxies, int rules});
 
 typedef RealProfile = ({String yaml, String md5, ConfigCounts counts});
 
+final _matchRule = RegExp(r'^\s*MATCH\s*(?:,|$)', caseSensitive: false);
+
 /// Counts what the Core was handed, not what the profile file declares.
 ConfigCounts configCountsOf(Map<Object?, Object?> config) {
   int lengthOf(Object? value) => value is List ? value.length : 0;
@@ -351,39 +353,33 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
   }
   List<String> rules = [];
   if (data.rules.isEmpty) {
+    final matchTarget = data.matchTarget?.trim();
+    final matchOverride = matchTarget?.isNotEmpty == true ? matchTarget : null;
     if (rawConfig['rules'] != null) {
       rules = List<String>.from(rawConfig['rules']);
-    }
-    if (addedRules.isNotEmpty) {
-      final hasMatchPlaceholder = addedRules.any(
-        (item) => item.ruleTarget?.toUpperCase() == 'MATCH',
-      );
-      String? replacementTarget = data.matchTarget?.trim();
-      if (replacementTarget?.isEmpty == true) {
-        replacementTarget = null;
-      }
-
-      if (hasMatchPlaceholder && replacementTarget == null) {
-        replacementTarget = lastMatchTarget(rules);
-      }
-      final List<String> finalAddedRules;
-
-      if (replacementTarget?.isNotEmpty == true) {
-        finalAddedRules = [];
-        for (int i = 0; i < addedRules.length; i++) {
-          final parsed = addedRules[i];
-          if (parsed.ruleTarget?.toUpperCase() == 'MATCH') {
-            finalAddedRules.add(
-              parsed.copyWith(ruleTarget: replacementTarget).rawValue,
-            );
-          } else {
-            finalAddedRules.add(addedRules[i].rawValue);
+      if (matchOverride != null) {
+        for (var i = 0; i < rules.length; i++) {
+          if (_matchRule.hasMatch(rules[i])) {
+            rules[i] = 'MATCH,$matchOverride';
           }
         }
-      } else {
-        finalAddedRules = addedRules.map((e) => e.rawValue).toList();
       }
-      rules = [...finalAddedRules, ...rules];
+    }
+    if (addedRules.isNotEmpty) {
+      final replacementTarget =
+          matchOverride ??
+          (addedRules.any((rule) => rule.ruleTarget?.toUpperCase() == 'MATCH')
+              ? lastMatchTarget(rules)
+              : null);
+      rules = [
+        for (final rule in addedRules)
+          if (replacementTarget != null &&
+              rule.ruleTarget?.toUpperCase() == 'MATCH')
+            rule.copyWith(ruleTarget: replacementTarget).rawValue
+          else
+            rule.rawValue,
+        ...rules,
+      ];
     }
   } else {
     rules = data.rules.map((item) => item.rawValue).toList();

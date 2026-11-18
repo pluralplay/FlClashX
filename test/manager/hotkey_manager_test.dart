@@ -2,6 +2,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/models/common.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,12 +79,17 @@ void main() {
       WidgetTester tester, {
       bool safeMode = false,
       Future<List<HotKeyFailure>> Function()? respond,
+      List<HotKeyAction>? actions,
+      bool globalModeAllowed = true,
+      bool systemProxyAllowed = true,
     }) async {
       final registrations = <List<HotKeySpec>>[];
       final container = ProviderContainer(
         overrides: [
           safeModeProvider.overrideWithValue(safeMode),
-          hotKeyActionsProvider.overrideWithValue([action]),
+          hotKeyActionsProvider.overrideWithValue(actions ?? [action]),
+          globalModeAllowedProvider.overrideWithValue(globalModeAllowed),
+          systemProxyAllowedProvider.overrideWithValue(systemProxyAllowed),
         ],
       );
       addTearDown(container.dispose);
@@ -112,6 +118,34 @@ void main() {
       expect(registrations, hasLength(1));
       expect(registrations.single.single.id, HotAction.view.index);
       expect(container.read(hotKeyFailuresProvider), isEmpty);
+    });
+
+    testWidgets('noglobal and onlytun leave their shortcuts unregistered', (
+      tester,
+    ) async {
+      HotKeyAction bound(HotAction hotAction, PhysicalKeyboardKey key) =>
+          HotKeyAction(
+            action: hotAction,
+            key: key.usbHidUsage,
+            modifiers: const {KeyboardModifier.control},
+          );
+      final (_, registrations) = await pump(
+        tester,
+        actions: [
+          action,
+          bound(HotAction.globalMode, PhysicalKeyboardKey.keyG),
+          bound(HotAction.proxy, PhysicalKeyboardKey.keyP),
+          bound(HotAction.tun, PhysicalKeyboardKey.keyT),
+          bound(HotAction.ruleMode, PhysicalKeyboardKey.keyR),
+        ],
+        globalModeAllowed: false,
+        systemProxyAllowed: false,
+      );
+
+      expect(registrations.last.map((spec) => spec.id), [
+        HotAction.view.index,
+        HotAction.ruleMode.index,
+      ]);
     });
 
     testWidgets('a safe mode build registers nothing', (tester) async {

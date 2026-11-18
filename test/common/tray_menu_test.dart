@@ -54,6 +54,7 @@ TrayState _trayState({
   List<Group> groups = const [],
   Map<HotAction, HotKeyAction> hotKeys = const {},
   bool globalModeAllowed = true,
+  bool onlyTun = false,
 }) {
   return TrayState(
     mode: mode,
@@ -69,6 +70,7 @@ TrayState _trayState({
     safeMode: safeMode,
     hotKeys: hotKeys,
     globalModeAllowed: globalModeAllowed,
+    onlyTun: onlyTun,
   );
 }
 
@@ -174,6 +176,7 @@ void main() {
     expect(labels, isNot(contains(l10n.autoLaunch)));
     expect(labels, isNot(contains(l10n.copyEnvVar)));
     expect(labels, contains(l10n.exit));
+    expect(labels.indexOf(l10n.restart), labels.indexOf(l10n.exit) - 1);
     expect(labels, isNot(contains(l10n.tun)));
     expect(labels, isNot(contains(l10n.systemProxy)));
   });
@@ -186,6 +189,16 @@ void main() {
     expect(labels, contains(l10n.stop), reason: 'start flips to stop');
     expect(labels, contains(l10n.tun));
     expect(labels, contains(l10n.systemProxy));
+  });
+
+  test('onlytun leaves the TUN and system proxy toggles out', () async {
+    await update(_trayState(isStart: true, onlyTun: true));
+
+    final labels = _labels(showCall());
+    final l10n = currentAppLocalizations;
+    expect(labels, contains(l10n.stop));
+    expect(labels, isNot(contains(l10n.tun)));
+    expect(labels, isNot(contains(l10n.systemProxy)));
   });
 
   group('safe mode', () {

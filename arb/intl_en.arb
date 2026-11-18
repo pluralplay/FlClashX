@@ -1038,5 +1038,6 @@
   "updatingSubscription": "Updating the subscription…",
   "subscriptionUpdated": "Subscription updated",
   "pullToTestDelay": "Pull down to test the delay",
-  "releaseToTestDelay": "Release to test the delay"
+  "releaseToTestDelay": "Release to test the delay",
+  "fullSettingsUnlocked": "Full settings are open until the app restarts"
 }

@@ -659,6 +659,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "forceRestartCoreTip": MessageLookupByLibrary.simpleMessage("您确定要强制重启核心吗？"),
     "forkAuthor": MessageLookupByLibrary.simpleMessage("分支作者"),
     "fr": MessageLookupByLibrary.simpleMessage("法语"),
+    "fullSettingsUnlocked": MessageLookupByLibrary.simpleMessage(
+      "完整设置已开启，直到应用重启",
+    ),
     "general": MessageLookupByLibrary.simpleMessage("常规"),
     "geoResources": MessageLookupByLibrary.simpleMessage("Geo"),
     "geoSkipped": m30,

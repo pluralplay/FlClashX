@@ -1038,5 +1038,6 @@
   "updatingSubscription": "サブスクリプションを更新中…",
   "subscriptionUpdated": "サブスクリプションを更新しました",
   "pullToTestDelay": "下に引いて遅延をテスト",
-  "releaseToTestDelay": "指を離すと遅延をテスト"
+  "releaseToTestDelay": "指を離すと遅延をテスト",
+  "fullSettingsUnlocked": "アプリを再起動するまで、すべての設定が表示されます"
 }

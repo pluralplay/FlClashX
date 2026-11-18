@@ -52,26 +52,26 @@ func filterPresets(t *testing.T) map[string]string {
 
 func TestFilterPresetsMatchTheirNamesOnly(t *testing.T) {
 	matches := map[string][]string{
-		"Hong Kong":         {"🇭🇰 HK 01", "香港 IPLC", "Hong Kong-02"},
-		"Taiwan":            {"🇹🇼 TW", "台湾 家宽", "Taiwan 03"},
-		"Japan":             {"JP01", "日本 东京", "Tokyo 2"},
-		"Singapore":         {"SG-1", "新加坡", "Singapore"},
-		"United States":     {"US 01", "USA", "美国 洛杉矶", "美西"},
-		"South Korea":       {"KR 1", "韩国", "South Korea"},
-		"United Kingdom":    {"UK-London", "英国", "GB 2"},
-		"Remaining Traffic": {"剩余流量：10 GB", "剩餘流量: 1.2 TB", "已用流量 20%", "流量：10G / 100G", "Traffic: 10 GB", "Remaining 1 TB"},
-		"Expiry Date":       {"套餐到期：2026-12-31", "过期时间：2026-01-01", "Expire: 2026-12-31", "Expiration 2026-12-31"},
-		"Traffic Reset":     {"距离下次重置剩余：12 天", "Next Reset: 12 days"},
-		"Website & Notices": {"官网：example.com", "最新网址 example.com", "公告：请更新订阅", "当前套餐：Pro", "Telegram 群组", "TG 频道", "Website: example.com"},
+		"Hong Kong":         {"🇭🇰 HK 01", "Hong Kong-02", "Гонконг 1"},
+		"Taiwan":            {"🇹🇼 TW", "Taiwan 03", "Тайвань 2"},
+		"Japan":             {"JP01", "Tokyo 2", "Япония 1", "Токио"},
+		"Singapore":         {"SG-1", "Singapore", "Сингапур"},
+		"United States":     {"US 01", "USA", "United States 2", "США"},
+		"South Korea":       {"KR 1", "South Korea", "Корея"},
+		"United Kingdom":    {"UK-London", "GB 2", "Британия", "Лондон"},
+		"Remaining Traffic": {"Traffic: 10 GB", "Remaining 1 TB", "Трафик: 10 ГБ", "Осталось 20 ГБ"},
+		"Expiry Date":       {"Expire: 2026-12-31", "Expiration 2026-12-31", "Истекает 31.12", "Срок: 2026-12-31"},
+		"Traffic Reset":     {"Next Reset: 12 days", "Сброс через 12 дней"},
+		"Website & Notices": {"Website: example.com", "Telegram", "TG канал", "Сайт: example.com"},
 	}
 	misses := map[string][]string{
 		"Hong Kong":         {"CHKS 1", "Japan 01"},
 		"United States":     {"Russia 01", "Australia", "Plus"},
 		"United Kingdom":    {"Ukraine 01"},
-		"Remaining Traffic": {"香港 01", "US 大带宽", "HK 大流量"},
-		"Expiry Date":       {"香港 01", "Japan 01"},
-		"Traffic Reset":     {"香港 01", "US Reserved"},
-		"Website & Notices": {"香港 01", "US Montgomery", "Taiwan 01"},
+		"Remaining Traffic": {"Hong Kong 01", "US Premium", "HK Fast"},
+		"Expiry Date":       {"Hong Kong 01", "Japan 01"},
+		"Traffic Reset":     {"Hong Kong 01", "US Reserved"},
+		"Website & Notices": {"Hong Kong 01", "US Montgomery", "Taiwan 01"},
 	}
 	presets := filterPresets(t)
 	for name := range matches {

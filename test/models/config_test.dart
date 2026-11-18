@@ -868,6 +868,92 @@ void main() {
       expect(props.hideIp, true);
     });
 
+    test('a stored preset filter loses its Chinese words', () {
+      final props = AppSettingProps.safeFromJson({
+        'filters': [
+          {
+            'label': 'Hong Kong',
+            'regex': r'(?i)🇭🇰|港|(?<![a-z])hk(?![a-z])|hong\s*kong',
+          },
+          {'label': 'Mine', 'regex': '港'},
+        ],
+      });
+
+      expect(props.filters, [
+        defaultFilters.first,
+        const Filter(label: 'Mine', regex: '港'),
+      ]);
+      expect(
+        defaultFilters.any(
+          (filter) =>
+              RegExp(r'\p{Script=Han}', unicode: true).hasMatch(filter.regex),
+        ),
+        isFalse,
+      );
+    });
+
+    test('the stored excluded domains lose the old Chinese defaults', () {
+      final props = NetworkProps.fromJson({
+        'bypassDomain': [
+          '*zhihu.com',
+          'localhost',
+          '*zhimg.com',
+          '*jd.com',
+          '100ime-iat-api.xfyun.cn',
+          '*360buyimg.com',
+          'my.example',
+        ],
+      });
+
+      expect(props.bypassDomain, ['localhost', 'my.example']);
+    });
+
+    test('a Chinese domain the user added stays excluded', () {
+      final props = NetworkProps.fromJson({
+        'bypassDomain': ['localhost', '*jd.com'],
+      });
+
+      expect(props.bypassDomain, ['localhost', '*jd.com']);
+    });
+
+    test('a list saved since 0.5.1 keeps the status card out', () {
+      final props = AppSettingProps.safeFromJson({
+        'dashboardWidgets': ['profiles', 'networkSpeed'],
+        'dashboardWidgetsChosen': true,
+      });
+
+      expect(props.dashboardWidgets, [
+        DashboardWidget.profiles,
+        DashboardWidget.networkSpeed,
+      ]);
+    });
+
+    test('an older list without the status card gets it back', () {
+      final props = AppSettingProps.safeFromJson({
+        'dashboardWidgets': ['profiles', 'networkSpeed'],
+      });
+
+      expect(props.dashboardWidgets, [
+        DashboardWidget.currentOutbound,
+        DashboardWidget.profiles,
+        DashboardWidget.networkSpeed,
+      ]);
+    });
+
+    test('a saved list survives a round trip without the status card', () {
+      const props = AppSettingProps(
+        dashboardWidgets: [DashboardWidget.profiles],
+        dashboardWidgetsChosen: true,
+      );
+
+      expect(
+        AppSettingProps.safeFromJson(
+          jsonDecode(jsonEncode(props.toJson())) as Map<String, Object?>,
+        ).dashboardWidgets,
+        [DashboardWidget.profiles],
+      );
+    });
+
     test('drops the dashboard cards of the retired override toggles', () {
       expect(
         dashboardWidgetsFromJson([

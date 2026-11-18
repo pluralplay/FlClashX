@@ -32,6 +32,23 @@ class SystemAction extends _$SystemAction {
     return coordinator.exit(cleanup: () => cleanupExitResources(needSave));
   }
 
+  /// The new copy waits for this one to quit, as only one may run.
+  Future<void> handleRestart() async {
+    try {
+      await relaunchSelf();
+    } catch (error) {
+      commonPrint.log(
+        'Restart failed: ${compactError(error)}',
+        logLevel: LogLevel.error,
+      );
+      return;
+    }
+    await handleExit();
+  }
+
+  @protected
+  Future<void> relaunchSelf() => relaunchSelfAfterExit();
+
   @protected
   Duration get exitWatchdogDuration => const Duration(seconds: 3);
 
@@ -143,6 +160,9 @@ class SystemAction extends _$SystemAction {
   }
 
   void updateSystemProxy() {
+    if (!ref.read(systemProxyAllowedProvider)) {
+      return;
+    }
     ref
         .read(networkSettingProvider.notifier)
         .update((state) => state.copyWith(systemProxy: !state.systemProxy));

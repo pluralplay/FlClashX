@@ -1038,5 +1038,6 @@
   "updatingSubscription": "Обновляю подписку…",
   "subscriptionUpdated": "Подписка обновлена",
   "pullToTestDelay": "Потяните, чтобы проверить задержку",
-  "releaseToTestDelay": "Отпустите, чтобы проверить задержку"
+  "releaseToTestDelay": "Отпустите, чтобы проверить задержку",
+  "fullSettingsUnlocked": "Полные настройки открыты до перезапуска приложения"
 }

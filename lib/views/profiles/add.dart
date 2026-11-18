@@ -213,12 +213,13 @@ class AddProfileMenu extends ConsumerWidget {
               label: appLocalizations.sendFromPhone,
               onPressed: () => _toSendFromPhone(ref),
             ),
-          CommonPopupMenuItem(
-            section: const CommonPopupMenuSection(),
-            glyph: AppGlyphs.customize,
-            label: appLocalizations.customProfile,
-            onPressed: () => _toAddCustom(context, ref),
-          ),
+          if (!ref.watch(simpleModeProvider))
+            CommonPopupMenuItem(
+              section: const CommonPopupMenuSection(),
+              glyph: AppGlyphs.customize,
+              label: appLocalizations.customProfile,
+              onPressed: () => _toAddCustom(context, ref),
+            ),
         ],
       ),
     );

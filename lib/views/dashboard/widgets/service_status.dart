@@ -173,27 +173,24 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     // At most four: what the Core checks at once (serviceCheckConcurrency).
     final shownCount = (mobile ? 1 : 2) * widget.columns;
     final stacked = widget.columns == 1;
-    final shown = ref
-        .watch(enabledServiceTargetsProvider)
-        .take(shownCount)
-        .toList();
-    _syncShown(shown.toSet(), shownCount);
+    final targets = ref.watch(enabledServiceTargetsProvider);
+    _syncShown(targets.take(shownCount).toSet(), shownCount);
     final state = ref.watch(serviceStatusProvider);
-    final services = [
-      for (final target in shown)
-        _ServiceView(
-          target,
-          state.entryOf(target),
-          shownPhase(state.entryOf(target)),
-        ),
-    ];
+    final services = targets.map((target) {
+      final entry = state.entryOf(target);
+      return _ServiceView(target, entry, shownPhase(entry));
+    }).toList();
     final problems = services.where((service) => service.abnormal).length;
     final verdict = problems > 0
         ? DashboardChip(
             label: appLocalizations.serviceAbnormalCount(problems),
             tone: DashboardChipTone.warn,
           )
-        : services.every((service) => service.check != null)
+        : services.every(
+            (service) =>
+                service.phase == ProbePhase.fresh &&
+                service.check?.status == ServiceProbeStatus.available,
+          )
         ? DashboardChip(
             label: appLocalizations.serviceAllAvailable,
             tone: DashboardChipTone.ok,
@@ -202,7 +199,7 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     Future<void> openSheet() => showServiceStatusSheet(context);
     final scale = DashboardDensityScope.scaleOf(context);
     final grid = _ServiceGrid(
-      services: services,
+      services: services.take(shownCount).toList(),
       columns: widget.columns,
       fill: !mobile,
       cellHeight:
@@ -235,8 +232,8 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
                     children: [
                       if (!stacked)
                         _CheckAllButton(
-                          loading: shown.any(state.isLoading),
-                          onPressed: () => _services.refresh(shown),
+                          loading: targets.any(state.isLoading),
+                          onPressed: () => _services.refresh(targets),
                         ),
                       DashboardIconButton(
                         glyph: AppGlyphs.chevronForward,
@@ -593,15 +590,48 @@ Future<void> showServiceStatusSheet(BuildContext context) {
   );
 }
 
-/// Every enabled service, read from the cache and checked only on request.
-class ServiceStatusSheet extends ConsumerWidget {
+/// Every enabled service, checked while the list is open unless still fresh.
+class ServiceStatusSheet extends ConsumerStatefulWidget {
   const ServiceStatusSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ServiceStatusSheet> createState() => _ServiceStatusSheetState();
+}
+
+class _ServiceStatusSheetState extends ConsumerState<ServiceStatusSheet> {
+  late final ServiceStatus _services;
+  Set<ServiceTarget> _watched = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _services = ref.read(serviceStatusProvider.notifier);
+  }
+
+  @override
+  void dispose() {
+    for (final target in _watched) {
+      _services.unwatch(target);
+    }
+    super.dispose();
+  }
+
+  void _syncWatched(Set<ServiceTarget> targets) {
+    for (final target in targets.difference(_watched)) {
+      _services.watch(target);
+    }
+    for (final target in _watched.difference(targets)) {
+      _services.unwatch(target);
+    }
+    _watched = targets;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final targets = ref.watch(enabledServiceTargetsProvider);
+    _syncWatched(targets.toSet());
     final state = ref.watch(serviceStatusProvider);
-    final services = ref.read(serviceStatusProvider.notifier);
+    final services = _services;
     final localizations = context.appLocalizations;
     return CommonScaffold(
       title: localizations.serviceStatus,

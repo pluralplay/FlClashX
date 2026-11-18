@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fl_clash/bootstrap.dart';
+import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/state.dart';
@@ -57,6 +58,13 @@ void main() {
       expect(
         globalState.ua,
         'FlClashX/v1.2.3 core/v1.19.32 Platform/${Platform.operatingSystem}',
+      );
+    });
+
+    test('an Android TV names itself androidtv', () {
+      expect(
+        _packageInfo.uaWith('v1.19.32', tv: true),
+        'FlClashX/v1.2.3 core/v1.19.32 Platform/androidtv',
       );
     });
   });

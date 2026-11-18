@@ -53,7 +53,9 @@ ProxyState proxyState(Ref ref) {
   );
   return ProxyState(
     isStart: !suspend && isStart && coreAlive,
-    systemProxy: systemProxySelector.systemProxy,
+    systemProxy:
+        systemProxySelector.systemProxy &&
+        ref.watch(systemProxyAllowedProvider),
     bassDomain: systemProxySelector.bypassDomain,
     port: mixedPort,
   );

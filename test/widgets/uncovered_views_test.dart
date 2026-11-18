@@ -481,7 +481,11 @@ void main() {
       (index) => Rule(
         id: 300 + index,
         content: 'added$index.com',
-        ruleTarget: 'DIRECT',
+        ruleTarget: switch (index) {
+          0 => 'Subscription group',
+          1 => 'Removed group',
+          _ => 'DIRECT',
+        },
         order: index.toString(),
       ),
     );
@@ -506,9 +510,19 @@ void main() {
         profileDisabledRuleIdsProvider.overrideWith2(
           (_) => _TestProfileDisabledRuleIds(const []),
         ),
-        clashConfigProvider(
-          profile.id,
-        ).overrideWithValue(const AsyncData(ClashConfig())),
+        clashConfigProvider(profile.id).overrideWithValue(
+          const AsyncData(
+            ClashConfig(
+              proxyGroups: [
+                ProxyGroup(
+                  id: 1,
+                  name: 'Subscription group',
+                  type: GroupType.Selector,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
 
@@ -529,6 +543,16 @@ void main() {
 
     expect(find.byType(StandardContent), findsOneWidget);
     expect(find.text('added0.com'), findsOneWidget);
+    bool isInvalid(String content) => tester
+        .widget<SelectedDecorationListItem>(
+          find.ancestor(
+            of: find.text(content),
+            matching: find.byType(SelectedDecorationListItem),
+          ),
+        )
+        .invalid;
+    expect(isInvalid('added0.com'), isFalse);
+    expect(isInvalid('added1.com'), isTrue);
     expect(tester.takeException(), null);
 
     final scrollables = find.byType(Scrollable);

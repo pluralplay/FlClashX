@@ -179,7 +179,7 @@ final class TrayStateProvider
   }
 }
 
-String _$trayStateHash() => r'339d29d0720413cd6025876faad9508322d0bb8f';
+String _$trayStateHash() => r'79ed1190ae8d142053732722b4c93ea494f3d504';
 
 /// Measured delays of the proxies the tray lists, by group and then proxy
 /// name. Resolved like a proxy card, so a nested group shows its selection.
@@ -514,7 +514,7 @@ final class VpnOptionsProvider
   }
 }
 
-String _$vpnOptionsHash() => r'cd24ac77805f282960c2df9059cba254d3140df2';
+String _$vpnOptionsHash() => r'c917d0a466686e52920534b60ddc5233dd5d9d2c';
 
 @ProviderFor(AccessControlState)
 final accessControlStateProvider = AccessControlStateProvider._();
@@ -2083,7 +2083,7 @@ final class ProxyStateProvider
   }
 }
 
-String _$proxyStateHash() => r'cc5539f122cd5fec2f9b094310e519f11c1682ae';
+String _$proxyStateHash() => r'311cc07ad62db7de74f4c8f283f536e4124ce975';
 
 /// Watching the delay map instead would drop nodes one probe at a time, and
 /// reading it on any other rebuild would drop them whenever something
@@ -3245,7 +3245,7 @@ final class NavigationItemsStateProvider
 }
 
 String _$navigationItemsStateHash() =>
-    r'3c633d4f3e5f2e80b7cfd166a46397f9a207bb1e';
+    r'3d07c97563396cfcd82c5fcf6245561c8931e1eb';
 
 @ProviderFor(currentNavigationItemsState)
 final currentNavigationItemsStateProvider =
@@ -3679,6 +3679,48 @@ final class GlobalModeAllowedProvider
 
 String _$globalModeAllowedHash() => r'6e60b73ef0c048c6cc93bf0013f96e7e68234f2f';
 
+@ProviderFor(systemProxyAllowed)
+final systemProxyAllowedProvider = SystemProxyAllowedProvider._();
+
+final class SystemProxyAllowedProvider
+    extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  SystemProxyAllowedProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'systemProxyAllowedProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$systemProxyAllowedHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return systemProxyAllowed(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$systemProxyAllowedHash() =>
+    r'f27081a9a7ae8ea983954d8d4d2a11afcdcf0d0e';
+
 @ProviderFor(androidSecure)
 final androidSecureProvider = AndroidSecureProvider._();
 
@@ -3900,6 +3942,46 @@ final class PanelLogoPathFamily extends $Family
   @override
   String toString() => r'panelLogoPathProvider';
 }
+
+@ProviderFor(simpleMode)
+final simpleModeProvider = SimpleModeProvider._();
+
+final class SimpleModeProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  SimpleModeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'simpleModeProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$simpleModeHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return simpleMode(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$simpleModeHash() => r'c09669e9cc4bb612e595c717678b0def5999331d';
 
 @ProviderFor(widgetEditingDenied)
 final widgetEditingDeniedProvider = WidgetEditingDeniedProvider._();

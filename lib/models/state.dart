@@ -62,6 +62,7 @@ abstract class TrayState with _$TrayState {
     @Default(false) bool menuBarMode,
     @Default({}) Map<HotAction, HotKeyAction> hotKeys,
     @Default(true) bool globalModeAllowed,
+    @Default(false) bool onlyTun,
   }) = _TrayState;
 }
 

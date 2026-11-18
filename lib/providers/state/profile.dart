@@ -40,6 +40,15 @@ bool globalModeAllowed(Ref ref) {
 }
 
 @riverpod
+bool systemProxyAllowed(Ref ref) {
+  return !ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.onlyTun ?? false,
+    ),
+  );
+}
+
+@riverpod
 bool androidSecure(Ref ref) {
   return system.isAndroid &&
       ref.watch(
@@ -121,6 +130,18 @@ Future<String?> panelLogoPath(Ref ref, String url) async {
     commonPrint.log('logo $url unavailable: $error');
     rethrow;
   }
+}
+
+@riverpod
+bool simpleMode(Ref ref) {
+  if (ref.watch(fullSettingsUnlockedProvider)) {
+    return false;
+  }
+  return ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.simpleMode ?? false,
+    ),
+  );
 }
 
 @riverpod

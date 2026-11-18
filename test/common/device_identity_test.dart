@@ -59,6 +59,13 @@ void main() {
     );
   });
 
+  test('a leanback or television feature marks an Android TV', () {
+    expect(isTelevision(['android.software.leanback']), isTrue);
+    expect(isTelevision(['android.hardware.type.television']), isTrue);
+    expect(isTelevision(['android.hardware.touchscreen']), isFalse);
+    expect(isTelevision(const []), isFalse);
+  });
+
   testWidgets(
     'macOS sends the hashed system GUID with the OS, version and model',
     (tester) async {

@@ -716,6 +716,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "forkAuthor": MessageLookupByLibrary.simpleMessage("フォーク作者"),
     "fr": MessageLookupByLibrary.simpleMessage("フランス語"),
+    "fullSettingsUnlocked": MessageLookupByLibrary.simpleMessage(
+      "アプリを再起動するまで、すべての設定が表示されます",
+    ),
     "general": MessageLookupByLibrary.simpleMessage("一般"),
     "geoResources": MessageLookupByLibrary.simpleMessage("Geo"),
     "geoSkipped": m30,

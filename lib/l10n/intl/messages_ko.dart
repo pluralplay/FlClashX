@@ -705,6 +705,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "forkAuthor": MessageLookupByLibrary.simpleMessage("포크 작성자"),
     "fr": MessageLookupByLibrary.simpleMessage("프랑스어"),
+    "fullSettingsUnlocked": MessageLookupByLibrary.simpleMessage(
+      "앱을 다시 시작할 때까지 전체 설정이 열립니다",
+    ),
     "general": MessageLookupByLibrary.simpleMessage("일반"),
     "geoResources": MessageLookupByLibrary.simpleMessage("Geo"),
     "geoSkipped": m30,

@@ -271,14 +271,23 @@ void main() {
       expect((loadYaml(overridden.yaml) as YamlMap)['rules'], [
         'DOMAIN-SUFFIX,added.example,HK',
         'DOMAIN,existing.example,DIRECT',
-        'MATCH,Original',
+        'MATCH,HK',
       ]);
 
       final blank = await makeRealProfileTask(state.copyWith(matchTarget: ' '));
-      expect(
-        (loadYaml(blank.yaml) as YamlMap)['rules'].first,
+      expect((loadYaml(blank.yaml) as YamlMap)['rules'], [
         'DOMAIN-SUFFIX,added.example,Original',
+        'DOMAIN,existing.example,DIRECT',
+        'MATCH,Original',
+      ]);
+
+      final withoutAddedRules = await makeRealProfileTask(
+        state.copyWith(addedRules: const [], matchTarget: ' DIRECT '),
       );
+      expect((loadYaml(withoutAddedRules.yaml) as YamlMap)['rules'], [
+        'DOMAIN,existing.example,DIRECT',
+        'MATCH,DIRECT',
+      ]);
     },
   );
 

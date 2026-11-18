@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.8 (2026-11-18)
+
+**Features**
+
+- **tray** The tray menu has a Restart item again (df1c1fc)
+- **headers** flclashx-special: simple hides the fine settings, leaving the dashboard, proxies, profiles, logs and the basic settings (d10a072)
+- **headers** flclashx-special: onlytun keeps the system proxy off and out of the tray and hotkeys; noglobal frees its hotkey and gives Global back on a profile without it (b9ce19f)
+- **headers** An Android TV identifies itself to the panel as AndroidTV, in x-device-os and the User-Agent (fb0e2bf)
+
+**Bug Fixes**
+
+- **settings** The filter presets and the excluded domains no longer show Chinese text, stored ones included (a9c3fb8)
+- **dashboard** A status card removed from the dashboard stays removed and no longer flashes at startup under denywidgets (dac14fd)
+- **dashboard** The service list checks every enabled service as it opens; the card keeps checking only its own tiles (2f43844)
+- **dashboard** “All available” on the service card now speaks for every enabled service, not only the tiles shown — thanks to libmur-dev (9b4b58c)
+- **profiles** A rule aimed at a group or proxy of the subscription is no longer marked invalid in the profile editor — thanks to libmur-dev (cbbd9f9)
+- **profiles** MATCH-TARGET also replaces the subscription’s own MATCH rule — thanks to libmur-dev (18fa160)
+
 ## v0.5.7 (2026-11-16)
 
 **Features**

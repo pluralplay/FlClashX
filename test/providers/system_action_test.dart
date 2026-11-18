@@ -26,9 +26,17 @@ class TestSystemAction extends SystemAction {
   Completer<void>? closeCoreGate;
   Object? cleanupError;
   Duration watchdog = const Duration(hours: 1);
+  Error? relaunchError;
 
   @override
   Duration get exitWatchdogDuration => watchdog;
+
+  @override
+  Future<void> relaunchSelf() async {
+    calls.add('relaunch');
+    final error = relaunchError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> cleanupExitResources(bool needSave) async {
@@ -199,6 +207,20 @@ void main() {
 
       expect(action.calls, ['cleanup', 'window', 'core', 'exit']);
       expect(action.cleanupNeedSave, [true]);
+    });
+
+    test('a restart schedules the new copy, then exits as usual', () async {
+      await notifier().handleRestart();
+
+      expect(action.calls, ['relaunch', 'cleanup', 'window', 'core', 'exit']);
+    });
+
+    test('a restart that cannot schedule the new copy keeps the app', () async {
+      action.relaunchError = StateError('no shell');
+
+      await notifier().handleRestart();
+
+      expect(action.calls, ['relaunch']);
     });
 
     test(

@@ -2253,6 +2253,7 @@ void main() {
 
       final base = pushed.single.base!;
       expect(base.path, await appPath.getProfilePath(profile.id.toString()));
+      expect(base.toJson(), isNot(contains('match-target')));
       final overlay = loadYaml(base.overlay) as YamlMap;
       expect(overlay['rules'], ['DOMAIN,added.test,Proxy']);
       expect(overlay['mixed-port'], isNot(1));
@@ -2271,6 +2272,44 @@ void main() {
       expect(await setupAction.applyProfile(), isFalse);
       expect(globalState.lastConfigCounts, (groups: 0, proxies: 0, rules: 0));
     });
+
+    test(
+      'setting a MATCH target changes a profile with no added rules',
+      () async {
+        final profile = Profile.normal(label: 'p');
+        final core = _MockCoreHandlerInterface();
+        when(() => core.getProfileBase(any())).thenAnswer(
+          (_) async => const ProfileBase(
+            config: {},
+            digest: 'd',
+            matchRules: ['MATCH,Proxy'],
+            rules: 1,
+          ),
+        );
+        final scoped = ProviderContainer(
+          overrides: [
+            coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+            setupActionProvider.overrideWith(SetupAction.new),
+          ],
+        );
+        addTearDown(scoped.dispose);
+        final action = scoped.read(setupActionProvider.notifier);
+        final state = nullProfileSetupState.copyWith(profileId: profile.id);
+        final original = await action.getProfile(
+          setupState: state,
+          patchConfig: _tunOff,
+        );
+        final overridden = await action.getProfile(
+          setupState: state.copyWith(matchTarget: ' DIRECT '),
+          patchConfig: _tunOff,
+        );
+
+        expect(overridden.base!.toJson()['match-target'], 'DIRECT');
+        expect(overridden.yaml, original.yaml);
+        expect(overridden.md5, isNot(original.md5));
+        expect(overridden.counts.rules, 1);
+      },
+    );
 
     test('the preview shows the config the Core merges', () async {
       final profile = Profile.normal(label: 'p');

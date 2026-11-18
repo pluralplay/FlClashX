@@ -494,6 +494,7 @@ class SetupAction extends _$SetupAction {
       return;
     }
     changeMode(mode);
+    ref.read(profileHeadersActionProvider.notifier).forgetTakenMode();
   }
 
   void changeMode(Mode mode) {
@@ -701,6 +702,8 @@ class SetupAction extends _$SetupAction {
       proxyGroups: proxyGroups,
       rules: rules,
     );
+    final matchTarget = setupState.matchTarget?.trim();
+    final matchOverride = matchTarget?.isNotEmpty == true ? matchTarget : null;
     final res = await makeRealProfileTask(
       MakeRealProfileState(
         rules: rules,
@@ -719,10 +722,10 @@ class SetupAction extends _$SetupAction {
         defaultUA: defaultUA,
         authentication: networkSetting.authentication.credentials,
         matchTarget:
-            profileBase == null ||
-                setupState.matchTarget?.trim().isNotEmpty == true
-            ? setupState.matchTarget
-            : lastMatchTarget(profileBase.base.matchRules),
+            matchOverride ??
+            (profileBase == null
+                ? null
+                : lastMatchTarget(profileBase.base.matchRules)),
         safeMode: ref.read(safeModeProvider),
         proxyChains: setupState.proxyChains,
       ),
@@ -733,13 +736,17 @@ class SetupAction extends _$SetupAction {
     final (:base, :path) = profileBase;
     return (
       yaml: res.yaml,
-      md5: '${res.md5}${base.digest}'.toMd5(),
+      md5: '${res.md5}${base.digest}${matchOverride ?? ''}'.toMd5(),
       counts: (
         groups: res.counts.groups + base.proxyGroups,
         proxies: res.counts.proxies + base.proxies,
         rules: res.counts.rules + base.rules,
       ),
-      base: SetupBase(path: path, overlay: res.yaml),
+      base: SetupBase(
+        path: path,
+        overlay: res.yaml,
+        matchTarget: matchOverride,
+      ),
     );
   }
 

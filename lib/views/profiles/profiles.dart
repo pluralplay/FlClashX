@@ -406,12 +406,14 @@ class ProfileItem extends ConsumerWidget {
     final appLocalizations = context.appLocalizations;
     final isUrl = profile.type == ProfileType.url;
     final isCustom = profile.type == ProfileType.custom;
+    final simple = ref.watch(simpleModeProvider);
     return [
-      CommonPopupMenuItem(
-        glyph: AppGlyphs.edit,
-        label: appLocalizations.edit,
-        onPressed: () => _handleEdit(context),
-      ),
+      if (!simple)
+        CommonPopupMenuItem(
+          glyph: AppGlyphs.edit,
+          label: appLocalizations.edit,
+          onPressed: () => _handleEdit(context),
+        ),
       if (isCustom) ...[
         CommonPopupMenuItem(
           glyph: AppGlyphs.textShort,
@@ -420,14 +422,15 @@ class ProfileItem extends ConsumerWidget {
             renameProfile(context, ref, profile);
           },
         ),
-        CommonPopupMenuItem(
-          glyph: AppGlyphs.eye,
-          label: appLocalizations.runtimeConfig,
-          onPressed: () {
-            _handlePreview(context);
-          },
-        ),
-      ] else
+        if (!simple)
+          CommonPopupMenuItem(
+            glyph: AppGlyphs.eye,
+            label: appLocalizations.runtimeConfig,
+            onPressed: () {
+              _handlePreview(context);
+            },
+          ),
+      ] else if (!simple)
         CommonPopupMenuItem(
           glyph: AppGlyphs.puzzle,
           label: appLocalizations.extend,
@@ -449,18 +452,19 @@ class ProfileItem extends ConsumerWidget {
           label: appLocalizations.profileDetails,
           onPressed: () => showProfileDetailSheet(context),
         ),
-      if (!isCustom)
+      if (!isCustom && (isUrl || !simple))
         CommonPopupMenuItem(
           glyph: AppGlyphs.moreCircle,
           label: appLocalizations.more,
           subItems: [
-            CommonPopupMenuItem(
-              glyph: AppGlyphs.eye,
-              label: appLocalizations.runtimeConfig,
-              onPressed: () {
-                _handlePreview(context);
-              },
-            ),
+            if (!simple)
+              CommonPopupMenuItem(
+                glyph: AppGlyphs.eye,
+                label: appLocalizations.runtimeConfig,
+                onPressed: () {
+                  _handlePreview(context);
+                },
+              ),
             if (isUrl)
               CommonPopupMenuItem(
                 glyph: AppGlyphs.copy,
@@ -481,13 +485,14 @@ class ProfileItem extends ConsumerWidget {
                   );
                 },
               ),
-            CommonPopupMenuItem(
-              glyph: AppGlyphs.export,
-              label: appLocalizations.exportFile,
-              onPressed: () {
-                _handleExportFile(context);
-              },
-            ),
+            if (!simple)
+              CommonPopupMenuItem(
+                glyph: AppGlyphs.export,
+                label: appLocalizations.exportFile,
+                onPressed: () {
+                  _handleExportFile(context);
+                },
+              ),
           ],
         ),
       CommonPopupMenuItem(

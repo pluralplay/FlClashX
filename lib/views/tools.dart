@@ -39,19 +39,25 @@ class _ToolViewState extends ConsumerState<ToolsView> {
     );
   }
 
-  Widget _getOtherList(bool enableDeveloperMode) {
+  Widget _getOtherList(bool enableDeveloperMode, {required bool simple}) {
     return generateSection(
       title: context.appLocalizations.other,
       items: [
-        const _DisclaimerItem(),
-        if (enableDeveloperMode) const _DeveloperItem(),
+        if (!simple) const _DisclaimerItem(),
+        if (enableDeveloperMode && !simple) const _DeveloperItem(),
         const _InfoItem(),
       ],
     );
   }
 
-  Widget _getSettingList() {
+  Widget _getSettingList({required bool simple}) {
     final appLocalizations = context.appLocalizations;
+    if (simple) {
+      return generateSection(
+        title: appLocalizations.settings,
+        items: const [_LocaleItem(), _ThemeItem(), _GeneralItem()],
+      );
+    }
     return generateSection(
       title: appLocalizations.settings,
       items: [
@@ -77,6 +83,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
     final developerMode = ref.watch(
       appSettingProvider.select((state) => state.developerMode),
     );
+    final simple = ref.watch(simpleModeProvider);
     final items = [
       Consumer(
         builder: (_, ref, _) {
@@ -100,8 +107,8 @@ class _ToolViewState extends ConsumerState<ToolsView> {
           );
         },
       ),
-      _getSettingList(),
-      _getOtherList(developerMode),
+      _getSettingList(simple: simple),
+      _getOtherList(developerMode, simple: simple),
     ];
     return CommonScaffold(
       title: context.appLocalizations.tools,

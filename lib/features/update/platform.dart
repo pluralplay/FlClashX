@@ -177,6 +177,44 @@ Future<void> _relaunchAfterExit(String command, List<String> arguments) {
   ], mode: ProcessStartMode.detached);
 }
 
+/// Opens this copy of the app again once it has quit.
+Future<void> relaunchSelfAfterExit() async {
+  final executable = Platform.resolvedExecutable;
+  if (Platform.isWindows) {
+    await Process.start(
+      windowsPowerShell,
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-WindowStyle',
+        'Hidden',
+        '-Command',
+        _restartScript,
+      ],
+      environment: {
+        _restartPidVariable: '$pid',
+        _restartExecutableVariable: executable,
+      },
+      mode: ProcessStartMode.detached,
+    );
+    return;
+  }
+  if (Platform.isMacOS) {
+    final bundle = p.dirname(p.dirname(p.dirname(executable)));
+    return _relaunchAfterExit(r'/usr/bin/open "$2"', [bundle]);
+  }
+  final appImage = Platform.environment['APPIMAGE'] ?? '';
+  return _relaunchAfterExit(r'exec "$2"', [
+    appImage.isNotEmpty ? appImage : executable,
+  ]);
+}
+
+const _restartPidVariable = 'FLCLASHX_RESTART_PID';
+const _restartExecutableVariable = 'FLCLASHX_RESTART_EXE';
+const _restartScript =
+    'Wait-Process -Id \$env:$_restartPidVariable -ErrorAction SilentlyContinue; '
+    'Start-Process -FilePath \$env:$_restartExecutableVariable';
+
 String _randomSuffix() => Random.secure().nextInt(1 << 32).toRadixString(36);
 
 class AndroidUpdatePlatform implements UpdatePlatform {

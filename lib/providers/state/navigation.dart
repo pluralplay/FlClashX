@@ -15,6 +15,7 @@ NavigationItemsState navigationItemsState(Ref ref) {
         navigationPort?.getItems(
           openLogs: openLogs,
           hasProxies: !isInit ? hasProfiles : hasProxies,
+          simple: ref.watch(simpleModeProvider),
         ) ??
         const [],
   );

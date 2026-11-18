@@ -49,6 +49,7 @@ class CommonAction extends _$CommonAction {
       final nextIndex = index + 1 > modes.length - 1 ? 0 : index + 1;
       return state.copyWith(mode: modes[nextIndex]);
     });
+    ref.read(profileHeadersActionProvider.notifier).forgetTakenMode();
   }
 
   Future<void> updateTraffic() async {

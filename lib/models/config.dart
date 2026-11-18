@@ -29,49 +29,95 @@ const defaultBypassDomain = [
 const defaultFilters = [
   Filter(
     label: 'Hong Kong',
-    regex: r'(?i)🇭🇰|港|(?<![a-z])hk(?![a-z])|hong\s*kong',
+    regex: r'(?i)🇭🇰|(?<![a-z])hk(?![a-z])|hong\s*kong|гонконг',
   ),
   Filter(
     label: 'Taiwan',
-    regex: r'(?i)🇹🇼|台湾|台灣|台北|新北|彰化|(?<![a-z])tw(?![a-z])|taiwan',
+    regex: r'(?i)🇹🇼|(?<![a-z])tw(?![a-z])|taiwan|тайван',
   ),
   Filter(
     label: 'Japan',
-    regex: r'(?i)🇯🇵|日本|东京|東京|大阪|埼玉|(?<![a-z])jp(?![a-z])|japan|tokyo|osaka',
+    regex: r'(?i)🇯🇵|(?<![a-z])jp(?![a-z])|japan|tokyo|osaka|япони|токио',
   ),
   Filter(
     label: 'Singapore',
-    regex: r'(?i)🇸🇬|新加坡|狮城|獅城|(?<![a-z])sg(?![a-z])|singapore',
+    regex: r'(?i)🇸🇬|(?<![a-z])sg(?![a-z])|singapore|сингапур',
   ),
   Filter(
     label: 'United States',
-    regex:
-        r'(?i)🇺🇸|美国|美國|美西|美东|美東|洛杉矶|圣何塞|西雅图|硅谷|纽约'
-        r'|(?<![a-z])usa?(?![a-z])|united\s*states',
+    regex: r'(?i)🇺🇸|(?<![a-z])usa?(?![a-z])|united\s*states|сша',
   ),
   Filter(
     label: 'South Korea',
-    regex: r'(?i)🇰🇷|韩国|韓國|首尔|首爾|(?<![a-z])kr(?![a-z])|korea|seoul',
+    regex: r'(?i)🇰🇷|(?<![a-z])kr(?![a-z])|korea|seoul|коре[яи]',
   ),
   Filter(
     label: 'United Kingdom',
     regex:
-        r'(?i)🇬🇧|英国|英國|伦敦|倫敦|(?<![a-z])(uk|gb)(?![a-z])'
-        r'|united\s*kingdom|britain|london',
+        r'(?i)🇬🇧|(?<![a-z])(uk|gb)(?![a-z])'
+        r'|united\s*kingdom|britain|london|британи|лондон',
   ),
   Filter(
     label: 'Remaining Traffic',
-    regex: r'(?i)剩余|剩餘|已用|流量\s*[:：]|traffic|remaining',
+    regex: r'(?i)traffic|remaining|трафик|остал',
   ),
-  Filter(label: 'Expiry Date', regex: r'(?i)到期|过期|過期|有效期|expir'),
-  Filter(label: 'Traffic Reset', regex: r'(?i)重置|reset'),
+  Filter(label: 'Expiry Date', regex: r'(?i)expir|истека|истёк|срок'),
+  Filter(label: 'Traffic Reset', regex: r'(?i)reset|сброс'),
   Filter(
     label: 'Website & Notices',
-    regex:
-        r'(?i)官网|官網|网址|網址|域名|公告|套餐|客服|群组|群組|频道|頻道'
-        r'|website|telegram|(?<![a-z])tg(?![a-z])',
+    regex: r'(?i)website|telegram|(?<![a-z])tg(?![a-z])|сайт|канал',
   ),
 ];
+
+/// The presets before 0.5.8 by their regex; a stored one the user left alone
+/// takes its replacement.
+const _legacyDefaultFilters = {
+  r'(?i)🇭🇰|港|(?<![a-z])hk(?![a-z])|hong\s*kong': 'Hong Kong',
+  r'(?i)🇹🇼|台湾|台灣|台北|新北|彰化|(?<![a-z])tw(?![a-z])|taiwan': 'Taiwan',
+  r'(?i)🇯🇵|日本|东京|東京|大阪|埼玉|(?<![a-z])jp(?![a-z])|japan|tokyo|osaka': 'Japan',
+  r'(?i)🇸🇬|新加坡|狮城|獅城|(?<![a-z])sg(?![a-z])|singapore': 'Singapore',
+  r'(?i)🇺🇸|美国|美國|美西|美东|美東|洛杉矶|圣何塞|西雅图|硅谷|纽约|(?<![a-z])usa?(?![a-z])|united\s*states':
+      'United States',
+  r'(?i)🇰🇷|韩国|韓國|首尔|首爾|(?<![a-z])kr(?![a-z])|korea|seoul': 'South Korea',
+  r'(?i)🇬🇧|英国|英國|伦敦|倫敦|(?<![a-z])(uk|gb)(?![a-z])|united\s*kingdom|britain|london':
+      'United Kingdom',
+  r'(?i)剩余|剩餘|已用|流量\s*[:：]|traffic|remaining': 'Remaining Traffic',
+  r'(?i)到期|过期|過期|有效期|expir': 'Expiry Date',
+  r'(?i)重置|reset': 'Traffic Reset',
+  r'(?i)官网|官網|网址|網址|域名|公告|套餐|客服|群组|群組|频道|頻道|website|telegram|(?<![a-z])tg(?![a-z])':
+      'Website & Notices',
+};
+
+List<Filter> filtersFromJson(List<dynamic> json) {
+  final presets = {for (final filter in defaultFilters) filter.label: filter};
+  return [
+    for (final item in json)
+      switch (Filter.fromJson(Map<String, Object?>.from(item as Map))) {
+        final filter when _legacyDefaultFilters[filter.regex] == filter.label =>
+          presets[filter.label] ?? filter,
+        final filter => filter,
+      },
+  ];
+}
+
+/// Upstream's defaults before 0.5.0, which a stored list still carries.
+const _legacyBypassDomains = {
+  '*zhihu.com',
+  '*zhimg.com',
+  '*jd.com',
+  '100ime-iat-api.xfyun.cn',
+  '*360buyimg.com',
+};
+
+/// Only the whole old set marks a list as shipped; a user may add one back.
+List<String> bypassDomainFromJson(List<dynamic> json) {
+  final domains = json.cast<String>();
+  if (!domains.toSet().containsAll(_legacyBypassDomains)) return domains;
+  return [
+    for (final domain in domains)
+      if (!_legacyBypassDomains.contains(domain)) domain,
+  ];
+}
 
 const defaultAppSettingProps = AppSettingProps();
 const defaultVpnProps = VpnProps();
@@ -166,20 +212,41 @@ List<DashboardWidget> dashboardWidgetsNamed(Iterable<String> names) {
   }.toList();
 }
 
-/// The current outbound card cannot be removed: a list without it predates it.
-List<DashboardWidget> dashboardWidgetsFromJson(
-  List<dynamic>? dashboardWidgets,
-) {
+/// Saved by 0.5.1 on, where providermode may leave the status card out.
+final class _CurrentDashboardWidgets {
+  const _CurrentDashboardWidgets(this.names);
+
+  final List<dynamic> names;
+}
+
+Object? _readDashboardWidgets(Map<dynamic, dynamic> json, String key) {
+  final saved = json[key];
+  return saved is List && json.containsKey('dashboardWidgetsChosen')
+      ? _CurrentDashboardWidgets(saved)
+      : saved;
+}
+
+List<DashboardWidget> dashboardWidgetsFromJson(Object? saved) {
+  final current = saved is _CurrentDashboardWidgets;
+  final dashboardWidgets = switch (saved) {
+    _CurrentDashboardWidgets(:final names) => names,
+    List<dynamic>() => saved,
+    _ => null,
+  };
   if (dashboardWidgets == null) {
     return platformDefaultDashboardWidgets;
   }
   final byName = DashboardWidget.values.asNameMap();
-  if (dashboardWidgets.contains(DashboardWidget.currentOutbound.name)) {
-    return dashboardWidgets
+  if (current ||
+      dashboardWidgets.contains(DashboardWidget.currentOutbound.name)) {
+    final known = dashboardWidgets
         .map((e) => _legacyDashboardWidgets[e] ?? byName[e])
         .nonNulls
         .toSet()
         .toList();
+    return known.isEmpty && dashboardWidgets.isNotEmpty
+        ? platformDefaultDashboardWidgets
+        : known;
   }
   final names = {
     for (final name in dashboardWidgets)
@@ -243,7 +310,10 @@ abstract class AppSettingProps with _$AppSettingProps {
   const factory AppSettingProps({
     String? locale,
     @Default(defaultDashboardWidgets)
-    @JsonKey(fromJson: dashboardWidgetsFromJson)
+    @JsonKey(
+      readValue: _readDashboardWidgets,
+      fromJson: dashboardWidgetsFromJson,
+    )
     List<DashboardWidget> dashboardWidgets,
 
     /// The wide dashboard keeps its full arrangement until this is set.
@@ -283,7 +353,9 @@ abstract class AppSettingProps with _$AppSettingProps {
     @JsonKey(includeFromJson: false, includeToJson: false)
     @Default(true)
     bool checkCertificate,
-    @Default(defaultFilters) List<Filter> filters,
+    @Default(defaultFilters)
+    @JsonKey(fromJson: filtersFromJson)
+    List<Filter> filters,
     @Default(false) bool hideIp,
     @Default(true) bool vibration,
     @Default(false) bool editorLineWrap,
@@ -444,7 +516,9 @@ extension AuthenticationPropsExt on AuthenticationProps {
 abstract class NetworkProps with _$NetworkProps {
   const factory NetworkProps({
     @Default(false) bool systemProxy,
-    @Default(defaultBypassDomain) List<String> bypassDomain,
+    @Default(defaultBypassDomain)
+    @JsonKey(fromJson: bypassDomainFromJson)
+    List<String> bypassDomain,
     @Default(true) bool bypassPrivateRoute,
     @Default(true) bool autoSetSystemDns,
     @Default(false) bool appendSystemDns,
