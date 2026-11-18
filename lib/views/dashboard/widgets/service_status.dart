@@ -125,7 +125,7 @@ class ServiceStatusCard extends ConsumerStatefulWidget {
 class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     with ProbeStartHold<ServiceStatusCard> {
   late final ServiceStatus _services;
-  Set<ServiceTarget> _enabled = const {};
+  Set<ServiceTarget> _shown = const {};
   Set<ServiceTarget> _watched = const {};
   int? _shownCount;
   var _syncScheduled = false;
@@ -144,24 +144,24 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     super.dispose();
   }
 
-  void _syncServices(Set<ServiceTarget> enabled, int shownCount) {
-    if (setEquals(enabled, _enabled) && shownCount == _shownCount) return;
-    _enabled = enabled;
-    _shownCount = shownCount;
+  void _syncShown(Set<ServiceTarget> shown, int count) {
+    if (setEquals(shown, _shown) && count == _shownCount) return;
+    _shown = shown;
+    _shownCount = count;
     if (_syncScheduled) return;
     _syncScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncScheduled = false;
       if (!mounted) return;
       ref.read(shownServiceCountProvider.notifier).value = _shownCount!;
-      final enabled = _enabled;
-      for (final target in enabled.difference(_watched)) {
+      final shown = _shown;
+      for (final target in shown.difference(_watched)) {
         _services.watch(target);
       }
-      for (final target in _watched.difference(enabled)) {
+      for (final target in _watched.difference(shown)) {
         _services.unwatch(target);
       }
-      _watched = enabled;
+      _watched = shown;
     });
   }
 
@@ -170,10 +170,11 @@ class _ServiceStatusCardState extends ConsumerState<ServiceStatusCard>
     final density = DashboardDensityScope.of(context);
     final mobile = !density.isDesktop;
     final appLocalizations = context.appLocalizations;
+    // At most four: what the Core checks at once (serviceCheckConcurrency).
     final shownCount = (mobile ? 1 : 2) * widget.columns;
     final stacked = widget.columns == 1;
     final targets = ref.watch(enabledServiceTargetsProvider);
-    _syncServices(targets.toSet(), shownCount);
+    _syncShown(targets.take(shownCount).toSet(), shownCount);
     final state = ref.watch(serviceStatusProvider);
     final services = targets.map((target) {
       final entry = state.entryOf(target);
@@ -589,15 +590,48 @@ Future<void> showServiceStatusSheet(BuildContext context) {
   );
 }
 
-/// Results for every enabled service, with controls to recheck them.
-class ServiceStatusSheet extends ConsumerWidget {
+/// Every enabled service, checked while the list is open unless still fresh.
+class ServiceStatusSheet extends ConsumerStatefulWidget {
   const ServiceStatusSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ServiceStatusSheet> createState() => _ServiceStatusSheetState();
+}
+
+class _ServiceStatusSheetState extends ConsumerState<ServiceStatusSheet> {
+  late final ServiceStatus _services;
+  Set<ServiceTarget> _watched = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _services = ref.read(serviceStatusProvider.notifier);
+  }
+
+  @override
+  void dispose() {
+    for (final target in _watched) {
+      _services.unwatch(target);
+    }
+    super.dispose();
+  }
+
+  void _syncWatched(Set<ServiceTarget> targets) {
+    for (final target in targets.difference(_watched)) {
+      _services.watch(target);
+    }
+    for (final target in _watched.difference(targets)) {
+      _services.unwatch(target);
+    }
+    _watched = targets;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final targets = ref.watch(enabledServiceTargetsProvider);
+    _syncWatched(targets.toSet());
     final state = ref.watch(serviceStatusProvider);
-    final services = ref.read(serviceStatusProvider.notifier);
+    final services = _services;
     final localizations = context.appLocalizations;
     return CommonScaffold(
       title: localizations.serviceStatus,
