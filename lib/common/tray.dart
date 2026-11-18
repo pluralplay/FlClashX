@@ -142,6 +142,12 @@ class AppTray implements TrayPort {
         window?.show();
       },
     );
+    final restartItem = TrayMenuAction(
+      label: appLocalizations.restart,
+      onSelected: () {
+        systemAction.handleRestart();
+      },
+    );
     final exitItem = TrayMenuAction(
       label: appLocalizations.exit,
       detail: shortcut(HotAction.exit),
@@ -213,6 +219,7 @@ class AppTray implements TrayPort {
         ),
         const TrayMenuSeparator(),
       ],
+      restartItem,
       exitItem,
     ];
   }

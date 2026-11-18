@@ -176,6 +176,7 @@ void main() {
     expect(labels, isNot(contains(l10n.autoLaunch)));
     expect(labels, isNot(contains(l10n.copyEnvVar)));
     expect(labels, contains(l10n.exit));
+    expect(labels.indexOf(l10n.restart), labels.indexOf(l10n.exit) - 1);
     expect(labels, isNot(contains(l10n.tun)));
     expect(labels, isNot(contains(l10n.systemProxy)));
   });
