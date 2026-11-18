@@ -62,11 +62,9 @@ _AppSettingProps _$AppSettingPropsFromJson(
       RestoreStrategy.compatible,
   showTrayTitle: json['showTrayTitle'] as bool? ?? true,
   monochromeTrayIcon: json['monochromeTrayIcon'] as bool? ?? true,
-  filters:
-      (json['filters'] as List<dynamic>?)
-          ?.map((e) => Filter.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-      defaultFilters,
+  filters: json['filters'] == null
+      ? defaultFilters
+      : filtersFromJson(json['filters'] as List),
   hideIp: json['hideIp'] as bool? ?? false,
   vibration: json['vibration'] as bool? ?? true,
   editorLineWrap: json['editorLineWrap'] as bool? ?? false,
@@ -295,11 +293,9 @@ Map<String, dynamic> _$AuthenticationPropsToJson(
 _NetworkProps _$NetworkPropsFromJson(Map<String, dynamic> json) =>
     _NetworkProps(
       systemProxy: json['systemProxy'] as bool? ?? false,
-      bypassDomain:
-          (json['bypassDomain'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          defaultBypassDomain,
+      bypassDomain: json['bypassDomain'] == null
+          ? defaultBypassDomain
+          : bypassDomainFromJson(json['bypassDomain'] as List),
       bypassPrivateRoute: json['bypassPrivateRoute'] as bool? ?? true,
       autoSetSystemDns: json['autoSetSystemDns'] as bool? ?? true,
       appendSystemDns: json['appendSystemDns'] as bool? ?? false,
