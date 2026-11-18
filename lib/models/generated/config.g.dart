@@ -18,9 +18,11 @@ _AppSettingProps _$AppSettingPropsFromJson(
   Map<String, dynamic> json,
 ) => _AppSettingProps(
   locale: json['locale'] as String?,
-  dashboardWidgets: json['dashboardWidgets'] == null
+  dashboardWidgets: _readDashboardWidgets(json, 'dashboardWidgets') == null
       ? defaultDashboardWidgets
-      : dashboardWidgetsFromJson(json['dashboardWidgets'] as List?),
+      : dashboardWidgetsFromJson(
+          _readDashboardWidgets(json, 'dashboardWidgets'),
+        ),
   dashboardWidgetsChosen:
       _readDashboardWidgetsChosen(json, 'dashboardWidgetsChosen') as bool? ??
       false,

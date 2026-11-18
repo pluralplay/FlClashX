@@ -868,6 +868,44 @@ void main() {
       expect(props.hideIp, true);
     });
 
+    test('a list saved since 0.5.1 keeps the status card out', () {
+      final props = AppSettingProps.safeFromJson({
+        'dashboardWidgets': ['profiles', 'networkSpeed'],
+        'dashboardWidgetsChosen': true,
+      });
+
+      expect(props.dashboardWidgets, [
+        DashboardWidget.profiles,
+        DashboardWidget.networkSpeed,
+      ]);
+    });
+
+    test('an older list without the status card gets it back', () {
+      final props = AppSettingProps.safeFromJson({
+        'dashboardWidgets': ['profiles', 'networkSpeed'],
+      });
+
+      expect(props.dashboardWidgets, [
+        DashboardWidget.currentOutbound,
+        DashboardWidget.profiles,
+        DashboardWidget.networkSpeed,
+      ]);
+    });
+
+    test('a saved list survives a round trip without the status card', () {
+      const props = AppSettingProps(
+        dashboardWidgets: [DashboardWidget.profiles],
+        dashboardWidgetsChosen: true,
+      );
+
+      expect(
+        AppSettingProps.safeFromJson(
+          jsonDecode(jsonEncode(props.toJson())) as Map<String, Object?>,
+        ).dashboardWidgets,
+        [DashboardWidget.profiles],
+      );
+    });
+
     test('drops the dashboard cards of the retired override toggles', () {
       expect(
         dashboardWidgetsFromJson([

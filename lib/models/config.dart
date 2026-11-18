@@ -166,20 +166,41 @@ List<DashboardWidget> dashboardWidgetsNamed(Iterable<String> names) {
   }.toList();
 }
 
-/// The current outbound card cannot be removed: a list without it predates it.
-List<DashboardWidget> dashboardWidgetsFromJson(
-  List<dynamic>? dashboardWidgets,
-) {
+/// Saved by 0.5.1 on, where providermode may leave the status card out.
+final class _CurrentDashboardWidgets {
+  const _CurrentDashboardWidgets(this.names);
+
+  final List<dynamic> names;
+}
+
+Object? _readDashboardWidgets(Map<dynamic, dynamic> json, String key) {
+  final saved = json[key];
+  return saved is List && json.containsKey('dashboardWidgetsChosen')
+      ? _CurrentDashboardWidgets(saved)
+      : saved;
+}
+
+List<DashboardWidget> dashboardWidgetsFromJson(Object? saved) {
+  final current = saved is _CurrentDashboardWidgets;
+  final dashboardWidgets = switch (saved) {
+    _CurrentDashboardWidgets(:final names) => names,
+    List<dynamic>() => saved,
+    _ => null,
+  };
   if (dashboardWidgets == null) {
     return platformDefaultDashboardWidgets;
   }
   final byName = DashboardWidget.values.asNameMap();
-  if (dashboardWidgets.contains(DashboardWidget.currentOutbound.name)) {
-    return dashboardWidgets
+  if (current ||
+      dashboardWidgets.contains(DashboardWidget.currentOutbound.name)) {
+    final known = dashboardWidgets
         .map((e) => _legacyDashboardWidgets[e] ?? byName[e])
         .nonNulls
         .toSet()
         .toList();
+    return known.isEmpty && dashboardWidgets.isNotEmpty
+        ? platformDefaultDashboardWidgets
+        : known;
   }
   final names = {
     for (final name in dashboardWidgets)
@@ -243,7 +264,10 @@ abstract class AppSettingProps with _$AppSettingProps {
   const factory AppSettingProps({
     String? locale,
     @Default(defaultDashboardWidgets)
-    @JsonKey(fromJson: dashboardWidgetsFromJson)
+    @JsonKey(
+      readValue: _readDashboardWidgets,
+      fromJson: dashboardWidgetsFromJson,
+    )
     List<DashboardWidget> dashboardWidgets,
 
     /// The wide dashboard keeps its full arrangement until this is set.
