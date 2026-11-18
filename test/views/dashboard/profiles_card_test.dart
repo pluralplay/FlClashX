@@ -617,6 +617,31 @@ void main() {
     }
   });
 
+  testWidgets('the simple mode leaves the external resources and the extend '
+      'mode out of the sheet', (tester) async {
+    await writeAppliedConfig(tester);
+    setUpProfiles(
+      [_profile(1)],
+      overrides: [
+        providersProvider.overrideWithBuild(
+          (_, _) => [_provider('nodes', 'Proxy', 5)],
+        ),
+        simpleModeProvider.overrideWithValue(true),
+      ],
+    );
+    container.read(currentProfileIdProvider.notifier).value = 1;
+    await pumpCard(tester);
+
+    await openDetail(tester);
+
+    expect(find.byType(ProfileDetailSheet), findsOneWidget);
+    expect(find.byType(ExternalProvidersSliver), findsNothing);
+    expect(find.text('External resources'), findsNothing);
+    expect(find.text('Extend mode'), findsNothing);
+    expect(find.byTooltip('Runtime config'), findsNothing);
+    expect(find.text('Proxies'), findsOneWidget);
+  });
+
   testWidgets('tapping a custom profile edits it in a sheet, built as it '
       'opens', (tester) async {
     final profile = Profile.custom(label: 'mine');

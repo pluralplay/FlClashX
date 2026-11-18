@@ -133,6 +133,18 @@ Future<String?> panelLogoPath(Ref ref, String url) async {
 }
 
 @riverpod
+bool simpleMode(Ref ref) {
+  if (ref.watch(fullSettingsUnlockedProvider)) {
+    return false;
+  }
+  return ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.simpleMode ?? false,
+    ),
+  );
+}
+
+@riverpod
 bool widgetEditingDenied(Ref ref) {
   return ref.watch(
     currentProfileProvider.select(

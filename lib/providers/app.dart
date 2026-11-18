@@ -230,6 +230,15 @@ class AppVisible extends _$AppVisible with AutoDisposeNotifierMixin {
   }
 }
 
+@Riverpod(keepAlive: true)
+class FullSettingsUnlocked extends _$FullSettingsUnlocked
+    with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
+  }
+}
+
 /// Set for the session once the GPU fell behind with an animated backdrop.
 @Riverpod(keepAlive: true)
 class BackdropFrozen extends _$BackdropFrozen with AutoDisposeNotifierMixin {

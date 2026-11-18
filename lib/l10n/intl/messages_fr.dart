@@ -905,6 +905,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "forkAuthor": MessageLookupByLibrary.simpleMessage("Auteur du fork"),
     "fr": MessageLookupByLibrary.simpleMessage("Français"),
+    "fullSettingsUnlocked": MessageLookupByLibrary.simpleMessage(
+      "Tous les réglages sont ouverts jusqu\'au redémarrage de l\'application",
+    ),
     "general": MessageLookupByLibrary.simpleMessage("Général"),
     "geoResources": MessageLookupByLibrary.simpleMessage("Geo"),
     "geoSkipped": m30,

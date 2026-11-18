@@ -105,6 +105,16 @@ class AboutView extends ConsumerWidget {
               );
             },
             onEasterEgg: () => _showEasterEgg(context),
+            onUnlockFullSettings: ref.watch(simpleModeProvider)
+                ? () {
+                    ref.read(fullSettingsUnlockedProvider.notifier).value =
+                        true;
+                    context.showNotifier(
+                      appLocalizations.fullSettingsUnlocked,
+                      level: MessageLevel.success,
+                    );
+                  }
+                : null,
           ),
           const SizedBox(height: 8),
           generateSection(
@@ -167,12 +177,14 @@ class _AboutHero extends ConsumerWidget {
   final VoidCallback onCheckUpdate;
   final VoidCallback onEnterDeveloperMode;
   final VoidCallback onEasterEgg;
+  final VoidCallback? onUnlockFullSettings;
 
   const _AboutHero({
     required this.isCheckingUpdate,
     required this.onCheckUpdate,
     required this.onEnterDeveloperMode,
     required this.onEasterEgg,
+    this.onUnlockFullSettings,
   });
 
   static const _logoSize = 96.0;
@@ -191,6 +203,7 @@ class _AboutHero extends ConsumerWidget {
           _TapCounter(
             onEnterDeveloperMode: onEnterDeveloperMode,
             onEasterEgg: onEasterEgg,
+            onLongPress: onUnlockFullSettings,
             child: DecoratedBox(
               decoration: ShapeDecoration(
                 color: raised,
@@ -386,10 +399,14 @@ class _TapCounter extends StatefulWidget {
   final VoidCallback onEnterDeveloperMode;
   final VoidCallback onEasterEgg;
 
+  /// The simple mode's way back to the full settings, for support.
+  final VoidCallback? onLongPress;
+
   const _TapCounter({
     required this.child,
     required this.onEnterDeveloperMode,
     required this.onEasterEgg,
+    this.onLongPress,
   });
 
   @override
@@ -433,7 +450,11 @@ class _TapCounterState extends State<_TapCounter> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(onTap: _handleTap, child: widget.child),
+      child: GestureDetector(
+        onTap: _handleTap,
+        onLongPress: widget.onLongPress,
+        child: widget.child,
+      ),
     );
   }
 }

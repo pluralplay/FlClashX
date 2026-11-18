@@ -899,6 +899,59 @@ abstract class _$AppVisible extends $Notifier<bool> {
   }
 }
 
+@ProviderFor(FullSettingsUnlocked)
+final fullSettingsUnlockedProvider = FullSettingsUnlockedProvider._();
+
+final class FullSettingsUnlockedProvider
+    extends $NotifierProvider<FullSettingsUnlocked, bool> {
+  FullSettingsUnlockedProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'fullSettingsUnlockedProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$fullSettingsUnlockedHash();
+
+  @$internal
+  @override
+  FullSettingsUnlocked create() => FullSettingsUnlocked();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$fullSettingsUnlockedHash() =>
+    r'23d279f3d89817e227459d6f71eca776e7159edb';
+
+abstract class _$FullSettingsUnlocked extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Set for the session once the GPU fell behind with an animated backdrop.
 
 @ProviderFor(BackdropFrozen)

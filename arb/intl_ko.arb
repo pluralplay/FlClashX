@@ -1038,5 +1038,6 @@
   "updatingSubscription": "구독 업데이트 중…",
   "subscriptionUpdated": "구독을 업데이트했습니다",
   "pullToTestDelay": "아래로 당겨 지연 테스트",
-  "releaseToTestDelay": "놓으면 지연을 테스트합니다"
+  "releaseToTestDelay": "놓으면 지연을 테스트합니다",
+  "fullSettingsUnlocked": "앱을 다시 시작할 때까지 전체 설정이 열립니다"
 }

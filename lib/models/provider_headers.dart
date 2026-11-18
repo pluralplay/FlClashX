@@ -101,6 +101,10 @@ class ProviderHeaders {
 
   bool get hideIp => specials?.contains('hideip') ?? false;
 
+  /// `flclashx-special: simple` hides the fine settings while the profile is
+  /// selected.
+  bool get simpleMode => specials?.contains('simple') ?? false;
+
   bool get noVibration => specials?.contains('novibrate') ?? false;
 
   /// `flclashx-special: onegroup` shows the proxies page as the server group's

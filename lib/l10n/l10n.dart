@@ -8766,6 +8766,16 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Full settings are open until the app restarts`
+  String get fullSettingsUnlocked {
+    return Intl.message(
+      'Full settings are open until the app restarts',
+      name: 'fullSettingsUnlocked',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

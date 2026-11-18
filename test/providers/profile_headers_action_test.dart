@@ -249,6 +249,24 @@ void main() {
     },
   );
 
+  test('the simple special holds the simple mode until the full settings '
+      'are unlocked', () async {
+    expect(container.read(simpleModeProvider), isFalse);
+
+    await select(_profile(1, special: 'simple'));
+
+    expect(container.read(simpleModeProvider), isTrue);
+    container.read(fullSettingsUnlockedProvider.notifier).value = true;
+    expect(container.read(simpleModeProvider), isFalse);
+  });
+
+  test('a profile without the simple special shows everything', () async {
+    await select(_profile(1, special: 'simple'));
+    await select(_profile(2, special: 'onlytun'));
+
+    expect(container.read(simpleModeProvider), isFalse);
+  });
+
   test('the novibrate special turns vibration off and locks it', () async {
     await select(_profile(1, special: 'novibrate'));
 

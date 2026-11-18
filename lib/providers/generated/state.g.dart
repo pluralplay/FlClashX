@@ -3245,7 +3245,7 @@ final class NavigationItemsStateProvider
 }
 
 String _$navigationItemsStateHash() =>
-    r'3c633d4f3e5f2e80b7cfd166a46397f9a207bb1e';
+    r'3d07c97563396cfcd82c5fcf6245561c8931e1eb';
 
 @ProviderFor(currentNavigationItemsState)
 final currentNavigationItemsStateProvider =
@@ -3942,6 +3942,46 @@ final class PanelLogoPathFamily extends $Family
   @override
   String toString() => r'panelLogoPathProvider';
 }
+
+@ProviderFor(simpleMode)
+final simpleModeProvider = SimpleModeProvider._();
+
+final class SimpleModeProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  SimpleModeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'simpleModeProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$simpleModeHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return simpleMode(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$simpleModeHash() => r'c09669e9cc4bb612e595c717678b0def5999331d';
 
 @ProviderFor(widgetEditingDenied)
 final widgetEditingDeniedProvider = WidgetEditingDeniedProvider._();

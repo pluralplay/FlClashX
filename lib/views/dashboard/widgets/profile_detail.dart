@@ -168,6 +168,7 @@ class _ProfileDetailSheetState extends ConsumerState<ProfileDetailSheet>
     final isUpdating = ref.watch(isUpdatingProvider(profile.updatingKey));
     final appLocalizations = context.appLocalizations;
     final subscriptionInfo = profile.subscriptionInfo;
+    final simple = ref.watch(simpleModeProvider);
     return CommonScaffold(
       title: profile.realLabel,
       iconActions: [
@@ -178,11 +179,12 @@ class _ProfileDetailSheetState extends ConsumerState<ProfileDetailSheet>
             isLoading: isUpdating,
             onPressed: () => syncProfile(ref, profile),
           ),
-        IconButtonData(
-          glyph: AppGlyphs.eye,
-          tooltip: appLocalizations.runtimeConfig,
-          onPressed: () => _handlePreview(profile),
-        ),
+        if (!simple)
+          IconButtonData(
+            glyph: AppGlyphs.eye,
+            tooltip: appLocalizations.runtimeConfig,
+            onPressed: () => _handlePreview(profile),
+          ),
       ],
       body: CustomScrollView(
         slivers: [
@@ -201,6 +203,7 @@ class _ProfileDetailSheetState extends ConsumerState<ProfileDetailSheet>
                         null => null,
                       },
                       failed: configCountsFailed,
+                      showProviders: !simple,
                     ),
                     if (subscriptionInfo != null && subscriptionInfo.total > 0)
                       generateSection(
@@ -222,7 +225,7 @@ class _ProfileDetailSheetState extends ConsumerState<ProfileDetailSheet>
                             lastUpdateDate: profile.lastUpdateDate,
                           ),
                         ),
-                        if (profile.type != ProfileType.custom)
+                        if (profile.type != ProfileType.custom && !simple)
                           _InfoRow(
                             label: appLocalizations.extendMode,
                             value: Text(
@@ -233,7 +236,7 @@ class _ProfileDetailSheetState extends ConsumerState<ProfileDetailSheet>
                     ),
                   ],
                 ),
-                if (providers.isNotEmpty)
+                if (providers.isNotEmpty && !simple)
                   ExternalProvidersSliver(providers: providers),
               ],
             ),
@@ -252,10 +255,15 @@ String _extendLabel(BuildContext context, ExtendType type) {
 }
 
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.stats, required this.failed});
+  const _StatsGrid({
+    required this.stats,
+    required this.failed,
+    required this.showProviders,
+  });
 
   final ProfileStats? stats;
   final bool failed;
+  final bool showProviders;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +273,7 @@ class _StatsGrid extends StatelessWidget {
       (appLocalizations.proxyGroup, stats?.groups),
       (appLocalizations.proxies, stats?.proxies),
       (appLocalizations.rules, stats?.rules),
-      (appLocalizations.providers, stats?.providers),
+      if (showProviders) (appLocalizations.providers, stats?.providers),
     ];
     Widget rowOf(Iterable<(String, int?)> pair) {
       return Row(

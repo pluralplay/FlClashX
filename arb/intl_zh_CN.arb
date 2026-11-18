@@ -1038,5 +1038,6 @@
   "updatingSubscription": "正在更新订阅…",
   "subscriptionUpdated": "订阅已更新",
   "pullToTestDelay": "下拉以测试延迟",
-  "releaseToTestDelay": "松开以测试延迟"
+  "releaseToTestDelay": "松开以测试延迟",
+  "fullSettingsUnlocked": "完整设置已开启，直到应用重启"
 }
