@@ -2,6 +2,74 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "0.5.8",
+      "tag": "v0.5.8",
+      "date": "2026-11-18",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "df1c1fc",
+              "scope": "tray",
+              "text": "The tray menu has a Restart item again"
+            },
+            {
+              "id": "d10a072",
+              "scope": "headers",
+              "text": "flclashx-special: simple hides the fine settings, leaving the dashboard, proxies, profiles, logs and the basic settings"
+            },
+            {
+              "id": "b9ce19f",
+              "scope": "headers",
+              "text": "flclashx-special: onlytun keeps the system proxy off and out of the tray and hotkeys; noglobal frees its hotkey and gives Global back on a profile without it"
+            },
+            {
+              "id": "fb0e2bf",
+              "scope": "headers",
+              "text": "An Android TV identifies itself to the panel as AndroidTV, in x-device-os and the User-Agent"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "a9c3fb8",
+              "scope": "settings",
+              "text": "The filter presets and the excluded domains no longer show Chinese text, stored ones included"
+            },
+            {
+              "id": "dac14fd",
+              "scope": "dashboard",
+              "text": "A status card removed from the dashboard stays removed and no longer flashes at startup under denywidgets"
+            },
+            {
+              "id": "2f43844",
+              "scope": "dashboard",
+              "text": "The service list checks every enabled service as it opens; the card keeps checking only its own tiles"
+            },
+            {
+              "id": "9b4b58c",
+              "scope": "dashboard",
+              "text": "“All available” on the service card now speaks for every enabled service, not only the tiles shown — thanks to libmur-dev"
+            },
+            {
+              "id": "cbbd9f9",
+              "scope": "profiles",
+              "text": "A rule aimed at a group or proxy of the subscription is no longer marked invalid in the profile editor — thanks to libmur-dev"
+            },
+            {
+              "id": "18fa160",
+              "scope": "profiles",
+              "text": "MATCH-TARGET also replaces the subscription’s own MATCH rule — thanks to libmur-dev"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.5.7",
       "tag": "v0.5.7",
       "date": "2026-11-16",
