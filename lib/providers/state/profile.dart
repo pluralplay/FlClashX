@@ -40,6 +40,15 @@ bool globalModeAllowed(Ref ref) {
 }
 
 @riverpod
+bool systemProxyAllowed(Ref ref) {
+  return !ref.watch(
+    currentProfileProvider.select(
+      (profile) => profile?.headers.onlyTun ?? false,
+    ),
+  );
+}
+
+@riverpod
 bool androidSecure(Ref ref) {
   return system.isAndroid &&
       ref.watch(

@@ -5,6 +5,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/views/config/override.dart';
 import 'package:fl_clash/views/config/tun.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -108,6 +109,9 @@ class VpnSystemProxyItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
+    if (!ref.watch(systemProxyAllowedProvider)) {
+      return const _LockedSystemProxyItem();
+    }
     return _vpnToggle(
       title: (l) => l.systemProxy,
       select: (state) => state.systemProxy,
@@ -121,10 +125,28 @@ class SystemProxyItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
+    if (!ref.watch(systemProxyAllowedProvider)) {
+      return const _LockedSystemProxyItem();
+    }
     return _networkToggle(
       title: (l) => l.systemProxy,
       select: (state) => state.systemProxy,
       update: (state, value) => state.copyWith(systemProxy: value),
+    );
+  }
+}
+
+/// Under the panel's onlytun, which leaves TUN as the only takeover.
+class _LockedSystemProxyItem extends StatelessWidget {
+  const _LockedSystemProxyItem();
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return ListItem.toggle(
+      title: Text(appLocalizations.systemProxy),
+      subtitle: Text(appLocalizations.managedByProvider),
+      value: false,
     );
   }
 }

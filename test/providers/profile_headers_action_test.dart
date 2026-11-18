@@ -198,6 +198,57 @@ void main() {
     );
   });
 
+  test('the onlytun special turns the system proxy off and locks it', () async {
+    container.listen(networkSettingProvider, (_, _) {});
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+
+    await select(_profile(1, special: 'onlytun'));
+
+    expect(container.read(networkSettingProvider).systemProxy, isFalse);
+    expect(container.read(systemProxyAllowedProvider), isFalse);
+    container.read(systemActionProvider.notifier).updateSystemProxy();
+    expect(container.read(networkSettingProvider).systemProxy, isFalse);
+    expect(container.read(proxyStateProvider).systemProxy, isFalse);
+  });
+
+  test('the system proxy onlytun took comes back with a profile without '
+      'it', () async {
+    container.listen(networkSettingProvider, (_, _) {});
+    container.listen(vpnSettingProvider, (_, _) {});
+    container
+        .read(networkSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+    container
+        .read(vpnSettingProvider.notifier)
+        .update((state) => state.copyWith(systemProxy: true));
+
+    await select(_profile(1, special: 'onlytun'));
+    await select(_profile(2, special: 'onlytun'));
+    expect(container.read(networkSettingProvider).systemProxy, isFalse);
+    expect(container.read(vpnSettingProvider).systemProxy, isFalse);
+
+    await select(_profile(3));
+    expect(container.read(networkSettingProvider).systemProxy, isTrue);
+    expect(container.read(vpnSettingProvider).systemProxy, isTrue);
+  });
+
+  test(
+    'a panel that drops onlytun leaves an unused system proxy off',
+    () async {
+      container.listen(networkSettingProvider, (_, _) {});
+      container
+          .read(networkSettingProvider.notifier)
+          .update((state) => state.copyWith(systemProxy: false));
+
+      await select(_profile(1, special: 'onlytun'));
+      await put(_profile(1));
+
+      expect(container.read(networkSettingProvider).systemProxy, isFalse);
+    },
+  );
+
   test('the novibrate special turns vibration off and locks it', () async {
     await select(_profile(1, special: 'novibrate'));
 
@@ -574,8 +625,34 @@ void main() {
 
       await select(_profile(2));
       expect(container.read(availableModesProvider), Mode.values);
+      expect(container.read(patchClashConfigProvider).mode, Mode.global);
     },
   );
+
+  test('a mode picked under noglobal stays once the flag goes', () async {
+    final setup = container.read(setupActionProvider.notifier);
+    setup.changeMode(Mode.global);
+    await select(_profile(1, special: 'noglobal'));
+    await setup.pickMode(Mode.direct, ask: false);
+    await setup.pickMode(Mode.rule, ask: false);
+
+    await put(_profile(1));
+
+    expect(container.read(patchClashConfigProvider).mode, Mode.rule);
+  });
+
+  test('a mode cycled under noglobal stays once the flag goes', () async {
+    container.read(setupActionProvider.notifier).changeMode(Mode.global);
+    await select(_profile(1, special: 'noglobal'));
+    final common = container.read(commonActionProvider.notifier);
+    common.updateMode();
+    common.updateMode();
+    expect(container.read(patchClashConfigProvider).mode, Mode.rule);
+
+    await put(_profile(1));
+
+    expect(container.read(patchClashConfigProvider).mode, Mode.rule);
+  });
 
   test('the widgets header lays out the standard dashboard', () async {
     final own = container.read(appSettingProvider).dashboardWidgets;

@@ -143,6 +143,9 @@ class SystemAction extends _$SystemAction {
   }
 
   void updateSystemProxy() {
+    if (!ref.read(systemProxyAllowedProvider)) {
+      return;
+    }
     ref
         .read(networkSettingProvider.notifier)
         .update((state) => state.copyWith(systemProxy: !state.systemProxy));

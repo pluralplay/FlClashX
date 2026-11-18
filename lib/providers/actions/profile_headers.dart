@@ -6,6 +6,7 @@ typedef ProfileHeaderSettings = ({
   bool widgetsDenied,
   Set<String>? switches,
   bool globalModeAllowed,
+  bool systemProxyAllowed,
   bool hideIp,
   bool noVibration,
 });
@@ -18,6 +19,7 @@ ProfileHeaderSettings profileHeaderSettingsOf(Profile? profile) {
     widgetsDenied: headers?.widgetEditingDenied ?? false,
     switches: headers?.appSwitches,
     globalModeAllowed: headers?.globalModeAllowed ?? true,
+    systemProxyAllowed: !(headers?.onlyTun ?? false),
     hideIp: headers?.hideIp ?? false,
     noVibration: headers?.noVibration ?? false,
   );
@@ -33,6 +35,8 @@ String? profileHeadersUpdateOf(Profile? profile) => switch (profile) {
 String _headersDigest(Map<String, String> headers) => json.encode([
   for (final name in headers.keys.toList()..sort()) [name, headers[name]],
 ]).toMd5();
+
+const _noGlobalField = 'special.noglobal';
 
 /// Lands once per update of, or switch to, a profile; edits in between stay.
 @Riverpod(keepAlive: true)
@@ -192,6 +196,7 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
             ),
           ),
         );
+    _applyTakenAway(settings, backup);
     final switches = settings.switches;
     final widgets = settings.widgets;
     ref.read(appSettingProvider.notifier).update((state) {
@@ -269,9 +274,75 @@ class ProfileHeadersAction extends _$ProfileHeadersAction {
       );
       return next.copyWith(headerBackup: backup);
     });
-    if (!settings.globalModeAllowed &&
-        ref.read(patchClashConfigProvider).mode == Mode.global) {
-      ref.read(setupActionProvider.notifier).changeMode(Mode.rule);
+  }
+
+  void _applyTakenAway(
+    ProfileHeaderSettings settings,
+    Map<String, Object?> backup,
+  ) {
+    final setup = ref.read(setupActionProvider.notifier);
+    _takeAway(
+      backup,
+      _noGlobalField,
+      said: !settings.globalModeAllowed,
+      held: ref.read(patchClashConfigProvider).mode == Mode.global,
+      take: () => setup.changeMode(Mode.rule),
+      giveBack: () {
+        if (ref.read(patchClashConfigProvider).mode == Mode.rule) {
+          setup.changeMode(Mode.global);
+        }
+      },
+    );
+    final network = ref.read(networkSettingProvider.notifier);
+    _takeAway(
+      backup,
+      'special.onlytun.system',
+      said: !settings.systemProxyAllowed,
+      held: ref.read(networkSettingProvider).systemProxy,
+      take: () => network.update((state) => state.copyWith(systemProxy: false)),
+      giveBack: () =>
+          network.update((state) => state.copyWith(systemProxy: true)),
+    );
+    final vpn = ref.read(vpnSettingProvider.notifier);
+    _takeAway(
+      backup,
+      'special.onlytun.vpn',
+      said: !settings.systemProxyAllowed,
+      held: ref.read(vpnSettingProvider).systemProxy,
+      take: () => vpn.update((state) => state.copyWith(systemProxy: false)),
+      giveBack: () => vpn.update((state) => state.copyWith(systemProxy: true)),
+    );
+  }
+
+  /// A mode the user picks stands over the Global that noglobal took away.
+  void forgetTakenMode() {
+    ref.read(appSettingProvider.notifier).update((state) {
+      if (!state.headerBackup.containsKey(_noGlobalField)) return state;
+      return state.copyWith(
+        headerBackup: {...state.headerBackup}..remove(_noGlobalField),
+      );
+    });
+  }
+
+  /// A flag that takes a setting away remembers that the user had it, and
+  /// gives it back once the selected profile no longer sends the flag.
+  void _takeAway(
+    Map<String, Object?> backup,
+    String field, {
+    required bool said,
+    required bool held,
+    required void Function() take,
+    required void Function() giveBack,
+  }) {
+    if (said) {
+      if (held) {
+        backup[field] = true;
+        take();
+      }
+      return;
+    }
+    if (backup.remove(field) == true) {
+      giveBack();
     }
   }
 

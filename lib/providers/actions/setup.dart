@@ -494,6 +494,7 @@ class SetupAction extends _$SetupAction {
       return;
     }
     changeMode(mode);
+    ref.read(profileHeadersActionProvider.notifier).forgetTakenMode();
   }
 
   void changeMode(Mode mode) {

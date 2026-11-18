@@ -87,7 +87,24 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
         _scheduleUpdate();
       }
     });
+    for (final allowed in [
+      globalModeAllowedProvider,
+      systemProxyAllowedProvider,
+    ]) {
+      ref.listenManual(allowed, (prev, next) {
+        if (prev != next) {
+          _scheduleUpdate();
+        }
+      });
+    }
   }
+
+  /// A panel's noglobal and onlytun leave their actions' combinations free.
+  bool _allowed(HotAction action) => switch (action) {
+    HotAction.globalMode => ref.read(globalModeAllowedProvider),
+    HotAction.proxy || HotAction.tun => ref.read(systemProxyAllowedProvider),
+    _ => true,
+  };
 
   void _scheduleUpdate() {
     _pendingUpdate = _pendingUpdate.then((_) => _updateHotKeys());
@@ -119,6 +136,9 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
   }
 
   Future<void> _handleHotKeyAction(HotAction action) async {
+    if (!_allowed(action)) {
+      return;
+    }
     final commonAction = ref.read(commonActionProvider.notifier);
     final systemAction = ref.read(systemActionProvider.notifier);
     final setupAction = ref.read(setupActionProvider.notifier);
@@ -168,7 +188,7 @@ class _HotKeyManagerState extends ConsumerState<HotKeyManager> {
     final specs = [
       if (!isRecording)
         for (final hotKeyAction in ref.read(hotKeyActionsProvider))
-          ?hotKeyAction.toHotKeySpec(),
+          if (_allowed(hotKeyAction.action)) ?hotKeyAction.toHotKeySpec(),
     ];
     final failed = await _register(specs);
     if (!isRecording && mounted) {
