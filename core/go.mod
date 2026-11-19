@@ -16,6 +16,7 @@ require (
 	github.com/miekg/dns v1.1.63
 	github.com/oschwald/maxminddb-golang v1.12.0
 	go.yaml.in/yaml/v3 v3.0.5
+	golang.org/x/sys v0.48.0
 )
 
 require (
@@ -139,7 +140,6 @@ require (
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
