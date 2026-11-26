@@ -9,6 +9,7 @@ import 'package:fl_clash/models/config.dart';
 import 'package:fl_clash/models/state.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/actions/system_exit.dart';
+import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/state.dart';
@@ -79,6 +80,7 @@ class _PersistenceSystemAction extends SystemAction {
 class _GeometryWindowPort implements WindowPort {
   final WindowProps geometry;
   final Error? error;
+  int hideCount = 0;
 
   _GeometryWindowPort(this.geometry, {this.error});
 
@@ -98,7 +100,9 @@ class _GeometryWindowPort implements WindowPort {
   void forceExit() {}
 
   @override
-  Future<void> hide() async {}
+  Future<void> hide() async {
+    hideCount++;
+  }
 
   @override
   Future<void> toggle() async {}
@@ -222,6 +226,32 @@ void main() {
 
       expect(action.calls, ['relaunch']);
     });
+
+    test('desktop close hides the window while VPN is running', () async {
+      final port = _GeometryWindowPort(const WindowProps());
+      windowPort = port;
+      addTearDown(() => windowPort = null);
+      container.read(runTimeProvider.notifier).value = 1;
+
+      await notifier().handleClose();
+      expect(port.hideCount, 1);
+      expect(action.calls, ['save']);
+
+      await notifier().handleExit();
+      expect(action.calls, ['save', 'cleanup', 'window', 'core', 'exit']);
+    }, skip: !system.isDesktop);
+
+    test('desktop close exits after VPN stops', () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(minimizeOnExit: true));
+      container.read(runTimeProvider.notifier).value = 1;
+      container.read(runTimeProvider.notifier).value = null;
+
+      await notifier().handleClose();
+
+      expect(action.calls, ['cleanup', 'window', 'core', 'exit']);
+    }, skip: !system.isDesktop);
 
     test(
       'a minimize request keeps the Core running even with exit enabled',
